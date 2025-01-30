@@ -5,12 +5,25 @@ export interface Event {
   data: Record<string, unknown>;
 }
 
-interface EventPublisherAdapter {
+export interface EventConsumerAdapter {
+  connect(...args: any[]): Promise<void>;
+  registerConsumer(
+    type: string,
+    consumer: (...args: any[]) => Promise<void>
+  ): Promise<void>;
+}
+
+export interface EventProducerAdapter {
+  connect(...args: any[]): Promise<void>;
   publish(events: Event[]): Promise<void>;
 }
 
-export class EventPublisher implements EventPublisherAdapter {
+export class EventEmitterPubSub
+  implements EventProducerAdapter, EventConsumerAdapter
+{
   private eventEmitter = new EventEmitter();
+
+  public async connect(...args: any[]): Promise<void> {}
 
   public async publish(events: Event[]): Promise<void> {
     for (const event of events) {
@@ -19,10 +32,10 @@ export class EventPublisher implements EventPublisherAdapter {
     }
   }
 
-  public registerConsumer(
+  public async registerConsumer(
     type: string,
     consumer: (...args: any[]) => Promise<void>
-  ) {
+  ): Promise<void> {
     this.eventEmitter.addListener(type, async (event) => consumer(event));
   }
 }

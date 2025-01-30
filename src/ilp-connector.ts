@@ -20,7 +20,7 @@ import {
 } from "./payment";
 import { IlpPeerService } from "./ilp-peer";
 import { createHash, randomBytes } from "crypto";
-import { EventPublisher } from "./event";
+import { EventProducerAdapter } from "./event";
 
 class IlpPeerNotFoundByAddressError extends Error {}
 class IlpPeerNotFoundError extends Error {}
@@ -80,7 +80,7 @@ export class IlpConnector {
 
   constructor(
     private peerService: IlpPeerService,
-    private eventPublisher: EventPublisher
+    private eventProducer: EventProducerAdapter
   ) {}
 
   public getIlpDetails(): IlpDetails {
@@ -141,7 +141,7 @@ export class IlpConnector {
           },
         },
       };
-      await this.eventPublisher.publish([event]);
+      await this.eventProducer.publish([event]);
     } else {
       if (request.quoteId) {
         const event: IlpQuotePacketReceivedEvent = {
@@ -153,7 +153,7 @@ export class IlpConnector {
             amount: BigInt(deserializedPacket.data.toString()),
           },
         };
-        await this.eventPublisher.publish([event]);
+        await this.eventProducer.publish([event]);
       }
     }
   }
@@ -288,7 +288,7 @@ export class IlpConnector {
       },
     };
 
-    await this.eventPublisher.publish([event]);
+    await this.eventProducer.publish([event]);
   }
 
   public async handlePaymentPreparePacketAcceptedEvent(

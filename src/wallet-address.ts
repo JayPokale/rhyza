@@ -1,5 +1,7 @@
 import { Repository } from "./repository";
 
+export class DuplicateWalletAddressFoundError extends Error {}
+
 export interface WalletAddress {
   id: string;
   url: string;
@@ -26,7 +28,19 @@ export class WalletAddressService implements WalletAddressServiceAdapter {
   public async createWalletAddress(
     args: CreateWalletAddressArgs
   ): Promise<string> {
-    const id = args.id ?? crypto.randomUUID();
+    let id: string;
+
+    if (args.id) {
+      const existingIncomingPayment =
+        await this.walletAddressRepository.fetchById(args.id);
+
+      if (existingIncomingPayment) {
+        throw new DuplicateWalletAddressFoundError();
+      }
+      id = args.id;
+    } else {
+      id = crypto.randomUUID();
+    }
 
     const walletAddress: WalletAddress = {
       ...args,

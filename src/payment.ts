@@ -11,30 +11,30 @@ import { RatesServiceAdapter } from "./rates";
 import { Repository } from "./repository";
 import { Amount, Asset } from "./shared";
 import { WalletAddress, WalletAddressServiceAdapter } from "./wallet-address";
-import { Event } from "./event";
+import { Event, EventProducerAdapter } from "./event";
 import { IlpDetails } from "./ilp-connector";
 import {
   RemoteIncomingPayment,
   RemoteIncomingPaymentServiceAdapter,
 } from "./remote-incoming-payment";
 
-class WalletAddressNotFoundError extends Error {}
-class WalletAddressInactiveError extends Error {}
-class IncomingPaymentWalletAddressAssetMismatchError extends Error {}
-class IncomingPaymentNotFoundError extends Error {}
-class IncomingPaymentInvalidStateError extends Error {}
-class InvalidIncomingPaymentExpiryError extends Error {}
-class DuplicateIncomingPaymentFoundError extends Error {}
-class InvalidQuoteAmountError extends Error {}
-class CouldNotConvertExchangeRatesError extends Error {}
-class DuplicateQuoteFoundError extends Error {}
-class QuoteNotFoundError extends Error {}
-class PeerNotFoundError extends Error {}
-class QuoteExpiredError extends Error {}
-class IncomingPaymentCannotReceiveMicroPayment extends Error {}
-class DuplicateOutgoingPaymentFoundError extends Error {}
-class OutgoingPaymentNotFoundError extends Error {}
-class OutgoingPaymentInvalidStateError extends Error {}
+export class WalletAddressNotFoundError extends Error {}
+export class WalletAddressInactiveError extends Error {}
+export class IncomingPaymentWalletAddressAssetMismatchError extends Error {}
+export class IncomingPaymentNotFoundError extends Error {}
+export class IncomingPaymentInvalidStateError extends Error {}
+export class InvalidIncomingPaymentExpiryError extends Error {}
+export class DuplicateIncomingPaymentFoundError extends Error {}
+export class InvalidQuoteAmountError extends Error {}
+export class CouldNotConvertExchangeRatesError extends Error {}
+export class DuplicateQuoteFoundError extends Error {}
+export class QuoteNotFoundError extends Error {}
+export class PeerNotFoundError extends Error {}
+export class QuoteExpiredError extends Error {}
+export class IncomingPaymentCannotReceiveMicroPayment extends Error {}
+export class DuplicateOutgoingPaymentFoundError extends Error {}
+export class OutgoingPaymentNotFoundError extends Error {}
+export class OutgoingPaymentInvalidStateError extends Error {}
 
 interface CreateIncomingPaymentRequest {
   id?: string;
@@ -166,21 +166,6 @@ export interface IlpPaymentPreparePacketAcceptedEvent extends Event {
   };
 }
 
-type PaymentEvent =
-  | IncomingPaymentCreatedEvent
-  | RemoteOutgoingPaymentFundedEvent
-  | OutgoingPaymentCompletedEvent
-  | LocalOutgoingPaymentFundedEvent
-  | IncomingPaymentCompletedEvent
-  | IlpPaymentPreparePacketAcceptedEvent
-  | IlpPaymentPreparePacketReceivedEvent
-  | IlpPaymentFulfillPacketReceivedEvent
-  | RemoteQuoteRequestedEvent;
-
-interface PaymentEventPublisher {
-  publish(events: PaymentEvent[]): Promise<void>;
-}
-
 export interface IlpPaymentPreparePacketReceivedEvent extends Event {
   type: PaymentEventType.ILP_PAYMENT_PREPARE_PACKET_RECEIVED;
   data: {
@@ -263,7 +248,7 @@ export class PaymentService {
     private incomingPaymentRepository: IncomingPaymentRepository,
     private outgoingPaymentRepository: OutgoingPaymentRepository,
     private quoteRepository: QuoteRepository,
-    private paymentEventPublisher: PaymentEventPublisher
+    private paymentEventProducer: EventProducerAdapter
   ) {}
 
   public async createIncomingPayment(
@@ -332,7 +317,7 @@ export class PaymentService {
     };
 
     await this.incomingPaymentRepository.store(newIncomingPayment);
-    await this.paymentEventPublisher.publish([
+    await this.paymentEventProducer.publish([
       {
         type: PaymentEventType.INCOMING_PAYMENT_CREATED,
         data: {
@@ -500,7 +485,7 @@ export class PaymentService {
       },
     };
 
-    await this.paymentEventPublisher.publish([event]);
+    await this.paymentEventProducer.publish([event]);
 
     return id;
   }
@@ -726,6 +711,7 @@ export class PaymentService {
     }
 
     // TODO: Check quote hasn't been used already
+
     if (quote.expiresAt <= new Date()) {
       throw new QuoteExpiredError();
     }
@@ -778,7 +764,7 @@ export class PaymentService {
         },
       };
 
-      await this.paymentEventPublisher.publish([
+      await this.paymentEventProducer.publish([
         localOutgoingPaymentFundedEvent,
       ]);
 
@@ -826,7 +812,7 @@ export class PaymentService {
           },
         };
 
-      await this.paymentEventPublisher.publish([
+      await this.paymentEventProducer.publish([
         remoteOutgoingPaymentFundedEvent,
       ]);
       return outgoingPayment.id;
@@ -884,7 +870,7 @@ export class PaymentService {
   ) {
     const { outgoingPayment, quote, incomingPayment } = event.data;
 
-    // TODO: FX handling, if receiving wallet asset is different then sending wallet
+    // TODO: FX handling, if receiving wallet asset is different than sending wallet
     const transferRequest: WalletToWalletAddressLiquidityRequest = {
       id: crypto.randomUUID(),
       type: LiquidityRequestType.WALLET_ADDRESS_TO_WALLET_ADDRESS,
@@ -904,7 +890,7 @@ export class PaymentService {
       method: "LOCAL",
     });
 
-    const events: PaymentEvent[] = [];
+    const events: Event[] = [];
 
     const outgoingPaymentCompletedEvent: OutgoingPaymentCompletedEvent = {
       type: PaymentEventType.OUTGOING_PAYMENT_COMPLETED,
@@ -937,7 +923,7 @@ export class PaymentService {
       this.incomingPaymentRepository.store(incomingPayment),
     ]);
 
-    await this.paymentEventPublisher.publish(events);
+    await this.paymentEventProducer.publish(events);
   }
 
   public async handleIlpPaymentFulfillPacketReceivedEvent(
@@ -986,7 +972,7 @@ export class PaymentService {
 
       this.addMicroPaymentToOutgoingPayment(outgoingPayment, microPayment);
 
-      const events: PaymentEvent[] = [];
+      const events: Event[] = [];
 
       // TODO: do we need to know whether the incoming payment was completed? Or we just need to know that the connection was done/closed?
       // or do we just check the status of the micro
@@ -1008,7 +994,7 @@ export class PaymentService {
       }
 
       await this.outgoingPaymentRepository.store(outgoingPayment);
-      await this.paymentEventPublisher.publish(events);
+      await this.paymentEventProducer.publish(events);
     } else {
       throw new Error("FX during packet handling not implemented");
     }
@@ -1073,7 +1059,7 @@ export class PaymentService {
 
       await this.incomingPaymentRepository.store(incomingPayment);
 
-      const paymentEvents: PaymentEvent[] = [];
+      const paymentEvents: Event[] = [];
 
       const incomingPaymentCompleted =
         // @ts-ignore
@@ -1106,7 +1092,7 @@ export class PaymentService {
 
       paymentEvents.push(ilpPaymentPreparePacketAcceptedEvent);
 
-      await this.paymentEventPublisher.publish(paymentEvents);
+      await this.paymentEventProducer.publish(paymentEvents);
     } else {
       throw new Error("FX during packet handling not implemented");
     }
