@@ -33,7 +33,6 @@ export class WalletAddressPSQLRepository implements Repository<WalletAddress> {
   constructor(private pool: Pool) {}
 
   public async store(walletAddress: WalletAddress): Promise<void> {
-    const client = await this.pool.connect();
     try {
       const query = `
         INSERT INTO wallet_addresses (id, url, is_active, asset_code, asset_scale)
@@ -47,25 +46,18 @@ export class WalletAddressPSQLRepository implements Repository<WalletAddress> {
         walletAddress.assetScale,
       ];
 
-      await client.query(query, values);
+      await this.pool.query(query, values);
     } catch (error) {
       console.error("Error storing wallet address:", error);
       throw error;
-    } finally {
-      client.release();
     }
   }
 
   public async fetchById(id: string): Promise<WalletAddress | undefined> {
-    const client = await this.pool.connect();
-    try {
-      const res = await client.query<WalletAddress>(
-        `SELECT * FROM wallet_addresses WHERE id = $1`,
-        [id]
-      );
-      return res.rows[0];
-    } finally {
-      client.release();
-    }
+    const res = await this.pool.query<WalletAddress>(
+      `SELECT * FROM wallet_addresses WHERE id = $1`,
+      [id]
+    );
+    return res.rows[0];
   }
 }
