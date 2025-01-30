@@ -125,7 +125,7 @@ export function createApp(
   });
 
   return async () => {
-    await app.listen({ port });
+    await app.listen({ port, host: "0.0.0.0" });
     console.log(`Listening on port ${port}`);
   };
 }

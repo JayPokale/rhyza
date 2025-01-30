@@ -1,0 +1,12 @@
+**/node_modules
+**/dist
+
+.github
+Dockerfile
+.dockerignore
+.gitignore
+.prettierignore
+
+test
+**/*.test.ts
+img
