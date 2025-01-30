@@ -1,0 +1,10 @@
+services:
+  rafiki-poc:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - '3000:3000'
+    environment:
+      SEED_FILE_LOCATION: /workspace/seed.json
