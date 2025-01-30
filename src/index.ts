@@ -11,16 +11,17 @@ import {
 } from "./payment";
 import { IlpPeerService, InMemoryIlpPeerRepository } from "./ilp-peer";
 import { RatesService } from "./rates";
-import { InMemoryRepository } from "./repository";
-import { WalletAddress, WalletAddressService } from "./wallet-address";
+import { InMemoryRepository, WalletAddressPSQLRepository } from "./repository";
+import { WalletAddressService } from "./wallet-address";
 import { IlpConnector } from "./ilp-connector";
 import {
   RemoteIncomingPayment,
   RemoteIncomingPaymentService,
 } from "./remote-incoming-payment";
+import pool from "./db";
 
 const walletAddressService = new WalletAddressService(
-  new InMemoryRepository<WalletAddress>()
+  new WalletAddressPSQLRepository(pool)
 );
 
 const eventPublisher = new EventPublisher();
@@ -79,6 +80,11 @@ eventPublisher.registerConsumer(
 );
 
 (async () => {
+  // Ensures database connects before starting the app
+  // where connection will be used
+  await pool.query("SELECT 1");
+  console.log("Database connection verified");
+
   const data = readFileSync("./seed.json", "utf8");
   const seed = JSON.parse(data)[process.argv[2] ?? "rafiki-a"];
 
