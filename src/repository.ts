@@ -59,7 +59,7 @@ export class WalletAddressPSQLRepository implements Repository<WalletAddress> {
   public async fetchById(id: string): Promise<WalletAddress | undefined> {
     const client = await this.pool.connect();
     try {
-      const res = await client.query(
+      const res = await client.query<WalletAddress>(
         `SELECT * FROM wallet_addresses WHERE id = $1`,
         [id]
       );
