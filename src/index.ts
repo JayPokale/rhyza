@@ -18,6 +18,7 @@ import {
   RemoteIncomingPayment,
   RemoteIncomingPaymentService,
 } from "./remote-incoming-payment";
+import logger from "./logger";
 
 const eventEmitterPubSub = new EventEmitterPubSub();
 const eventConsumer = eventEmitterPubSub;
@@ -44,6 +45,23 @@ const paymentService = new PaymentService(
   new InMemoryRepository<Quote>(),
   eventProducer
 );
+
+async function seed(seedFilePath: string) {
+  const data = readFileSync(seedFilePath, "utf8");
+  const seed = JSON.parse(data);
+
+  for (const walletAddress of seed.walletAddresses) {
+    await walletAddressService.createWalletAddress(walletAddress);
+  }
+
+  for (const peer of seed.peers) {
+    await ilpPeerService.create(peer);
+  }
+
+  ilpConnector.ownDestinationAddress = seed.ilpConfig.address;
+
+  return seed;
+}
 
 (async () => {
   await eventConsumer.registerConsumer(
@@ -85,25 +103,22 @@ const paymentService = new PaymentService(
     ilpConnector.handleRemoteOutgoingPaymentFundedEvent.bind(ilpConnector)
   );
 
-  const data = readFileSync("./seed.json", "utf8");
-  const seed = JSON.parse(data)[process.argv[2] ?? "rafiki-a"];
+  const seedFilePath = process.env["SEED_FILE_LOCATION"] || "seed.json";
+  logger.info(`Running seed from ${seedFilePath}`);
 
-  for (const walletAddress of seed.walletAddresses) {
-    await walletAddressService.createWalletAddress(walletAddress);
-  }
-
-  for (const peer of seed.peers) {
-    await ilpPeerService.create(peer);
-  }
-
-  ilpConnector.ownDestinationAddress = seed.ilpConfig.address;
+  const seedObj = await seed(seedFilePath);
 
   const start = createApp(
-    Number(seed.port),
+    Number(seedObj.port ?? 3000),
     paymentService,
     remoteIncomingPaymentService,
     ilpConnector
   );
 
   await start();
+
+  process.on("SIGINT", () => {
+    logger.info("Received SIGINT. Shutting down gracefully...");
+    process.exit(0);
+  });
 })();

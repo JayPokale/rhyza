@@ -1,4 +1,5 @@
 import EventEmitter from "events";
+import logger from "./logger";
 
 export interface Event {
   type: string;
@@ -27,7 +28,7 @@ export class EventEmitterPubSub
 
   public async publish(events: Event[]): Promise<void> {
     for (const event of events) {
-      // console.log(event.type, event.data);
+      logger.debug({ ...event }, event.type);
       this.eventEmitter.emit(event.type, event);
     }
   }

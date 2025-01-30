@@ -1,58 +1,21 @@
 {
-  "rafiki-a": {
-    "port": 3000,
-    "walletAddresses": [
-      {
-        "id": "a1469618-077a-447d-b5a3-a9ed11265a63",
-        "url": "",
-        "assetCode": "USD",
-        "assetScale": 2
-      },
-      {
-        "id": "a1469618-077a-447d-b5a3-a9ed11265a64",
-        "url": "",
-        "assetCode": "USD",
-        "assetScale": 2
-      }
-    ],
-    "ilpConfig": {
-      "address": "test.peer-a"
+  "port": 3000,
+  "walletAddresses": [
+    {
+      "id": "a1469618-077a-447d-b5a3-a9ed11265a63",
+      "url": "",
+      "assetCode": "USD",
+      "assetScale": 2
     },
-    "peers": [
-      {
-        "address": "test.peer-b",
-        "connectorUrl": "http://localhost:3001/ilp",
-        "callbackUrl": "http://localhost:3001/ilp-reply",
-        "asset": {
-          "code": "USD",
-          "scale": 2
-        }
-      }
-    ]
+    {
+      "id": "a1469618-077a-447d-b5a3-a9ed11265a64",
+      "url": "",
+      "assetCode": "USD",
+      "assetScale": 2
+    }
+  ],
+  "ilpConfig": {
+    "address": "test.peer-a"
   },
-  "rafiki-b": {
-    "port": 3001,
-    "walletAddresses": [
-      {
-        "id": "a1469618-077a-447d-b5a3-a9ed11265a63",
-        "url": "",
-        "assetCode": "USD",
-        "assetScale": 2
-      }
-    ],
-    "ilpConfig": {
-      "address": "test.peer-b"
-    },
-    "peers": [
-      {
-        "address": "test.peer-a",
-        "connectorUrl": "http://localhost:3000/ilp",
-        "callbackUrl": "http://localhost:3000/ilp-reply",
-        "asset": {
-          "code": "USD",
-          "scale": 2
-        }
-      }
-    ]
-  }
+  "peers": []
 }
