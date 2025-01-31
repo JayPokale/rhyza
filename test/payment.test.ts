@@ -18,7 +18,7 @@ import {
 } from "../src/payment";
 import { WalletAddress, WalletAddressService } from "../src/wallet-address";
 import { InMemoryRepository } from "../src/repository";
-import { EventPublisher } from "../src/event";
+import { EventEmitterPubSub } from "../src/event";
 import { IlpPeerService, InMemoryIlpPeerRepository } from "../src/ilp-peer";
 import { RatesService } from "../src/rates";
 import { LiquidityService } from "../src/liquidity";
@@ -33,7 +33,7 @@ describe("Payment Service", () => {
   const quoteRepo = new InMemoryRepository<Quote>();
   const walletAddressRepo = new InMemoryRepository<WalletAddress>();
   const walletAddressService = new WalletAddressService(walletAddressRepo);
-  const eventPublisher = new EventPublisher();
+  const eventProducer = new EventEmitterPubSub();
   const ilpPeerService = new IlpPeerService(new InMemoryIlpPeerRepository());
   const ratesService = new RatesService();
   const liquidityService = new LiquidityService();
@@ -51,7 +51,7 @@ describe("Payment Service", () => {
     incomingPaymentRepo,
     outgoingPaymentRepo,
     quoteRepo,
-    eventPublisher
+    eventProducer
   );
 
   describe("createIncomingPayment", async (t) => {
@@ -224,7 +224,7 @@ describe("Payment Service", () => {
           return walletAddress;
         });
         const storeSpy = t.mock.method(incomingPaymentRepo, "store");
-        const publishSpy = t.mock.method(eventPublisher, "publish");
+        const publishSpy = t.mock.method(eventProducer, "publish");
         t.mock.timers.enable({ apis: ["Date"], now });
 
         const id = await paymentService.createIncomingPayment(request);
@@ -292,16 +292,8 @@ describe("Payment Service", () => {
         t.mock.method(walletAddressService, "getById", async () => {
           return walletAddress;
         });
-        const storeSpy = t.mock.method(
-          incomingPaymentRepo,
-          "store",
-          async () => {}
-        );
-        const publishSpy = t.mock.method(
-          eventPublisher,
-          "publish",
-          async () => {}
-        );
+        const storeSpy = t.mock.method(incomingPaymentRepo, "store");
+        const publishSpy = t.mock.method(eventProducer, "publish");
         t.mock.timers.enable({ apis: ["Date"], now });
 
         const id = await paymentService.createIncomingPayment(request);
