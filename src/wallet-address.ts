@@ -77,7 +77,6 @@ export class WalletAddressPsqlRepository implements Repository<WalletAddress> {
   TABLE_NAME = "wallet_addresses";
   constructor(private pool: Pool) {}
 
-  // TODO: include any sort of created_at? updated_at? Perhaps outside the scope of POC.
   public async store(walletAddress: WalletAddress): Promise<void> {
     try {
       const query = `
