@@ -1,6 +1,7 @@
 import { Repository } from "./repository";
 
 export class DuplicateWalletAddressFoundError extends Error {}
+// export class InvalidWalletAddressURLError extends Error {}
 
 export interface WalletAddress {
   id: string;
@@ -41,6 +42,11 @@ export class WalletAddressService implements WalletAddressServiceAdapter {
     } else {
       id = crypto.randomUUID();
     }
+
+    // TODO: throw this error?
+    // if (args.url.length === 0) {
+    //   throw new InvalidWalletAddressURLError();
+    // }
 
     const walletAddress: WalletAddress = {
       ...args,
