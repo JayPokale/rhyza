@@ -1,3 +1,4 @@
+import { Pool } from "pg";
 import { Repository } from "./repository";
 
 export class DuplicateWalletAddressFoundError extends Error {}
@@ -61,5 +62,58 @@ export class WalletAddressService implements WalletAddressServiceAdapter {
 
   public getById(id: string): Promise<WalletAddress | undefined> {
     return this.walletAddressRepository.fetchById(id);
+  }
+}
+
+interface WalletAddressRecord {
+  id: string;
+  url: string;
+  is_active: boolean;
+  asset_code: string;
+  asset_scale: number;
+}
+
+export class WalletAddressPsqlRepository implements Repository<WalletAddress> {
+  TABLE_NAME = "wallet_addresses";
+  constructor(private pool: Pool) {}
+
+  // TODO: include any sort of created_at? updated_at? Perhaps outside the scope of POC.
+  public async store(walletAddress: WalletAddress): Promise<void> {
+    try {
+      const query = `
+        INSERT INTO ${this.TABLE_NAME} (id, url, is_active, asset_code, asset_scale)
+        VALUES ($1, $2, $3, $4, $5)
+      `;
+      const values = [
+        walletAddress.id,
+        walletAddress.url,
+        walletAddress.isActive,
+        walletAddress.assetCode,
+        walletAddress.assetScale,
+      ];
+
+      await this.pool.query(query, values);
+    } catch (error) {
+      console.error("Error storing wallet address:", error);
+      throw error;
+    }
+  }
+
+  public async fetchById(id: string): Promise<WalletAddress | undefined> {
+    const res = await this.pool.query<WalletAddressRecord>(
+      `SELECT id, url, is_active, asset_code, asset_scale FROM ${this.TABLE_NAME} WHERE id = $1`,
+      [id]
+    );
+
+    if (res.rows.length === 0) return undefined;
+
+    const row = res.rows[0];
+    return {
+      id: row.id,
+      url: row.url,
+      isActive: row.is_active,
+      assetCode: row.asset_code,
+      assetScale: row.asset_scale,
+    };
   }
 }

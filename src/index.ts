@@ -9,10 +9,13 @@ import {
   PaymentService,
   Quote,
 } from "./payment";
-import { IlpPeerService, InMemoryIlpPeerRepository } from "./ilp-peer";
+import { IlpPeerPsqlRepository, IlpPeerService } from "./ilp-peer";
 import { RatesService } from "./rates";
-import { InMemoryRepository, WalletAddressPSQLRepository } from "./repository";
-import { WalletAddressService } from "./wallet-address";
+import { InMemoryRepository } from "./repository";
+import {
+  WalletAddressService,
+  WalletAddressPsqlRepository,
+} from "./wallet-address";
 import { IlpConnector } from "./ilp-connector";
 import {
   RemoteIncomingPayment,
@@ -25,9 +28,9 @@ const eventConsumer = eventEmitterPubSub;
 const eventProducer = eventEmitterPubSub;
 
 const walletAddressService = new WalletAddressService(
-  new WalletAddressPSQLRepository(pool)
+  new WalletAddressPsqlRepository(pool)
 );
-const ilpPeerService = new IlpPeerService(new InMemoryIlpPeerRepository());
+const ilpPeerService = new IlpPeerService(new IlpPeerPsqlRepository(pool));
 const ratesService = new RatesService();
 const liquidityService = new LiquidityService();
 const remoteIncomingPaymentService = new RemoteIncomingPaymentService(
