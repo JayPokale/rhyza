@@ -18,7 +18,7 @@ import {
 } from "./wallet-address";
 import { IlpConnector } from "./ilp-connector";
 import {
-  RemoteIncomingPayment,
+  RemoteIncomingPaymentPsqlRepository,
   RemoteIncomingPaymentService,
 } from "./remote-incoming-payment";
 import pool from "./db";
@@ -35,7 +35,7 @@ const ilpPeerService = new IlpPeerService(new IlpPeerPsqlRepository(pool));
 const ratesService = new RatesService();
 const liquidityService = new LiquidityService();
 const remoteIncomingPaymentService = new RemoteIncomingPaymentService(
-  new InMemoryRepository<RemoteIncomingPayment>()
+  new RemoteIncomingPaymentPsqlRepository(pool)
 );
 const ilpConnector = new IlpConnector(ilpPeerService, eventProducer);
 const paymentService = new PaymentService(
