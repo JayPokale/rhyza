@@ -14,6 +14,9 @@ dependencies:
   pg:
     specifier: ^8.13.1
     version: 8.13.1
+  pino:
+    specifier: ^9.6.0
+    version: 9.6.0
 
 devDependencies:
   '@types/node':

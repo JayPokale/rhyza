@@ -2,6 +2,7 @@ import fastify from "fastify";
 import { PaymentService } from "./payment";
 import { IlpConnector } from "./ilp-connector";
 import { RemoteIncomingPaymentServiceAdapter } from "./remote-incoming-payment";
+import logger from "./logger";
 
 export function createApp(
   port: number,
@@ -104,7 +105,8 @@ export function createApp(
   });
 
   app.post("/ilp", async function handler(request, reply) {
-    // console.log("Received prepare packet");
+    logger.info("Received prepare packet");
+
     await ilpConnector.handlePreparePacket(
       request.headers["request-id"] as string,
       request.headers["from-peer"] as string,
@@ -115,7 +117,8 @@ export function createApp(
   });
 
   app.post("/ilp-reply", async function handler(request, reply) {
-    // console.log("Received reject or fulfill packet");
+    logger.info("Received reject or fulfill packet");
+
     await ilpConnector.handleFulfillOrRejectPacket(
       request.headers["request-id"] as string,
       request.body as Buffer
@@ -125,7 +128,7 @@ export function createApp(
   });
 
   return async () => {
-    await app.listen({ port });
-    console.log(`Listening on port ${port}`);
+    await app.listen({ port, host: "0.0.0.0" });
+    logger.info(`Listening on port ${port}`);
   };
 }
