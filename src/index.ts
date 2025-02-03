@@ -68,10 +68,14 @@ async function seed(seedFilePath: string) {
 }
 
 (async () => {
-  // Ensures database connects before starting the app
-  // where connection will be used
-  await pool.query("SELECT 1");
-  console.log("Database connection verified");
+  try {
+    logger.debug("Attempting to connect to the database...");
+    await pool.query("SELECT 1");
+    logger.debug("Database connection verified");
+  } catch (err) {
+    logger.error("Database connection failed:", err);
+    throw err;
+  }
 
   await eventConsumer.registerConsumer(
     PaymentEventType.LOCAL_OUTGOING_PAYMENT_FUNDED,

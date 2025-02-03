@@ -141,8 +141,4 @@ export class InMemoryIlpPeerRepository
   ): Promise<IlpPeer | undefined> {
     return [...this.map.values()].find((peer) => peer.address === address);
   }
-
-  public async test(): Promise<any> {
-    console.log("test", this.map.values());
-  }
 }

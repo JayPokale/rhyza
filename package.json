@@ -4,6 +4,7 @@
   "packageManager": "pnpm@8.15.9",
   "scripts": {
     "dev": "tsx src/index.ts",
+    "docker:up": "docker compose down --volumes && docker compose up --build",
     "test": "node --import tsx --test test/*.test.ts",
     "build": "tsc"
   },
