@@ -38,3 +38,19 @@ CREATE TABLE IF NOT EXISTS incoming_payments (
   micro_payments JSONB[] NOT NULL,
   FOREIGN KEY (wallet_address_id) REFERENCES wallet_addresses(id)
 );
+
+CREATE TABLE IF NOT EXISTS outgoing_payments (
+  id UUID PRIMARY KEY NOT NULL,
+  quote_id VARCHAR(255) NOT NULL, -- TODO: make this FK when quote table exists
+  asset_code VARCHAR(20) NOT NULL,
+  asset_scale INT NOT NULL,
+  state VARCHAR(255) NOT NULL,
+  sent_amount BIGINT NOT NULL,
+  debit_amount BIGINT NOT NULL,
+  local_incoming_payment_id UUID,
+  remote_incoming_payment_url VARCHAR(255),
+  sender_wallet_address_id UUID NOT NULL,
+  micro_payments JSONB[] NOT NULL,
+  FOREIGN KEY (sender_wallet_address_id) REFERENCES wallet_addresses(id)
+);
+

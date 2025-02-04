@@ -1149,7 +1149,6 @@ export class IncomingPaymentPsqlRepository
     // on db read/write. Could we potentially have a lot of microtransactions?
     // - Testing with Postgres BIGINT column, it does not need to be serialized on write
     //   (can insert correctly) but must parse to BigInt from string on read
-    console.log("incomingpayment store");
     const microPaymentsForDb = incomingPayment.microPayments.map((mp) => ({
       ...mp,
       amount: mp.amount.toString(),
@@ -1201,6 +1200,15 @@ export class IncomingPaymentPsqlRepository
 
     const row = res.rows[0];
 
+    // TODO: Best way to handle this serialization? Should we make the amounts
+    // on MicroPayments a string and cast to BigInt where needed instead?
+    const microPayments: MicroPayment[] = (row.micro_payments || []).map(
+      (mp: any) => ({
+        ...mp,
+        amount: BigInt(mp.amount),
+      })
+    );
+
     return {
       id: row.id,
       expiresAt: new Date(row.expires_at),
@@ -1215,12 +1223,106 @@ export class IncomingPaymentPsqlRepository
       state: row.state as LocalIncomingPaymentState,
       walletAddressId: row.wallet_address_id,
       type: "LOCAL",
-      // TODO: Best way to handle this serialization? Should we make the amounts
-      // on MicroPayments a string and cast to BigInt where needed instead?
-      microPayments: row.micro_payments.map((mp: any) => ({
+      microPayments,
+    };
+  }
+}
+
+interface OutgoingPaymentRecord {
+  id: string;
+  quote_id: string;
+  asset_code: string;
+  asset_scale: number;
+  state: string;
+  sent_amount: string;
+  debit_amount: string;
+  local_incoming_payment_id: string | null;
+  remote_incoming_payment_url: string | null;
+  sender_wallet_address_id: string;
+  micro_payments: any;
+}
+
+export class OutgoingPaymentPsqlRepository
+  implements Repository<OutgoingPayment>
+{
+  TABLE_NAME = "outgoing_payments";
+  constructor(private pool: Pool) {}
+
+  public async store(outgoingPayment: OutgoingPayment): Promise<void> {
+    const microPaymentsForDb = outgoingPayment.microPayments.map((mp) => ({
+      ...mp,
+      amount: mp.amount.toString(),
+    }));
+
+    try {
+      const query = `
+        INSERT INTO ${this.TABLE_NAME} (id, quote_id, asset_code, asset_scale, state, sent_amount, debit_amount, local_incoming_payment_id, remote_incoming_payment_url, sender_wallet_address_id, micro_payments)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb[])
+        ON CONFLICT (id) DO UPDATE SET
+          quote_id = EXCLUDED.quote_id,
+          asset_code = EXCLUDED.asset_code,
+          asset_scale = EXCLUDED.asset_scale,
+          state = EXCLUDED.state,
+          sent_amount = EXCLUDED.sent_amount,
+          debit_amount = EXCLUDED.debit_amount,
+          local_incoming_payment_id = EXCLUDED.local_incoming_payment_id,
+          remote_incoming_payment_url = EXCLUDED.remote_incoming_payment_url,
+          sender_wallet_address_id = EXCLUDED.sender_wallet_address_id,
+          micro_payments = EXCLUDED.micro_payments
+      `;
+
+      const values = [
+        outgoingPayment.id,
+        outgoingPayment.quoteId,
+        outgoingPayment.asset.code,
+        outgoingPayment.asset.scale,
+        outgoingPayment.state,
+        outgoingPayment.sentAmount.toString(),
+        outgoingPayment.debitAmount.toString(),
+        outgoingPayment.localIncomingPaymentId,
+        outgoingPayment.remoteIncomingPaymentUrl,
+        outgoingPayment.senderWalletAddressId,
+        microPaymentsForDb,
+      ];
+
+      await this.pool.query(query, values);
+    } catch (error) {
+      console.error("Error storing outgoing payment:", error);
+      throw error;
+    }
+  }
+
+  public async fetchById(id: string): Promise<OutgoingPayment | undefined> {
+    const res = await this.pool.query<OutgoingPaymentRecord>(
+      `SELECT id, quote_id, asset_code, asset_scale, state, sent_amount, debit_amount, local_incoming_payment_id, remote_incoming_payment_url, sender_wallet_address_id, micro_payments FROM ${this.TABLE_NAME} WHERE id = $1`,
+      [id]
+    );
+
+    if (res.rows.length === 0) return undefined;
+
+    const row = res.rows[0];
+
+    const microPayments: MicroPayment[] = (row.micro_payments || []).map(
+      (mp: any) => ({
         ...mp,
         amount: BigInt(mp.amount),
-      })),
+      })
+    );
+
+    return {
+      id: row.id,
+      quoteId: row.quote_id,
+      asset: {
+        code: row.asset_code,
+        scale: row.asset_scale,
+      },
+      state: row.state as OutgoingPaymentState,
+      sentAmount: BigInt(row.sent_amount),
+      debitAmount: BigInt(row.debit_amount),
+      localIncomingPaymentId: row.local_incoming_payment_id ?? undefined,
+      remoteIncomingPaymentUrl: row.remote_incoming_payment_url ?? undefined,
+      senderWalletAddressId: row.sender_wallet_address_id,
+      microPayments: microPayments,
     };
   }
 }

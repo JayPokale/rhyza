@@ -4,7 +4,7 @@ import { EventEmitterPubSub } from "./event";
 import { LiquidityService } from "./liquidity";
 import {
   IncomingPaymentPsqlRepository,
-  OutgoingPayment,
+  OutgoingPaymentPsqlRepository,
   PaymentEventType,
   PaymentService,
   Quote,
@@ -45,7 +45,7 @@ const paymentService = new PaymentService(
   liquidityService,
   remoteIncomingPaymentService,
   new IncomingPaymentPsqlRepository(pool),
-  new InMemoryRepository<OutgoingPayment>(),
+  new OutgoingPaymentPsqlRepository(pool),
   new InMemoryRepository<Quote>(),
   eventProducer
 );
