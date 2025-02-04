@@ -108,13 +108,13 @@ export class RemoteIncomingPaymentPsqlRepository
 
       const values = [
         remoteIncomingPayment.id,
-        remoteIncomingPayment.expiresAt.toISOString(), // Ensure proper timestamp format
+        remoteIncomingPayment.expiresAt.toISOString(),
         remoteIncomingPayment.asset.code,
         remoteIncomingPayment.asset.scale,
         remoteIncomingPayment.incomingAmount
-          ? remoteIncomingPayment.incomingAmount.toString() // Handle BigInt as string
+          ? remoteIncomingPayment.incomingAmount.toString()
           : null,
-        remoteIncomingPayment.receivedAmount.toString(), // Handle BigInt as string
+        remoteIncomingPayment.receivedAmount.toString(),
         remoteIncomingPayment.ilpDetails.destinationAddress,
         remoteIncomingPayment.ilpDetails.sharedSecret,
       ];
@@ -140,15 +140,15 @@ export class RemoteIncomingPaymentPsqlRepository
 
     return {
       id: row.id,
-      expiresAt: new Date(row.expires_at), // TODO: confirm what we want here
+      expiresAt: new Date(row.expires_at),
       asset: {
         code: row.asset_code,
         scale: row.asset_scale,
       },
       incomingAmount: row.incoming_amount
-        ? BigInt(row.incoming_amount) // TODO: confirm bigint cast works
+        ? BigInt(row.incoming_amount)
         : undefined,
-      receivedAmount: BigInt(row.received_amount), // TODO: confirm bigint cast works
+      receivedAmount: BigInt(row.received_amount),
       type: "REMOTE",
       ilpDetails: {
         destinationAddress: row.ilp_destination_address,
