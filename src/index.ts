@@ -7,7 +7,7 @@ import {
   OutgoingPaymentPsqlRepository,
   PaymentEventType,
   PaymentService,
-  Quote,
+  QuotePsqlRepository,
 } from "./payment";
 import { IlpPeerPsqlRepository, IlpPeerService } from "./ilp-peer";
 import { RatesService } from "./rates";
@@ -46,7 +46,7 @@ const paymentService = new PaymentService(
   remoteIncomingPaymentService,
   new IncomingPaymentPsqlRepository(pool),
   new OutgoingPaymentPsqlRepository(pool),
-  new InMemoryRepository<Quote>(),
+  new QuotePsqlRepository(pool),
   eventProducer
 );
 

@@ -1326,3 +1326,91 @@ export class OutgoingPaymentPsqlRepository
     };
   }
 }
+
+interface QuoteRecord {
+  id: string;
+  receive_amount_value: string;
+  receive_amount_asset_code: string;
+  receive_amount_asset_scale: number;
+  debit_amount_value: string;
+  debit_amount_asset_code: string;
+  debit_amount_asset_scale: number;
+  sender_wallet_address_id: string;
+  incoming_payment_id: string;
+  expires_at: string;
+  exchange_rate: string;
+}
+
+export class QuotePsqlRepository implements Repository<Quote> {
+  TABLE_NAME = "quotes";
+  constructor(private pool: Pool) {}
+
+  public async store(quote: Quote): Promise<void> {
+    try {
+      const query = `
+        INSERT INTO ${this.TABLE_NAME} (id, receive_amount_value, receive_amount_asset_code, receive_amount_asset_scale, debit_amount_value, debit_amount_asset_code, debit_amount_asset_scale, sender_wallet_address_id, incoming_payment_id, expires_at, exchange_rate)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        ON CONFLICT (id) DO UPDATE SET
+          receive_amount_value = EXCLUDED.receive_amount_value,
+          receive_amount_asset_code = EXCLUDED.receive_amount_asset_code,
+          receive_amount_asset_scale = EXCLUDED.receive_amount_asset_scale,
+          debit_amount_value = EXCLUDED.debit_amount_value,
+          debit_amount_asset_code = EXCLUDED.debit_amount_asset_code,
+          debit_amount_asset_scale = EXCLUDED.debit_amount_asset_scale,
+          sender_wallet_address_id = EXCLUDED.sender_wallet_address_id,
+          incoming_payment_id = EXCLUDED.incoming_payment_id,
+          expires_at = EXCLUDED.expires_at,
+          exchange_rate = EXCLUDED.exchange_rate
+      `;
+
+      const values = [
+        quote.id,
+        quote.receiveAmount.value.toString(),
+        quote.receiveAmount.assetCode,
+        quote.receiveAmount.assetScale,
+        quote.debitAmount.value.toString(),
+        quote.debitAmount.assetCode,
+        quote.debitAmount.assetScale,
+        quote.senderWalletAddressId,
+        quote.incomingPaymentId,
+        quote.expiresAt.toISOString(),
+        quote.exchangeRate.toString(),
+      ];
+
+      await this.pool.query(query, values);
+    } catch (error) {
+      console.error("Error storing quote:", error);
+      throw error;
+    }
+  }
+
+  public async fetchById(id: string): Promise<Quote | undefined> {
+    const res = await this.pool.query<QuoteRecord>(
+      `SELECT id, receive_amount_value, receive_amount_asset_code, receive_amount_asset_scale, debit_amount_value, debit_amount_asset_code, debit_amount_asset_scale, sender_wallet_address_id, incoming_payment_id, expires_at, exchange_rate FROM ${this.TABLE_NAME} WHERE id = $1`,
+      [id]
+    );
+
+    if (res.rows.length === 0) return undefined;
+
+    const row = res.rows[0];
+
+    return {
+      id: row.id,
+      receiveAmount: {
+        value: BigInt(row.receive_amount_value),
+        assetCode: row.receive_amount_asset_code,
+        assetScale: row.receive_amount_asset_scale,
+      },
+      debitAmount: {
+        value: BigInt(row.debit_amount_value),
+        assetCode: row.debit_amount_asset_code,
+        assetScale: row.debit_amount_asset_scale,
+      },
+      senderWalletAddressId: row.sender_wallet_address_id,
+      incomingPaymentId: row.incoming_payment_id,
+      expiresAt: new Date(row.expires_at),
+      // Precision could be lost here if pg precision is higher than js Number
+      exchangeRate: Number(row.exchange_rate),
+    };
+  }
+}

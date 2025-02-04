@@ -39,9 +39,25 @@ CREATE TABLE IF NOT EXISTS incoming_payments (
   FOREIGN KEY (wallet_address_id) REFERENCES wallet_addresses(id)
 );
 
+CREATE TABLE IF NOT EXISTS quotes (
+  id UUID PRIMARY KEY NOT NULL,
+  receive_amount_value BIGINT NOT NULL,
+  receive_amount_asset_code VARCHAR(20) NOT NULL,
+  receive_amount_asset_scale INT NOT NULL,
+  debit_amount_value BIGINT NOT NULL,
+  debit_amount_asset_code VARCHAR(20) NOT NULL,
+  debit_amount_asset_scale INT NOT NULL,
+  sender_wallet_address_id UUID NOT NULL,
+  incoming_payment_id UUID NOT NULL,
+  expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  exchange_rate NUMERIC NOT NULL,
+  FOREIGN KEY (sender_wallet_address_id) REFERENCES wallet_addresses(id),
+  FOREIGN KEY (incoming_payment_id) REFERENCES incoming_payments(id)
+);
+
 CREATE TABLE IF NOT EXISTS outgoing_payments (
   id UUID PRIMARY KEY NOT NULL,
-  quote_id VARCHAR(255) NOT NULL, -- TODO: make this FK when quote table exists
+  quote_id UUID NOT NULL,
   asset_code VARCHAR(20) NOT NULL,
   asset_scale INT NOT NULL,
   state VARCHAR(255) NOT NULL,
@@ -51,6 +67,6 @@ CREATE TABLE IF NOT EXISTS outgoing_payments (
   remote_incoming_payment_url VARCHAR(255),
   sender_wallet_address_id UUID NOT NULL,
   micro_payments JSONB[] NOT NULL,
-  FOREIGN KEY (sender_wallet_address_id) REFERENCES wallet_addresses(id)
+  FOREIGN KEY (sender_wallet_address_id) REFERENCES wallet_addresses(id),
+  FOREIGN KEY (quote_id) REFERENCES quotes(id)
 );
-
