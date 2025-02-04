@@ -96,16 +96,25 @@ export class RemoteIncomingPaymentPsqlRepository
       const query = `
         INSERT INTO ${this.TABLE_NAME} (id, expires_at, asset_code, asset_scale, incoming_amount, received_amount, ilp_destination_address, ilp_shared_secret)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        ON CONFLICT (id) DO UPDATE SET
+          expires_at = EXCLUDED.expires_at,
+          asset_code = EXCLUDED.asset_code,
+          asset_scale = EXCLUDED.asset_scale,
+          incoming_amount = EXCLUDED.incoming_amount,
+          received_amount = EXCLUDED.received_amount,
+          ilp_destination_address = EXCLUDED.ilp_destination_address,
+          ilp_shared_secret = EXCLUDED.ilp_shared_secret
       `;
+
       const values = [
         remoteIncomingPayment.id,
-        remoteIncomingPayment.expiresAt.toISOString(), // TODO: veryify what we want here
+        remoteIncomingPayment.expiresAt.toISOString(), // Ensure proper timestamp format
         remoteIncomingPayment.asset.code,
         remoteIncomingPayment.asset.scale,
         remoteIncomingPayment.incomingAmount
-          ? remoteIncomingPayment.incomingAmount.toString() // TODO: can we pass in bigint directly?
+          ? remoteIncomingPayment.incomingAmount.toString() // Handle BigInt as string
           : null,
-        remoteIncomingPayment.receivedAmount.toString(), // TODO: can we pass in bigint directly?
+        remoteIncomingPayment.receivedAmount.toString(), // Handle BigInt as string
         remoteIncomingPayment.ilpDetails.destinationAddress,
         remoteIncomingPayment.ilpDetails.sharedSecret,
       ];

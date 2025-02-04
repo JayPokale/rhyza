@@ -82,7 +82,13 @@ export class WalletAddressPsqlRepository implements Repository<WalletAddress> {
       const query = `
         INSERT INTO ${this.TABLE_NAME} (id, url, is_active, asset_code, asset_scale)
         VALUES ($1, $2, $3, $4, $5)
+        ON CONFLICT (id) DO UPDATE SET
+          url = EXCLUDED.url,
+          is_active = EXCLUDED.is_active,
+          asset_code = EXCLUDED.asset_code,
+          asset_scale = EXCLUDED.asset_scale
       `;
+
       const values = [
         walletAddress.id,
         walletAddress.url,
