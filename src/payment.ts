@@ -17,6 +17,7 @@ import {
   RemoteIncomingPayment,
   RemoteIncomingPaymentServiceAdapter,
 } from "./remote-incoming-payment";
+import { Pool } from "pg";
 
 export class WalletAddressNotFoundError extends Error {}
 export class WalletAddressInactiveError extends Error {}
@@ -1111,5 +1112,115 @@ export class PaymentService {
     quote.receiveAmount.value = event.data.amount;
 
     await this.quoteRepository.store(quote);
+  }
+}
+
+// TODO: consider current method of storing microtransactions as JSONB
+// on payment vs. more normalized seperate table
+// - For table, may need 1 per payment type (incoming_payment_micro_payments, outgoing_payment_micro_payments)
+//   - Else need 2 optional FK columns (incomingPaymentId, outgoingPayemntId)
+// - Do we ever plan on on doing anything other than simply writing the microtransactions and then reading? Do we need database constraints for ilpPeerId?
+//   - We "append" to microtransactions but really it just saves over with the new array (via upsert). Not an actual append to a jsonb array, which
+//     might have performance converns compared to adding a row.
+// - Testing shows using a BigInt column in Postgres does not need to be serialized on write, but does on read (from string). Whereas the amount needs to be
+//   serialized for both with JSONB. May potentially have many MicroPayments - not sure how concerned we need to be about extra serialization.
+interface IncomingPaymentRecord {
+  id: string;
+  expires_at: string;
+  asset_code: string;
+  asset_scale: number;
+  incoming_amount: string | null;
+  received_amount: string;
+  state: string;
+  wallet_address_id: string;
+  micro_payments: any;
+}
+
+export class IncomingPaymentPsqlRepository
+  implements Repository<IncomingPayment>
+{
+  TABLE_NAME = "incoming_payments";
+  constructor(private pool: Pool) {}
+
+  public async store(incomingPayment: IncomingPayment): Promise<void> {
+    // TODO: Should we make the amounts on MicroPayments a string
+    // and cast to BigInt where needed instead? Would that be less work?
+    // If we keep them IncomingPayment in our Entity we have to serialize/parse
+    // on db read/write. Could we potentially have a lot of microtransactions?
+    // - Testing with Postgres BIGINT column, it does not need to be serialized on write
+    //   (can insert correctly) but must parse to BigInt from string on read
+    console.log("incomingpayment store");
+    const microPaymentsForDb = incomingPayment.microPayments.map((mp) => ({
+      ...mp,
+      amount: mp.amount.toString(),
+    }));
+
+    try {
+      const query = `
+        INSERT INTO ${this.TABLE_NAME} 
+        (id, expires_at, asset_code, asset_scale, incoming_amount, received_amount, state, wallet_address_id, micro_payments)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb[])
+        ON CONFLICT (id) DO UPDATE SET
+          expires_at = EXCLUDED.expires_at,
+          asset_code = EXCLUDED.asset_code,
+          asset_scale = EXCLUDED.asset_scale,
+          incoming_amount = EXCLUDED.incoming_amount,
+          received_amount = EXCLUDED.received_amount,
+          state = EXCLUDED.state,
+          wallet_address_id = EXCLUDED.wallet_address_id,
+          micro_payments = EXCLUDED.micro_payments
+      `;
+      const values = [
+        incomingPayment.id,
+        incomingPayment.expiresAt.toISOString(),
+        incomingPayment.asset.code,
+        incomingPayment.asset.scale,
+        incomingPayment.incomingAmount
+          ? incomingPayment.incomingAmount.toString()
+          : null,
+        incomingPayment.receivedAmount.toString(),
+        incomingPayment.state,
+        incomingPayment.walletAddressId,
+        microPaymentsForDb,
+      ];
+
+      await this.pool.query(query, values);
+    } catch (error) {
+      console.error("Error storing incoming payment:", error);
+      throw error;
+    }
+  }
+
+  public async fetchById(id: string): Promise<IncomingPayment | undefined> {
+    const res = await this.pool.query<IncomingPaymentRecord>(
+      `SELECT id, expires_at, asset_code, asset_scale, incoming_amount, received_amount, state, wallet_address_id, micro_payments FROM ${this.TABLE_NAME} WHERE id = $1`,
+      [id]
+    );
+
+    if (res.rows.length === 0) return undefined;
+
+    const row = res.rows[0];
+
+    return {
+      id: row.id,
+      expiresAt: new Date(row.expires_at),
+      asset: {
+        code: row.asset_code,
+        scale: row.asset_scale,
+      },
+      incomingAmount: row.incoming_amount
+        ? BigInt(row.incoming_amount)
+        : undefined,
+      receivedAmount: BigInt(row.received_amount),
+      state: row.state as LocalIncomingPaymentState,
+      walletAddressId: row.wallet_address_id,
+      type: "LOCAL",
+      // TODO: Best way to handle this serialization? Should we make the amounts
+      // on MicroPayments a string and cast to BigInt where needed instead?
+      microPayments: row.micro_payments.map((mp: any) => ({
+        ...mp,
+        amount: BigInt(mp.amount),
+      })),
+    };
   }
 }

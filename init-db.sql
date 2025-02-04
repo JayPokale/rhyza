@@ -25,3 +25,16 @@ CREATE TABLE IF NOT EXISTS remote_incoming_payments (
   ilp_destination_address VARCHAR(255) NOT NULL,
   ilp_shared_secret VARCHAR(255) NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS incoming_payments (
+  id UUID PRIMARY KEY NOT NULL,
+  expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  asset_code VARCHAR(20) NOT NULL,
+  asset_scale INT NOT NULL,
+  incoming_amount BIGINT,
+  received_amount BIGINT NOT NULL,
+  state VARCHAR(255) NOT NULL,
+  wallet_address_id UUID NOT NULL,
+  micro_payments JSONB[] NOT NULL,
+  FOREIGN KEY (wallet_address_id) REFERENCES wallet_addresses(id)
+);

@@ -3,7 +3,7 @@ import { createApp } from "./app";
 import { EventEmitterPubSub } from "./event";
 import { LiquidityService } from "./liquidity";
 import {
-  IncomingPayment,
+  IncomingPaymentPsqlRepository,
   OutgoingPayment,
   PaymentEventType,
   PaymentService,
@@ -44,7 +44,7 @@ const paymentService = new PaymentService(
   ratesService,
   liquidityService,
   remoteIncomingPaymentService,
-  new InMemoryRepository<IncomingPayment>(),
+  new IncomingPaymentPsqlRepository(pool),
   new InMemoryRepository<OutgoingPayment>(),
   new InMemoryRepository<Quote>(),
   eventProducer
