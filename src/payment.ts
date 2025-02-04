@@ -1116,7 +1116,7 @@ export class PaymentService {
 }
 
 // TODO: consider current method of storing microtransactions as JSONB
-// on payment vs. more normalized seperate table
+// on payment vs. more normalized approach with seperate table
 // - For table, may need 1 per payment type (incoming_payment_micro_payments, outgoing_payment_micro_payments)
 //   - Else need 2 optional FK columns (incomingPaymentId, outgoingPayemntId)
 // - Do we ever plan on on doing anything other than simply writing the microtransactions and then reading? Do we need database constraints for ilpPeerId?
