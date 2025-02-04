@@ -1115,12 +1115,12 @@ export class PaymentService {
   }
 }
 
-// TODO: consider current method of storing microtransactions as JSONB
+// TODO: consider current method of storing micro payments as JSONB
 // on payment vs. more normalized approach with seperate table
 // - For table, may need 1 per payment type (incoming_payment_micro_payments, outgoing_payment_micro_payments)
 //   - Else need 2 optional FK columns (incomingPaymentId, outgoingPayemntId)
-// - Do we ever plan on on doing anything other than simply writing the microtransactions and then reading? Do we need database constraints for ilpPeerId?
-//   - We "append" to microtransactions but really it just saves over with the new array (via upsert). Not an actual append to a jsonb array, which
+// - Do we ever plan on on doing anything other than simply writing the micro payments and then reading? Do we need database constraints for ilpPeerId?
+//   - We "append" to micro payments but really it just saves over with the new array (via upsert). Not an actual append to a jsonb array, which
 //     might have performance converns compared to adding a row.
 // - Testing shows using a BigInt column in Postgres does not need to be serialized on write, but does on read (from string). Whereas the amount needs to be
 //   serialized for both with JSONB. May potentially have many MicroPayments - not sure how concerned we need to be about extra serialization.
@@ -1146,7 +1146,7 @@ export class IncomingPaymentPsqlRepository
     // TODO: Should we make the amounts on MicroPayments a string
     // and cast to BigInt where needed instead? Would that be less work?
     // If we keep them IncomingPayment in our Entity we have to serialize/parse
-    // on db read/write. Could we potentially have a lot of microtransactions?
+    // on db read/write. Could we potentially have a lot of micro payments?
     // - Testing with Postgres BIGINT column, it does not need to be serialized on write
     //   (can insert correctly) but must parse to BigInt from string on read
     const microPaymentsForDb = incomingPayment.microPayments.map((mp) => ({
