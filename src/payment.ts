@@ -1115,15 +1115,16 @@ export class PaymentService {
   }
 }
 
-// TODO: consider current method of storing micro payments as JSONB
+// TODO: consider current method of storing micro payments directly
 // on payment vs. more normalized approach with seperate table
 // - For table, may need 1 per payment type (incoming_payment_micro_payments, outgoing_payment_micro_payments)
 //   - Else need 2 optional FK columns (incomingPaymentId, outgoingPayemntId)
 // - Do we ever plan on on doing anything other than simply writing the micro payments and then reading? Do we need database constraints for ilpPeerId?
 //   - We "append" to micro payments but really it just saves over with the new array (via upsert). Not an actual append to a jsonb array, which
 //     might have performance converns compared to adding a row.
-// - Testing shows using a BigInt column in Postgres does not need to be serialized on write, but does on read (from string). Whereas the amount needs to be
-//   serialized for both with JSONB. May potentially have many MicroPayments - not sure how concerned we need to be about extra serialization.
+// - Testing shows using a BigInt column in Postgres does not need to be serialized on write (in application), but does on read (from string). Whereas
+//   the amount needs to be serialized in app if using JSONB. May potentially have many MicroPayments - not sure how concerned we need to be about extra
+//   serialization in ap.
 interface IncomingPaymentRecord {
   id: string;
   expires_at: string;
@@ -1133,7 +1134,7 @@ interface IncomingPaymentRecord {
   received_amount: string;
   state: string;
   wallet_address_id: string;
-  micro_payments: any;
+  micro_payments: string;
 }
 
 export class IncomingPaymentPsqlRepository
@@ -1158,7 +1159,7 @@ export class IncomingPaymentPsqlRepository
       const query = `
         INSERT INTO ${this.TABLE_NAME} 
         (id, expires_at, asset_code, asset_scale, incoming_amount, received_amount, state, wallet_address_id, micro_payments)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb[])
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         ON CONFLICT (id) DO UPDATE SET
           expires_at = EXCLUDED.expires_at,
           asset_code = EXCLUDED.asset_code,
@@ -1180,7 +1181,9 @@ export class IncomingPaymentPsqlRepository
         incomingPayment.receivedAmount.toString(),
         incomingPayment.state,
         incomingPayment.walletAddressId,
-        microPaymentsForDb,
+        JSON.stringify(incomingPayment.microPayments, (key, value) =>
+          key === "amount" ? value.toString() : value
+        ),
       ];
 
       await this.pool.query(query, values);
@@ -1200,15 +1203,6 @@ export class IncomingPaymentPsqlRepository
 
     const row = res.rows[0];
 
-    // TODO: Best way to handle this serialization? Should we make the amounts
-    // on MicroPayments a string and cast to BigInt where needed instead?
-    const microPayments: MicroPayment[] = (row.micro_payments || []).map(
-      (mp: any) => ({
-        ...mp,
-        amount: BigInt(mp.amount),
-      })
-    );
-
     return {
       id: row.id,
       expiresAt: new Date(row.expires_at),
@@ -1223,7 +1217,9 @@ export class IncomingPaymentPsqlRepository
       state: row.state as LocalIncomingPaymentState,
       walletAddressId: row.wallet_address_id,
       type: "LOCAL",
-      microPayments,
+      microPayments: JSON.parse(row.micro_payments, (key, value) =>
+        key === "amount" ? BigInt(value) : value
+      ),
     };
   }
 }
@@ -1239,7 +1235,7 @@ interface OutgoingPaymentRecord {
   local_incoming_payment_id: string | null;
   remote_incoming_payment_url: string | null;
   sender_wallet_address_id: string;
-  micro_payments: any;
+  micro_payments: string;
 }
 
 export class OutgoingPaymentPsqlRepository
@@ -1249,15 +1245,10 @@ export class OutgoingPaymentPsqlRepository
   constructor(private pool: Pool) {}
 
   public async store(outgoingPayment: OutgoingPayment): Promise<void> {
-    const microPaymentsForDb = outgoingPayment.microPayments.map((mp) => ({
-      ...mp,
-      amount: mp.amount.toString(),
-    }));
-
     try {
       const query = `
         INSERT INTO ${this.TABLE_NAME} (id, quote_id, asset_code, asset_scale, state, sent_amount, debit_amount, local_incoming_payment_id, remote_incoming_payment_url, sender_wallet_address_id, micro_payments)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb[])
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
         ON CONFLICT (id) DO UPDATE SET
           quote_id = EXCLUDED.quote_id,
           asset_code = EXCLUDED.asset_code,
@@ -1282,7 +1273,9 @@ export class OutgoingPaymentPsqlRepository
         outgoingPayment.localIncomingPaymentId,
         outgoingPayment.remoteIncomingPaymentUrl,
         outgoingPayment.senderWalletAddressId,
-        microPaymentsForDb,
+        JSON.stringify(outgoingPayment.microPayments, (key, value) =>
+          key === "amount" ? value.toString() : value
+        ),
       ];
 
       await this.pool.query(query, values);
@@ -1302,13 +1295,6 @@ export class OutgoingPaymentPsqlRepository
 
     const row = res.rows[0];
 
-    const microPayments: MicroPayment[] = (row.micro_payments || []).map(
-      (mp: any) => ({
-        ...mp,
-        amount: BigInt(mp.amount),
-      })
-    );
-
     return {
       id: row.id,
       quoteId: row.quote_id,
@@ -1322,7 +1308,9 @@ export class OutgoingPaymentPsqlRepository
       localIncomingPaymentId: row.local_incoming_payment_id ?? undefined,
       remoteIncomingPaymentUrl: row.remote_incoming_payment_url ?? undefined,
       senderWalletAddressId: row.sender_wallet_address_id,
-      microPayments: microPayments,
+      microPayments: JSON.parse(row.micro_payments, (key, value) =>
+        key === "amount" ? BigInt(value) : value
+      ),
     };
   }
 }
