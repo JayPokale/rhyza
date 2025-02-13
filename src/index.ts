@@ -1,3 +1,5 @@
+require("./telemetry.js"); // Load telemetry before running the rest of the app
+
 import { readFileSync } from "fs";
 import { createApp } from "./app";
 import { EventEmitterPubSub } from "./event";
