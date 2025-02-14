@@ -8,7 +8,7 @@ import {
 } from "./liquidity";
 import { IlpPeerServiceAdapter } from "./ilp-peer";
 import { RatesServiceAdapter } from "./rates";
-import { Repository } from "./repository";
+// import { Repository } from "./repository";
 import { Amount, Asset } from "./shared";
 import { WalletAddress, WalletAddressServiceAdapter } from "./wallet-address";
 import { Event, EventProducerAdapter } from "./event";
@@ -85,10 +85,24 @@ export interface OutgoingPayment {
   microPayments: MicroPayment[];
 }
 
-interface IncomingPaymentRepository extends Repository<IncomingPayment> {}
+// interface IncomingPaymentRepository extends Repository<IncomingPayment> {}
+// interface QuoteRepository extends Repository<Quote> {}
+// interface OutgoingPaymentRepository extends Repository<OutgoingPayment> {}
 
-interface QuoteRepository extends Repository<Quote> {}
-interface OutgoingPaymentRepository extends Repository<OutgoingPayment> {}
+export interface IncomingPaymentRepository {
+  store(payment: IncomingPayment): Promise<void>;
+  fetchById(id: string): Promise<IncomingPayment | undefined>;
+}
+
+export interface QuoteRepository {
+  store(quote: Quote): Promise<void>;
+  fetchById(id: string): Promise<Quote | undefined>;
+}
+
+export interface OutgoingPaymentRepository {
+  store(payment: OutgoingPayment): Promise<void>;
+  fetchById(id: string): Promise<OutgoingPayment | undefined>;
+}
 
 export enum PaymentEventType {
   INCOMING_PAYMENT_CREATED = "INCOMING_PAYMENT_CREATED",
@@ -354,6 +368,7 @@ export class PaymentService {
     }
 
     const [walletAddress, incomingPayment] = await Promise.all([
+      // TODO: do .getStatusById instead?
       this.walletAddressService.getById(request.senderWalletAddressId),
       this.fetchIncomingPayment(request.incomingPaymentId),
     ]);
@@ -1137,8 +1152,22 @@ interface IncomingPaymentRecord {
   micro_payments: string;
 }
 
+export class IncomingPaymentInMemoryRepository
+  implements IncomingPaymentRepository
+{
+  private map: Map<string, IncomingPayment> = new Map();
+
+  public async store(payment: IncomingPayment): Promise<void> {
+    this.map.set(payment.id, payment);
+  }
+
+  public async fetchById(id: string): Promise<IncomingPayment | undefined> {
+    return this.map.get(id);
+  }
+}
+
 export class IncomingPaymentPsqlRepository
-  implements Repository<IncomingPayment>
+  implements IncomingPaymentRepository
 {
   TABLE_NAME = "incoming_payments";
   constructor(private pool: Pool) {}
@@ -1224,6 +1253,20 @@ export class IncomingPaymentPsqlRepository
   }
 }
 
+export class OutgoingPaymentInMemoryRepository
+  implements OutgoingPaymentRepository
+{
+  private map: Map<string, OutgoingPayment> = new Map();
+
+  public async store(payment: OutgoingPayment): Promise<void> {
+    this.map.set(payment.id, payment);
+  }
+
+  public async fetchById(id: string): Promise<OutgoingPayment | undefined> {
+    return this.map.get(id);
+  }
+}
+
 interface OutgoingPaymentRecord {
   id: string;
   quote_id: string;
@@ -1239,7 +1282,7 @@ interface OutgoingPaymentRecord {
 }
 
 export class OutgoingPaymentPsqlRepository
-  implements Repository<OutgoingPayment>
+  implements OutgoingPaymentRepository
 {
   TABLE_NAME = "outgoing_payments";
   constructor(private pool: Pool) {}
@@ -1315,6 +1358,18 @@ export class OutgoingPaymentPsqlRepository
   }
 }
 
+export class QuoteInMemoryRepository implements QuoteRepository {
+  private map: Map<string, Quote> = new Map();
+
+  public async store(quote: Quote): Promise<void> {
+    this.map.set(quote.id, quote);
+  }
+
+  public async fetchById(id: string): Promise<Quote | undefined> {
+    return this.map.get(id);
+  }
+}
+
 interface QuoteRecord {
   id: string;
   receive_amount_value: string;
@@ -1329,7 +1384,7 @@ interface QuoteRecord {
   exchange_rate: string;
 }
 
-export class QuotePsqlRepository implements Repository<Quote> {
+export class QuotePsqlRepository implements QuoteRepository {
   TABLE_NAME = "quotes";
   constructor(private pool: Pool) {}
 

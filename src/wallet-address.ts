@@ -1,5 +1,5 @@
 import { Pool } from "pg";
-import { Repository } from "./repository";
+// import { Repository } from "./repository";
 
 export class DuplicateWalletAddressFoundError extends Error {}
 // export class InvalidWalletAddressURLError extends Error {}
@@ -24,8 +24,14 @@ export interface WalletAddressServiceAdapter {
   createWalletAddress(args: CreateWalletAddressArgs): Promise<string>;
 }
 
+export interface WalletAddressRepository {
+  exists(id: string): Promise<boolean>;
+  store(walletAddress: WalletAddress): Promise<void>;
+  fetchById(id: string): Promise<WalletAddress | undefined>;
+}
+
 export class WalletAddressService implements WalletAddressServiceAdapter {
-  constructor(private walletAddressRepository: Repository<WalletAddress>) {}
+  constructor(private walletAddressRepository: WalletAddressRepository) {}
 
   public async createWalletAddress(
     args: CreateWalletAddressArgs
@@ -33,10 +39,11 @@ export class WalletAddressService implements WalletAddressServiceAdapter {
     let id: string;
 
     if (args.id) {
-      const existingIncomingPayment =
-        await this.walletAddressRepository.fetchById(args.id);
+      const existingWalletAddress =
+        // await this.walletAddressRepository.fetchById(args.id);
+        await this.walletAddressRepository.exists(args.id);
 
-      if (existingIncomingPayment) {
+      if (existingWalletAddress) {
         throw new DuplicateWalletAddressFoundError();
       }
       id = args.id;
@@ -73,9 +80,40 @@ interface WalletAddressRecord {
   asset_scale: number;
 }
 
-export class WalletAddressPsqlRepository implements Repository<WalletAddress> {
+export class WalletAddressInMemoryRepository
+  implements WalletAddressRepository
+{
+  map: Map<string, WalletAddress> = new Map();
+
+  public async store(entity: WalletAddress): Promise<void> {
+    this.map.set(entity.id, entity);
+  }
+
+  public async fetchById(id: string): Promise<WalletAddress | undefined> {
+    return this.map.get(id);
+  }
+
+  public async exists(id: string): Promise<boolean> {
+    return this.map.has(id);
+  }
+}
+
+export class WalletAddressPsqlRepository implements WalletAddressRepository {
   TABLE_NAME = "wallet_addresses";
   constructor(private pool: Pool) {}
+
+  public async exists(id: string): Promise<boolean> {
+    try {
+      const res = await this.pool.query(
+        `SELECT EXISTS(SELECT 1 FROM ${this.TABLE_NAME} WHERE id = $1)`,
+        [id]
+      );
+      return res.rows[0].exists;
+    } catch (error) {
+      console.error("Error checking if wallet address exists:", error);
+      throw error;
+    }
+  }
 
   public async store(walletAddress: WalletAddress): Promise<void> {
     try {

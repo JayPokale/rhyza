@@ -1,20 +1,25 @@
-interface BaseEntity {
-  id: string;
-}
+// interface BaseEntity {
+//   id: string;
+// }
 
-export interface Repository<T extends BaseEntity> {
-  store(entity: T): Promise<void>;
-  fetchById(id: string): Promise<T | undefined>;
-}
+// export interface Repository<T extends BaseEntity> {
+//   exists(id: string): Promise<boolean>;
+//   store(entity: T): Promise<void>;
+//   fetchById(id: string): Promise<T | undefined>;
+// }
 
-export class InMemoryRepository<T extends BaseEntity> implements Repository<T> {
-  map: Map<string, T> = new Map();
+// export class InMemoryRepository<T extends BaseEntity> implements Repository<T> {
+//   map: Map<string, T> = new Map();
 
-  public async store(entity: T): Promise<void> {
-    this.map.set(entity.id, entity);
-  }
+//   public async store(entity: T): Promise<void> {
+//     this.map.set(entity.id, entity);
+//   }
 
-  public async fetchById(id: string): Promise<T | undefined> {
-    return this.map.get(id);
-  }
-}
+//   public async fetchById(id: string): Promise<T | undefined> {
+//     return this.map.get(id);
+//   }
+
+//   public async exists(id: string): Promise<boolean> {
+//     return this.map.has(id);
+//   }
+// }

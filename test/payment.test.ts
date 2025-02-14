@@ -9,37 +9,44 @@ import {
   IncomingPaymentNotFoundError,
   IncomingPaymentWalletAddressAssetMismatchError,
   InvalidIncomingPaymentExpiryError,
-  OutgoingPayment,
+  // OutgoingPayment,
   PaymentEventType,
   PaymentService,
-  Quote,
+  // Quote,
   WalletAddressInactiveError,
   WalletAddressNotFoundError,
 } from "../src/payment";
-import { WalletAddress, WalletAddressService } from "../src/wallet-address";
-import { InMemoryRepository } from "../src/repository";
+import {
+  WalletAddress,
+  WalletAddressService,
+  WalletAddressInMemoryRepository,
+} from "../src/wallet-address";
 import { EventEmitterPubSub } from "../src/event";
-import { IlpPeerService, InMemoryIlpPeerRepository } from "../src/ilp-peer";
+import { IlpPeerInMemoryRepository, IlpPeerService } from "../src/ilp-peer";
 import { RatesService } from "../src/rates";
 import { LiquidityService } from "../src/liquidity";
 import {
   RemoteIncomingPayment,
   RemoteIncomingPaymentService,
 } from "../src/remote-incoming-payment";
+import { IncomingPaymentInMemoryRepository } from "../src/payment";
+import { OutgoingPaymentInMemoryRepository } from "../src/payment";
+import { QuoteInMemoryRepository } from "../src/payment";
+import { RemoteIncomingPaymentInMemoryRepository } from "../src/remote-incoming-payment";
 
 describe("Payment Service", () => {
-  const incomingPaymentRepo = new InMemoryRepository<IncomingPayment>();
-  const outgoingPaymentRepo = new InMemoryRepository<OutgoingPayment>();
-  const quoteRepo = new InMemoryRepository<Quote>();
-  const walletAddressRepo = new InMemoryRepository<WalletAddress>();
+  const incomingPaymentRepo = new IncomingPaymentInMemoryRepository();
+  const outgoingPaymentRepo = new OutgoingPaymentInMemoryRepository();
+  const quoteRepo = new QuoteInMemoryRepository();
+  const walletAddressRepo = new WalletAddressInMemoryRepository();
   const walletAddressService = new WalletAddressService(walletAddressRepo);
   const eventProducer = new EventEmitterPubSub();
-  const ilpPeerService = new IlpPeerService(new InMemoryIlpPeerRepository());
+  const ilpPeerService = new IlpPeerService(new IlpPeerInMemoryRepository());
   const ratesService = new RatesService();
   const liquidityService = new LiquidityService();
 
   const remoteIncomingPaymentService = new RemoteIncomingPaymentService(
-    new InMemoryRepository<RemoteIncomingPayment>()
+    new RemoteIncomingPaymentInMemoryRepository()
   );
 
   const paymentService = new PaymentService(

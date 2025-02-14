@@ -1,6 +1,6 @@
 import { Pool } from "pg";
 import { IlpDetails } from "./ilp-connector";
-import type { Repository } from "./repository";
+// import type { Repository } from "./repository";
 import { Amount, Asset } from "./shared";
 
 export interface RemoteIncomingPayment {
@@ -27,8 +27,29 @@ export interface RemoteIncomingPaymentServiceAdapter {
   getById(id: string): Promise<RemoteIncomingPayment | undefined>;
 }
 
-interface RemoteIncomingPaymentRepository
-  extends Repository<RemoteIncomingPayment> {}
+// interface RemoteIncomingPaymentRepository
+//   extends Repository<RemoteIncomingPayment> {}
+
+export interface RemoteIncomingPaymentRepository {
+  store(payment: RemoteIncomingPayment): Promise<void>;
+  fetchById(id: string): Promise<RemoteIncomingPayment | undefined>;
+}
+
+export class RemoteIncomingPaymentInMemoryRepository
+  implements RemoteIncomingPaymentRepository
+{
+  private map: Map<string, RemoteIncomingPayment> = new Map();
+
+  public async store(payment: RemoteIncomingPayment): Promise<void> {
+    this.map.set(payment.id, payment);
+  }
+
+  public async fetchById(
+    id: string
+  ): Promise<RemoteIncomingPayment | undefined> {
+    return this.map.get(id);
+  }
+}
 
 export class RemoteIncomingPaymentService
   implements RemoteIncomingPaymentServiceAdapter
@@ -84,7 +105,7 @@ interface RemoteIncomingPaymentRecord {
   ilp_shared_secret: string;
 }
 export class RemoteIncomingPaymentPsqlRepository
-  implements Repository<RemoteIncomingPayment>
+  implements RemoteIncomingPaymentRepository
 {
   TABLE_NAME = "remote_incoming_payments";
   constructor(private pool: Pool) {}

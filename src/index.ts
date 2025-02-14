@@ -11,7 +11,6 @@ import {
 } from "./payment";
 import { IlpPeerPsqlRepository, IlpPeerService } from "./ilp-peer";
 import { RatesService } from "./rates";
-import { InMemoryRepository } from "./repository";
 import {
   WalletAddressService,
   WalletAddressPsqlRepository,

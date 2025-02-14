@@ -1,5 +1,5 @@
 import { Pool } from "pg";
-import { InMemoryRepository, Repository } from "./repository";
+// import { InMemoryRepository, Repository } from "./repository";
 import { Asset } from "./shared";
 
 export interface IlpPeer {
@@ -134,14 +134,23 @@ export class IlpPeerPsqlRepository implements PeerRepository {
   }
 }
 
-export interface PeerRepository extends Repository<IlpPeer> {
+export interface PeerRepository {
+  store(walletAddress: IlpPeer): Promise<void>;
+  fetchById(id: string): Promise<IlpPeer | undefined>;
   getByDestinationAddress(address: string): Promise<IlpPeer | undefined>;
 }
 
-export class InMemoryIlpPeerRepository
-  extends InMemoryRepository<IlpPeer>
-  implements PeerRepository
-{
+export class IlpPeerInMemoryRepository implements PeerRepository {
+  map: Map<string, IlpPeer> = new Map();
+
+  public async store(entity: IlpPeer): Promise<void> {
+    this.map.set(entity.id, entity);
+  }
+
+  public async fetchById(id: string): Promise<IlpPeer | undefined> {
+    return this.map.get(id);
+  }
+
   public async getByDestinationAddress(
     address: string
   ): Promise<IlpPeer | undefined> {
