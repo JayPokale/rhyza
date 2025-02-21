@@ -3,12 +3,15 @@ import { PaymentService } from "./payment";
 import { IlpConnector } from "./ilp-connector";
 import { RemoteIncomingPaymentServiceAdapter } from "./remote-incoming-payment";
 import logger from "./logger";
+import { IMessageProducer } from "./message-broker/message";
+import {CreateQuoteCmd} from "./message-broker/command";
 
 export function createApp(
   port: number,
   paymentService: PaymentService,
   remoteIncomingPaymentService: RemoteIncomingPaymentServiceAdapter,
-  ilpConnector: IlpConnector
+  ilpConnector: IlpConnector,
+  msgProducer: IMessageProducer
 ) {
   const app = fastify();
 
@@ -67,26 +70,28 @@ export function createApp(
 
     // TODO: As an enhancement, we can allow the client to specify whether they want back a 202
     // to just be able to fetch the quote later (async mode)
-    const id = await paymentService.createQuote({
+    const payload = {
       id: requestBody.id,
       debitAmount: requestBody.debitAmount
         ? {
-            assetCode: requestBody.debitAmount.assetCode,
-            assetScale: requestBody.debitAmount.assetScale,
-            value: BigInt(requestBody.debitAmount.value),
-          }
+          assetCode: requestBody.debitAmount.assetCode,
+          assetScale: requestBody.debitAmount.assetScale,
+          value: BigInt(requestBody.debitAmount.value),
+        }
         : undefined,
       receiveAmount: requestBody.receiveAmount
         ? {
-            assetCode: requestBody.receiveAmount.assetCode,
-            assetScale: requestBody.receiveAmount.assetScale,
-            value: BigInt(requestBody.receiveAmount.value),
-          }
+          assetCode: requestBody.receiveAmount.assetCode,
+          assetScale: requestBody.receiveAmount.assetScale,
+          value: BigInt(requestBody.receiveAmount.value),
+        }
         : undefined,
       senderWalletAddressId: requestBody.senderWalletAddressId,
       incomingPaymentId: requestBody.incomingPaymentId,
-    });
+    }
+    const id = await paymentService.createQuote(payload);
 
+    await msgProducer.send(new CreateQuoteCmd(payload))
     // TODO: wait for remote quote to complete if necessary
 
     reply.code(201).send({ id });
@@ -105,7 +110,7 @@ export function createApp(
   });
 
   app.post("/ilp", async function handler(request, reply) {
-    logger.info("Received prepare packet");
+    logger.info("Received prepare packet")
 
     await ilpConnector.handlePreparePacket(
       request.headers["request-id"] as string,

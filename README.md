@@ -6,7 +6,26 @@ It is intended for experimental purposes only.
 
 ## Usage
 
-`pnpm dev`
+Prepare correct Node.
+```shell
+nvm install
+nvm use
+```
+
+Build and start POC.
+```shell
+corepack enable
+# Install & Build:
+pnpm i
+pnpm build
+# Run (port 3000):
+pnpm dev
+```
+
+Once ready, run test.
+```shell
+pnpm test
+```
 
 ## Main changes from current implementation
 

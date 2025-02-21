@@ -1,3 +1,5 @@
+import {RafikiKafkaJsonProducer, RafikiKafkaJsonProducerOptions} from "./message-broker";
+
 require("./telemetry.js"); // Load telemetry before running the rest of the app
 
 import { readFileSync } from "fs";
@@ -106,15 +108,24 @@ async function seed(seedFilePath: string) {
   );
 
   const seedFilePath = process.env["SEED_FILE_LOCATION"] || "seed.json";
-  logger.info(`Running seed from ${seedFilePath}`);
+  logger.info(`Running seed from ${seedFilePath}`)
 
-  const seedObj = await seed(seedFilePath);
+  const seedObj = await seed(seedFilePath)
+
+  // kafka common options
+  const kafkaProducerCommonOptions: RafikiKafkaJsonProducerOptions = {
+    kafkaBrokerList: `KAFKA_URL`,
+    producerClientId: `rafiki-${crypto.randomUUID()}`,
+  };
+
+  const producer = new RafikiKafkaJsonProducer(kafkaProducerCommonOptions)
 
   const start = createApp(
     Number(seedObj.port ?? 3000),
     paymentService,
     remoteIncomingPaymentService,
-    ilpConnector
+    ilpConnector,
+    producer
   );
 
   await start();
