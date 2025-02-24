@@ -1,0 +1,11 @@
+services:
+  app-peer:
+    image: rafiki-poc-app
+    restart: always
+    ports:
+      - '3001:3001'
+    environment:
+      SEED_FILE_LOCATION: /workspace/docker/peer/seed.json
+      OPEN_TELEMETRY_COLLECTOR_URL: http://otel-collector:4317
+    networks:
+      - rafiki-poc

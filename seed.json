@@ -17,5 +17,15 @@
   "ilpConfig": {
     "address": "test.peer-a"
   },
-  "peers": []
+  "peers": [
+    {
+      "asset": {
+        "code": "USD",
+        "scale": 2
+      },
+      "address": "test.peer-b",
+      "connectorUrl": "http://app-peer:3001/ilp",
+      "callbackUrl": "http://app-peer:3001/ilp-reply"
+    }
+  ]
 }

@@ -1,0 +1,25 @@
+{
+  "port": 3001,
+  "walletAddresses": [
+    {
+      "id": "a1469618-077a-447d-b5a3-a9ed11265a65",
+      "url": "",
+      "assetCode": "USD",
+      "assetScale": 2
+    }
+  ],
+  "ilpConfig": {
+    "address": "test.peer-b"
+  },
+  "peers": [
+    {
+      "asset": {
+        "code": "USD",
+        "scale": 2
+      },
+      "address": "test.peer-a",
+      "connectorUrl": "http://app:3000/ilp",
+      "callbackUrl": "http://app:3000/ilp-reply"
+    }
+  ]
+}
