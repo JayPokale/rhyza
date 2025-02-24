@@ -46,9 +46,13 @@ export function createApp(
   app.post("/remote-incoming-payment", async function handler(request, reply) {
     const requestBody = request.body as any;
 
+    const url = new URL(requestBody.walletAddressUrl);
+    const resourceServerUrl = url.origin;
+    const walletAddressId = url.pathname.slice(1);
+
     const id = await remoteIncomingPaymentService.createRemoteIncomingPayment({
       expiresAt: requestBody.expiresAt,
-      walletAddressId: requestBody.walletAddressId, // TODO: needs to be wallet address URL
+      walletAddressId,
       incomingAmount: requestBody.incomingAmount
         ? {
             assetCode: requestBody.incomingAmount.assetCode,
@@ -56,7 +60,7 @@ export function createApp(
             value: BigInt(requestBody.incomingAmount.value),
           }
         : undefined,
-      resourceServerUrl: "http://localhost:3001/incoming-payment",
+      resourceServerUrl,
     });
 
     reply.code(201).send({ id });
@@ -105,7 +109,7 @@ export function createApp(
   });
 
   app.post("/ilp", async function handler(request, reply) {
-    logger.info("Received prepare packet");
+    logger.debug("Received prepare packet");
 
     await ilpConnector.handlePreparePacket(
       request.headers["request-id"] as string,
@@ -117,7 +121,7 @@ export function createApp(
   });
 
   app.post("/ilp-reply", async function handler(request, reply) {
-    logger.info("Received reject or fulfill packet");
+    logger.debug("Received reject or fulfill packet");
 
     await ilpConnector.handleFulfillOrRejectPacket(
       request.headers["request-id"] as string,

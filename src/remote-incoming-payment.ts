@@ -1,4 +1,5 @@
 import { IlpDetails } from "./ilp-connector";
+import logger from "./logger";
 import { Repository } from "./repository";
 import { Amount, Asset } from "./shared";
 
@@ -39,28 +40,53 @@ export class RemoteIncomingPaymentService
   public async createRemoteIncomingPayment(
     args: CreateRemoteIncomingPaymentArgs
   ): Promise<string> {
-    const { expiresAt, incomingAmount, walletAddressId } = args;
+    const { expiresAt, incomingAmount, walletAddressId, resourceServerUrl } =
+      args;
 
     // TODO: Open Payments client
-    const res = await fetch(args.resourceServerUrl, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
+    let res;
+    try {
+      res = await fetch(`${resourceServerUrl}/incoming-payment`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          walletAddressId,
+          expiresAt,
+          ...(incomingAmount
+            ? {
+                assetScale: incomingAmount.assetScale,
+                assetCode: incomingAmount.assetCode,
+                value: incomingAmount.value,
+              }
+            : {}),
+        }),
+      });
+    } catch (err) {
+      logger.error("Error creating incoming payment at remote", {
         walletAddressId,
-        expiresAt,
-        ...(incomingAmount
-          ? {
-              assetScale: incomingAmount.assetScale,
-              assetCode: incomingAmount.assetCode,
-              value: incomingAmount.value,
-            }
-          : {}),
-      }),
-    });
+        resourceServerUrl,
+        err,
+      });
+    }
 
-    const remoteIncomingPayment = (await res.json()) as RemoteIncomingPayment;
+    if (!res!.ok) {
+      const errorMessage =
+        "Got non 2XX response when creating incoming payment";
+      logger.error(
+        {
+          walletAddressId,
+          resourceServerUrl,
+          status: res!.status,
+        },
+        errorMessage
+      );
+
+      throw new Error(errorMessage);
+    }
+
+    const remoteIncomingPayment = (await res!.json()) as RemoteIncomingPayment;
 
     await this.remoteIncomingPaymentRepository.store(remoteIncomingPayment);
 
