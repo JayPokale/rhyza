@@ -1,9 +1,14 @@
-import {RafikiKafkaJsonProducer, RafikiKafkaJsonProducerOptions} from "./message-broker";
+import {
+  RafikiKafkaJsonConsumer,
+  RafikiKafkaJsonConsumerOptions,
+  RafikiKafkaJsonProducer,
+  RafikiKafkaJsonProducerOptions, RafikiKafkaRawConsumerOutputType
+} from "./message-broker";
 
 require("./telemetry.js"); // Load telemetry before running the rest of the app
 
 import { readFileSync } from "fs";
-import { createApp } from "./app";
+import {createApp, createAppCommandHandler} from "./app";
 import { EventEmitterPubSub } from "./event";
 import { LiquidityService } from "./liquidity";
 import {
@@ -113,12 +118,27 @@ async function seed(seedFilePath: string) {
   const seedObj = await seed(seedFilePath)
 
   // kafka common options
+  const kafkaUrl = process.env["KAFKA_URL"] || "kafka:29092"
   const kafkaProducerCommonOptions: RafikiKafkaJsonProducerOptions = {
-    kafkaBrokerList: `KAFKA_URL`,
+    kafkaBrokerList: kafkaUrl,
     producerClientId: `rafiki-${crypto.randomUUID()}`,
-  };
+  }
+  const kafkaConsumerCommonOptions: RafikiKafkaJsonConsumerOptions = {
+    kafkaBrokerList: kafkaUrl,
+    kafkaGroupId: `rafiki-commands`
+  }
 
+  logger.info(`Init Kafka on '${kafkaUrl}'`)
+
+  // Init Producer/Consumer:
   const producer = new RafikiKafkaJsonProducer(kafkaProducerCommonOptions)
+  await producer.connect()
+  const consumer = new RafikiKafkaJsonConsumer(kafkaConsumerCommonOptions)
+
+  logger.info(`Kafka Connected. Initializing Handler...`)
+  const startHandler = createAppCommandHandler(paymentService, consumer)
+  await startHandler()
+  logger.info(`Create App...`)
 
   const start = createApp(
     Number(seedObj.port ?? 3000),
@@ -127,11 +147,15 @@ async function seed(seedFilePath: string) {
     ilpConnector,
     producer
   );
-
   await start();
 
   process.on("SIGINT", () => {
     logger.info("Received SIGINT. Shutting down gracefully...");
+    producer.disconnect()
+    producer.destroy()
+    consumer.disconnect()
+    consumer.destroy(true)
+
     process.exit(0);
   });
 })();

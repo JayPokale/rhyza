@@ -61,8 +61,8 @@ type RafikiKafkaRawConsumerEventListener<K extends string> = K extends keyof Raf
 
 export class RafikiKafkaRawConsumer extends EventEmitter implements IRawMessageConsumer {
 	private _options: RafikiKafkaRawConsumerOptions
-	private _globalConfig: RDKafka.ConsumerGlobalConfig = {}//TODO @jason, add props
-	private _topicConfig: RDKafka.ConsumerTopicConfig = {}//TODO @jason, add props
+	private _globalConfig: RDKafka.ConsumerGlobalConfig = {}
+	private _topicConfig: RDKafka.ConsumerTopicConfig = {}
 	private _topics: string[] = [Topic.Commands]
 	private readonly _client: RDKafka.KafkaConsumer
 	private _handlerCallback: ((message: IRawMessage) => Promise<void>) | null = null
@@ -78,11 +78,11 @@ export class RafikiKafkaRawConsumer extends EventEmitter implements IRawMessageC
 
 		this._client = new RDKafka.KafkaConsumer(this._globalConfig, this._topicConfig)
 
-		if(this._options.batchTimeoutMs) {
-            this._client.setDefaultConsumeTimeout(this._options.batchTimeoutMs)
-        }else {
-            this._client.setDefaultConsumeTimeout(defaultOptions.batchTimeoutMs)
-        }
+		if (this._options.batchTimeoutMs) {
+			this._client.setDefaultConsumeTimeout(this._options.batchTimeoutMs)
+		} else {
+			this._client.setDefaultConsumeTimeout(defaultOptions.batchTimeoutMs)
+		}
 
 		this._client.on("ready", this._onReady.bind(this))
 		this._client.on("rebalance", this._onRebalance.bind(this))
@@ -147,8 +147,8 @@ export class RafikiKafkaRawConsumer extends EventEmitter implements IRawMessageC
 			this._globalConfig["session.timeout.ms"] = this._options.sessionTimeoutMs
 		}
 
-        // group.id is required, if not provided, generate a random one
-        this._globalConfig["group.id"] = this._options.kafkaGroupId || crypto.randomUUID()
+		// group.id is required, if not provided, generate a random one
+		this._globalConfig["group.id"] = this._options.kafkaGroupId || crypto.randomUUID()
 
 		// topic configs
 		this._topicConfig["auto.offset.reset"] = this._options.autoOffsetReset
@@ -157,27 +157,30 @@ export class RafikiKafkaRawConsumer extends EventEmitter implements IRawMessageC
 		this._globalConfig["metadata.broker.list"] = this._options.kafkaBrokerList
 		this._globalConfig["fetch.wait.max.ms"] = this._options.batchTimeoutMs
 
-        if (this._options.fetchErrorBackoffMms != undefined){
-            this._globalConfig["fetch.error.backoff.ms"] = this._options.fetchErrorBackoffMms
-        }
+		if (this._options.fetchErrorBackoffMms != undefined){
+			this._globalConfig["fetch.error.backoff.ms"] = this._options.fetchErrorBackoffMms
+		}
 
         // authentication options
-        if(this._options.authentication != undefined) {
-            this._globalConfig["security.protocol"] = this._options.authentication.protocol
-            this._globalConfig["sasl.mechanism"] = this._options.authentication.mechanism
-            this._globalConfig["sasl.username"] = this._options.authentication.username
-            this._globalConfig["sasl.password"] = this._options.authentication.password
-        }
-
+		if (this._options.authentication != undefined) {
+			this._globalConfig["security.protocol"] = this._options.authentication.protocol
+			this._globalConfig["sasl.mechanism"] = this._options.authentication.mechanism
+			this._globalConfig["sasl.username"] = this._options.authentication.username
+			this._globalConfig["sasl.password"] = this._options.authentication.password
+		}
 		// apply local defaults
 		this._batchSize = this._options.batchSize
+
+		logger.info(`RafikiRawKafkaConsumer - options: ${JSON.stringify(this._options, null, 2)}`)
+		logger.info(`RafikiRawKafkaConsumer - global: ${JSON.stringify(this._globalConfig, null, 2)}`)
+		logger.info(`RafikiRawKafkaConsumer - global: ${JSON.stringify(this._topicConfig, null, 2)}`)
 	}
 
 	private _onReady(info: RDKafka.ReadyInfo, metadata: RDKafka.Metadata): void {
-		//this._logger?.isInfoEnabled() && this._logger.info(`RafikiRawKafkaConsumer - event.ready - info: ${JSON.stringify(info, null, 2)}`)
+		logger.info(`RafikiRawKafkaConsumer - event.ready - info: ${JSON.stringify(info, null, 2)}`)
 
 		// this a huge
-		//this._logger?.isDebugEnabled() && this._logger.debug(`RafikiRawKafkaConsumer - event.ready - metadata: ${JSON.stringify(metadata, null, 2)}`)
+		logger.debug(`RafikiRawKafkaConsumer - event.ready - metadata: ${JSON.stringify(metadata, null, 2)}`)
 		setImmediate(() => {
 			this.emit("ready", info, metadata)
 		})
@@ -408,16 +411,24 @@ export class RafikiKafkaRawConsumer extends EventEmitter implements IRawMessageC
 					return reject(new Error(`RafikiRawKafkaConsumer - error connecting to cluster: ${err.message}`))
 				}
 
-                // throw if topics not found in metadata
-                if(this._topics){
-                    this._topics.forEach(topicName => {
-                        const found = metadata.topics.find(value => value.name.toUpperCase()===topicName.toUpperCase())
-                        if(!found){
-                            throw new Error(`Topic "${topicName}" not found in kafka, cannot continue`)
-                        }
-                    })
-                }
+				// throw if topics not found in metadata
+				if (this._topics) {
+					this._topics.forEach(topicName => {
+						logger.info(`RafikiRawKafkaConsumer - checking if topic '${topicName}' exists in kafka...`, metadata)
+						logger.info(metadata)
 
+						if (!metadata || !metadata.topics) {
+							logger.error('Fetching Meta-Data:')
+							const fetchedMetaData = this.getMetadata()
+							logger.error(fetchedMetaData)
+							throw new Error(`Topic '${topicName}' not found in kafka, no topics found in metadata. MetaData[${metadata}]`)
+						}
+						const found = metadata.topics.find(value => value.name.toUpperCase()===topicName.toUpperCase())
+						if (!found) {
+							throw new Error(`Topic ${topicName} not found in kafka, cannot continue`)
+						}
+					})
+				}
 				// metadata is handled by the onReady event
 				logger.info("RafikiRawKafkaConsumer - connected!")
 				resolve()

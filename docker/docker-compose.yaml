@@ -3,14 +3,17 @@ services:
   app:
     build:
       context: ../
-      dockerfile: ./docker/Dockerfile
+      #dockerfile: ./docker/Dockerfile
+      dockerfile: ./docker/Dockerfile-rdkafka
     restart: always
+    depends_on:
+      - init-kafka
     ports:
       - '3000:3000'
     environment:
       SEED_FILE_LOCATION: /workspace/seed.json
       OPEN_TELEMETRY_COLLECTOR_URL: http://otel-collector:4317
-
+      KAFKA_URL: kafka:19092
   otel-collector:
     image: otel/opentelemetry-collector:latest
     command: "--config=/etc/otel-collector-config.yaml"
@@ -47,7 +50,7 @@ services:
       - "29092:29092"
       - "9999:9999"
     environment:
-      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:19092,EXTERNAL://${KAFKA_ADVERTISED_HOST}:9092,DOCKER://host.docker.internal:29092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:19092,EXTERNAL://127.0.0.1:9092,DOCKER://host.docker.internal:29092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,DOCKER:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_ZOOKEEPER_CONNECT: "zoo:2181"

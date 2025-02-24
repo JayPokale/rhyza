@@ -3,8 +3,22 @@ import { PaymentService } from "./payment";
 import { IlpConnector } from "./ilp-connector";
 import { RemoteIncomingPaymentServiceAdapter } from "./remote-incoming-payment";
 import logger from "./logger";
-import { IMessageProducer } from "./message-broker/message";
+import {IMessageConsumer, IMessageProducer} from "./message-broker/message";
 import {CreateQuoteCmd} from "./message-broker/command";
+import {RafikiCommandHandler} from "./message-broker/command-handler/handler";
+
+export function createAppCommandHandler(
+  paymentService: PaymentService,
+  msgConsumer: IMessageConsumer
+) {
+  const rafikiCommandHandler = new RafikiCommandHandler(msgConsumer, paymentService)
+  return async () => {
+    logger.info(`🥺Starting Rafiki Command Handler::: ->`);
+    await rafikiCommandHandler.start()
+    logger.info(`Rafiki Command Handler started`);
+    return rafikiCommandHandler
+  };
+}
 
 export function createApp(
   port: number,
@@ -134,6 +148,6 @@ export function createApp(
 
   return async () => {
     await app.listen({ port, host: "0.0.0.0" });
-    logger.info(`Listening on port ${port}`);
+    logger.info(`Listening on port '${port}'`);
   };
 }
