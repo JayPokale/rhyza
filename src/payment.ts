@@ -82,7 +82,7 @@ export interface OutgoingPayment {
   localIncomingPaymentId?: string;
   remoteIncomingPaymentUrl?: string;
   senderWalletAddressId: string;
-  microPayments: MicroPayment[];
+  // microPayments: MicroPayment[];
 }
 
 // interface IncomingPaymentRepository extends Repository<IncomingPayment> {}
@@ -90,18 +90,32 @@ export interface OutgoingPayment {
 // interface OutgoingPaymentRepository extends Repository<OutgoingPayment> {}
 
 export interface IncomingPaymentRepository {
+  exists(id: string): Promise<boolean>;
   store(payment: IncomingPayment): Promise<void>;
   fetchById(id: string): Promise<IncomingPayment | undefined>;
+  updateStateAndReceivedAmount(request: {
+    id: string;
+    state: LocalIncomingPaymentState;
+    receivedAmount: bigint;
+  }): Promise<void>;
 }
 
 export interface QuoteRepository {
+  exists(id: string): Promise<boolean>;
   store(quote: Quote): Promise<void>;
   fetchById(id: string): Promise<Quote | undefined>;
+  updateAmounts(request: { id: string; amount: bigint }): Promise<void>;
 }
 
 export interface OutgoingPaymentRepository {
+  exists(id: string): Promise<boolean>;
   store(payment: OutgoingPayment): Promise<void>;
   fetchById(id: string): Promise<OutgoingPayment | undefined>;
+  updateStateAndSentAmount(request: {
+    id: string;
+    state: OutgoingPaymentState;
+    sentAmount: bigint;
+  }): Promise<void>;
 }
 
 export enum PaymentEventType {
@@ -231,7 +245,7 @@ export interface IncomingPayment extends BaseIncomingPayment {
   state: LocalIncomingPaymentState;
   walletAddressId: string;
   type: "LOCAL";
-  microPayments: MicroPayment[];
+  // microPayments: MicroPayment[];
 }
 
 interface CreateQuoteRequest {
@@ -272,10 +286,9 @@ export class PaymentService {
     let id: string;
 
     if (request.id) {
-      const existingIncomingPayment =
-        await this.incomingPaymentRepository.fetchById(request.id);
+      const exists = await this.incomingPaymentRepository.exists(request.id);
 
-      if (existingIncomingPayment) {
+      if (exists) {
         throw new DuplicateIncomingPaymentFoundError();
       }
       id = request.id;
@@ -324,7 +337,7 @@ export class PaymentService {
       walletAddressId: request.walletAddressId,
       type: "LOCAL",
       state: LocalIncomingPaymentState.CREATED,
-      microPayments: [],
+      // microPayments: [],
       asset: {
         code: walletAddress.assetCode,
         scale: walletAddress.assetScale,
@@ -343,7 +356,6 @@ export class PaymentService {
 
     return id;
   }
-
   private async fetchIncomingPayment(
     incomingPaymentId: string
   ): Promise<IncomingPayment | RemoteIncomingPayment | undefined> {
@@ -356,9 +368,9 @@ export class PaymentService {
   public async createQuote(request: CreateQuoteRequest): Promise<string> {
     let id: string;
     if (request.id) {
-      const existingQuote = await this.quoteRepository.fetchById(request.id);
+      const exists = await this.quoteRepository.exists(request.id);
 
-      if (existingQuote) {
+      if (exists) {
         throw new DuplicateQuoteFoundError();
       }
 
@@ -368,7 +380,6 @@ export class PaymentService {
     }
 
     const [walletAddress, incomingPayment] = await Promise.all([
-      // TODO: do .getStatusById instead?
       this.walletAddressService.getById(request.senderWalletAddressId),
       this.fetchIncomingPayment(request.incomingPaymentId),
     ]);
@@ -698,10 +709,9 @@ export class PaymentService {
     let outgoingPaymentId;
 
     if (request.id) {
-      const existingOutgoingPayment =
-        await this.outgoingPaymentRepository.fetchById(request.id);
+      const exists = await this.outgoingPaymentRepository.exists(request.id);
 
-      if (existingOutgoingPayment) {
+      if (exists) {
         throw new DuplicateOutgoingPaymentFoundError();
       }
       outgoingPaymentId = request.id;
@@ -768,7 +778,7 @@ export class PaymentService {
         sentAmount: 0n,
         localIncomingPaymentId: incomingPayment.id,
         state: OutgoingPaymentState.FUNDED, // TODO: check if the outgoing payment request came from third party, and webhook out to ASE instead of marking as FUNDED directly
-        microPayments: [],
+        // microPayments: [],
       };
 
       const localOutgoingPaymentFundedEvent: LocalOutgoingPaymentFundedEvent = {
@@ -811,7 +821,7 @@ export class PaymentService {
         sentAmount: 0n,
         remoteIncomingPaymentUrl: incomingPayment.id,
         state: "FUNDED",
-        microPayments: [],
+        // microPayments: [],
       };
       await this.outgoingPaymentRepository.store(outgoingPayment);
 
@@ -847,7 +857,7 @@ export class PaymentService {
       throw new IncomingPaymentCannotReceiveMicroPayment();
     }
 
-    incomingPayment.microPayments.push(microPayment);
+    // incomingPayment.microPayments.push(microPayment);
     incomingPayment.receivedAmount += microPayment.amount; // received amount can be larger than incoming amount because of FX
 
     if (
@@ -866,7 +876,7 @@ export class PaymentService {
       throw new OutgoingPaymentInvalidStateError();
     }
 
-    outgoingPayment.microPayments.push(microPayment);
+    // outgoingPayment.microPayments.push(microPayment);
     outgoingPayment.sentAmount += microPayment.amount;
 
     // TODO: determine whether this can/should happen
@@ -935,8 +945,16 @@ export class PaymentService {
     }
 
     await Promise.all([
-      this.outgoingPaymentRepository.store(outgoingPayment),
-      this.incomingPaymentRepository.store(incomingPayment),
+      this.outgoingPaymentRepository.updateStateAndSentAmount({
+        id: outgoingPayment.id,
+        state: outgoingPayment.state,
+        sentAmount: outgoingPayment.sentAmount,
+      }),
+      this.incomingPaymentRepository.updateStateAndReceivedAmount({
+        id: incomingPayment.id,
+        state: incomingPayment.state,
+        receivedAmount: incomingPayment.receivedAmount,
+      }),
     ]);
 
     await this.paymentEventProducer.publish(events);
@@ -1009,7 +1027,11 @@ export class PaymentService {
         events.push(outgoingPaymentCompletedEvent);
       }
 
-      await this.outgoingPaymentRepository.store(outgoingPayment);
+      await this.outgoingPaymentRepository.updateStateAndSentAmount({
+        id: outgoingPayment.id,
+        state: outgoingPayment.state,
+        sentAmount: outgoingPayment.sentAmount,
+      });
       await this.paymentEventProducer.publish(events);
     } else {
       throw new Error("FX during packet handling not implemented");
@@ -1073,7 +1095,11 @@ export class PaymentService {
         method: "ILP",
       });
 
-      await this.incomingPaymentRepository.store(incomingPayment);
+      await this.incomingPaymentRepository.updateStateAndReceivedAmount({
+        id: incomingPayment.id,
+        state: incomingPayment.state,
+        receivedAmount: incomingPayment.receivedAmount,
+      });
 
       const paymentEvents: Event[] = [];
 
@@ -1117,16 +1143,19 @@ export class PaymentService {
   public async handleIlpQuotePacketReceived(
     event: IlpQuotePacketReceivedEvent
   ): Promise<void> {
-    const quote = await this.quoteRepository.fetchById(event.data.quoteId);
+    const exists = await this.quoteRepository.exists(event.data.quoteId);
 
-    if (!quote) {
+    if (!exists) {
       throw new QuoteNotFoundError();
     }
 
-    quote.debitAmount.value = event.data.amount;
-    quote.receiveAmount.value = event.data.amount;
+    // quote.debitAmount.value = event.data.amount;
+    // quote.receiveAmount.value = event.data.amount;
 
-    await this.quoteRepository.store(quote);
+    await this.quoteRepository.updateAmounts({
+      id: event.data.quoteId,
+      amount: event.data.amount,
+    });
   }
 }
 
@@ -1164,6 +1193,25 @@ export class IncomingPaymentInMemoryRepository
   public async fetchById(id: string): Promise<IncomingPayment | undefined> {
     return this.map.get(id);
   }
+
+  public async exists(id: string): Promise<boolean> {
+    return this.map.has(id);
+  }
+
+  public async updateStateAndReceivedAmount(request: {
+    id: string;
+    state: LocalIncomingPaymentState;
+    receivedAmount: bigint;
+  }): Promise<void> {
+    const { id, state, receivedAmount } = request;
+    const payment = this.map.get(id);
+    if (!payment) {
+      throw new Error(`IncomingPayment with id ${id} not found`);
+    }
+
+    payment.state = state;
+    payment.receivedAmount = receivedAmount;
+  }
 }
 
 export class IncomingPaymentPsqlRepository
@@ -1172,6 +1220,19 @@ export class IncomingPaymentPsqlRepository
   TABLE_NAME = "incoming_payments";
   constructor(private pool: Pool) {}
 
+  public async exists(id: string): Promise<boolean> {
+    try {
+      const res = await this.pool.query(
+        `SELECT EXISTS(SELECT 1 FROM ${this.TABLE_NAME} WHERE id = $1)`,
+        [id]
+      );
+      return res.rows[0].exists;
+    } catch (error) {
+      console.error("Error checking if wallet address exists:", error);
+      throw error;
+    }
+  }
+
   public async store(incomingPayment: IncomingPayment): Promise<void> {
     // TODO: Should we make the amounts on MicroPayments a string
     // and cast to BigInt where needed instead? Would that be less work?
@@ -1179,10 +1240,10 @@ export class IncomingPaymentPsqlRepository
     // on db read/write. Could we potentially have a lot of micro payments?
     // - Testing with Postgres BIGINT column, it does not need to be serialized on write
     //   (can insert correctly) but must parse to BigInt from string on read
-    const microPaymentsForDb = incomingPayment.microPayments.map((mp) => ({
-      ...mp,
-      amount: mp.amount.toString(),
-    }));
+    // const microPaymentsForDb = incomingPayment.microPayments.map((mp) => ({
+    //   ...mp,
+    //   amount: mp.amount.toString(),
+    // }));
 
     try {
       const query = `
@@ -1210,14 +1271,33 @@ export class IncomingPaymentPsqlRepository
         incomingPayment.receivedAmount.toString(),
         incomingPayment.state,
         incomingPayment.walletAddressId,
-        JSON.stringify(incomingPayment.microPayments, (key, value) =>
-          key === "amount" ? value.toString() : value
-        ),
+        // JSON.stringify(incomingPayment.microPayments, (key, value) =>
+        //   key === "amount" ? value.toString() : value
+        // ),
       ];
 
       await this.pool.query(query, values);
     } catch (error) {
       console.error("Error storing incoming payment:", error);
+      throw error;
+    }
+  }
+
+  public async updateStateAndReceivedAmount(request: {
+    id: string;
+    state: LocalIncomingPaymentState;
+    receivedAmount: bigint;
+  }): Promise<void> {
+    const { id, state, receivedAmount } = request;
+    try {
+      const query = `UPDATE ${this.TABLE_NAME} 
+       SET state = $2, received_amount = $3
+       WHERE id = $1`;
+      const values = [id, state, receivedAmount];
+
+      await this.pool.query(query, values);
+    } catch (error) {
+      console.error("Error updating incoming payment:", error);
       throw error;
     }
   }
@@ -1246,9 +1326,9 @@ export class IncomingPaymentPsqlRepository
       state: row.state as LocalIncomingPaymentState,
       walletAddressId: row.wallet_address_id,
       type: "LOCAL",
-      microPayments: JSON.parse(row.micro_payments, (key, value) =>
-        key === "amount" ? BigInt(value) : value
-      ),
+      // microPayments: JSON.parse(row.micro_payments, (key, value) =>
+      //   key === "amount" ? BigInt(value) : value
+      // ),
     };
   }
 }
@@ -1264,6 +1344,25 @@ export class OutgoingPaymentInMemoryRepository
 
   public async fetchById(id: string): Promise<OutgoingPayment | undefined> {
     return this.map.get(id);
+  }
+
+  public async exists(id: string): Promise<boolean> {
+    return this.map.has(id);
+  }
+
+  public async updateStateAndSentAmount(request: {
+    id: string;
+    state: OutgoingPaymentState;
+    sentAmount: bigint;
+  }): Promise<void> {
+    const { id, state, sentAmount } = request;
+    const payment = this.map.get(id);
+    if (!payment) {
+      throw new Error(`IncomingPayment with id ${id} not found`);
+    }
+
+    payment.state = state;
+    payment.sentAmount = sentAmount;
   }
 }
 
@@ -1286,6 +1385,19 @@ export class OutgoingPaymentPsqlRepository
 {
   TABLE_NAME = "outgoing_payments";
   constructor(private pool: Pool) {}
+
+  public async exists(id: string): Promise<boolean> {
+    try {
+      const res = await this.pool.query(
+        `SELECT EXISTS(SELECT 1 FROM ${this.TABLE_NAME} WHERE id = $1)`,
+        [id]
+      );
+      return res.rows[0].exists;
+    } catch (error) {
+      console.error("Error checking if wallet address exists:", error);
+      throw error;
+    }
+  }
 
   public async store(outgoingPayment: OutgoingPayment): Promise<void> {
     try {
@@ -1316,14 +1428,33 @@ export class OutgoingPaymentPsqlRepository
         outgoingPayment.localIncomingPaymentId,
         outgoingPayment.remoteIncomingPaymentUrl,
         outgoingPayment.senderWalletAddressId,
-        JSON.stringify(outgoingPayment.microPayments, (key, value) =>
-          key === "amount" ? value.toString() : value
-        ),
+        // JSON.stringify(outgoingPayment.microPayments, (key, value) =>
+        //   key === "amount" ? value.toString() : value
+        // ),
       ];
 
       await this.pool.query(query, values);
     } catch (error) {
       console.error("Error storing outgoing payment:", error);
+      throw error;
+    }
+  }
+
+  public async updateStateAndSentAmount(request: {
+    id: string;
+    state: OutgoingPaymentState;
+    sentAmount: bigint;
+  }): Promise<void> {
+    const { id, state, sentAmount } = request;
+    try {
+      const query = `UPDATE ${this.TABLE_NAME} 
+       SET state = $2, sent_amount = $3
+       WHERE id = $1`;
+      const values = [id, state, sentAmount];
+
+      await this.pool.query(query, values);
+    } catch (error) {
+      console.error("Error updating incoming payment:", error);
       throw error;
     }
   }
@@ -1351,9 +1482,9 @@ export class OutgoingPaymentPsqlRepository
       localIncomingPaymentId: row.local_incoming_payment_id ?? undefined,
       remoteIncomingPaymentUrl: row.remote_incoming_payment_url ?? undefined,
       senderWalletAddressId: row.sender_wallet_address_id,
-      microPayments: JSON.parse(row.micro_payments, (key, value) =>
-        key === "amount" ? BigInt(value) : value
-      ),
+      // microPayments: JSON.parse(row.micro_payments, (key, value) =>
+      //   key === "amount" ? BigInt(value) : value
+      // ),
     };
   }
 }
@@ -1367,6 +1498,24 @@ export class QuoteInMemoryRepository implements QuoteRepository {
 
   public async fetchById(id: string): Promise<Quote | undefined> {
     return this.map.get(id);
+  }
+
+  public async exists(id: string): Promise<boolean> {
+    return this.map.has(id);
+  }
+
+  public async updateAmounts(request: {
+    id: string;
+    amount: bigint;
+  }): Promise<void> {
+    const { id, amount } = request;
+    const quote = this.map.get(id);
+    if (!quote) {
+      throw new Error(`Quote with id ${id} not found`);
+    }
+
+    quote.debitAmount.value = amount;
+    quote.receiveAmount.value = amount;
   }
 }
 
@@ -1387,6 +1536,19 @@ interface QuoteRecord {
 export class QuotePsqlRepository implements QuoteRepository {
   TABLE_NAME = "quotes";
   constructor(private pool: Pool) {}
+
+  public async exists(id: string): Promise<boolean> {
+    try {
+      const res = await this.pool.query(
+        `SELECT EXISTS(SELECT 1 FROM ${this.TABLE_NAME} WHERE id = $1)`,
+        [id]
+      );
+      return res.rows[0].exists;
+    } catch (error) {
+      console.error("Error checking if wallet address exists:", error);
+      throw error;
+    }
+  }
 
   public async store(quote: Quote): Promise<void> {
     try {
@@ -1456,4 +1618,27 @@ export class QuotePsqlRepository implements QuoteRepository {
       exchangeRate: Number(row.exchange_rate),
     };
   }
+
+  public async updateAmounts(request: {
+    id: string;
+    amount: bigint;
+  }): Promise<void> {
+    const { id, amount } = request;
+    try {
+      const query = `
+        UPDATE ${this.TABLE_NAME}
+        SET receive_amount_value = $1, debit_amount_value = $2
+        WHERE id = $3
+      `;
+      const values = [amount.toString(), amount.toString(), id];
+
+      await this.pool.query(query, values);
+    } catch (error) {
+      console.error("Error storing quote:", error);
+      throw error;
+    }
+  }
 }
+
+
+something is messed up when running perf tests...
