@@ -66,12 +66,6 @@ export class IlpPeerPsqlRepository implements PeerRepository {
       const query = `
         INSERT INTO ${this.TABLE_NAME} (id, asset_code, asset_scale, address, connector_url, callback_url)
         VALUES ($1, $2, $3, $4, $5, $6)
-        ON CONFLICT (id) DO UPDATE SET
-          asset_code = EXCLUDED.asset_code,
-          asset_scale = EXCLUDED.asset_scale,
-          address = EXCLUDED.address,
-          connector_url = EXCLUDED.connector_url,
-          callback_url = EXCLUDED.callback_url
       `;
       const values = [
         ilpPeer.id,

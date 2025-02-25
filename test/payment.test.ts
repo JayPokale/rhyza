@@ -70,8 +70,8 @@ describe("Payment Service", () => {
           walletAddressId: randomUUID(),
         };
 
-        t.mock.method(incomingPaymentRepo, "fetchById", async () => {
-          return id;
+        t.mock.method(incomingPaymentRepo, "exists", async () => {
+          return true;
         });
 
         await assert.rejects(
@@ -247,7 +247,7 @@ describe("Payment Service", () => {
           walletAddressId: request.walletAddressId,
           type: "LOCAL",
           state: "CREATED",
-          microPayments: [],
+          // microPayments: [],
           asset: {
             code: walletAddress.assetCode,
             scale: walletAddress.assetScale,
@@ -314,7 +314,7 @@ describe("Payment Service", () => {
           walletAddressId: request.walletAddressId,
           type: "LOCAL",
           state: "CREATED",
-          microPayments: [],
+          // microPayments: [],
           asset: {
             code: walletAddress.assetCode,
             scale: walletAddress.assetScale,
@@ -356,8 +356,8 @@ describe("Payment Service", () => {
           incomingPaymentId: randomUUID(),
         };
 
-        t.mock.method(quoteRepo, "fetchById", async () => {
-          return id;
+        t.mock.method(quoteRepo, "exists", async () => {
+          return true;
         });
 
         await assert.rejects(

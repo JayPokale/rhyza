@@ -85,10 +85,6 @@ export interface OutgoingPayment {
   // microPayments: MicroPayment[];
 }
 
-// interface IncomingPaymentRepository extends Repository<IncomingPayment> {}
-// interface QuoteRepository extends Repository<Quote> {}
-// interface OutgoingPaymentRepository extends Repository<OutgoingPayment> {}
-
 export interface IncomingPaymentRepository {
   exists(id: string): Promise<boolean>;
   store(payment: IncomingPayment): Promise<void>;
@@ -1178,7 +1174,7 @@ interface IncomingPaymentRecord {
   received_amount: string;
   state: string;
   wallet_address_id: string;
-  micro_payments: string;
+  // micro_payments: string;
 }
 
 export class IncomingPaymentInMemoryRepository
@@ -1248,17 +1244,8 @@ export class IncomingPaymentPsqlRepository
     try {
       const query = `
         INSERT INTO ${this.TABLE_NAME} 
-        (id, expires_at, asset_code, asset_scale, incoming_amount, received_amount, state, wallet_address_id, micro_payments)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-        ON CONFLICT (id) DO UPDATE SET
-          expires_at = EXCLUDED.expires_at,
-          asset_code = EXCLUDED.asset_code,
-          asset_scale = EXCLUDED.asset_scale,
-          incoming_amount = EXCLUDED.incoming_amount,
-          received_amount = EXCLUDED.received_amount,
-          state = EXCLUDED.state,
-          wallet_address_id = EXCLUDED.wallet_address_id,
-          micro_payments = EXCLUDED.micro_payments
+        (id, expires_at, asset_code, asset_scale, incoming_amount, received_amount, state, wallet_address_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       `;
       const values = [
         incomingPayment.id,
@@ -1275,6 +1262,8 @@ export class IncomingPaymentPsqlRepository
         //   key === "amount" ? value.toString() : value
         // ),
       ];
+
+      // TODO: handle micropayments?
 
       await this.pool.query(query, values);
     } catch (error) {
@@ -1304,7 +1293,7 @@ export class IncomingPaymentPsqlRepository
 
   public async fetchById(id: string): Promise<IncomingPayment | undefined> {
     const res = await this.pool.query<IncomingPaymentRecord>(
-      `SELECT id, expires_at, asset_code, asset_scale, incoming_amount, received_amount, state, wallet_address_id, micro_payments FROM ${this.TABLE_NAME} WHERE id = $1`,
+      `SELECT id, expires_at, asset_code, asset_scale, incoming_amount, received_amount, state, wallet_address_id FROM ${this.TABLE_NAME} WHERE id = $1`,
       [id]
     );
 
@@ -1377,7 +1366,7 @@ interface OutgoingPaymentRecord {
   local_incoming_payment_id: string | null;
   remote_incoming_payment_url: string | null;
   sender_wallet_address_id: string;
-  micro_payments: string;
+  // micro_payments: string;
 }
 
 export class OutgoingPaymentPsqlRepository
@@ -1402,19 +1391,8 @@ export class OutgoingPaymentPsqlRepository
   public async store(outgoingPayment: OutgoingPayment): Promise<void> {
     try {
       const query = `
-        INSERT INTO ${this.TABLE_NAME} (id, quote_id, asset_code, asset_scale, state, sent_amount, debit_amount, local_incoming_payment_id, remote_incoming_payment_url, sender_wallet_address_id, micro_payments)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-        ON CONFLICT (id) DO UPDATE SET
-          quote_id = EXCLUDED.quote_id,
-          asset_code = EXCLUDED.asset_code,
-          asset_scale = EXCLUDED.asset_scale,
-          state = EXCLUDED.state,
-          sent_amount = EXCLUDED.sent_amount,
-          debit_amount = EXCLUDED.debit_amount,
-          local_incoming_payment_id = EXCLUDED.local_incoming_payment_id,
-          remote_incoming_payment_url = EXCLUDED.remote_incoming_payment_url,
-          sender_wallet_address_id = EXCLUDED.sender_wallet_address_id,
-          micro_payments = EXCLUDED.micro_payments
+        INSERT INTO ${this.TABLE_NAME} (id, quote_id, asset_code, asset_scale, state, sent_amount, debit_amount, local_incoming_payment_id, remote_incoming_payment_url, sender_wallet_address_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       `;
 
       const values = [
@@ -1461,7 +1439,7 @@ export class OutgoingPaymentPsqlRepository
 
   public async fetchById(id: string): Promise<OutgoingPayment | undefined> {
     const res = await this.pool.query<OutgoingPaymentRecord>(
-      `SELECT id, quote_id, asset_code, asset_scale, state, sent_amount, debit_amount, local_incoming_payment_id, remote_incoming_payment_url, sender_wallet_address_id, micro_payments FROM ${this.TABLE_NAME} WHERE id = $1`,
+      `SELECT id, quote_id, asset_code, asset_scale, state, sent_amount, debit_amount, local_incoming_payment_id, remote_incoming_payment_url, sender_wallet_address_id FROM ${this.TABLE_NAME} WHERE id = $1`,
       [id]
     );
 
@@ -1555,17 +1533,6 @@ export class QuotePsqlRepository implements QuoteRepository {
       const query = `
         INSERT INTO ${this.TABLE_NAME} (id, receive_amount_value, receive_amount_asset_code, receive_amount_asset_scale, debit_amount_value, debit_amount_asset_code, debit_amount_asset_scale, sender_wallet_address_id, incoming_payment_id, expires_at, exchange_rate)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-        ON CONFLICT (id) DO UPDATE SET
-          receive_amount_value = EXCLUDED.receive_amount_value,
-          receive_amount_asset_code = EXCLUDED.receive_amount_asset_code,
-          receive_amount_asset_scale = EXCLUDED.receive_amount_asset_scale,
-          debit_amount_value = EXCLUDED.debit_amount_value,
-          debit_amount_asset_code = EXCLUDED.debit_amount_asset_code,
-          debit_amount_asset_scale = EXCLUDED.debit_amount_asset_scale,
-          sender_wallet_address_id = EXCLUDED.sender_wallet_address_id,
-          incoming_payment_id = EXCLUDED.incoming_payment_id,
-          expires_at = EXCLUDED.expires_at,
-          exchange_rate = EXCLUDED.exchange_rate
       `;
 
       const values = [
@@ -1639,6 +1606,3 @@ export class QuotePsqlRepository implements QuoteRepository {
     }
   }
 }
-
-
-something is messed up when running perf tests...

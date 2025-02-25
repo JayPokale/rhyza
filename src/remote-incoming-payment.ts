@@ -117,14 +117,6 @@ export class RemoteIncomingPaymentPsqlRepository
       const query = `
         INSERT INTO ${this.TABLE_NAME} (id, expires_at, asset_code, asset_scale, incoming_amount, received_amount, ilp_destination_address, ilp_shared_secret)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        ON CONFLICT (id) DO UPDATE SET
-          expires_at = EXCLUDED.expires_at,
-          asset_code = EXCLUDED.asset_code,
-          asset_scale = EXCLUDED.asset_scale,
-          incoming_amount = EXCLUDED.incoming_amount,
-          received_amount = EXCLUDED.received_amount,
-          ilp_destination_address = EXCLUDED.ilp_destination_address,
-          ilp_shared_secret = EXCLUDED.ilp_shared_secret
       `;
 
       const values = [
