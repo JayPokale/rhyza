@@ -4,6 +4,12 @@ import { IlpConnector } from "./ilp-connector";
 import { RemoteIncomingPaymentServiceAdapter } from "./remote-incoming-payment";
 import logger from "./logger";
 
+// For measuring TPS in k6 benchmark
+let TRANSACTION_COUNT = 0;
+export function incrementTransactionCounter() {
+  TRANSACTION_COUNT++;
+}
+
 export function createApp(
   port: number,
   paymentService: PaymentService,
@@ -125,6 +131,10 @@ export function createApp(
     );
 
     reply.code(201).send();
+  });
+
+  app.get("/transaction-count", async function handler(request, reply) {
+    return { count: TRANSACTION_COUNT };
   });
 
   return async () => {

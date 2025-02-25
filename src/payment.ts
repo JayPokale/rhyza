@@ -17,6 +17,7 @@ import {
   RemoteIncomingPayment,
   RemoteIncomingPaymentServiceAdapter,
 } from "./remote-incoming-payment";
+import { incrementTransactionCounter } from "./app";
 
 export class WalletAddressNotFoundError extends Error {}
 export class WalletAddressInactiveError extends Error {}
@@ -924,6 +925,7 @@ export class PaymentService {
     ]);
 
     await this.paymentEventProducer.publish(events);
+    incrementTransactionCounter();
   }
 
   public async handleIlpPaymentFulfillPacketReceivedEvent(
@@ -995,6 +997,7 @@ export class PaymentService {
 
       await this.outgoingPaymentRepository.store(outgoingPayment);
       await this.paymentEventProducer.publish(events);
+      incrementTransactionCounter;
     } else {
       throw new Error("FX during packet handling not implemented");
     }

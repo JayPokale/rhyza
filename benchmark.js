@@ -1,9 +1,11 @@
 import http from "k6/http";
 import { check } from "k6";
 
+const TEST_TIME_SECONDS = 10;
+
 export const options = {
   vus: 10,
-  duration: "30s",
+  duration: `${TEST_TIME_SECONDS}s`,
   // iterations: 1,
 };
 
@@ -54,4 +56,12 @@ export default function (data) {
   check(outgoingPaymentRes, {
     "outgoing payment created": (r) => r.status === 201,
   });
+}
+
+export function teardown() {
+  const transactionCount = http
+    .get("http://localhost:3000/transaction-count")
+    .json().count;
+  const tps = transactionCount / TEST_TIME_SECONDS;
+  console.log(`Transactions per second (TPS): ${tps}`);
 }
