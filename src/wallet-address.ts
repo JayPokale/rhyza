@@ -38,9 +38,9 @@ export class WalletAddressService implements WalletAddressServiceAdapter {
     let id: string;
 
     if (args.id) {
-      const existingWalletAddress =
-        // await this.walletAddressRepository.fetchById(args.id);
-        await this.walletAddressRepository.exists(args.id);
+      const existingWalletAddress = await this.walletAddressRepository.exists(
+        args.id
+      );
 
       if (existingWalletAddress) {
         throw new DuplicateWalletAddressFoundError();

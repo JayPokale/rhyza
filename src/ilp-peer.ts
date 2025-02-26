@@ -1,5 +1,4 @@
 import { Pool } from "pg";
-// import { InMemoryRepository, Repository } from "./repository";
 import { Asset } from "./shared";
 
 export interface IlpPeer {
