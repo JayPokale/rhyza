@@ -1,10 +1,10 @@
 import fastify from "fastify";
-import { PaymentService } from "./payment";
+import {DuplicateIncomingPaymentFoundError, DuplicateQuoteFoundError, PaymentService} from "./payment";
 import { IlpConnector } from "./ilp-connector";
 import { RemoteIncomingPaymentServiceAdapter } from "./remote-incoming-payment";
 import logger from "./logger";
 import {IMessageConsumer, IMessageProducer} from "./message-broker/message";
-import {CreateQuoteCmd} from "./message-broker/command";
+import {CreateIncomingPaymentCmd, CreateOutgoingPaymentFromQuoteCmd, CreateQuoteCmd} from "./message-broker/command";
 import {RafikiCommandHandler} from "./message-broker/command-handler/handler";
 
 export function createAppCommandHandler(
@@ -42,22 +42,30 @@ export function createApp(
   app.post("/incoming-payment", async function handler(request, reply) {
     const requestBody = request.body as any;
 
-    const id = await paymentService.createIncomingPayment({
+    const payload = {
       id: requestBody.id,
       expiresAt: requestBody.expiresAt,
       incomingAmount: requestBody.incomingAmount
         ? {
-            assetCode: requestBody.incomingAmount.assetCode,
-            assetScale: requestBody.incomingAmount.assetScale,
-            value: BigInt(requestBody.incomingAmount.value),
-          }
+          assetCode: requestBody.incomingAmount.assetCode,
+          assetScale: requestBody.incomingAmount.assetScale,
+          value: requestBody.incomingAmount.value,
+        }
         : undefined,
       walletAddressId: requestBody.walletAddressId,
-    });
+    }
+
+    if (payload.id && await paymentService.doesIncomingPaymentExistLocalOnly(payload.id)) {
+      throw new DuplicateIncomingPaymentFoundError();
+    }
+
+    await msgProducer.send(new CreateIncomingPaymentCmd(payload))
+
+    //TODO const id = await paymentService.createIncomingPayment(payload);
 
     const ilpDetails = ilpConnector.getIlpDetails();
 
-    reply.code(201).send({ id, ilpDetails });
+    reply.code(201).send({ id : payload.id, ilpDetails });
   });
 
   app.post("/remote-incoming-payment", async function handler(request, reply) {
@@ -90,37 +98,46 @@ export function createApp(
         ? {
           assetCode: requestBody.debitAmount.assetCode,
           assetScale: requestBody.debitAmount.assetScale,
-          value: BigInt(requestBody.debitAmount.value),
+          value: requestBody.debitAmount.value,
         }
         : undefined,
       receiveAmount: requestBody.receiveAmount
         ? {
           assetCode: requestBody.receiveAmount.assetCode,
           assetScale: requestBody.receiveAmount.assetScale,
-          value: BigInt(requestBody.receiveAmount.value),
+          value: requestBody.receiveAmount.value,
         }
         : undefined,
       senderWalletAddressId: requestBody.senderWalletAddressId,
       incomingPaymentId: requestBody.incomingPaymentId,
     }
-    const id = await paymentService.createQuote(payload);
+
+    if (payload.id && await paymentService.doesQuoteExist(payload.id)) {
+      throw new DuplicateQuoteFoundError();
+    }
+
+    //TODO const id = await paymentService.createQuote(payload);
 
     await msgProducer.send(new CreateQuoteCmd(payload))
     // TODO: wait for remote quote to complete if necessary
 
-    reply.code(201).send({ id });
+    reply.code(201).send({ id: payload.id });
   });
 
   app.post("/outgoing-payment", async function handler(request, reply) {
     const requestBody = request.body as any;
 
-    const id = await paymentService.createOutgoingPaymentFromQuote({
+    const payload = {
       id: requestBody.id,
       senderWalletAddressId: requestBody.senderWalletAddressId,
       quoteId: requestBody.quoteId,
-    });
+    }
 
-    reply.code(201).send({ id });
+    //TODO const id = await paymentService.createOutgoingPaymentFromQuote(payload);
+
+    await msgProducer.send(new CreateOutgoingPaymentFromQuoteCmd(payload))
+
+    reply.code(201).send({ id: payload.id });
   });
 
   app.post("/ilp", async function handler(request, reply) {

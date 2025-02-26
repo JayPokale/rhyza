@@ -492,7 +492,7 @@ export class RafikiKafkaRawConsumer extends EventEmitter implements IRawMessageC
 				resolve()
 			})
 
-			logger.info("RafikiRawKafkaConsumer - Subscribing to topics ${JSON.stringify(this._topics)}")
+			logger.info(`RafikiRawKafkaConsumer - Subscribing to topics ${JSON.stringify(this._topics)}`)
 			this._client.subscribe(this._topics)
 		})
 	}

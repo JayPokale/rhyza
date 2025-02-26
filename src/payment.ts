@@ -227,7 +227,7 @@ export interface CreateQuoteRequest {
   receiveAmount?: Amount;
 }
 
-interface CreateOutgoingPaymentFromQuoteRequest {
+export interface CreateOutgoingPaymentFromQuoteRequest {
   id?: string;
   quoteId: string;
   senderWalletAddressId: string;
@@ -327,6 +327,18 @@ export class PaymentService {
     ]);
 
     return id;
+  }
+
+  public async doesIncomingPaymentExistLocalOnly(
+    incomingPaymentId: string
+  ): Promise<boolean> {
+    return await this.incomingPaymentRepository.fetchById(incomingPaymentId) !== undefined;
+  }
+
+  public async doesQuoteExist(
+    incomingPaymentId: string
+  ): Promise<boolean> {
+    return await this.quoteRepository.fetchById(incomingPaymentId) !== undefined;
   }
 
   private async fetchIncomingPayment(

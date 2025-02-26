@@ -86,6 +86,9 @@ services:
       kafka-topics --bootstrap-server kafka:19092 --create --if-not-exists --topic audits
       kafka-topics --bootstrap-server kafka:19092 --create --if-not-exists --topic logs
       kafka-topics --bootstrap-server kafka:19092 --create --if-not-exists --topic rafiki-commands
+      kafka-topics --bootstrap-server kafka:19092 --create --if-not-exists --topic incoming-payment-commands
+      kafka-topics --bootstrap-server kafka:19092 --create --if-not-exists --topic quote-commands
+      kafka-topics --bootstrap-server kafka:19092 --create --if-not-exists --topic outgoing-payment-from-quote-commands
       echo -e '\nSuccessfully created the following topics:'
       kafka-topics --bootstrap-server kafka:19092 --list
       "

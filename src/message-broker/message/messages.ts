@@ -63,7 +63,7 @@ export abstract class DomainMsg implements IDomainMessage {
     abstract inboundProtocolOpaqueState: any;
     abstract tracingInfo?: any;
 
-    abstract validatePayload(): void
+    //TODO abstract validatePayload(): void
 
     // static fromIDomainMessage(msg: IDomainMessage): DomainMsg | undefined {
     //     const obj: DomainMsg = Reflect.construct(this, [{}])
@@ -83,7 +83,7 @@ export abstract class StateEventMsg extends DomainMsg {
     inboundProtocolOpaqueState:any = null;
     tracingInfo:any = undefined;
 
-    abstract validatePayload(): void
+    //TODO abstract validatePayload(): void
 }
 
 export abstract class DomainEventMsg extends DomainMsg {
@@ -96,7 +96,7 @@ export abstract class DomainEventMsg extends DomainMsg {
     isErrorEvent:boolean = false;
     sourceMessageName?:string = undefined;
 
-    abstract validatePayload(): void
+    //TODO abstract validatePayload(): void
 }
 
 export abstract class CommandMsg extends DomainMsg {
@@ -106,7 +106,7 @@ export abstract class CommandMsg extends DomainMsg {
     inboundProtocolOpaqueState:any = null;
     tracingInfo:any = undefined;
 
-    abstract validatePayload(): void
+    //TODO abstract validatePayload(): void
 }
 
 // export abstract class StateSnapshotMsg extends DomainMsg {
