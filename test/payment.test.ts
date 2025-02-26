@@ -9,10 +9,8 @@ import {
   IncomingPaymentNotFoundError,
   IncomingPaymentWalletAddressAssetMismatchError,
   InvalidIncomingPaymentExpiryError,
-  // OutgoingPayment,
   PaymentEventType,
   PaymentService,
-  // Quote,
   WalletAddressInactiveError,
   WalletAddressNotFoundError,
 } from "../src/payment";
@@ -25,10 +23,7 @@ import { EventEmitterPubSub } from "../src/event";
 import { IlpPeerInMemoryRepository, IlpPeerService } from "../src/ilp-peer";
 import { RatesService } from "../src/rates";
 import { LiquidityService } from "../src/liquidity";
-import {
-  RemoteIncomingPayment,
-  RemoteIncomingPaymentService,
-} from "../src/remote-incoming-payment";
+import { RemoteIncomingPaymentService } from "../src/remote-incoming-payment";
 import { IncomingPaymentInMemoryRepository } from "../src/payment";
 import { OutgoingPaymentInMemoryRepository } from "../src/payment";
 import { QuoteInMemoryRepository } from "../src/payment";
@@ -247,7 +242,6 @@ describe("Payment Service", () => {
           walletAddressId: request.walletAddressId,
           type: "LOCAL",
           state: "CREATED",
-          // microPayments: [],
           asset: {
             code: walletAddress.assetCode,
             scale: walletAddress.assetScale,
@@ -314,7 +308,6 @@ describe("Payment Service", () => {
           walletAddressId: request.walletAddressId,
           type: "LOCAL",
           state: "CREATED",
-          // microPayments: [],
           asset: {
             code: walletAddress.assetCode,
             scale: walletAddress.assetScale,

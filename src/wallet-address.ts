@@ -1,5 +1,4 @@
 import { Pool } from "pg";
-// import { Repository } from "./repository";
 
 export class DuplicateWalletAddressFoundError extends Error {}
 // export class InvalidWalletAddressURLError extends Error {}

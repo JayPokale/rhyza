@@ -1,6 +1,5 @@
 import { Pool } from "pg";
 import { IlpDetails } from "./ilp-connector";
-// import type { Repository } from "./repository";
 import { Amount, Asset } from "./shared";
 
 export interface RemoteIncomingPayment {
@@ -26,9 +25,6 @@ export interface RemoteIncomingPaymentServiceAdapter {
   ): Promise<string>;
   getById(id: string): Promise<RemoteIncomingPayment | undefined>;
 }
-
-// interface RemoteIncomingPaymentRepository
-//   extends Repository<RemoteIncomingPayment> {}
 
 export interface RemoteIncomingPaymentRepository {
   store(payment: RemoteIncomingPayment): Promise<void>;

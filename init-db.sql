@@ -70,3 +70,26 @@ CREATE TABLE IF NOT EXISTS outgoing_payments (
   FOREIGN KEY (sender_wallet_address_id) REFERENCES wallet_addresses(id),
   FOREIGN KEY (quote_id) REFERENCES quotes(id)
 );
+
+CREATE TABLE IF NOT EXISTS incoming_micro_payments (
+  id UUID PRIMARY KEY NOT NULL,
+  incoming_payment_id UUID NOT NULL,
+  method VARCHAR(10) NOT NULL CHECK (method IN ('LOCAL', 'ILP')),
+  ilp_peer_id UUID,
+  request_id VARCHAR(255) NOT NULL,
+  amount BIGINT NOT NULL,
+  FOREIGN KEY (incoming_payment_id) REFERENCES incoming_payments(id),
+  FOREIGN KEY (ilp_peer_id) REFERENCES ilp_peers(id)
+);
+
+CREATE TABLE IF NOT EXISTS outgoing_micro_payments (
+  id UUID PRIMARY KEY NOT NULL,
+  outgoing_payment_id UUID NOT NULL,
+  method VARCHAR(10) NOT NULL CHECK (method IN ('LOCAL', 'ILP')),
+  ilp_peer_id UUID,
+  request_id VARCHAR(255) NOT NULL,
+  amount BIGINT NOT NULL,
+  FOREIGN KEY (outgoing_payment_id) REFERENCES outgoing_payments(id),
+  FOREIGN KEY (ilp_peer_id) REFERENCES ilp_peers(id)
+);
+
