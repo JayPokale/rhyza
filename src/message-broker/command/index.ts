@@ -6,7 +6,8 @@ export enum Topic {
   "Commands" = "rafiki-commands",
   "IncomingPayments" = "incoming-payment-commands",
   "Quotes" = "quote-commands",
-  "OutgoingPaymentsFromQuote" = "outgoing-payment-from-quote-commands"
+  "OutgoingPaymentsFromQuote" = "outgoing-payment-from-quote-commands",
+  "ApiRequest" = "api-request-commands"
 }
 
 export interface AmountPayload {
@@ -80,3 +81,24 @@ export class CreateOutgoingPaymentFromQuoteCmd extends CommandMsg {
     this.payload = payload
   }
 }
+
+export interface ApiResponseCmdPayload {
+  requestId: string
+  response: Object | Error
+}
+
+export class ApiResponseCmd extends CommandMsg {
+  contextName: string = 'api-request'
+  aggregateId: string
+  aggregateName: string = 'api-request'
+  msgKey: string
+  msgTopic: string = Topic.ApiRequest
+  payload: ApiResponseCmdPayload
+
+  constructor(payload: ApiResponseCmdPayload) {
+    super()
+    this.aggregateId = this.msgKey = `${payload.requestId}`
+    this.payload = payload
+  }
+}
+

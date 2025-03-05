@@ -1,33 +1,52 @@
 import fastify from "fastify";
-import {DuplicateIncomingPaymentFoundError, DuplicateQuoteFoundError, PaymentService} from "./payment";
+import {
+  PaymentService
+} from "./payment";
 import { IlpConnector } from "./ilp-connector";
 import { RemoteIncomingPaymentServiceAdapter } from "./remote-incoming-payment";
 import logger from "./logger";
 import {IMessageConsumer, IMessageProducer} from "./message-broker/message";
 import {CreateIncomingPaymentCmd, CreateOutgoingPaymentFromQuoteCmd, CreateQuoteCmd} from "./message-broker/command";
-import {RafikiCommandHandler} from "./message-broker/command-handler/handler";
+import {RafikiApiResponseCommandHandler, RafikiCommandHandler} from "./message-broker/command-handler/handler";
+import {InFlightProcessor} from "./in-flight";
 
 export function createAppCommandHandler(
   paymentService: PaymentService,
-  msgConsumer: IMessageConsumer
+  msgConsumer: IMessageConsumer,
+  msgProducer: IMessageProducer
 ) {
-  const rafikiCommandHandler = new RafikiCommandHandler(msgConsumer, paymentService)
+  const rafikiCommandHandler = new RafikiCommandHandler(msgConsumer, msgProducer, paymentService)
   return async () => {
-    logger.info(`🥺Starting Rafiki Command Handler::: ->`);
+    logger.info(`🥺 Starting Rafiki Command Handler::: ->`);
     await rafikiCommandHandler.start()
     logger.info(`Rafiki Command Handler started`);
     return rafikiCommandHandler
   };
 }
 
+export function createAppApiResponseCommandHandler(
+  msgConsumer: IMessageConsumer,
+  mapRsp: Map<string, Object | Error>
+) {
+  const handler = new RafikiApiResponseCommandHandler(msgConsumer, mapRsp)
+  return async () => {
+    logger.info(`🎱 Starting Rafiki Api Response Command Handler::: ->`);
+    await handler.start()
+    logger.info(`Rafiki Api Response Command Handler started`);
+    return handler
+  };
+}
+
 export function createApp(
   port: number,
-  paymentService: PaymentService,
+  timeoutSeconds: number,
   remoteIncomingPaymentService: RemoteIncomingPaymentServiceAdapter,
   ilpConnector: IlpConnector,
-  msgProducer: IMessageProducer
+  msgProducer: IMessageProducer,
+  mapRsp: Map<string, Object | Error>
 ) {
   const app = fastify();
+  const inFlight = new InFlightProcessor(msgProducer, mapRsp)
 
   app.addContentTypeParser(
     "application/octet-stream",
@@ -55,13 +74,10 @@ export function createApp(
       walletAddressId: requestBody.walletAddressId,
     }
 
-    if (payload.id && await paymentService.doesIncomingPaymentExistLocalOnly(payload.id)) {
-      throw new DuplicateIncomingPaymentFoundError();
-    }
-
-    await msgProducer.send(new CreateIncomingPaymentCmd(payload))
-
-    //TODO const id = await paymentService.createIncomingPayment(payload);
+    const data = await inFlight.awaitProcessResponse(
+      timeoutSeconds, true, new CreateIncomingPaymentCmd(payload)
+    )
+    logger.info(`Incoming Payment Data!!! got ${JSON.stringify(data)}`)
 
     const ilpDetails = ilpConnector.getIlpDetails();
 
@@ -112,16 +128,12 @@ export function createApp(
       incomingPaymentId: requestBody.incomingPaymentId,
     }
 
-    if (payload.id && await paymentService.doesQuoteExist(payload.id)) {
-      throw new DuplicateQuoteFoundError();
-    }
+    const quoteRsp = await inFlight.awaitProcessResponse(
+      timeoutSeconds, true, new CreateQuoteCmd(payload)
+    )
+    const id = typeof quoteRsp === 'string' ? quoteRsp : undefined
 
-    //TODO const id = await paymentService.createQuote(payload);
-
-    await msgProducer.send(new CreateQuoteCmd(payload))
-    // TODO: wait for remote quote to complete if necessary
-
-    reply.code(201).send({ id: payload.id });
+    reply.code(201).send({ id });
   });
 
   app.post("/outgoing-payment", async function handler(request, reply) {
@@ -133,11 +145,12 @@ export function createApp(
       quoteId: requestBody.quoteId,
     }
 
-    //TODO const id = await paymentService.createOutgoingPaymentFromQuote(payload);
+    const outPayRsp = await inFlight.awaitProcessResponse(
+      timeoutSeconds, true, new CreateOutgoingPaymentFromQuoteCmd(payload)
+    )
+    const id = typeof outPayRsp === 'string' ? outPayRsp : undefined
 
-    await msgProducer.send(new CreateOutgoingPaymentFromQuoteCmd(payload))
-
-    reply.code(201).send({ id: payload.id });
+    reply.code(201).send({ id });
   });
 
   app.post("/ilp", async function handler(request, reply) {

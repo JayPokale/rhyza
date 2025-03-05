@@ -4,7 +4,7 @@ services:
     build:
       context: ../
       #dockerfile: ./docker/Dockerfile
-      dockerfile: ./docker/Dockerfile-rdkafka
+      dockerfile: ./docker/Dockerfile-app
     restart: always
     depends_on:
       - init-kafka
@@ -89,6 +89,7 @@ services:
       kafka-topics --bootstrap-server kafka:19092 --create --if-not-exists --topic incoming-payment-commands
       kafka-topics --bootstrap-server kafka:19092 --create --if-not-exists --topic quote-commands
       kafka-topics --bootstrap-server kafka:19092 --create --if-not-exists --topic outgoing-payment-from-quote-commands
+      kafka-topics --bootstrap-server kafka:19092 --create --if-not-exists --topic api-request-commands
       echo -e '\nSuccessfully created the following topics:'
       kafka-topics --bootstrap-server kafka:19092 --list
       "

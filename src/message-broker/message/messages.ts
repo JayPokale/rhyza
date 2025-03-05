@@ -34,6 +34,7 @@ export interface IMessage {
     inboundProtocolType: MessageInboundProtocol; // inbound/initial request protocol
     inboundProtocolOpaqueState: any;             // protocol opaque state  - all messages produced as response to this should copy it if present
     tracingInfo?:any;                           // optional tracing information, should be propagated between calls
+    requestId?: string
 }
 
 export interface IDomainMessage extends IMessage {
@@ -107,6 +108,11 @@ export abstract class CommandMsg extends DomainMsg {
     tracingInfo:any = undefined;
 
     //TODO abstract validatePayload(): void
+    requestId?: string
+
+    public setRequestId(requestId: string) {
+        this.requestId = requestId;
+    }
 }
 
 // export abstract class StateSnapshotMsg extends DomainMsg {

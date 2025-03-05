@@ -317,6 +317,8 @@ export class PaymentService {
     };
 
     await this.incomingPaymentRepository.store(newIncomingPayment);
+    //TODO Publish the command for internal processing:
+
     await this.paymentEventProducer.publish([
       {
         type: PaymentEventType.INCOMING_PAYMENT_CREATED,
@@ -327,18 +329,6 @@ export class PaymentService {
     ]);
 
     return id;
-  }
-
-  public async doesIncomingPaymentExistLocalOnly(
-    incomingPaymentId: string
-  ): Promise<boolean> {
-    return await this.incomingPaymentRepository.fetchById(incomingPaymentId) !== undefined;
-  }
-
-  public async doesQuoteExist(
-    incomingPaymentId: string
-  ): Promise<boolean> {
-    return await this.quoteRepository.fetchById(incomingPaymentId) !== undefined;
   }
 
   private async fetchIncomingPayment(

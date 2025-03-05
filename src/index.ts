@@ -8,7 +8,7 @@ import {
 require("./telemetry.js"); // Load telemetry before running the rest of the app
 
 import { readFileSync } from "fs";
-import {createApp, createAppCommandHandler} from "./app";
+import {createApp, createAppApiResponseCommandHandler, createAppCommandHandler} from "./app";
 import { EventEmitterPubSub } from "./event";
 import { LiquidityService } from "./liquidity";
 import {
@@ -43,15 +43,19 @@ const remoteIncomingPaymentService = new RemoteIncomingPaymentService(
   new InMemoryRepository<RemoteIncomingPayment>()
 );
 const ilpConnector = new IlpConnector(ilpPeerService, eventProducer);
+
+const inPaymentRepo = new InMemoryRepository<IncomingPayment>()
+const quoteRepo = new InMemoryRepository<Quote>()
+
 const paymentService = new PaymentService(
   walletAddressService,
   ilpPeerService,
   ratesService,
   liquidityService,
   remoteIncomingPaymentService,
-  new InMemoryRepository<IncomingPayment>(),
+  inPaymentRepo,
   new InMemoryRepository<OutgoingPayment>(),
-  new InMemoryRepository<Quote>(),
+  quoteRepo,
   eventProducer
 );
 
@@ -130,22 +134,40 @@ async function seed(seedFilePath: string) {
 
   logger.info(`Init Kafka on '${kafkaUrl}'`)
 
+  const apiReqCache : Map<string, Object | Error> = new Map();
+
   // Init Producer/Consumer:
   const producer = new RafikiKafkaJsonProducer(kafkaProducerCommonOptions)
   await producer.connect()
-  const consumer = new RafikiKafkaJsonConsumer(kafkaConsumerCommonOptions)
+  const consumerCmdHandler = new RafikiKafkaJsonConsumer(kafkaConsumerCommonOptions)
+  const consumerApiRspHandler = new RafikiKafkaJsonConsumer(kafkaConsumerCommonOptions)
 
-  logger.info(`Kafka Connected. Initializing Handler...`)
-  const startHandler = createAppCommandHandler(paymentService, consumer)
-  await startHandler()
+  logger.info(`Kafka Connected. Initializing Command-Handler...`)
+  const startCommandHandler = createAppCommandHandler(
+    paymentService,
+    consumerCmdHandler,
+    producer
+  )
+  await startCommandHandler()
+
+  logger.info(`Kafka Connected. Initializing API-Response-Handler...`)
+  const startApiRspHandler = createAppApiResponseCommandHandler(
+    consumerApiRspHandler,
+    apiReqCache
+  )
+  await startApiRspHandler()
+
   logger.info(`Create App...`)
-
   const start = createApp(
     Number(seedObj.port ?? 3000),
-    paymentService,
+    30,//api cache timeout in seconds
+    //paymentService,
+    //quoteRepo,
+    //inPaymentRepo,
     remoteIncomingPaymentService,
     ilpConnector,
-    producer
+    producer,
+    apiReqCache
   );
   await start();
 
@@ -153,8 +175,10 @@ async function seed(seedFilePath: string) {
     logger.info("Received SIGINT. Shutting down gracefully...");
     producer.disconnect()
     producer.destroy()
-    consumer.disconnect()
-    consumer.destroy(true)
+    consumerCmdHandler.disconnect()
+    consumerCmdHandler.destroy(true)
+    consumerApiRspHandler.disconnect()
+    consumerApiRspHandler.destroy(true)
 
     process.exit(0);
   });
