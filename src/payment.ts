@@ -16,7 +16,6 @@ import {
   RemoteIncomingPayment,
   RemoteIncomingPaymentServiceAdapter,
 } from "./remote-incoming-payment";
-import { Pool } from "pg";
 
 export class WalletAddressNotFoundError extends Error {}
 export class WalletAddressInactiveError extends Error {}
@@ -94,7 +93,7 @@ export interface UpdateIncomingPaymentWithNewMicroPaymentRequest {
   receivedAmount: bigint;
 }
 
-export interface IncomingPaymentRepository {
+export interface IIncomingPaymentRepository {
   exists(id: string): Promise<boolean>;
   store(payment: IncomingPayment): Promise<void>;
   fetchById(id: string): Promise<IncomingPayment | undefined>;
@@ -103,7 +102,7 @@ export interface IncomingPaymentRepository {
   ): Promise<void>;
 }
 
-export interface QuoteRepository {
+export interface IQuoteRepository {
   exists(id: string): Promise<boolean>;
   store(quote: Quote): Promise<void>;
   fetchById(id: string): Promise<Quote | undefined>;
@@ -117,7 +116,7 @@ export interface UpdateOutgoingPaymentWithNewMicroPaymentRequest {
   sentAmount: bigint;
 }
 
-export interface OutgoingPaymentRepository {
+export interface IOutgoingPaymentRepository {
   exists(id: string): Promise<boolean>;
   store(payment: OutgoingPayment): Promise<void>;
   fetchById(id: string): Promise<OutgoingPayment | undefined>;
@@ -285,9 +284,9 @@ export class PaymentService {
     private ratesService: RatesServiceAdapter,
     private liquidityService: LiquidityServiceAdapter,
     private remoteIncomingPaymentService: RemoteIncomingPaymentServiceAdapter,
-    private incomingPaymentRepository: IncomingPaymentRepository,
-    private outgoingPaymentRepository: OutgoingPaymentRepository,
-    private quoteRepository: QuoteRepository,
+    private incomingPaymentRepository: IIncomingPaymentRepository,
+    private outgoingPaymentRepository: IOutgoingPaymentRepository,
+    private quoteRepository: IQuoteRepository,
     private paymentEventProducer: EventProducerAdapter
   ) {}
 

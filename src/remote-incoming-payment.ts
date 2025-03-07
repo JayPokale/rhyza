@@ -1,4 +1,3 @@
-import { Pool } from "pg";
 import { IlpDetails } from "./ilp-connector";
 import { Amount, Asset } from "./shared";
 
@@ -26,32 +25,16 @@ export interface RemoteIncomingPaymentServiceAdapter {
   getById(id: string): Promise<RemoteIncomingPayment | undefined>;
 }
 
-export interface RemoteIncomingPaymentRepository {
+export interface IRemoteIncomingPaymentRepository {
   store(payment: RemoteIncomingPayment): Promise<void>;
   fetchById(id: string): Promise<RemoteIncomingPayment | undefined>;
-}
-
-export class RemoteIncomingPaymentInMemoryRepository
-  implements RemoteIncomingPaymentRepository
-{
-  private map: Map<string, RemoteIncomingPayment> = new Map();
-
-  public async store(payment: RemoteIncomingPayment): Promise<void> {
-    this.map.set(payment.id, payment);
-  }
-
-  public async fetchById(
-    id: string
-  ): Promise<RemoteIncomingPayment | undefined> {
-    return this.map.get(id);
-  }
 }
 
 export class RemoteIncomingPaymentService
   implements RemoteIncomingPaymentServiceAdapter
 {
   constructor(
-    private remoteIncomingPaymentRepository: RemoteIncomingPaymentRepository
+    private remoteIncomingPaymentRepository: IRemoteIncomingPaymentRepository
   ) {}
 
   public async createRemoteIncomingPayment(

@@ -1,4 +1,3 @@
-import { Pool } from "pg";
 import { Asset } from "./shared";
 
 export interface IlpPeer {
@@ -16,7 +15,7 @@ export interface CreateIlpPeerArgs {
   callbackUrl: string;
 }
 
-export interface PeerRepository {
+export interface IIlpPeerRepository {
   store(walletAddress: IlpPeer): Promise<void>;
   fetchById(id: string): Promise<IlpPeer | undefined>;
   getByDestinationAddress(address: string): Promise<IlpPeer | undefined>;
@@ -29,7 +28,7 @@ export interface IlpPeerServiceAdapter {
 }
 
 export class IlpPeerService implements IlpPeerServiceAdapter {
-  constructor(private peerRepository: PeerRepository) {}
+  constructor(private peerRepository: IIlpPeerRepository) {}
 
   public async getById(id: string): Promise<IlpPeer | undefined> {
     return this.peerRepository.fetchById(id);

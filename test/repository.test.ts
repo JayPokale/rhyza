@@ -9,6 +9,11 @@ import {
 } from "../src/repository";
 
 describe("Repository", () => {
+  // TODO: change to CachingRepository. Could still use WA but
+  // the point is to make it clear its the shared CachingRepository
+  // being tested. Then test the special methods as needed (maybe
+  // also check the fetchById etc. are called? can mock to do nothing
+  // just need to make sure theyre called.
   describe("WalletAddressCachedRepository", async (t) => {
     let localCacheRepo: WalletAddressInMemoryRepository;
     let persistenceRepo: WalletAddressPsqlRepository;

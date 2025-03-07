@@ -2,57 +2,103 @@ import { Pool } from "pg";
 import { WalletAddress, IWalletAddressRepository } from "./wallet-address";
 import {
   IncomingPayment,
-  IncomingPaymentRepository,
+  IIncomingPaymentRepository,
   IncomingPaymentWithMicroPayments,
   LocalIncomingPaymentState,
   MicroPayment,
   OutgoingPayment,
-  OutgoingPaymentRepository,
   OutgoingPaymentState,
   OutgoingPaymentWithMicroPayments,
   Quote,
-  QuoteRepository,
   UpdateIncomingPaymentWithNewMicroPaymentRequest,
   UpdateOutgoingPaymentWithNewMicroPaymentRequest,
+  IOutgoingPaymentRepository,
+  IQuoteRepository,
 } from "./payment";
 import {
-  RemoteIncomingPaymentRepository,
+  IRemoteIncomingPaymentRepository,
   RemoteIncomingPayment,
 } from "./remote-incoming-payment";
-import { IlpPeer, PeerRepository } from "./ilp-peer";
+import { IlpPeer, IIlpPeerRepository } from "./ilp-peer";
+
+interface ICacheableRepository<T> {
+  fetchById(id: string): Promise<T | undefined>;
+  store(entity: T): Promise<void>;
+  exists?(id: string): Promise<boolean>;
+}
+
+/**
+ * A repository implementation that provides a caching layer on top of a persistent storage repository.
+ *
+ * Centralizes shared behavior for common repository methods (e.g. `fetchById`, `store`, `exists`).
+ *
+ * Repositories with special methods (e.g., `updateWithNewMicroPayment` in `IncomingPaymentRepository`)
+ * should implement those methods directly and bypass this caching layer as needed.
+ *
+ * @template T The type of entity being stored and retrieved.
+ */
+class CachingRepository<T> implements ICacheableRepository<T> {
+  constructor(
+    private localCacheRepo: ICacheableRepository<T>,
+    private persistenceRepo: ICacheableRepository<T>
+  ) {}
+
+  public async fetchById(id: string): Promise<T | undefined> {
+    const cached = await this.localCacheRepo.fetchById(id);
+    if (cached) return cached;
+
+    const entity = await this.persistenceRepo.fetchById(id);
+    if (entity) {
+      await this.localCacheRepo.store(entity);
+    }
+    return entity;
+  }
+
+  public async store(entity: T): Promise<void> {
+    await this.persistenceRepo.store(entity);
+    await this.localCacheRepo.store(entity);
+  }
+
+  // The repos composing CachingRepository should not call this
+  // if they dont have an exist method, although nothing is reall.
+  // stopping it. Dont include exists here and let repo's with it implement?
+  // Or ensure all repos have exists?
+  public async exists(id: string): Promise<boolean> {
+    if (this.localCacheRepo.exists) {
+      const existsInCache = await this.localCacheRepo.exists(id);
+      if (existsInCache) return true;
+    }
+    if (this.persistenceRepo.exists) {
+      return await this.persistenceRepo.exists(id);
+    }
+    throw new Error("Exists method is not implemented in either repo");
+  }
+}
 
 // ==========================
 // Wallet Address
 // ==========================
 
 export class WalletAddressRepository implements IWalletAddressRepository {
+  private cachingRepo: CachingRepository<WalletAddress>;
+
   constructor(
-    private localCacheRepo: WalletAddressInMemoryRepository,
-    // private distributedCacheRepo: WalletAddressRedisRepository // | WalletAddressMemCachedRespository
-    private persistenceRepo: WalletAddressPsqlRepository // | WalletAddressMongoRepository
-  ) {}
+    localCacheRepo: WalletAddressInMemoryRepository,
+    persistenceRepo: WalletAddressPsqlRepository
+  ) {
+    this.cachingRepo = new CachingRepository(localCacheRepo, persistenceRepo);
+  }
 
   public async fetchById(id: string): Promise<WalletAddress | undefined> {
-    const cached = await this.localCacheRepo.fetchById(id);
-    if (cached) return cached;
-
-    const walletAddress = await this.persistenceRepo.fetchById(id);
-    if (walletAddress) {
-      await this.localCacheRepo.store(walletAddress);
-    }
-    return walletAddress;
+    return this.cachingRepo.fetchById(id);
   }
 
   public async exists(id: string): Promise<boolean> {
-    const existsInCache = await this.localCacheRepo.exists(id);
-    if (existsInCache) return true;
-
-    return await this.persistenceRepo.exists(id);
+    return this.cachingRepo.exists(id);
   }
 
   public async store(walletAddress: WalletAddress): Promise<void> {
-    await this.persistenceRepo.store(walletAddress);
-    await this.localCacheRepo.store(walletAddress);
+    return this.cachingRepo.store(walletAddress);
   }
 }
 
@@ -144,19 +190,43 @@ export class WalletAddressPsqlRepository implements IWalletAddressRepository {
 // Incoming Payment
 // ==========================
 
-interface IncomingPaymentRecord {
-  id: string;
-  expires_at: string;
-  asset_code: string;
-  asset_scale: number;
-  incoming_amount: string | null;
-  received_amount: string;
-  state: string;
-  wallet_address_id: string;
+export class IncomingPaymentRepository implements IIncomingPaymentRepository {
+  private cachingRepo: CachingRepository<IncomingPayment>;
+  private persistenceRepo: IncomingPaymentPsqlRepository;
+  private localCacheRepo: IncomingPaymentInMemoryRepository;
+
+  constructor(
+    localCacheRepo: IncomingPaymentInMemoryRepository,
+    persistenceRepo: IncomingPaymentPsqlRepository
+  ) {
+    this.cachingRepo = new CachingRepository(localCacheRepo, persistenceRepo);
+    this.persistenceRepo = persistenceRepo;
+    this.localCacheRepo = localCacheRepo;
+  }
+
+  public async fetchById(id: string): Promise<IncomingPayment | undefined> {
+    return this.cachingRepo.fetchById(id);
+  }
+
+  public async exists(id: string): Promise<boolean> {
+    return this.cachingRepo.exists(id);
+  }
+
+  public async store(incomingPayment: IncomingPayment): Promise<void> {
+    return this.cachingRepo.store(incomingPayment);
+  }
+
+  async updateWithNewMicroPayment(
+    request: UpdateIncomingPaymentWithNewMicroPaymentRequest
+  ): Promise<void> {
+    await this.persistenceRepo.updateWithNewMicroPayment(request);
+    // TODO: is this sufficient or should we mutate? re-fetch and store?
+    this.localCacheRepo.delete(request.id);
+  }
 }
 
 export class IncomingPaymentInMemoryRepository
-  implements IncomingPaymentRepository
+  implements IIncomingPaymentRepository
 {
   private map: Map<string, IncomingPayment> = new Map();
   private microPaymentMap: Map<string, MicroPayment[]> = new Map();
@@ -193,10 +263,30 @@ export class IncomingPaymentInMemoryRepository
     }
     this.microPaymentMap.get(id)!.push(microPayment);
   }
+
+  public async delete(id: string): Promise<void> {
+    if (this.map.has(id)) {
+      this.map.delete(id);
+    }
+    if (this.microPaymentMap.has(id)) {
+      this.microPaymentMap.delete(id);
+    }
+  }
+}
+
+interface IncomingPaymentRecord {
+  id: string;
+  expires_at: string;
+  asset_code: string;
+  asset_scale: number;
+  incoming_amount: string | null;
+  received_amount: string;
+  state: string;
+  wallet_address_id: string;
 }
 
 export class IncomingPaymentPsqlRepository
-  implements IncomingPaymentRepository
+  implements IIncomingPaymentRepository
 {
   TABLE_NAME = "incoming_payments";
   MICRO_PAYMENT_TABLE_NAME = "incoming_micro_payments";
@@ -334,8 +424,43 @@ export class IncomingPaymentPsqlRepository
 // Outgoing Payment
 // ==========================
 
+export class OutgoingPaymentRepository implements IOutgoingPaymentRepository {
+  private cachingRepo: CachingRepository<OutgoingPayment>;
+  private persistenceRepo: OutgoingPaymentPsqlRepository;
+  private localCacheRepo: OutgoingPaymentInMemoryRepository;
+
+  constructor(
+    localCacheRepo: OutgoingPaymentInMemoryRepository,
+    persistenceRepo: OutgoingPaymentPsqlRepository
+  ) {
+    this.cachingRepo = new CachingRepository(localCacheRepo, persistenceRepo);
+    this.persistenceRepo = persistenceRepo;
+    this.localCacheRepo = localCacheRepo;
+  }
+
+  public async fetchById(id: string): Promise<OutgoingPayment | undefined> {
+    return this.cachingRepo.fetchById(id);
+  }
+
+  public async exists(id: string): Promise<boolean> {
+    return this.cachingRepo.exists(id);
+  }
+
+  public async store(incomingPayment: OutgoingPayment): Promise<void> {
+    return this.cachingRepo.store(incomingPayment);
+  }
+
+  async updateWithNewMicroPayment(
+    request: UpdateOutgoingPaymentWithNewMicroPaymentRequest
+  ): Promise<void> {
+    await this.persistenceRepo.updateWithNewMicroPayment(request);
+    // TODO: is this sufficient or should we mutate? re-fetch and store?
+    this.localCacheRepo.delete(request.id);
+  }
+}
+
 export class OutgoingPaymentInMemoryRepository
-  implements OutgoingPaymentRepository
+  implements IOutgoingPaymentRepository
 {
   private map: Map<string, OutgoingPayment> = new Map();
   private microPaymentMap: Map<string, MicroPayment[]> = new Map();
@@ -372,6 +497,15 @@ export class OutgoingPaymentInMemoryRepository
     }
     this.microPaymentMap.get(id)!.push(microPayment);
   }
+
+  public async delete(id: string): Promise<void> {
+    if (this.map.has(id)) {
+      this.map.delete(id);
+    }
+    if (this.microPaymentMap.has(id)) {
+      this.microPaymentMap.delete(id);
+    }
+  }
 }
 
 interface OutgoingPaymentRecord {
@@ -388,7 +522,7 @@ interface OutgoingPaymentRecord {
 }
 
 export class OutgoingPaymentPsqlRepository
-  implements OutgoingPaymentRepository
+  implements IOutgoingPaymentRepository
 {
   TABLE_NAME = "outgoing_payments";
   MICRO_PAYMENT_TABLE_NAME = "outgoing_micro_payments";
@@ -526,6 +660,42 @@ export class OutgoingPaymentPsqlRepository
 // ==========================
 // Quote
 // ==========================
+
+export class QuoteRepository implements IQuoteRepository {
+  private cachingRepo: CachingRepository<Quote>;
+  private persistenceRepo: QuotePsqlRepository;
+  private localCacheRepo: QuoteInMemoryRepository;
+
+  constructor(
+    localCacheRepo: QuoteInMemoryRepository,
+    persistenceRepo: QuotePsqlRepository
+  ) {
+    this.cachingRepo = new CachingRepository(localCacheRepo, persistenceRepo);
+    this.persistenceRepo = persistenceRepo;
+    this.localCacheRepo = localCacheRepo;
+  }
+
+  public async exists(id: string): Promise<boolean> {
+    return this.cachingRepo.exists(id);
+  }
+
+  public async store(quote: Quote): Promise<void> {
+    return this.cachingRepo.store(quote);
+  }
+
+  public async fetchById(id: string): Promise<Quote | undefined> {
+    return this.cachingRepo.fetchById(id);
+  }
+
+  public async updateAmounts(request: {
+    id: string;
+    amount: bigint;
+  }): Promise<void> {
+    await this.persistenceRepo.updateAmounts(request);
+    // TODO: is this sufficient or should we mutate? re-fetch and store?
+    this.localCacheRepo.delete(request.id);
+  }
+}
 interface QuoteRecord {
   id: string;
   receive_amount_value: string;
@@ -540,7 +710,7 @@ interface QuoteRecord {
   exchange_rate: string;
 }
 
-export class QuotePsqlRepository implements QuoteRepository {
+export class QuotePsqlRepository implements IQuoteRepository {
   TABLE_NAME = "quotes";
   constructor(private pool: Pool) {}
 
@@ -636,7 +806,7 @@ export class QuotePsqlRepository implements QuoteRepository {
   }
 }
 
-export class QuoteInMemoryRepository implements QuoteRepository {
+export class QuoteInMemoryRepository implements IQuoteRepository {
   private map: Map<string, Quote> = new Map();
 
   public async store(quote: Quote): Promise<void> {
@@ -664,14 +834,43 @@ export class QuoteInMemoryRepository implements QuoteRepository {
     quote.debitAmount.value = amount;
     quote.receiveAmount.value = amount;
   }
+
+  public async delete(id: string): Promise<void> {
+    if (this.map.has(id)) {
+      this.map.delete(id);
+    }
+  }
 }
 
 // ==========================
 // Remote Incoming Payment
 // ==========================
 
+export class RemoteIncomingPaymentRepository
+  implements IRemoteIncomingPaymentRepository
+{
+  private cachingRepo: CachingRepository<RemoteIncomingPayment>;
+
+  constructor(
+    localCacheRepo: RemoteIncomingPaymentInMemoryRepository,
+    persistenceRepo: RemoteIncomingPaymentPsqlRepository
+  ) {
+    this.cachingRepo = new CachingRepository(localCacheRepo, persistenceRepo);
+  }
+
+  public async store(quote: RemoteIncomingPayment): Promise<void> {
+    return this.cachingRepo.store(quote);
+  }
+
+  public async fetchById(
+    id: string
+  ): Promise<RemoteIncomingPayment | undefined> {
+    return this.cachingRepo.fetchById(id);
+  }
+}
+
 export class RemoteIncomingPaymentInMemoryRepository
-  implements RemoteIncomingPaymentRepository
+  implements IRemoteIncomingPaymentRepository
 {
   private map: Map<string, RemoteIncomingPayment> = new Map();
 
@@ -697,7 +896,7 @@ interface RemoteIncomingPaymentRecord {
   ilp_shared_secret: string;
 }
 export class RemoteIncomingPaymentPsqlRepository
-  implements RemoteIncomingPaymentRepository
+  implements IRemoteIncomingPaymentRepository
 {
   TABLE_NAME = "remote_incoming_payments";
   constructor(private pool: Pool) {}
@@ -766,6 +965,50 @@ export class RemoteIncomingPaymentPsqlRepository
 // ==========================
 // Peer
 // ==========================
+
+export class IlpPeerRepository implements IIlpPeerRepository {
+  private cachingRepo: CachingRepository<IlpPeer>;
+  private localCacheRepo: IlpPeerInMemoryRepository;
+  private persistenceRepo: IlpPeerPsqlRepository;
+
+  constructor(
+    localCacheRepo: IlpPeerInMemoryRepository,
+    persistenceRepo: IlpPeerPsqlRepository
+  ) {
+    this.cachingRepo = new CachingRepository(localCacheRepo, persistenceRepo);
+    this.localCacheRepo = localCacheRepo;
+    this.persistenceRepo = persistenceRepo;
+  }
+
+  public async store(quote: IlpPeer): Promise<void> {
+    return this.cachingRepo.store(quote);
+  }
+
+  public async fetchById(id: string): Promise<IlpPeer | undefined> {
+    return this.cachingRepo.fetchById(id);
+  }
+
+  public async getByDestinationAddress(
+    address: string
+  ): Promise<IlpPeer | undefined> {
+    // TODO: cant get from cache as-is because localCacheRepo.store assumes the id is the key.
+    // Need to cache with address as cache key.
+    // Breaks some wide assumptions about the store method. Maybe a new method just on the
+    // IlpPeerInMemoryRepository to store by address?
+    // const cached = await this.localCacheRepo.getByDestinationAddress(address);
+    // if (cached) {
+    //   return cached;
+    // }
+
+    const peer = await this.persistenceRepo.getByDestinationAddress(address);
+
+    if (!peer) return;
+
+    await this.localCacheRepo.store(peer);
+    return peer;
+  }
+}
+
 interface IlpPeerRecord {
   id: string;
   asset_code: string;
@@ -775,7 +1018,7 @@ interface IlpPeerRecord {
   callback_url: string;
 }
 
-export class IlpPeerPsqlRepository implements PeerRepository {
+export class IlpPeerPsqlRepository implements IIlpPeerRepository {
   TABLE_NAME = "ilp_peers";
   constructor(private pool: Pool) {}
 
@@ -846,7 +1089,7 @@ export class IlpPeerPsqlRepository implements PeerRepository {
   }
 }
 
-export class IlpPeerInMemoryRepository implements PeerRepository {
+export class IlpPeerInMemoryRepository implements IIlpPeerRepository {
   map: Map<string, IlpPeer> = new Map();
 
   public async store(entity: IlpPeer): Promise<void> {

@@ -21,6 +21,16 @@ import {
   IlpPeerPsqlRepository,
   WalletAddressRepository,
   WalletAddressInMemoryRepository,
+  IncomingPaymentInMemoryRepository,
+  IncomingPaymentRepository,
+  OutgoingPaymentRepository,
+  OutgoingPaymentInMemoryRepository,
+  QuoteRepository,
+  QuoteInMemoryRepository,
+  RemoteIncomingPaymentInMemoryRepository,
+  RemoteIncomingPaymentRepository,
+  IlpPeerInMemoryRepository,
+  IlpPeerRepository,
 } from "./repository";
 
 const eventEmitterPubSub = new EventEmitterPubSub();
@@ -33,22 +43,46 @@ const walletAddressRepository = new WalletAddressRepository(
 );
 
 const walletAddressService = new WalletAddressService(walletAddressRepository);
-const ilpPeerService = new IlpPeerService(new IlpPeerPsqlRepository(pool));
+
+const ilpPeerRepository = new IlpPeerRepository(
+  new IlpPeerInMemoryRepository(),
+  new IlpPeerPsqlRepository(pool)
+);
+const ilpPeerService = new IlpPeerService(ilpPeerRepository);
+
 const ratesService = new RatesService();
 const liquidityService = new LiquidityService();
-const remoteIncomingPaymentService = new RemoteIncomingPaymentService(
+
+const remoteIncomingPaymentRepository = new RemoteIncomingPaymentRepository(
+  new RemoteIncomingPaymentInMemoryRepository(),
   new RemoteIncomingPaymentPsqlRepository(pool)
 );
+const remoteIncomingPaymentService = new RemoteIncomingPaymentService(
+  remoteIncomingPaymentRepository
+);
 const ilpConnector = new IlpConnector(ilpPeerService, eventProducer);
+
+const incomingPaymentRepository = new IncomingPaymentRepository(
+  new IncomingPaymentInMemoryRepository(),
+  new IncomingPaymentPsqlRepository(pool)
+);
+const outgoingPaymentRepository = new OutgoingPaymentRepository(
+  new OutgoingPaymentInMemoryRepository(),
+  new OutgoingPaymentPsqlRepository(pool)
+);
+const quotePaymentRepository = new QuoteRepository(
+  new QuoteInMemoryRepository(),
+  new QuotePsqlRepository(pool)
+);
 const paymentService = new PaymentService(
   walletAddressService,
   ilpPeerService,
   ratesService,
   liquidityService,
   remoteIncomingPaymentService,
-  new IncomingPaymentPsqlRepository(pool),
-  new OutgoingPaymentPsqlRepository(pool),
-  new QuotePsqlRepository(pool),
+  incomingPaymentRepository,
+  outgoingPaymentRepository,
+  quotePaymentRepository,
   eventProducer
 );
 
