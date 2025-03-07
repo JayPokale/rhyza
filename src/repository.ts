@@ -692,7 +692,8 @@ export class QuoteRepository implements IQuoteRepository {
     amount: bigint;
   }): Promise<void> {
     await this.persistenceRepo.updateAmounts(request);
-    // TODO: is this sufficient or should we mutate? re-fetch and store?
+    // TODO: is this sufficient or? re-fetch and store?
+    // Mutate if in cache else re-fect and store?
     this.localCacheRepo.delete(request.id);
   }
 }
