@@ -35,7 +35,6 @@ CREATE TABLE IF NOT EXISTS incoming_payments (
   received_amount BIGINT NOT NULL,
   state VARCHAR(255) NOT NULL,
   wallet_address_id UUID NOT NULL,
-  -- micro_payments TEXT NOT NULL,
   FOREIGN KEY (wallet_address_id) REFERENCES wallet_addresses(id)
 );
 
@@ -66,7 +65,6 @@ CREATE TABLE IF NOT EXISTS outgoing_payments (
   local_incoming_payment_id UUID,
   remote_incoming_payment_url VARCHAR(255),
   sender_wallet_address_id UUID NOT NULL,
-  -- micro_payments TEXT NOT NULL,
   FOREIGN KEY (sender_wallet_address_id) REFERENCES wallet_addresses(id),
   FOREIGN KEY (quote_id) REFERENCES quotes(id)
 );

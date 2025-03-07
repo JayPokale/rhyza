@@ -1,7 +1,6 @@
 import { Pool } from "pg";
 
 export class DuplicateWalletAddressFoundError extends Error {}
-// export class InvalidWalletAddressURLError extends Error {}
 
 export interface WalletAddress {
   id: string;
