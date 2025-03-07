@@ -4,34 +4,35 @@ import { readFileSync } from "fs";
 import { createApp } from "./app";
 import { EventEmitterPubSub } from "./event";
 import { LiquidityService } from "./liquidity";
+import { PaymentEventType, PaymentService } from "./payment";
+import { IlpPeerService } from "./ilp-peer";
+import { RatesService } from "./rates";
+import { WalletAddressService } from "./wallet-address";
+import { IlpConnector } from "./ilp-connector";
+import { RemoteIncomingPaymentService } from "./remote-incoming-payment";
+import pool from "./db";
+import logger from "./logger";
 import {
   IncomingPaymentPsqlRepository,
   OutgoingPaymentPsqlRepository,
-  PaymentEventType,
-  PaymentService,
   QuotePsqlRepository,
-} from "./payment";
-import { IlpPeerPsqlRepository, IlpPeerService } from "./ilp-peer";
-import { RatesService } from "./rates";
-import {
-  WalletAddressService,
   WalletAddressPsqlRepository,
-} from "./wallet-address";
-import { IlpConnector } from "./ilp-connector";
-import {
   RemoteIncomingPaymentPsqlRepository,
-  RemoteIncomingPaymentService,
-} from "./remote-incoming-payment";
-import pool from "./db";
-import logger from "./logger";
+  IlpPeerPsqlRepository,
+  WalletAddressRepository,
+  WalletAddressInMemoryRepository,
+} from "./repository";
 
 const eventEmitterPubSub = new EventEmitterPubSub();
 const eventConsumer = eventEmitterPubSub;
 const eventProducer = eventEmitterPubSub;
 
-const walletAddressService = new WalletAddressService(
+const walletAddressRepository = new WalletAddressRepository(
+  new WalletAddressInMemoryRepository(),
   new WalletAddressPsqlRepository(pool)
 );
+
+const walletAddressService = new WalletAddressService(walletAddressRepository);
 const ilpPeerService = new IlpPeerService(new IlpPeerPsqlRepository(pool));
 const ratesService = new RatesService();
 const liquidityService = new LiquidityService();

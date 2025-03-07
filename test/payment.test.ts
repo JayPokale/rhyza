@@ -14,20 +14,20 @@ import {
   WalletAddressInactiveError,
   WalletAddressNotFoundError,
 } from "../src/payment";
-import {
-  WalletAddress,
-  WalletAddressService,
-  WalletAddressInMemoryRepository,
-} from "../src/wallet-address";
+import { WalletAddress, WalletAddressService } from "../src/wallet-address";
 import { EventEmitterPubSub } from "../src/event";
-import { IlpPeerInMemoryRepository, IlpPeerService } from "../src/ilp-peer";
+import { IlpPeerService } from "../src/ilp-peer";
 import { RatesService } from "../src/rates";
 import { LiquidityService } from "../src/liquidity";
 import { RemoteIncomingPaymentService } from "../src/remote-incoming-payment";
-import { IncomingPaymentInMemoryRepository } from "../src/payment";
-import { OutgoingPaymentInMemoryRepository } from "../src/payment";
-import { QuoteInMemoryRepository } from "../src/payment";
 import { RemoteIncomingPaymentInMemoryRepository } from "../src/remote-incoming-payment";
+import {
+  WalletAddressInMemoryRepository,
+  IlpPeerInMemoryRepository,
+  IncomingPaymentInMemoryRepository,
+  OutgoingPaymentInMemoryRepository,
+  QuoteInMemoryRepository,
+} from "../src/repository";
 
 describe("Payment Service", () => {
   const incomingPaymentRepo = new IncomingPaymentInMemoryRepository();
