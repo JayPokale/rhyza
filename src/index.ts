@@ -4,12 +4,21 @@ import { readFileSync } from "fs";
 import { createApp } from "./app";
 import { EventEmitterPubSub } from "./event";
 import { LiquidityService } from "./liquidity";
-import { PaymentEventType, PaymentService } from "./payment";
-import { IlpPeerService } from "./ilp-peer";
+import {
+  IncomingPayment,
+  OutgoingPayment,
+  PaymentEventType,
+  PaymentService,
+  Quote,
+} from "./payment";
+import { IlpPeer, IlpPeerService } from "./ilp-peer";
 import { RatesService } from "./rates";
-import { WalletAddressService } from "./wallet-address";
+import { WalletAddress, WalletAddressService } from "./wallet-address";
 import { IlpConnector } from "./ilp-connector";
-import { RemoteIncomingPaymentService } from "./remote-incoming-payment";
+import {
+  RemoteIncomingPayment,
+  RemoteIncomingPaymentService,
+} from "./remote-incoming-payment";
 import pool from "./db";
 import logger from "./logger";
 import {
@@ -31,48 +40,75 @@ import {
   RemoteIncomingPaymentRepository,
   IlpPeerInMemoryRepository,
   IlpPeerRepository,
+  InMemoryCache,
 } from "./repository";
+
+const ONE_HOUR_IN_MS = 3_600_000;
 
 const eventEmitterPubSub = new EventEmitterPubSub();
 const eventConsumer = eventEmitterPubSub;
 const eventProducer = eventEmitterPubSub;
 
+// const walletAddressRepository = new WalletAddressRepository(
+//   new WalletAddressInMemoryRepository(),
+//   new WalletAddressPsqlRepository(pool)
+// );
 const walletAddressRepository = new WalletAddressRepository(
-  new WalletAddressInMemoryRepository(),
-  new WalletAddressPsqlRepository(pool)
+  new InMemoryCache<WalletAddress>(ONE_HOUR_IN_MS),
+  pool
 );
 
 const walletAddressService = new WalletAddressService(walletAddressRepository);
 
+// const ilpPeerRepository = new IlpPeerRepository(
+//   new IlpPeerInMemoryRepository(),
+//   new IlpPeerPsqlRepository(pool)
+// );
 const ilpPeerRepository = new IlpPeerRepository(
-  new IlpPeerInMemoryRepository(),
-  new IlpPeerPsqlRepository(pool)
+  new InMemoryCache<IlpPeer>(ONE_HOUR_IN_MS),
+  pool
 );
 const ilpPeerService = new IlpPeerService(ilpPeerRepository);
 
 const ratesService = new RatesService();
 const liquidityService = new LiquidityService();
 
+// const remoteIncomingPaymentRepository = new RemoteIncomingPaymentRepository(
+//   new RemoteIncomingPaymentInMemoryRepository(),
+//   new RemoteIncomingPaymentPsqlRepository(pool)
+// );
 const remoteIncomingPaymentRepository = new RemoteIncomingPaymentRepository(
-  new RemoteIncomingPaymentInMemoryRepository(),
-  new RemoteIncomingPaymentPsqlRepository(pool)
+  new InMemoryCache<RemoteIncomingPayment>(ONE_HOUR_IN_MS),
+  pool
 );
 const remoteIncomingPaymentService = new RemoteIncomingPaymentService(
   remoteIncomingPaymentRepository
 );
 const ilpConnector = new IlpConnector(ilpPeerService, eventProducer);
 
+// const incomingPaymentRepository = new IncomingPaymentRepository(
+//   new IncomingPaymentInMemoryRepository(),
+//   new IncomingPaymentPsqlRepository(pool)
+// );
 const incomingPaymentRepository = new IncomingPaymentRepository(
-  new IncomingPaymentInMemoryRepository(),
-  new IncomingPaymentPsqlRepository(pool)
+  new InMemoryCache<IncomingPayment>(ONE_HOUR_IN_MS),
+  pool
 );
+// const outgoingPaymentRepository = new OutgoingPaymentRepository(
+//   new OutgoingPaymentInMemoryRepository(),
+//   new OutgoingPaymentPsqlRepository(pool)
+// );
 const outgoingPaymentRepository = new OutgoingPaymentRepository(
-  new OutgoingPaymentInMemoryRepository(),
-  new OutgoingPaymentPsqlRepository(pool)
+  new InMemoryCache<OutgoingPayment>(ONE_HOUR_IN_MS),
+  pool
 );
+// const quotePaymentRepository = new QuoteRepository(
+//   new QuoteInMemoryRepository(),
+//   new QuotePsqlRepository(pool)
+// );
 const quotePaymentRepository = new QuoteRepository(
-  new QuoteInMemoryRepository(),
-  new QuotePsqlRepository(pool)
+  new InMemoryCache<Quote>(ONE_HOUR_IN_MS),
+  pool
 );
 const paymentService = new PaymentService(
   walletAddressService,
