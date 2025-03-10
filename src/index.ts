@@ -5,21 +5,24 @@ import { createApp } from "./app";
 import { EventEmitterPubSub } from "./event";
 import { LiquidityService } from "./liquidity";
 import {
-  IncomingPayment,
-  OutgoingPayment,
+  IncomingPaymentPsqlRepository,
+  OutgoingPaymentPsqlRepository,
   PaymentEventType,
   PaymentService,
-  Quote,
+  QuotePsqlRepository,
 } from "./payment";
-import { IlpPeerService, InMemoryIlpPeerRepository } from "./ilp-peer";
+import { IlpPeerPsqlRepository, IlpPeerService } from "./ilp-peer";
 import { RatesService } from "./rates";
-import { InMemoryRepository } from "./repository";
-import { WalletAddress, WalletAddressService } from "./wallet-address";
+import {
+  WalletAddressService,
+  WalletAddressPsqlRepository,
+} from "./wallet-address";
 import { IlpConnector } from "./ilp-connector";
 import {
-  RemoteIncomingPayment,
+  RemoteIncomingPaymentPsqlRepository,
   RemoteIncomingPaymentService,
 } from "./remote-incoming-payment";
+import pool from "./db";
 import logger from "./logger";
 
 const eventEmitterPubSub = new EventEmitterPubSub();
@@ -27,13 +30,13 @@ const eventConsumer = eventEmitterPubSub;
 const eventProducer = eventEmitterPubSub;
 
 const walletAddressService = new WalletAddressService(
-  new InMemoryRepository<WalletAddress>()
+  new WalletAddressPsqlRepository(pool)
 );
-const ilpPeerService = new IlpPeerService(new InMemoryIlpPeerRepository());
+const ilpPeerService = new IlpPeerService(new IlpPeerPsqlRepository(pool));
 const ratesService = new RatesService();
 const liquidityService = new LiquidityService();
 const remoteIncomingPaymentService = new RemoteIncomingPaymentService(
-  new InMemoryRepository<RemoteIncomingPayment>()
+  new RemoteIncomingPaymentPsqlRepository(pool)
 );
 const ilpConnector = new IlpConnector(ilpPeerService, eventProducer);
 const paymentService = new PaymentService(
@@ -42,9 +45,9 @@ const paymentService = new PaymentService(
   ratesService,
   liquidityService,
   remoteIncomingPaymentService,
-  new InMemoryRepository<IncomingPayment>(),
-  new InMemoryRepository<OutgoingPayment>(),
-  new InMemoryRepository<Quote>(),
+  new IncomingPaymentPsqlRepository(pool),
+  new OutgoingPaymentPsqlRepository(pool),
+  new QuotePsqlRepository(pool),
   eventProducer
 );
 
@@ -66,6 +69,15 @@ async function seed(seedFilePath: string) {
 }
 
 (async () => {
+  try {
+    logger.debug("Attempting to connect to the database...");
+    await pool.query("SELECT 1");
+    logger.debug("Database connection verified");
+  } catch (err) {
+    logger.error("Database connection failed:", err);
+    throw err;
+  }
+
   await eventConsumer.registerConsumer(
     PaymentEventType.LOCAL_OUTGOING_PAYMENT_FUNDED,
     paymentService.handleLocalOutgoingPaymentFundedEvent.bind(paymentService)

@@ -9,37 +9,39 @@ import {
   IncomingPaymentNotFoundError,
   IncomingPaymentWalletAddressAssetMismatchError,
   InvalidIncomingPaymentExpiryError,
-  OutgoingPayment,
   PaymentEventType,
   PaymentService,
-  Quote,
   WalletAddressInactiveError,
   WalletAddressNotFoundError,
 } from "../src/payment";
-import { WalletAddress, WalletAddressService } from "../src/wallet-address";
-import { InMemoryRepository } from "../src/repository";
-import { EventPublisher } from "../src/event";
-import { IlpPeerService, InMemoryIlpPeerRepository } from "../src/ilp-peer";
+import {
+  WalletAddress,
+  WalletAddressService,
+  WalletAddressInMemoryRepository,
+} from "../src/wallet-address";
+import { EventEmitterPubSub } from "../src/event";
+import { IlpPeerInMemoryRepository, IlpPeerService } from "../src/ilp-peer";
 import { RatesService } from "../src/rates";
 import { LiquidityService } from "../src/liquidity";
-import {
-  RemoteIncomingPayment,
-  RemoteIncomingPaymentService,
-} from "../src/remote-incoming-payment";
+import { RemoteIncomingPaymentService } from "../src/remote-incoming-payment";
+import { IncomingPaymentInMemoryRepository } from "../src/payment";
+import { OutgoingPaymentInMemoryRepository } from "../src/payment";
+import { QuoteInMemoryRepository } from "../src/payment";
+import { RemoteIncomingPaymentInMemoryRepository } from "../src/remote-incoming-payment";
 
 describe("Payment Service", () => {
-  const incomingPaymentRepo = new InMemoryRepository<IncomingPayment>();
-  const outgoingPaymentRepo = new InMemoryRepository<OutgoingPayment>();
-  const quoteRepo = new InMemoryRepository<Quote>();
-  const walletAddressRepo = new InMemoryRepository<WalletAddress>();
+  const incomingPaymentRepo = new IncomingPaymentInMemoryRepository();
+  const outgoingPaymentRepo = new OutgoingPaymentInMemoryRepository();
+  const quoteRepo = new QuoteInMemoryRepository();
+  const walletAddressRepo = new WalletAddressInMemoryRepository();
   const walletAddressService = new WalletAddressService(walletAddressRepo);
-  const eventPublisher = new EventPublisher();
-  const ilpPeerService = new IlpPeerService(new InMemoryIlpPeerRepository());
+  const eventProducer = new EventEmitterPubSub();
+  const ilpPeerService = new IlpPeerService(new IlpPeerInMemoryRepository());
   const ratesService = new RatesService();
   const liquidityService = new LiquidityService();
 
   const remoteIncomingPaymentService = new RemoteIncomingPaymentService(
-    new InMemoryRepository<RemoteIncomingPayment>()
+    new RemoteIncomingPaymentInMemoryRepository()
   );
 
   const paymentService = new PaymentService(
@@ -51,7 +53,7 @@ describe("Payment Service", () => {
     incomingPaymentRepo,
     outgoingPaymentRepo,
     quoteRepo,
-    eventPublisher
+    eventProducer
   );
 
   describe("createIncomingPayment", async (t) => {
@@ -63,8 +65,8 @@ describe("Payment Service", () => {
           walletAddressId: randomUUID(),
         };
 
-        t.mock.method(incomingPaymentRepo, "fetchById", async () => {
-          return id;
+        t.mock.method(incomingPaymentRepo, "exists", async () => {
+          return true;
         });
 
         await assert.rejects(
@@ -224,7 +226,7 @@ describe("Payment Service", () => {
           return walletAddress;
         });
         const storeSpy = t.mock.method(incomingPaymentRepo, "store");
-        const publishSpy = t.mock.method(eventPublisher, "publish");
+        const publishSpy = t.mock.method(eventProducer, "publish");
         t.mock.timers.enable({ apis: ["Date"], now });
 
         const id = await paymentService.createIncomingPayment(request);
@@ -240,7 +242,6 @@ describe("Payment Service", () => {
           walletAddressId: request.walletAddressId,
           type: "LOCAL",
           state: "CREATED",
-          microPayments: [],
           asset: {
             code: walletAddress.assetCode,
             scale: walletAddress.assetScale,
@@ -292,16 +293,8 @@ describe("Payment Service", () => {
         t.mock.method(walletAddressService, "getById", async () => {
           return walletAddress;
         });
-        const storeSpy = t.mock.method(
-          incomingPaymentRepo,
-          "store",
-          async () => {}
-        );
-        const publishSpy = t.mock.method(
-          eventPublisher,
-          "publish",
-          async () => {}
-        );
+        const storeSpy = t.mock.method(incomingPaymentRepo, "store");
+        const publishSpy = t.mock.method(eventProducer, "publish");
         t.mock.timers.enable({ apis: ["Date"], now });
 
         const id = await paymentService.createIncomingPayment(request);
@@ -315,7 +308,6 @@ describe("Payment Service", () => {
           walletAddressId: request.walletAddressId,
           type: "LOCAL",
           state: "CREATED",
-          microPayments: [],
           asset: {
             code: walletAddress.assetCode,
             scale: walletAddress.assetScale,
@@ -357,8 +349,8 @@ describe("Payment Service", () => {
           incomingPaymentId: randomUUID(),
         };
 
-        t.mock.method(quoteRepo, "fetchById", async () => {
-          return id;
+        t.mock.method(quoteRepo, "exists", async () => {
+          return true;
         });
 
         await assert.rejects(
