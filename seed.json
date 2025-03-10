@@ -24,8 +24,8 @@
         "scale": 2
       },
       "address": "test.peer-b",
-      "connectorUrl": "http://app-peer:3001/ilp",
-      "callbackUrl": "http://app-peer:3001/ilp-reply"
+      "connectorUrl": "http://api-peer:3001/ilp",
+      "callbackUrl": "http://api-peer:3001/ilp-reply"
     }
   ]
 }

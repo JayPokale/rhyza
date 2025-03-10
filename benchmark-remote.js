@@ -11,7 +11,7 @@ const BASE_URL = "http://localhost:3000";
 
 const SENDER_WALLET_ADDRESS_ID = "a1469618-077a-447d-b5a3-a9ed11265a64";
 const RECEIVER_WALLET_ADDRESS_URL =
-  "http://app-peer:3001/a1469618-077a-447d-b5a3-a9ed11265a65";
+  "http://api-peer:3001/a1469618-077a-447d-b5a3-a9ed11265a65";
 
 function request(url, data) {
   return http.post(url, JSON.stringify(data), {

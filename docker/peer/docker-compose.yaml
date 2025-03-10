@@ -1,6 +1,6 @@
 services:
-  app-peer:
-    image: rafiki-poc-app
+  api-peer:
+    image: rafiki-poc-api
     restart: always
     ports:
       - '3001:3001'

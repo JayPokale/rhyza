@@ -1,9 +1,9 @@
 name: rafiki-poc
 services:
-  app:
+  api:
     build:
       context: ../
-      dockerfile: ./docker/Dockerfile
+      dockerfile: ./packages/api/Dockerfile
     restart: always
     ports:
       - '3000:3000'

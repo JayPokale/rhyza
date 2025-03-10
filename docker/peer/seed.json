@@ -18,8 +18,8 @@
         "scale": 2
       },
       "address": "test.peer-a",
-      "connectorUrl": "http://app:3000/ilp",
-      "callbackUrl": "http://app:3000/ilp-reply"
+      "connectorUrl": "http://api:3000/ilp",
+      "callbackUrl": "http://api:3000/ilp-reply"
     }
   ]
 }
