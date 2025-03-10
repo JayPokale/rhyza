@@ -78,11 +78,14 @@ export class RemoteIncomingPaymentService
         }),
       });
     } catch (err) {
-      logger.error("Error creating incoming payment at remote", {
-        walletAddressId,
-        resourceServerUrl,
-        err,
-      });
+      logger.error(
+        {
+          walletAddressId,
+          resourceServerUrl,
+          err,
+        },
+        "Error creating incoming payment at remote"
+      );
     }
 
     if (!res!.ok) {
