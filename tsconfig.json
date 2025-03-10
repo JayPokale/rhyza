@@ -1,10 +1,18 @@
 {
+  "compilerOptions": {
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "lib": ["es2023"],
+    "target": "es2023",
+    "module": "NodeNext",
+  },
   "references": [
     {
-      "path": "packages/api"
+      "path": "./packages/api"
     },
     {
-      "path": "packages/payments-service"
+      "path": "./packages/payments-service"
     },
   ],
   "files": [],

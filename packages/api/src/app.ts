@@ -1,13 +1,15 @@
 import fastify from "fastify";
-import { PaymentService } from "./payment";
-import { IlpConnector } from "./ilp-connector";
-import { RemoteIncomingPaymentServiceAdapter } from "./remote-incoming-payment";
 import logger from "./logger";
+import {
+  PaymentService,
+  RemoteIncomingPaymentService,
+  IlpConnector,
+} from "payments-service";
 
 export function createApp(
   port: number,
   paymentService: PaymentService,
-  remoteIncomingPaymentService: RemoteIncomingPaymentServiceAdapter,
+  remoteIncomingPaymentService: RemoteIncomingPaymentService,
   ilpConnector: IlpConnector
 ) {
   const app = fastify();

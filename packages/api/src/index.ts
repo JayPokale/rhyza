@@ -2,54 +2,17 @@ require("./telemetry.js"); // Load telemetry before running the rest of the app
 
 import { readFileSync } from "fs";
 import { createApp } from "./app";
-import { EventEmitterPubSub } from "./event";
-import { LiquidityService } from "./liquidity";
 import {
-  IncomingPaymentPsqlRepository,
-  OutgoingPaymentPsqlRepository,
-  PaymentEventType,
-  PaymentService,
-  QuotePsqlRepository,
-} from "./payment";
-import { IlpPeerPsqlRepository, IlpPeerService } from "./ilp-peer";
-import { RatesService } from "./rates";
-import {
-  WalletAddressService,
-  WalletAddressPsqlRepository,
-} from "./wallet-address";
-import { IlpConnector } from "./ilp-connector";
-import {
-  RemoteIncomingPaymentPsqlRepository,
-  RemoteIncomingPaymentService,
-} from "./remote-incoming-payment";
-import pool from "./db";
-import logger from "./logger";
-
-const eventEmitterPubSub = new EventEmitterPubSub();
-const eventConsumer = eventEmitterPubSub;
-const eventProducer = eventEmitterPubSub;
-
-const walletAddressService = new WalletAddressService(
-  new WalletAddressPsqlRepository(pool)
-);
-const ilpPeerService = new IlpPeerService(new IlpPeerPsqlRepository(pool));
-const ratesService = new RatesService();
-const liquidityService = new LiquidityService();
-const remoteIncomingPaymentService = new RemoteIncomingPaymentService(
-  new RemoteIncomingPaymentPsqlRepository(pool)
-);
-const ilpConnector = new IlpConnector(ilpPeerService, eventProducer);
-const paymentService = new PaymentService(
-  walletAddressService,
+  paymentService,
+  ilpConnector,
   ilpPeerService,
-  ratesService,
-  liquidityService,
+  walletAddressService,
+  eventConsumer,
+  PaymentEventType,
   remoteIncomingPaymentService,
-  new IncomingPaymentPsqlRepository(pool),
-  new OutgoingPaymentPsqlRepository(pool),
-  new QuotePsqlRepository(pool),
-  eventProducer
-);
+  pool,
+} from "payments-service";
+import logger from "./logger";
 
 async function seed(seedFilePath: string) {
   const data = readFileSync(seedFilePath, "utf8");

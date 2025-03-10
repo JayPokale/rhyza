@@ -17,7 +17,11 @@ RUN pnpm --filter api build
 
 FROM base
 COPY --from=prod-deps /workspace/node_modules /workspace/node_modules
-COPY --from=prod-deps /workspace/packages/api/node_modules /workspace/packages/api/node_modules
+
+COPY --from=build /workspace/packages/api/node_modules /workspace/packages/api/node_modules
 COPY --from=build /workspace/packages/api/dist /workspace/packages/api/dist
+
+COPY --from=build /workspace/packages/payments-service/node_modules /workspace/packages/payments-service/node_modules
+COPY --from=build /workspace/packages/payments-service/dist /workspace/packages/payments-service/dist
 
 CMD ["node", "/workspace/packages/api/dist/index.js"]

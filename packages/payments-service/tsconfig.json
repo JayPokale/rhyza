@@ -1,13 +1,8 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "lib": ["es2023"],
-    "module": "node16",
-    "target": "es2022",
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "moduleResolution": "node16",
+    "composite": true,
+    "declarationMap": true,
     "rootDir": "./src", 
     "outDir": "./dist",
   },
