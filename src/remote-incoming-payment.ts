@@ -102,8 +102,6 @@ export class RemoteIncomingPaymentService
 
     const remoteIncomingPayment = (await res!.json()) as RemoteIncomingPayment;
 
-    console.log("res *******", remoteIncomingPayment);
-
     await this.remoteIncomingPaymentRepository.store(remoteIncomingPayment);
 
     return remoteIncomingPayment.id;
