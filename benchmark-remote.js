@@ -27,7 +27,7 @@ export default function (data) {
   });
 
   check(incomingPaymentRes, {
-    "incoming payment created": (r) => r.status === 201,
+    "remote incoming payment created": (r) => r.status === 201,
   });
 
   const incomingPaymentId = JSON.parse(incomingPaymentRes.body).id;
