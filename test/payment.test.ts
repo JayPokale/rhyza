@@ -20,13 +20,13 @@ import { IlpPeerService } from "../src/ilp-peer";
 import { RatesService } from "../src/rates";
 import { LiquidityService } from "../src/liquidity";
 import { RemoteIncomingPaymentService } from "../src/remote-incoming-payment";
-import { RemoteIncomingPaymentInMemoryRepository } from "../src/remote-incoming-payment";
 import {
   WalletAddressInMemoryRepository,
   IlpPeerInMemoryRepository,
   IncomingPaymentInMemoryRepository,
   OutgoingPaymentInMemoryRepository,
   QuoteInMemoryRepository,
+  RemoteIncomingPaymentInMemoryRepository,
 } from "../src/repository";
 
 describe("Payment Service", () => {
