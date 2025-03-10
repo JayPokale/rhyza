@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "tsx src/index.ts",
     "docker:up": "docker compose -f ./docker/docker-compose.yaml down --volumes && docker compose -f ./docker/docker-compose.yaml up --build",
+    "docker:peer:up": "docker compose -f docker/docker-compose.yaml -f docker/peer/docker-compose.yaml down --volumes && docker compose -f docker/docker-compose.yaml -f docker/peer/docker-compose.yaml up -d --build",
     "test": "node --import tsx --test test/*.test.ts",
     "build": "tsc"
   },
