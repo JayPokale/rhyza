@@ -45,8 +45,7 @@ CREATE TABLE IF NOT EXISTS quotes (
   incoming_payment_id UUID NOT NULL,
   expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
   exchange_rate NUMERIC NOT NULL,
-  FOREIGN KEY (sender_wallet_address_id) REFERENCES wallet_addresses(id),
-  FOREIGN KEY (incoming_payment_id) REFERENCES incoming_payments(id)
+  FOREIGN KEY (sender_wallet_address_id) REFERENCES wallet_addresses(id)
 );
 
 CREATE TABLE IF NOT EXISTS outgoing_payments (
