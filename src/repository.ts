@@ -1658,7 +1658,7 @@ export class IlpPeerRepository implements IIlpPeerRepository {
   }
 
   public async fetchById(id: string): Promise<IlpPeer | undefined> {
-    const cached = await this.cache.get(id);
+    const cached = await this.cache.get(this.CACHE_BY_ID_PREFIX + id);
     if (cached) return cached;
 
     try {
