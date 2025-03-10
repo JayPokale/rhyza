@@ -13,10 +13,11 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --prod --frozen-l
 
 FROM base AS build
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
-RUN pnpm run build
+RUN pnpm --filter api build
 
 FROM base
 COPY --from=prod-deps /workspace/node_modules /workspace/node_modules
-COPY --from=build /workspace/dist /workspace/dist
+COPY --from=prod-deps /workspace/packages/api/node_modules /workspace/packages/api/node_modules
+COPY --from=build /workspace/packages/api/dist /workspace/packages/api/dist
 
-CMD ["node", "dist/index.js"]
+CMD ["node", "/workspace/packages/api/dist/index.js"]
