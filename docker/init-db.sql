@@ -17,11 +17,6 @@ CREATE TABLE IF NOT EXISTS ilp_peers (
 
 CREATE TABLE IF NOT EXISTS remote_incoming_payments (
   id UUID PRIMARY KEY NOT NULL,
-  expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-  asset_code VARCHAR(20) NOT NULL,
-  asset_scale INT NOT NULL,
-  incoming_amount BIGINT,
-  received_amount BIGINT NOT NULL,
   ilp_destination_address VARCHAR(255) NOT NULL,
   ilp_shared_secret VARCHAR(255) NOT NULL
 );

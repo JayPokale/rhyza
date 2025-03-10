@@ -1,14 +1,10 @@
 import { Pool } from "pg";
 import { IlpDetails } from "./ilp-connector";
 import logger from "./logger";
-import { Amount, Asset } from "./shared";
+import { Amount } from "./shared";
 
 export interface RemoteIncomingPayment {
   id: string;
-  expiresAt: Date;
-  asset: Asset;
-  incomingAmount?: bigint;
-  receivedAmount: bigint;
   type: "REMOTE";
   ilpDetails: IlpDetails;
 }
@@ -106,6 +102,8 @@ export class RemoteIncomingPaymentService
 
     const remoteIncomingPayment = (await res!.json()) as RemoteIncomingPayment;
 
+    console.log("res *******", remoteIncomingPayment);
+
     await this.remoteIncomingPaymentRepository.store(remoteIncomingPayment);
 
     return remoteIncomingPayment.id;
@@ -137,19 +135,12 @@ export class RemoteIncomingPaymentPsqlRepository
   ): Promise<void> {
     try {
       const query = `
-        INSERT INTO ${this.TABLE_NAME} (id, expires_at, asset_code, asset_scale, incoming_amount, received_amount, ilp_destination_address, ilp_shared_secret)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        INSERT INTO ${this.TABLE_NAME} (id, ilp_destination_address, ilp_shared_secret)
+        VALUES ($1, $2, $3)
       `;
 
       const values = [
         remoteIncomingPayment.id,
-        remoteIncomingPayment.expiresAt.toISOString(),
-        remoteIncomingPayment.asset.code,
-        remoteIncomingPayment.asset.scale,
-        remoteIncomingPayment.incomingAmount
-          ? remoteIncomingPayment.incomingAmount.toString()
-          : null,
-        remoteIncomingPayment.receivedAmount.toString(),
         remoteIncomingPayment.ilpDetails.destinationAddress,
         remoteIncomingPayment.ilpDetails.sharedSecret,
       ];
@@ -165,7 +156,7 @@ export class RemoteIncomingPaymentPsqlRepository
     id: string
   ): Promise<RemoteIncomingPayment | undefined> {
     const res = await this.pool.query<RemoteIncomingPaymentRecord>(
-      `SELECT id, expires_at, asset_code, asset_scale, incoming_amount, received_amount, ilp_destination_address, ilp_shared_secret FROM ${this.TABLE_NAME} WHERE id = $1`,
+      `SELECT id, ilp_destination_address, ilp_shared_secret FROM ${this.TABLE_NAME} WHERE id = $1`,
       [id]
     );
 
@@ -175,15 +166,6 @@ export class RemoteIncomingPaymentPsqlRepository
 
     return {
       id: row.id,
-      expiresAt: new Date(row.expires_at),
-      asset: {
-        code: row.asset_code,
-        scale: row.asset_scale,
-      },
-      incomingAmount: row.incoming_amount
-        ? BigInt(row.incoming_amount)
-        : undefined,
-      receivedAmount: BigInt(row.received_amount),
       type: "REMOTE",
       ilpDetails: {
         destinationAddress: row.ilp_destination_address,
