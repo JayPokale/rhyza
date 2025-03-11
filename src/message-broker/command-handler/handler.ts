@@ -10,12 +10,17 @@ import {
 } from "../../payment"
 
 import {
-  ApiResponseCmd, ApiResponseCmdPayload,
   CreateIncomingPaymentCmd,
   CreateOutgoingPaymentFromQuoteCmd,
   CreateQuoteCmd,
   Topic
 } from "../command"
+
+import {
+  ApiRspErrorEvent,
+  ApiRspIncomingPaymentEvent, ApiRspOutgoingPaymentEvent, ApiRspQuoteEvent
+
+} from "../event"
 
 import logger from "../../logger";
 
@@ -46,53 +51,61 @@ export class RafikiCommandHandler {
   private async _msgHandler(message: IMessage): Promise<void> {
     // eslint-disable-next-line no-async-promise-executor
     return await new Promise<void>(async (resolve) => {
-      logger.info(`Got message in RafikiCommandHandler with name: ${message.msgName} -> ${message.requestId} -> ${message}`)
-      logger.debug(`Got message in RafikiCommandHandler with name: ${message.msgName}`)
-      let response: any = {}
+      logger.debug(`Got message in RafikiCommandHandler with name: ${message.msgName}:${message.requestId} -> ${message}`)
       try {
         switch (message.msgName) {
           case CreateIncomingPaymentCmd.name:
-            response = await this._paymentService.createIncomingPayment(this.toDomainIncoming(message as CreateIncomingPaymentCmd))
+            const inPayId = await this._paymentService.createIncomingPayment(this.toDomainIncoming(message as CreateIncomingPaymentCmd))
+            if (message.requestId) {
+              await this._messageProducer.send(new ApiRspIncomingPaymentEvent({
+                createdId: inPayId,
+              }, message.requestId))
+            }
             break
           case CreateQuoteCmd.name:
-            response = await this._paymentService.createQuote(this.toDomainQuote(message as CreateQuoteCmd))
+            const quoteId = await this._paymentService.createQuote(this.toDomainQuote(message as CreateQuoteCmd))
+            if (message.requestId) {
+              await this._messageProducer.send(new ApiRspQuoteEvent({
+                createdId: quoteId,
+              }, message.requestId))
+            }
             break
           case CreateOutgoingPaymentFromQuoteCmd.name:
-            response = await this._paymentService.createOutgoingPaymentFromQuote(this.toDomainOutgoingFromQuote(
+            const outPayId = await this._paymentService.createOutgoingPaymentFromQuote(this.toDomainOutgoingFromQuote(
               message as CreateOutgoingPaymentFromQuoteCmd
             ))
+            if (message.requestId) {
+              await this._messageProducer.send(new ApiRspOutgoingPaymentEvent({
+                createdId: outPayId,
+              }, message.requestId))
+            }
             break
           default: {
             logger.warn(`RafikiCommandHandler - unknown command - msgName: ${message?.msgName} msgKey: ${message?.msgKey} msgId: ${message?.msgId}`)
           }
         }
-      } catch (err: Error | any) {
-        logger.error(`RafikiCommandHandler - processing command - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${(err as Error)?.message?.toString()}`, err)
+      } catch (err) {
+        logger.error(`RafikiCommandHandler - error processing command - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${(err as Error)?.message?.toString()}`, err)
         logger.error(err)
         logger.error("Payload for error:")
         logger.error(message)
-        response = {
-          isCmdErrorResponse: true,
-          error: err.message,
-          stack: err.stack,
-          message: err.message,
-          name: err.name,
-          code: err.code,
-          status: err.status,
-          statusCode: err.statusCode,
-          statusMessage: err.statusMessage,
-          details: err.details,
-        }
-      } finally {
-        if (message.requestId && response) {
-          const payload = {
-            requestId: message.requestId,
-            response
+        if (err instanceof Error) {
+          if (message.requestId) {
+            await this._messageProducer.send(new ApiRspErrorEvent({
+              requestId: message.requestId,
+              isCmdErrorResponse: true,
+              errorType: err.constructor.name,
+              error: err.message,
+              stack: err.stack,
+              message: err.message,
+              name: err.name
+            },
+            message.requestId
+          ))
           }
-          logger.info(`\n\n\nSending Message for Request error: ${message.msgName} -> ${message.requestId} -> ${message}\n\n`)
-          await this._messageProducer.send(new ApiResponseCmd(payload))
         }
-
+        logger.error(err)
+      } finally {
         resolve()
       }
     })
@@ -144,54 +157,5 @@ export class RafikiCommandHandler {
       senderWalletAddressId: cmd.payload.senderWalletAddressId,
       quoteId: cmd.payload.quoteId,
     }
-  }
-}
-
-export class RafikiApiResponseCommandHandler {
-  private _messageConsumer: IMessageConsumer
-  private _rspMap: Map<string, Object | Error>
-
-  constructor(
-    messageConsumer: IMessageConsumer,
-    rspMap: Map<string, Object | Error>
-  ) {
-    this._messageConsumer = messageConsumer
-    this._rspMap = rspMap
-  }
-
-  async start(): Promise<void> {
-    this._messageConsumer.setTopics([Topic.ApiRequest])
-    this._messageConsumer.setCallbackFn(this._msgHandler.bind(this))
-    await this._messageConsumer.connect()
-    await this._messageConsumer.startAndWaitForRebalance()
-  }
-
-  async stop():Promise<void>{
-    await this._messageConsumer.stop()
-  }
-
-  private async _msgHandler(message: IMessage): Promise<void> {
-    // eslint-disable-next-line no-async-promise-executor
-    return await new Promise<void>(async (resolve) => {
-      logger.debug(`Got message in RafikiApiResponseCommandHandler with name: ${message.msgName}`)
-      try {
-        switch (message.msgName) {
-          case ApiResponseCmd.name:
-            const payload = message.payload as ApiResponseCmdPayload
-            this._rspMap.set(payload.requestId, payload.response)
-            break
-          default: {
-            logger.warn(`RafikiApiResponseCommandHandler - unknown command - msgName: ${message?.msgName} msgKey: ${message?.msgKey} msgId: ${message?.msgId}`)
-          }
-        }
-      } catch (err) {
-        logger.error(`RafikiApiResponseCommandHandler - processing command - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${(err as Error)?.message?.toString()}`, err)
-        logger.error(err)
-        logger.error("Payload for error:")
-        logger.error(message)
-      } finally {
-        resolve()
-      }
-    })
   }
 }

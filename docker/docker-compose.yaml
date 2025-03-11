@@ -1,19 +1,45 @@
 name: rafiki-poc
 services:
-  app:
+  app-api-1:
     build:
       context: ../
-      #dockerfile: ./docker/Dockerfile
       dockerfile: ./docker/Dockerfile-app
     restart: always
     depends_on:
-      - init-kafka
+      - app-backend
     ports:
       - '3000:3000'
     environment:
       SEED_FILE_LOCATION: /workspace/seed.json
       OPEN_TELEMETRY_COLLECTOR_URL: http://otel-collector:4317
       KAFKA_URL: kafka:19092
+      SERVICE_MODE: api
+#  app-api-2:
+#    build:
+#      context: ../
+#      dockerfile: ./docker/Dockerfile-app
+#    restart: always
+#    depends_on:
+#      - app-backend
+#    ports:
+#      - '3001:3000'
+#    environment:
+#      SEED_FILE_LOCATION: /workspace/seed.json
+#      OPEN_TELEMETRY_COLLECTOR_URL: http://otel-collector:4317
+#      KAFKA_URL: kafka:19092
+#      SERVICE_MODE: api
+  app-backend:
+    build:
+      context: ../
+      dockerfile: ./docker/Dockerfile-app
+    restart: always
+    depends_on:
+      - init-kafka
+    environment:
+      SEED_FILE_LOCATION: /workspace/seed.json
+      OPEN_TELEMETRY_COLLECTOR_URL: http://otel-collector:4317
+      KAFKA_URL: kafka:19092
+      SERVICE_MODE: backend
   otel-collector:
     image: otel/opentelemetry-collector:latest
     command: "--config=/etc/otel-collector-config.yaml"

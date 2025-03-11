@@ -8,7 +8,7 @@ import {
 require("./telemetry.js"); // Load telemetry before running the rest of the app
 
 import { readFileSync } from "fs";
-import {createApp, createAppApiResponseCommandHandler, createAppCommandHandler} from "./app";
+import {createApiApp, createAppCommandHandler} from "./app";
 import { EventEmitterPubSub } from "./event";
 import { LiquidityService } from "./liquidity";
 import {
@@ -116,6 +116,13 @@ async function seed(seedFilePath: string) {
     ilpConnector.handleRemoteOutgoingPaymentFundedEvent.bind(ilpConnector)
   );
 
+  const serviceMode = process.env["SERVICE_MODE"]
+  logger.info(`************************************`)
+  logger.info(`* Service Mode is '${serviceMode}'`)
+  logger.info(`************************************`)
+
+  const serviceModeApi = serviceMode === "api"
+  const serviceModeBackend = serviceMode === "backend"
   const seedFilePath = process.env["SEED_FILE_LOCATION"] || "seed.json";
   logger.info(`Running seed from ${seedFilePath}`)
 
@@ -134,51 +141,40 @@ async function seed(seedFilePath: string) {
 
   logger.info(`Init Kafka on '${kafkaUrl}'`)
 
-  const apiReqCache : Map<string, Object | Error> = new Map();
-
   // Init Producer/Consumer:
   const producer = new RafikiKafkaJsonProducer(kafkaProducerCommonOptions)
   await producer.connect()
-  const consumerCmdHandler = new RafikiKafkaJsonConsumer(kafkaConsumerCommonOptions)
-  const consumerApiRspHandler = new RafikiKafkaJsonConsumer(kafkaConsumerCommonOptions)
+  let consumer = new RafikiKafkaJsonConsumer(kafkaConsumerCommonOptions)
 
-  logger.info(`Kafka Connected. Initializing Command-Handler...`)
-  const startCommandHandler = createAppCommandHandler(
-    paymentService,
-    consumerCmdHandler,
-    producer
-  )
-  await startCommandHandler()
-
-  logger.info(`Kafka Connected. Initializing API-Response-Handler...`)
-  const startApiRspHandler = createAppApiResponseCommandHandler(
-    consumerApiRspHandler,
-    apiReqCache
-  )
-  await startApiRspHandler()
-
-  logger.info(`Create App...`)
-  const start = createApp(
-    Number(seedObj.port ?? 3000),
-    30,//api cache timeout in seconds
-    //paymentService,
-    //quoteRepo,
-    //inPaymentRepo,
-    remoteIncomingPaymentService,
-    ilpConnector,
-    producer,
-    apiReqCache
-  );
-  await start();
+  if (serviceModeBackend) {
+    logger.info(`Kafka Connected. Initializing Command-Handler...`)
+    const startCommandHandler = createAppCommandHandler(
+      paymentService,
+      consumer,
+      producer
+    )
+    await startCommandHandler()
+  } else if (serviceModeApi) {
+    logger.info(`Create App...`)
+    const start = createApiApp(
+      Number(seedObj.port ?? 3000),
+      //paymentService,
+      //quoteRepo,
+      //inPaymentRepo,
+      remoteIncomingPaymentService,
+      ilpConnector,
+      producer,
+      consumer
+    );
+    await start();
+  }
 
   process.on("SIGINT", () => {
     logger.info("Received SIGINT. Shutting down gracefully...");
     producer.disconnect()
     producer.destroy()
-    consumerCmdHandler.disconnect()
-    consumerCmdHandler.destroy(true)
-    consumerApiRspHandler.disconnect()
-    consumerApiRspHandler.destroy(true)
+    consumer.disconnect()
+    consumer.destroy(true)
 
     process.exit(0);
   });

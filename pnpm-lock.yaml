@@ -26,9 +26,6 @@ importers:
       fastify:
         specifier: ^5.2.1
         version: 5.2.1
-      help:
-        specifier: ^3.0.2
-        version: 3.0.2
       ilp-packet:
         specifier: 3.1.4-alpha.2
         version: 3.1.4-alpha.2
@@ -570,9 +567,6 @@ packages:
   hasown@2.0.2:
     resolution: {integrity: sha512-0hJU9SCPvmMzIBdZFqNPXWa6dqh7WdH0cII9y+CyS8rG3nL48Bclra9HmKhVVUHyPWNH5Y7xDwAB7bfgSjkUMQ==}
     engines: {node: '>= 0.4'}
-
-  help@3.0.2:
-    resolution: {integrity: sha512-jDd0MU+9xzvOQRC6CIzdjvb+agCvpzQY/Fp11quDnugDO4QQzh134EsLkRQMvFIJBleFkvnXagHFm4MTefkkpA==}
 
   ilp-packet@3.1.4-alpha.2:
     resolution: {integrity: sha512-0a75sI7o/1NG9qgJlObg9M264pnezcPEse1+UQV8gkgQAuKesj5b6qyPw7WbkvjIDXAtIQ61Qg48wRpkaddbQw==}
@@ -1302,8 +1296,6 @@ snapshots:
   hasown@2.0.2:
     dependencies:
       function-bind: 1.1.2
-
-  help@3.0.2: {}
 
   ilp-packet@3.1.4-alpha.2:
     dependencies:

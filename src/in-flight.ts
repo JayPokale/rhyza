@@ -29,19 +29,22 @@ export class InFlightProcessor<T extends CommandMsg> {
     await this.producer.send(request)
 
     const start = Date.now()
-    logger.info(`Starting processing at ${start} for ${requestId}`)
+    logger.debug(`Starting processing at ${start} for ${requestId}`)
     do {
       await new Promise(resolve => setTimeout(resolve, 100));
     } while (!this.mapRsp.has(requestId) && (Date.now() - start < timeoutSeconds * 1000))
 
     const rsp = this.mapRsp.get(requestId)
     this.mapRsp.delete(requestId)
-    logger.info(`Finished processing at ${Date.now()} for ${requestId}, got ${JSON.stringify(rsp)}`)
+    logger.debug(`Finished processing at ${Date.now()} for ${requestId}, got ${JSON.stringify(rsp)}`)
 
     var error: Error | undefined = undefined
     if (rsp && typeof rsp === 'object' &&
       ('isCmdErrorResponse' in rsp && 'message' in rsp)) {
       error = new Error(`${rsp.message}`)
+    } else if (!rsp) {
+      // No response, timeout:
+      error = new Error(`No response received for '${requestId}' within ${timeoutSeconds} seconds.`)
     }
 
     if (throwIfError && error !== undefined) throw rsp

@@ -31,9 +31,10 @@ export class CreateIncomingPaymentCmd extends CommandMsg {
   msgTopic: string = Topic.IncomingPayments
   payload: CreateIncomingPaymentCmdPayload
 
-  constructor(payload: CreateIncomingPaymentCmdPayload) {
+  constructor(payload: CreateIncomingPaymentCmdPayload, requestId: string) {
     super()
     this.aggregateId = this.msgKey = `${payload.id}`
+    this.requestId = requestId
     this.payload = payload
   }
 }
@@ -54,10 +55,11 @@ export class CreateQuoteCmd extends CommandMsg {
   msgTopic: string = Topic.Quotes
   payload: CreateQuoteCmdPayload
 
-  constructor(payload: CreateQuoteCmdPayload) {
+  constructor(payload: CreateQuoteCmdPayload, requestId: string) {
     super()
     this.aggregateId = this.msgKey = `${payload.id}`
     this.payload = payload
+    this.requestId = requestId
   }
 }
 
@@ -75,30 +77,12 @@ export class CreateOutgoingPaymentFromQuoteCmd extends CommandMsg {
   msgTopic: string = Topic.OutgoingPaymentsFromQuote
   payload: CreateOutgoingPaymentFromQuoteCmdPayload
 
-  constructor(payload: CreateOutgoingPaymentFromQuoteCmdPayload) {
+  constructor(payload: CreateOutgoingPaymentFromQuoteCmdPayload, requestId: string) {
     super()
     this.aggregateId = this.msgKey = `${payload.id}`
     this.payload = payload
+    this.requestId = requestId
   }
 }
 
-export interface ApiResponseCmdPayload {
-  requestId: string
-  response: Object | Error
-}
-
-export class ApiResponseCmd extends CommandMsg {
-  contextName: string = 'api-request'
-  aggregateId: string
-  aggregateName: string = 'api-request'
-  msgKey: string
-  msgTopic: string = Topic.ApiRequest
-  payload: ApiResponseCmdPayload
-
-  constructor(payload: ApiResponseCmdPayload) {
-    super()
-    this.aggregateId = this.msgKey = `${payload.requestId}`
-    this.payload = payload
-  }
-}
 

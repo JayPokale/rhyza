@@ -97,6 +97,8 @@ export abstract class DomainEventMsg extends DomainMsg {
     isErrorEvent:boolean = false;
     sourceMessageName?:string = undefined;
 
+    requestId?: string
+
     //TODO abstract validatePayload(): void
 }
 
