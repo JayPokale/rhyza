@@ -18,17 +18,51 @@ async function seed(seedFilePath: string) {
   const data = readFileSync(seedFilePath, "utf8");
   const seed = JSON.parse(data);
 
-  for (const walletAddress of seed.walletAddresses) {
-    await walletAddressService.createWalletAddress(walletAddress);
+  try {
+    // boolean primary key ensures only 1 row (can only be true)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS seed_lock (
+        id BOOLEAN PRIMARY KEY DEFAULT TRUE,
+        completed BOOLEAN DEFAULT FALSE
+      )
+    `);
+
+    // Try to insert a lock record - only the first instance will succeed
+    const lockResult = await pool.query(`
+      INSERT INTO seed_lock (id, completed)
+      VALUES (TRUE, FALSE)
+      ON CONFLICT (id) DO NOTHING
+      RETURNING *
+    `);
+
+    if (lockResult.rows.length === 0) {
+      console.log(
+        "Database already seeded or in the process of seeding, skipping"
+      );
+      return seed;
+    }
+
+    // Got the lock, do the seeding
+    console.log("Seeding database...");
+
+    for (const walletAddress of seed.walletAddresses) {
+      await walletAddressService.createWalletAddress(walletAddress);
+    }
+
+    for (const peer of seed.peers) {
+      await ilpPeerService.create(peer);
+    }
+
+    ilpConnector.ownDestinationAddress = seed.ilpConfig.address;
+
+    await pool.query("UPDATE seed_lock SET completed = TRUE WHERE id = TRUE");
+
+    console.log("Database seeding completed");
+    return seed;
+  } catch (error) {
+    console.error("Error during database seeding:", error);
+    throw error;
   }
-
-  for (const peer of seed.peers) {
-    await ilpPeerService.create(peer);
-  }
-
-  ilpConnector.ownDestinationAddress = seed.ilpConfig.address;
-
-  return seed;
 }
 
 (async () => {
