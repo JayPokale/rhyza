@@ -36,14 +36,14 @@ async function seed(seedFilePath: string) {
     `);
 
     if (lockResult.rows.length === 0) {
-      console.log(
+      logger.info(
         "Database already seeded or in the process of seeding, skipping"
       );
       return seed;
     }
 
     // Got the lock, do the seeding
-    console.log("Seeding database...");
+    logger.info("Seeding database...");
 
     for (const walletAddress of seed.walletAddresses) {
       await walletAddressService.createWalletAddress(walletAddress);
@@ -57,10 +57,10 @@ async function seed(seedFilePath: string) {
 
     await pool.query("UPDATE seed_lock SET completed = TRUE WHERE id = TRUE");
 
-    console.log("Database seeding completed");
+    logger.info("Database seeding completed");
     return seed;
   } catch (error) {
-    console.error("Error during database seeding:", error);
+    logger.error({ error }, "Error during database seeding");
     throw error;
   }
 }
