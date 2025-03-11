@@ -136,7 +136,6 @@ class CachingRepository<T> implements ICacheableRepository<T> {
 
 // TODO: reconsider passing in repository as well. Ie new WalletAddressRepository(new InMemoryCache(ttl), new WalletAddressPsqlRepository(pool))
 // - why not do this? just sets us up from using another repo. mongodb, etc.
-// TODO: prefix all these. coudl have key conflicts between repos since its using the same redis
 
 // ==========================
 // Wallet Address
@@ -153,11 +152,12 @@ interface WalletAddressRecord {
 // TODO: Rename to WalletAddressPSQLRepository if thats not used.
 export class WalletAddressRepository implements IWalletAddressRepository {
   private TABLE_NAME = "wallet_addresses";
+  private CACHE_BY_ID_PREFIX = "wallet_address_by_id:";
 
   constructor(private cache: Cache<WalletAddress>, private pool: Pool) {}
 
   public async fetchById(id: string): Promise<WalletAddress | undefined> {
-    const cached = await this.cache.get(id);
+    const cached = await this.cache.get(this.CACHE_BY_ID_PREFIX + id);
     if (cached) return cached;
 
     try {
@@ -177,7 +177,10 @@ export class WalletAddressRepository implements IWalletAddressRepository {
         assetScale: row.asset_scale,
       };
 
-      await this.cache.set(walletAddress.id, walletAddress);
+      await this.cache.set(
+        this.CACHE_BY_ID_PREFIX + walletAddress.id,
+        walletAddress
+      );
       return walletAddress;
     } catch (error) {
       console.error("Error fetching wallet address by ID:", error);
@@ -186,7 +189,7 @@ export class WalletAddressRepository implements IWalletAddressRepository {
   }
 
   public async exists(id: string): Promise<boolean> {
-    const found = await this.cache.get(id);
+    const found = await this.cache.get(this.CACHE_BY_ID_PREFIX + id);
     if (found) return true;
 
     try {
@@ -217,7 +220,10 @@ export class WalletAddressRepository implements IWalletAddressRepository {
       ];
 
       await this.pool.query(query, values);
-      await this.cache.set(walletAddress.id, walletAddress);
+      await this.cache.set(
+        this.CACHE_BY_ID_PREFIX + walletAddress.id,
+        walletAddress
+      );
     } catch (error) {
       console.error("Error storing wallet address:", error);
       throw error;
@@ -341,11 +347,12 @@ export class WalletAddressPsqlRepository implements IWalletAddressRepository {
 export class IncomingPaymentRepository implements IIncomingPaymentRepository {
   private TABLE_NAME = "incoming_payments";
   private MICRO_PAYMENT_TABLE_NAME = "incoming_micro_payments";
+  private CACHE_BY_ID_PREFIX = "incoming_payment_by_id:";
 
   constructor(private cache: Cache<IncomingPayment>, private pool: Pool) {}
 
   public async exists(id: string): Promise<boolean> {
-    const found = await this.cache.get(id);
+    const found = await this.cache.get(this.CACHE_BY_ID_PREFIX + id);
     if (found) return true;
 
     try {
@@ -381,7 +388,10 @@ export class IncomingPaymentRepository implements IIncomingPaymentRepository {
       ];
 
       await this.pool.query(query, values);
-      await this.cache.set(incomingPayment.id, incomingPayment);
+      await this.cache.set(
+        this.CACHE_BY_ID_PREFIX + incomingPayment.id,
+        incomingPayment
+      );
     } catch (error) {
       console.error("Error storing incoming payment:", error);
       throw error;
@@ -432,7 +442,7 @@ export class IncomingPaymentRepository implements IIncomingPaymentRepository {
       await client.query(insertQuery, insertValues);
 
       await client.query("COMMIT");
-      this.cache.delete(request.id);
+      this.cache.delete(this.CACHE_BY_ID_PREFIX + request.id);
     } catch (error) {
       await client.query("ROLLBACK");
       console.error(
@@ -475,7 +485,10 @@ export class IncomingPaymentRepository implements IIncomingPaymentRepository {
         type: "LOCAL",
       };
 
-      await this.cache.set(incomingPayment.id, incomingPayment);
+      await this.cache.set(
+        this.CACHE_BY_ID_PREFIX + incomingPayment.id,
+        incomingPayment
+      );
       return incomingPayment;
     } catch (error) {
       console.error("Error fetching incoming payment by ID:", error);
@@ -729,11 +742,12 @@ export class IncomingPaymentPsqlRepository
 export class OutgoingPaymentRepository implements IOutgoingPaymentRepository {
   private TABLE_NAME = "outgoing_payments";
   private MICRO_PAYMENT_TABLE_NAME = "outgoing_micro_payments";
+  private CACHE_BY_ID_PREFIX = "outgoing_payment_by_id";
 
   constructor(private cache: Cache<OutgoingPayment>, private pool: Pool) {}
 
   public async exists(id: string): Promise<boolean> {
-    const found = await this.cache.get(id);
+    const found = await this.cache.get(this.CACHE_BY_ID_PREFIX + id);
     if (found) return true;
 
     try {
@@ -769,7 +783,10 @@ export class OutgoingPaymentRepository implements IOutgoingPaymentRepository {
       ];
 
       await this.pool.query(query, values);
-      await this.cache.set(outgoingPayment.id, outgoingPayment);
+      await this.cache.set(
+        this.CACHE_BY_ID_PREFIX + outgoingPayment.id,
+        outgoingPayment
+      );
     } catch (error) {
       console.error("Error storing outgoing payment:", error);
       throw error;
@@ -817,7 +834,7 @@ export class OutgoingPaymentRepository implements IOutgoingPaymentRepository {
       await client.query(insertQuery, insertValues);
 
       await client.query("COMMIT");
-      await this.cache.delete(request.id);
+      await this.cache.delete(this.CACHE_BY_ID_PREFIX + request.id);
     } catch (error) {
       await client.query("ROLLBACK");
       console.error(
@@ -831,7 +848,7 @@ export class OutgoingPaymentRepository implements IOutgoingPaymentRepository {
   }
 
   public async fetchById(id: string): Promise<OutgoingPayment | undefined> {
-    const cached = await this.cache.get(id);
+    const cached = await this.cache.get(this.CACHE_BY_ID_PREFIX + id);
     if (cached) return cached;
 
     try {
@@ -859,7 +876,10 @@ export class OutgoingPaymentRepository implements IOutgoingPaymentRepository {
         senderWalletAddressId: row.sender_wallet_address_id,
       };
 
-      await this.cache.set(outgoingPayment.id, outgoingPayment);
+      await this.cache.set(
+        this.CACHE_BY_ID_PREFIX + outgoingPayment.id,
+        outgoingPayment
+      );
       return outgoingPayment;
     } catch (error) {
       console.error("Error fetching outgoing payment by ID:", error);
@@ -1116,11 +1136,12 @@ export class OutgoingPaymentPsqlRepository
 // TODO: rename to QuotePsqlRepository
 export class QuoteRepository implements IQuoteRepository {
   private TABLE_NAME = "quotes";
+  private CACHE_BY_ID_PREFIX = "quote_by_id:";
 
   constructor(private cache: Cache<Quote>, private pool: Pool) {}
 
   public async exists(id: string): Promise<boolean> {
-    const found = await this.cache.get(id);
+    const found = await this.cache.get(this.CACHE_BY_ID_PREFIX + id);
     if (found) return true;
 
     try {
@@ -1157,7 +1178,7 @@ export class QuoteRepository implements IQuoteRepository {
       ];
 
       await this.pool.query(query, values);
-      await this.cache.set(quote.id, quote);
+      await this.cache.set(this.CACHE_BY_ID_PREFIX + quote.id, quote);
     } catch (error) {
       console.error("Error storing quote:", error);
       throw error;
@@ -1165,7 +1186,7 @@ export class QuoteRepository implements IQuoteRepository {
   }
 
   public async fetchById(id: string): Promise<Quote | undefined> {
-    const cached = await this.cache.get(id);
+    const cached = await this.cache.get(this.CACHE_BY_ID_PREFIX + id);
     if (cached) return cached;
 
     try {
@@ -1196,7 +1217,7 @@ export class QuoteRepository implements IQuoteRepository {
         exchangeRate: Number(row.exchange_rate),
       };
 
-      await this.cache.set(quote.id, quote);
+      await this.cache.set(this.CACHE_BY_ID_PREFIX + quote.id, quote);
       return quote;
     } catch (error) {
       console.error("Error fetching quote by ID:", error);
@@ -1220,11 +1241,11 @@ export class QuoteRepository implements IQuoteRepository {
       await this.pool.query(query, values);
 
       // Mutate the cached object, if it exists
-      const cachedQuote = await this.cache.get(id);
+      const cachedQuote = await this.cache.get(this.CACHE_BY_ID_PREFIX + id);
       if (cachedQuote) {
         cachedQuote.receiveAmount.value = amount;
         cachedQuote.debitAmount.value = amount;
-        await this.cache.set(id, cachedQuote);
+        await this.cache.set(this.CACHE_BY_ID_PREFIX + id, cachedQuote);
       }
     } catch (error) {
       console.error("Error updating quote amounts:", error);
@@ -1424,6 +1445,7 @@ export class RemoteIncomingPaymentRepository
   implements IRemoteIncomingPaymentRepository
 {
   private TABLE_NAME = "remote_incoming_payments";
+  private CACHE_BY_ID_PREFIX = "remote_incoming_payments_by_id:";
 
   constructor(
     private cache: Cache<RemoteIncomingPayment>,
@@ -1453,7 +1475,10 @@ export class RemoteIncomingPaymentRepository
       ];
 
       await this.pool.query(query, values);
-      await this.cache.set(remoteIncomingPayment.id, remoteIncomingPayment);
+      await this.cache.set(
+        this.CACHE_BY_ID_PREFIX + remoteIncomingPayment.id,
+        remoteIncomingPayment
+      );
     } catch (error) {
       console.error("Error storing remote incoming payment:", error);
       throw error;
@@ -1494,7 +1519,10 @@ export class RemoteIncomingPaymentRepository
         },
       };
 
-      await this.cache.set(remoteIncomingPayment.id, remoteIncomingPayment);
+      await this.cache.set(
+        this.CACHE_BY_ID_PREFIX + remoteIncomingPayment.id,
+        remoteIncomingPayment
+      );
       return remoteIncomingPayment;
     } catch (error) {
       console.error("Error fetching remote incoming payment by ID:", error);
