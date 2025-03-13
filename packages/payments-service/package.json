@@ -16,6 +16,7 @@
     "@opentelemetry/sdk-node": "^0.57.1",
     "fastify": "^5.2.1",
     "ilp-packet": "3.1.4-alpha.2",
+    "ioredis": "^5.6.0",
     "pg": "^8.13.1",
     "pino": "^9.6.0"
   },
