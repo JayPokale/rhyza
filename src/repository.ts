@@ -1,4 +1,5 @@
 import { Pool } from "pg";
+import { Redis } from "ioredis";
 import { WalletAddress, IWalletAddressRepository } from "./wallet-address";
 import {
   IncomingPayment,
@@ -77,6 +78,32 @@ export class InMemoryCache<T> implements Cache<T> {
 
   async deleteAll(): Promise<void> {
     this.map.clear();
+  }
+}
+
+// TODO: serialization
+export class RedisCache<T> implements Cache<T> {
+  constructor(private redisClient: Redis, private keyTtlMs: number) {}
+
+  async get(key: string): Promise<T | undefined> {
+    return (await this.redisClient.get(key)) || undefined;
+  }
+  async getKeyExpiry(key: string): Promise<Date | undefined> {
+    const expiryTimestamp = await this.redisClient.pexpiretime(key);
+    return expiryTimestamp && expiryTimestamp > 0
+      ? new Date(+expiryTimestamp)
+      : undefined;
+  }
+  async set(key: string, value: T): Promise<boolean> {
+    return (
+      (await this.redisClient.set(key, value, "PX", this.keyTtlMs)) === "OK"
+    );
+  }
+  async delete(key: string): Promise<void> {
+    await this.redisClient.del(key);
+  }
+  async deleteAll(): Promise<void> {
+    await this.redisClient.flushall();
   }
 }
 
