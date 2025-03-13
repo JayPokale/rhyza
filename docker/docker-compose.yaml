@@ -1,21 +1,21 @@
 name: rafiki-poc
 services:
-  app:
+  api:
     build:
       context: ../
-      dockerfile: ./docker/Dockerfile
+      dockerfile: ./packages/api/Dockerfile
     restart: always
-    ports:
-      - '3000:3000'
     environment:
       SEED_FILE_LOCATION: /workspace/seed.json
       OPEN_TELEMETRY_COLLECTOR_URL: http://otel-collector:4317
-      DATABASE_URL: postgres://postgres:password@pg_container:5432/database
+      DATABASE_URL: postgres://postgres:password@pg-container:5432/database
     depends_on:
-      pg_container:
+      pg-container:
         condition: service_healthy
+    networks:
+      - rafiki-poc
 
-  pg_container:
+  pg-container:
     image: postgres
     restart: always
     environment:
@@ -23,28 +23,52 @@ services:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: database
     ports:
-      - '5432:5432'
+      - "5432:5432"
     volumes:
       - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+      - postgres-data:/var/lib/postgresql/data/
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "postgres", "-d", "database"]
       interval: 10s
       retries: 5
       start_period: 30s
       timeout: 10s
+    networks:
+      - rafiki-poc
 
   otel-collector:
     image: otel/opentelemetry-collector:latest
     command: "--config=/etc/otel-collector-config.yaml"
     volumes:
       - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    networks:
+      - rafiki-poc
 
   prometheus:
     image: prom/prometheus:latest
-    command: 
+    command:
       - --config.file=/etc/prometheus/prometheus.yaml
       - --web.enable-remote-write-receiver
     volumes:
       - ./prometheus.yaml:/etc/prometheus/prometheus.yaml
     ports:
       - "9090:9090"
+    networks:
+      - rafiki-poc
+
+  nginx:
+    image: nginx:latest
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - api
+    networks:
+      - rafiki-poc
+
+networks:
+  rafiki-poc:
+
+volumes:
+  postgres-data:

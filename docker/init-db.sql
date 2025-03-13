@@ -17,11 +17,6 @@ CREATE TABLE IF NOT EXISTS ilp_peers (
 
 CREATE TABLE IF NOT EXISTS remote_incoming_payments (
   id UUID PRIMARY KEY NOT NULL,
-  expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-  asset_code VARCHAR(20) NOT NULL,
-  asset_scale INT NOT NULL,
-  incoming_amount BIGINT,
-  received_amount BIGINT NOT NULL,
   ilp_destination_address VARCHAR(255) NOT NULL,
   ilp_shared_secret VARCHAR(255) NOT NULL
 );
@@ -50,8 +45,7 @@ CREATE TABLE IF NOT EXISTS quotes (
   incoming_payment_id UUID NOT NULL,
   expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
   exchange_rate NUMERIC NOT NULL,
-  FOREIGN KEY (sender_wallet_address_id) REFERENCES wallet_addresses(id),
-  FOREIGN KEY (incoming_payment_id) REFERENCES incoming_payments(id)
+  FOREIGN KEY (sender_wallet_address_id) REFERENCES wallet_addresses(id)
 );
 
 CREATE TABLE IF NOT EXISTS outgoing_payments (

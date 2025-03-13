@@ -860,17 +860,17 @@ export class PaymentService {
     incomingPayment: IncomingPayment,
     microPayment: MicroPayment
   ): UpdateIncomingPaymentWithNewMicroPaymentRequest {
-    const update: UpdateIncomingPaymentWithNewMicroPaymentRequest = {
-      id: incomingPayment.id,
-      microPayment,
-      receivedAmount: incomingPayment.receivedAmount,
-    };
-
     if (incomingPayment.state !== LocalIncomingPaymentState.CREATED) {
       throw new IncomingPaymentCannotReceiveMicroPayment();
     }
 
     incomingPayment.receivedAmount += microPayment.amount; // received amount can be larger than incoming amount because of FX
+
+    const update: UpdateIncomingPaymentWithNewMicroPaymentRequest = {
+      id: incomingPayment.id,
+      microPayment,
+      receivedAmount: incomingPayment.receivedAmount,
+    };
 
     if (
       incomingPayment.incomingAmount &&
@@ -887,17 +887,17 @@ export class PaymentService {
     outgoingPayment: OutgoingPayment,
     microPayment: MicroPayment
   ): UpdateOutgoingPaymentWithNewMicroPaymentRequest {
-    const update: UpdateOutgoingPaymentWithNewMicroPaymentRequest = {
-      id: outgoingPayment.id,
-      microPayment,
-      sentAmount: outgoingPayment.sentAmount,
-    };
-
     if (outgoingPayment.state !== OutgoingPaymentState.FUNDED) {
       throw new OutgoingPaymentInvalidStateError();
     }
 
     outgoingPayment.sentAmount += microPayment.amount;
+
+    const update: UpdateOutgoingPaymentWithNewMicroPaymentRequest = {
+      id: outgoingPayment.id,
+      microPayment,
+      sentAmount: microPayment.amount,
+    };
 
     // TODO: determine whether this can/should happen
     if (outgoingPayment.sentAmount > outgoingPayment.debitAmount) {
