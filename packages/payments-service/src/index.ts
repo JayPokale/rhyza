@@ -54,6 +54,7 @@ const walletAddressRepository = new WalletAddressPsqlRepository(
 const walletAddressService = new WalletAddressService(walletAddressRepository);
 const ilpPeerRepository = new IlpPeerPsqlRepository(
   new RedisCache<IlpPeer>(redisClient, ONE_HOUR_IN_MS),
+  new RedisCache<string>(redisClient, ONE_HOUR_IN_MS),
   pool
 );
 const ilpPeerService = new IlpPeerService(ilpPeerRepository);

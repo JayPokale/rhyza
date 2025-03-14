@@ -987,9 +987,13 @@ interface IlpPeerRecord {
 export class IlpPeerPsqlRepository implements IIlpPeerRepository {
   private TABLE_NAME = "ilp_peers";
   private CACHE_BY_ID_PREFIX = "ilp_peer_by_id:";
-  private CACHE_BY_ADDRESS_PREFIX = "ilp_peer_by_address:";
+  private CACHE_ID_BY_ADDRESS_PREFIX = "ilp_peer_id_by_address:";
 
-  constructor(private cache: Cache<IlpPeer>, private pool: Pool) {}
+  constructor(
+    private cache: Cache<IlpPeer>,
+    private idCache: Cache<string>,
+    private pool: Pool
+  ) {}
 
   public async store(ilpPeer: IlpPeer): Promise<void> {
     try {
@@ -1008,9 +1012,9 @@ export class IlpPeerPsqlRepository implements IIlpPeerRepository {
 
       await this.pool.query(query, values);
       await this.cache.set(this.CACHE_BY_ID_PREFIX + ilpPeer.id, ilpPeer);
-      await this.cache.set(
-        this.CACHE_BY_ADDRESS_PREFIX + ilpPeer.address,
-        ilpPeer
+      await this.idCache.set(
+        this.CACHE_ID_BY_ADDRESS_PREFIX + ilpPeer.address,
+        ilpPeer.id
       );
     } catch (error) {
       console.error("Error storing ILP Peer:", error);
@@ -1043,10 +1047,6 @@ export class IlpPeerPsqlRepository implements IIlpPeerRepository {
       };
 
       await this.cache.set(this.CACHE_BY_ID_PREFIX + ilpPeer.id, ilpPeer);
-      await this.cache.set(
-        this.CACHE_BY_ADDRESS_PREFIX + ilpPeer.address,
-        ilpPeer
-      );
       return ilpPeer;
     } catch (error) {
       console.error("Error fetching ILP Peer by ID:", error);
@@ -1057,8 +1057,15 @@ export class IlpPeerPsqlRepository implements IIlpPeerRepository {
   public async getByDestinationAddress(
     address: string
   ): Promise<IlpPeer | undefined> {
-    const cached = await this.cache.get(this.CACHE_BY_ADDRESS_PREFIX + address);
-    if (cached) return cached;
+    const cachedId = await this.idCache.get(
+      this.CACHE_ID_BY_ADDRESS_PREFIX + address
+    );
+    if (cachedId) {
+      const cached = await this.cache.get(this.CACHE_BY_ID_PREFIX + cachedId);
+      if (cached) {
+        return cached;
+      }
+    }
 
     try {
       const res = await this.pool.query<IlpPeerRecord>(
@@ -1080,11 +1087,11 @@ export class IlpPeerPsqlRepository implements IIlpPeerRepository {
         callbackUrl: row.callback_url,
       };
 
-      await this.cache.set(
-        this.CACHE_BY_ADDRESS_PREFIX + ilpPeer.address,
-        ilpPeer
-      );
       await this.cache.set(this.CACHE_BY_ID_PREFIX + ilpPeer.id, ilpPeer);
+      await this.idCache.set(
+        this.CACHE_ID_BY_ADDRESS_PREFIX + ilpPeer.address,
+        ilpPeer.id
+      );
       return ilpPeer;
     } catch (error) {
       console.error("Error fetching ILP Peer by destination address:", error);
