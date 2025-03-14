@@ -11,8 +11,8 @@ import {
   OutgoingPaymentState,
   OutgoingPaymentWithMicroPayments,
   Quote,
-  UpdateIncomingPaymentWithNewMicroPaymentRequest,
-  UpdateOutgoingPaymentWithNewMicroPaymentRequest,
+  IncomingPaymentWithNewMicroPaymentUpdate,
+  OutgoingPaymentWithNewMicroPaymentUpdate,
   IOutgoingPaymentRepository,
   IQuoteRepository,
 } from "./payment";
@@ -312,13 +312,12 @@ export class IncomingPaymentPsqlRepository
     }
   }
 
-  // TODO: mutate cache, not delete. figure out hwo to cache correctly. I guess
-  // it just wont cache the new micropayment? does passing in the payment get
-  // us anything?
   public async updateWithNewMicroPayment(
-    request: UpdateIncomingPaymentWithNewMicroPaymentRequest
+    incomingPayment: IncomingPayment,
+    update: IncomingPaymentWithNewMicroPaymentUpdate
   ): Promise<void> {
-    const { id, state, receivedAmount, microPayment } = request;
+    const { state, receivedAmount, microPayment } = update;
+    const { id } = incomingPayment;
     const client = await this.pool.connect();
 
     try {
@@ -356,7 +355,7 @@ export class IncomingPaymentPsqlRepository
       await client.query(insertQuery, insertValues);
 
       await client.query("COMMIT");
-      this.cache.delete(this.CACHE_BY_ID_PREFIX + request.id);
+      this.cache.set(this.CACHE_BY_ID_PREFIX + id, incomingPayment);
     } catch (error) {
       await client.query("ROLLBACK");
       console.error(
@@ -435,19 +434,20 @@ export class IncomingPaymentInMemoryRepository
     return this.map.has(id);
   }
 
-  public async updateWithNewMicroPayment(request: {
-    id: string;
-    state: LocalIncomingPaymentState;
-    receivedAmount: bigint;
-    microPayment: MicroPayment;
-  }): Promise<void> {
-    const { id, state, receivedAmount, microPayment } = request;
+  public async updateWithNewMicroPayment(
+    incomingPayment: IncomingPayment,
+    update: IncomingPaymentWithNewMicroPaymentUpdate
+  ): Promise<void> {
+    const { state, receivedAmount, microPayment } = update;
+    const { id } = incomingPayment;
     const payment = this.map.get(id);
     if (!payment) {
       throw new Error(`IncomingPayment with id ${id} not found`);
     }
 
-    payment.state = state;
+    if (state) {
+      payment.state = state;
+    }
     payment.receivedAmount = receivedAmount;
 
     if (!this.microPaymentMap.has(id)) {
@@ -540,9 +540,11 @@ export class OutgoingPaymentPsqlRepository
   }
 
   public async updateWithNewMicroPayment(
-    request: UpdateOutgoingPaymentWithNewMicroPaymentRequest
+    outgoingPayment: OutgoingPayment,
+    update: OutgoingPaymentWithNewMicroPaymentUpdate
   ): Promise<void> {
-    const { id, state, sentAmount, microPayment } = request;
+    const { state, sentAmount, microPayment } = update;
+    const { id } = outgoingPayment;
     const client = await this.pool.connect();
 
     try {
@@ -580,7 +582,7 @@ export class OutgoingPaymentPsqlRepository
       await client.query(insertQuery, insertValues);
 
       await client.query("COMMIT");
-      await this.cache.delete(this.CACHE_BY_ID_PREFIX + request.id);
+      await this.cache.set(this.CACHE_BY_ID_PREFIX + id, outgoingPayment);
     } catch (error) {
       await client.query("ROLLBACK");
       console.error(
@@ -658,19 +660,20 @@ export class OutgoingPaymentInMemoryRepository
     return this.map.has(id);
   }
 
-  public async updateWithNewMicroPayment(request: {
-    id: string;
-    state: OutgoingPaymentState;
-    sentAmount: bigint;
-    microPayment: MicroPayment;
-  }): Promise<void> {
-    const { id, state, sentAmount, microPayment } = request;
+  public async updateWithNewMicroPayment(
+    outgoingPayment: OutgoingPayment,
+    update: OutgoingPaymentWithNewMicroPaymentUpdate
+  ): Promise<void> {
+    const { state, sentAmount, microPayment } = update;
+    const { id } = outgoingPayment;
     const payment = this.map.get(id);
     if (!payment) {
       throw new Error(`Outgoing payment with id ${id} not found`);
     }
 
-    payment.state = state;
+    if (state) {
+      payment.state = state;
+    }
     payment.sentAmount = sentAmount;
 
     if (!this.microPaymentMap.has(id)) {

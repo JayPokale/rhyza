@@ -86,8 +86,7 @@ export type OutgoingPaymentWithMicroPayments = OutgoingPayment & {
   microPayments: MicroPayment[];
 };
 
-export interface UpdateIncomingPaymentWithNewMicroPaymentRequest {
-  id: string;
+export interface IncomingPaymentWithNewMicroPaymentUpdate {
   microPayment: MicroPayment;
   state?: LocalIncomingPaymentState;
   receivedAmount: bigint;
@@ -98,7 +97,8 @@ export interface IIncomingPaymentRepository {
   store(payment: IncomingPayment): Promise<void>;
   fetchById(id: string): Promise<IncomingPayment | undefined>;
   updateWithNewMicroPayment(
-    request: UpdateIncomingPaymentWithNewMicroPaymentRequest
+    incomingPayment: IncomingPayment,
+    update: IncomingPaymentWithNewMicroPaymentUpdate
   ): Promise<void>;
 }
 
@@ -109,8 +109,7 @@ export interface IQuoteRepository {
   updateAmounts(request: { id: string; amount: bigint }): Promise<void>;
 }
 
-export interface UpdateOutgoingPaymentWithNewMicroPaymentRequest {
-  id: string;
+export interface OutgoingPaymentWithNewMicroPaymentUpdate {
   microPayment: MicroPayment;
   state?: OutgoingPaymentState;
   sentAmount: bigint;
@@ -121,7 +120,8 @@ export interface IOutgoingPaymentRepository {
   store(payment: OutgoingPayment): Promise<void>;
   fetchById(id: string): Promise<OutgoingPayment | undefined>;
   updateWithNewMicroPayment(
-    request: UpdateOutgoingPaymentWithNewMicroPaymentRequest
+    outgoingPayment: OutgoingPayment,
+    request: OutgoingPaymentWithNewMicroPaymentUpdate
   ): Promise<void>;
 }
 
@@ -858,15 +858,14 @@ export class PaymentService {
   private addMicroPaymentToIncomingPayment(
     incomingPayment: IncomingPayment,
     microPayment: MicroPayment
-  ): UpdateIncomingPaymentWithNewMicroPaymentRequest {
+  ): IncomingPaymentWithNewMicroPaymentUpdate {
     if (incomingPayment.state !== LocalIncomingPaymentState.CREATED) {
       throw new IncomingPaymentCannotReceiveMicroPayment();
     }
 
     incomingPayment.receivedAmount += microPayment.amount; // received amount can be larger than incoming amount because of FX
 
-    const update: UpdateIncomingPaymentWithNewMicroPaymentRequest = {
-      id: incomingPayment.id,
+    const update: IncomingPaymentWithNewMicroPaymentUpdate = {
       microPayment,
       receivedAmount: incomingPayment.receivedAmount,
     };
@@ -885,15 +884,14 @@ export class PaymentService {
   private addMicroPaymentToOutgoingPayment(
     outgoingPayment: OutgoingPayment,
     microPayment: MicroPayment
-  ): UpdateOutgoingPaymentWithNewMicroPaymentRequest {
+  ): OutgoingPaymentWithNewMicroPaymentUpdate {
     if (outgoingPayment.state !== OutgoingPaymentState.FUNDED) {
       throw new OutgoingPaymentInvalidStateError();
     }
 
     outgoingPayment.sentAmount += microPayment.amount;
 
-    const update: UpdateOutgoingPaymentWithNewMicroPaymentRequest = {
-      id: outgoingPayment.id,
+    const update: OutgoingPaymentWithNewMicroPaymentUpdate = {
       microPayment,
       sentAmount: microPayment.amount,
     };
@@ -980,9 +978,11 @@ export class PaymentService {
 
     await Promise.all([
       this.outgoingPaymentRepository.updateWithNewMicroPayment(
+        outgoingPayment,
         outgoingPaymentUpdate
       ),
       this.incomingPaymentRepository.updateWithNewMicroPayment(
+        incomingPayment,
         incomingPaymentUpdate
       ),
     ]);
@@ -1060,7 +1060,10 @@ export class PaymentService {
         events.push(outgoingPaymentCompletedEvent);
       }
 
-      await this.outgoingPaymentRepository.updateWithNewMicroPayment(update);
+      await this.outgoingPaymentRepository.updateWithNewMicroPayment(
+        outgoingPayment,
+        update
+      );
       await this.paymentEventProducer.publish(events);
     } else {
       throw new Error("FX during packet handling not implemented");
@@ -1124,7 +1127,10 @@ export class PaymentService {
         method: "ILP",
       });
 
-      await this.incomingPaymentRepository.updateWithNewMicroPayment(update);
+      await this.incomingPaymentRepository.updateWithNewMicroPayment(
+        incomingPayment,
+        update
+      );
 
       const paymentEvents: Event[] = [];
 
