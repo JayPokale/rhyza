@@ -6,11 +6,11 @@ import {
   DuplicateWalletAddressFoundError,
   WalletAddress,
   WalletAddressService,
+  WalletAddressInMemoryRepository,
 } from "../src/wallet-address";
-import { InMemoryRepository } from "../src/repository";
 
 describe("WalletAddressService", () => {
-  const walletAddressRepo = new InMemoryRepository<WalletAddress>();
+  const walletAddressRepo = new WalletAddressInMemoryRepository();
   const walletAddressService = new WalletAddressService(walletAddressRepo);
 
   describe("getById", async (t) => {
@@ -99,7 +99,7 @@ describe("WalletAddressService", () => {
         assetScale: 2,
       };
 
-      t.mock.method(walletAddressRepo, "fetchById", async () => walletAddress);
+      t.mock.method(walletAddressRepo, "exists", async () => true);
 
       await assert.rejects(
         async () => {

@@ -1,26 +1,10 @@
-import fastify, {FastifyReply} from "fastify";
-import {
-  PaymentService
-} from "./payment";
-import { IlpConnector } from "./ilp-connector";
-import { RemoteIncomingPaymentServiceAdapter } from "./remote-incoming-payment";
+import fastify from "fastify";
 import logger from "./logger";
-import {IMessage, IMessageConsumer, IMessageProducer} from "./message-broker/message";
 import {
-  CreateIncomingPaymentCmd,
-  CreateOutgoingPaymentFromQuoteCmd,
-  CreateQuoteCmd,
-  Topic
-} from "./message-broker/command";
-import {RafikiCommandHandler} from "./message-broker/command-handler/handler";
-import {randomUUID} from "crypto";
-import {
-  ApiRspErrorEvent,
-  ApiRspErrorPayload,
-  ApiRspEventPayload,
-  ApiRspIncomingPaymentEvent, ApiRspOutgoingPaymentEvent,
-  ApiRspQuoteEvent
-} from "./message-broker/event";
+  PaymentService,
+  RemoteIncomingPaymentService,
+  IlpConnector,
+} from "payments-service";
 
 export function createAppCommandHandler(
   paymentService: PaymentService,
@@ -36,9 +20,10 @@ export function createAppCommandHandler(
   }
 }
 
-export function createApiApp(
+export function createApp(
   port: number,
-  remoteIncomingPaymentService: RemoteIncomingPaymentServiceAdapter,
+  paymentService: PaymentService,
+  remoteIncomingPaymentService: RemoteIncomingPaymentService,
   ilpConnector: IlpConnector,
   msgProducer: IMessageProducer,
   msgConsumer: IMessageConsumer
@@ -92,9 +77,13 @@ export function createApiApp(
   app.post("/remote-incoming-payment", async function handler(request, reply) {
     const requestBody = request.body as any;
 
+    const url = new URL(requestBody.walletAddressUrl);
+    const resourceServerUrl = url.origin;
+    const walletAddressId = url.pathname.slice(1);
+
     const id = await remoteIncomingPaymentService.createRemoteIncomingPayment({
       expiresAt: requestBody.expiresAt,
-      walletAddressId: requestBody.walletAddressId, // TODO: needs to be wallet address URL
+      walletAddressId,
       incomingAmount: requestBody.incomingAmount
         ? {
             assetCode: requestBody.incomingAmount.assetCode,
@@ -102,7 +91,7 @@ export function createApiApp(
             value: BigInt(requestBody.incomingAmount.value),
           }
         : undefined,
-      resourceServerUrl: "http://localhost:3001/incoming-payment",
+      resourceServerUrl,
     });
 
     reply.code(201).send({ id });
@@ -148,7 +137,6 @@ export function createApiApp(
       quoteId: requestBody.quoteId,
     }
 
-    //const id = typeof outPayRsp === 'string' ? outPayRsp : undefined
     const cmd = new CreateOutgoingPaymentFromQuoteCmd(payload, randomUUID())
     mapRsp.set(cmd.requestId!, reply)
     await msgProducer.send(cmd)
@@ -156,7 +144,7 @@ export function createApiApp(
   });
 
   app.post("/ilp", async function handler(request, reply) {
-    logger.info("Received prepare packet")
+    logger.debug("Received prepare packet");
 
     await ilpConnector.handlePreparePacket(
       request.headers["request-id"] as string,
@@ -168,7 +156,7 @@ export function createApiApp(
   });
 
   app.post("/ilp-reply", async function handler(request, reply) {
-    logger.info("Received reject or fulfill packet");
+    logger.debug("Received reject or fulfill packet");
 
     await ilpConnector.handleFulfillOrRejectPacket(
       request.headers["request-id"] as string,
