@@ -21,6 +21,7 @@
     "pino": "^9.6.0"
   },
   "devDependencies": {
-    "@types/pg": "^8.11.11"
+    "@types/pg": "^8.11.11",
+    "tsx": "^4.19.3"
   }
 }
