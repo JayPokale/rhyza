@@ -56,6 +56,22 @@ services:
     networks:
       - rafiki-poc
 
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "4501:3000"
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/dashboards:/etc/grafana/dashboards
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - prometheus
+    networks:
+      - rafiki-poc
+
   nginx:
     image: nginx:latest
     ports:
@@ -72,3 +88,4 @@ networks:
 
 volumes:
   postgres-data:
+  grafana-data:
