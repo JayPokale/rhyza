@@ -23,6 +23,7 @@ import {
 import pool from "./db";
 import { readFileSync } from "fs";
 import logger from "./logger";
+import { TelemetryService } from "telemetry";
 
 const eventEmitterPubSub = new EventEmitterPubSub();
 const eventConsumer = eventEmitterPubSub;
@@ -39,6 +40,8 @@ const remoteIncomingPaymentService = new RemoteIncomingPaymentService(
   new RemoteIncomingPaymentPsqlRepository(pool)
 );
 const ilpConnector = new IlpConnector(ilpPeerService, eventProducer);
+// TODO: instantiate in api (and elsewhere in future)?
+// api should be able to use telemetry, repositories, etc.
 const paymentService = new PaymentService(
   walletAddressService,
   ilpPeerService,
@@ -48,7 +51,13 @@ const paymentService = new PaymentService(
   new IncomingPaymentPsqlRepository(pool),
   new OutgoingPaymentPsqlRepository(pool),
   new QuotePsqlRepository(pool),
-  eventProducer
+  eventProducer,
+  TelemetryService.getInstance({
+    serviceName: "payments_service",
+    collectorUrl:
+      process.env["OPEN_TELEMETRY_COLLECTOR_URL"] ||
+      "http://otel-collector:4317",
+  })
 );
 
 async function seed(seedFilePath: string) {

@@ -1,7 +1,7 @@
 {
   "name": "payments-service",
   "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "types": "dist/index",
   "scripts": {
     "test": "node --import tsx --test test/*.test.ts",
     "build": "tsc --build"
@@ -17,7 +17,8 @@
     "fastify": "^5.2.1",
     "ilp-packet": "3.1.4-alpha.2",
     "pg": "^8.13.1",
-    "pino": "^9.6.0"
+    "pino": "^9.6.0",
+    "telemetry": "workspace:*"
   },
   "devDependencies": {
     "@types/pg": "^8.11.11"

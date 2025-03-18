@@ -26,6 +26,7 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
+      "description": "Rate of Outgoing Payments Completed Per Second",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -88,6 +89,7 @@
         "y": 0
       },
       "id": 1,
+      "interval": "1s",
       "options": {
         "legend": {
           "calcs": [],
@@ -108,10 +110,18 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "refId": "A"
+          "disableTextWrap": false,
+          "editorMode": "code",
+          "expr": "rate(outgoing_payments_completed_total[$__rate_interval])",
+          "fullMetaSearch": false,
+          "includeNullMetadata": false,
+          "legendFormat": "Completed",
+          "range": true,
+          "refId": "A",
+          "useBackend": false
         }
       ],
-      "title": "Panel Title",
+      "title": "Outgoing Payments Completed",
       "type": "timeseries"
     }
   ],
@@ -130,6 +140,6 @@
   "timezone": "browser",
   "title": "Rafiki POC",
   "uid": "aeg4uh40kdl34d",
-  "version": 3,
+  "version": 2,
   "weekStart": ""
 }

@@ -13,6 +13,8 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --prod --frozen-l
 
 FROM base AS build
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
+RUN pnpm --filter telemetry build
+RUN pnpm --filter payments-service build
 RUN pnpm --filter api build
 
 FROM base
@@ -23,5 +25,8 @@ COPY --from=build /workspace/packages/api/dist /workspace/packages/api/dist
 
 COPY --from=build /workspace/packages/payments-service/node_modules /workspace/packages/payments-service/node_modules
 COPY --from=build /workspace/packages/payments-service/dist /workspace/packages/payments-service/dist
+
+COPY --from=prod-deps /workspace/packages/telemetry/node_modules /workspace/packages/telemetry/node_modules
+COPY --from=build /workspace/packages/telemetry/dist /workspace/packages/telemetry/dist
 
 CMD ["node", "/workspace/packages/api/dist/index.js"]
