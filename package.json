@@ -25,5 +25,12 @@
     "@types/node": "^22.13.2",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "node-rdkafka",
+      "protobufjs"
+    ]
   }
 }
