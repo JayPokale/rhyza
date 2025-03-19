@@ -1,7 +1,11 @@
 require("./telemetry.js"); // Load telemetry before running the rest of the app
 
 import { EventEmitterPubSub } from "./event";
-import { LiquidityService } from "./liquidity";
+import {
+  InMemoryAssetAccountRepository,
+  InMemoryLedgerAccountRepository,
+  LiquidityService,
+} from "./liquidity";
 import {
   IncomingPaymentPsqlRepository,
   OutgoingPaymentPsqlRepository,
@@ -38,7 +42,10 @@ const walletAddressService = new WalletAddressService(
 );
 const ilpPeerService = new IlpPeerService(new IlpPeerPsqlRepository(pool));
 const ratesService = new RatesService();
-const liquidityService = new LiquidityService();
+const liquidityService = new LiquidityService(
+  new InMemoryAssetAccountRepository(),
+  new InMemoryLedgerAccountRepository()
+);
 
 const remoteIncomingPaymentService = new RemoteIncomingPaymentService(
   new RemoteIncomingPaymentPsqlRepository(pool)
@@ -162,6 +169,11 @@ async function init() {
   await eventConsumer.registerConsumer(
     PaymentEventType.REMOTE_OUTGOING_PAYMENT_FUNDED,
     ilpConnector.handleRemoteOutgoingPaymentFundedEvent.bind(ilpConnector)
+  );
+
+  await eventConsumer.registerConsumer(
+    AssetEvent.ASSET_CREATED,
+    liquidityService.handleAssetCreatedEvent.bind(liquidityService)
   );
 }
 
