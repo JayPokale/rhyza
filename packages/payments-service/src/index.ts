@@ -4,6 +4,8 @@ import { EventEmitterPubSub } from "./event";
 import {
   InMemoryAssetAccountRepository,
   InMemoryLedgerAccountRepository,
+  InMemoryPeerAccountRepository,
+  InMemoryWalletAddressAccountRepository,
   LiquidityService,
 } from "./liquidity";
 import {
@@ -13,11 +15,16 @@ import {
   PaymentService,
   QuotePsqlRepository,
 } from "./payment";
-import { IlpPeerPsqlRepository, IlpPeerService } from "./ilp-peer";
+import {
+  IlpPeerEvent,
+  IlpPeerPsqlRepository,
+  IlpPeerService,
+} from "./ilp-peer";
 import { RatesService } from "./rates";
 import {
   WalletAddressService,
   WalletAddressPsqlRepository,
+  WalletAddressEvent,
 } from "./wallet-address";
 import { IlpConnector } from "./ilp-connector";
 import {
@@ -38,12 +45,18 @@ const assetService = new AssetService(
   eventProducer
 );
 const walletAddressService = new WalletAddressService(
-  new WalletAddressPsqlRepository(pool)
+  new WalletAddressPsqlRepository(pool),
+  eventProducer
 );
-const ilpPeerService = new IlpPeerService(new IlpPeerPsqlRepository(pool));
+const ilpPeerService = new IlpPeerService(
+  new IlpPeerPsqlRepository(pool),
+  eventProducer
+);
 const ratesService = new RatesService();
 const liquidityService = new LiquidityService(
   new InMemoryAssetAccountRepository(),
+  new InMemoryPeerAccountRepository(),
+  new InMemoryWalletAddressAccountRepository(),
   new InMemoryLedgerAccountRepository()
 );
 
@@ -130,8 +143,6 @@ async function init() {
     throw err;
   }
 
-  await seed(process.env["SEED_FILE_LOCATION"] || "seed.json");
-
   await eventConsumer.registerConsumer(
     PaymentEventType.LOCAL_OUTGOING_PAYMENT_FUNDED,
     paymentService.handleLocalOutgoingPaymentFundedEvent.bind(paymentService)
@@ -175,6 +186,18 @@ async function init() {
     AssetEvent.ASSET_CREATED,
     liquidityService.handleAssetCreatedEvent.bind(liquidityService)
   );
+
+  await eventConsumer.registerConsumer(
+    IlpPeerEvent.ILP_PEER_CREATED,
+    liquidityService.handleIlpPeerCreatedEvent.bind(liquidityService)
+  );
+
+  await eventConsumer.registerConsumer(
+    WalletAddressEvent.WALLET_ADDRESS_CREATED,
+    liquidityService.handleWalletAddressCreatedEvent.bind(liquidityService)
+  );
+
+  await seed(process.env["SEED_FILE_LOCATION"] || "seed.json");
 }
 
 export {

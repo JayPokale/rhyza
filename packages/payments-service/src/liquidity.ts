@@ -1,5 +1,8 @@
 import { AssetCreatedEvent } from "./asset";
+import { IlpPeerCreatedEvent } from "./ilp-peer";
+import logger from "./logger";
 import { Amount } from "./shared";
+import { WalletAddressCreatedEvent } from "./wallet-address";
 
 /**
  * ACCOUNT MOVEMENTS
@@ -36,6 +39,7 @@ import { Amount } from "./shared";
  */
 
 class DuplicateAssetAccountFoundError extends Error {}
+class DuplicatePeerAccountFoundError extends Error {}
 
 export enum LiquidityRequestType {
   DEPOSIT_ASSET = "DEPOSIT_ASSET",
@@ -124,7 +128,7 @@ interface AssetAccount {
 interface PeerAccount {
   peerId: string;
   assetCode: string;
-  assetScale: string;
+  assetScale: number;
   liquidityAccountId: string;
   lowLiquidityThreshold?: BigInt;
   highLiquidityThreshold?: BigInt;
@@ -133,7 +137,7 @@ interface PeerAccount {
 interface WalletAddressAccount {
   walletAddressId: string;
   assetCode: string;
-  assetScale: string;
+  assetScale: number;
   liquidityAccountId: string;
 }
 
@@ -146,16 +150,31 @@ interface LedgerTransfer {
 
 interface AssetAccountRepository {
   store(entity: AssetAccount): Promise<void>;
-  fetchByCode(code: string): Promise<AssetAccount | undefined>;
-  exists(assetId: string): Promise<boolean>;
+  exists(id: string): Promise<boolean>;
+  fetchById(id: string): Promise<AssetAccount | undefined>;
+}
+
+interface PeerAccountRepository {
+  store(entity: PeerAccount): Promise<void>;
+  exists(id: string): Promise<boolean>;
+  fetchById(id: string): Promise<PeerAccount | undefined>;
+}
+
+interface WalletAddressAccountRepository {
+  store(entity: WalletAddressAccount): Promise<void>;
+  exists(id: string): Promise<boolean>;
+  fetchById(id: string): Promise<WalletAddressAccount | undefined>;
 }
 
 interface LedgerAccountRepository {
   store(accounts: LedgerAccount[]): Promise<void>;
 }
+
 export class LiquidityService implements LiquidityServiceAdapter {
   constructor(
     private assetAccountRepository: AssetAccountRepository,
+    private peerAccountRepository: PeerAccountRepository,
+    private walletAddressAccountRepository: WalletAddressAccountRepository,
     private ledgerAccountRepository: LedgerAccountRepository
   ) {}
 
@@ -201,21 +220,111 @@ export class LiquidityService implements LiquidityServiceAdapter {
       liquidityAccountId: liquidityAccount.id,
     });
   }
+
+  public async handleIlpPeerCreatedEvent(
+    event: IlpPeerCreatedEvent
+  ): Promise<void> {
+    const { peer } = event.data;
+
+    if (await this.peerAccountRepository.exists(peer.id)) {
+      throw new DuplicatePeerAccountFoundError();
+    }
+
+    const liquidityAccount: LedgerAccount = {
+      id: crypto.randomUUID(),
+      externalRef: peer.id,
+      type: LedgerAccountType.LIQUIDITY_PEER,
+      creditsPosted: 0n,
+      debitsPosted: 0n,
+    };
+
+    await this.ledgerAccountRepository.store([liquidityAccount]);
+
+    await this.peerAccountRepository.store({
+      peerId: peer.id,
+      assetCode: peer.assetCode,
+      assetScale: peer.assetScale,
+      liquidityAccountId: liquidityAccount.id,
+    });
+  }
+
+  public async handleWalletAddressCreatedEvent(
+    event: WalletAddressCreatedEvent
+  ): Promise<void> {
+    if (await this.walletAddressAccountRepository.exists(event.data.id)) {
+      throw new DuplicatePeerAccountFoundError();
+    }
+
+    const liquidityAccount: LedgerAccount = {
+      id: crypto.randomUUID(),
+      externalRef: event.data.id,
+      type: LedgerAccountType.LIQUIDITY_WALLET_ADDRESS,
+      creditsPosted: 0n,
+      debitsPosted: 0n,
+    };
+
+    await this.ledgerAccountRepository.store([liquidityAccount]);
+
+    await this.walletAddressAccountRepository.store({
+      walletAddressId: event.data.id,
+      assetCode: event.data.assetCode,
+      assetScale: event.data.assetScale,
+      liquidityAccountId: liquidityAccount.id,
+    });
+  }
 }
 
 export class InMemoryAssetAccountRepository implements AssetAccountRepository {
   map: Map<string, AssetAccount> = new Map();
 
-  public async store(entity: AssetAccount): Promise<void> {
-    this.map.set(entity.assetId, entity);
-  }
-
-  public async fetchByCode(code: string): Promise<AssetAccount | undefined> {
-    return [...this.map.values()].find((ledger) => ledger.assetCode === code);
+  public async store(assetAccount: AssetAccount): Promise<void> {
+    this.map.set(assetAccount.assetId, assetAccount);
   }
 
   public async exists(assetId: string): Promise<boolean> {
     return this.map.has(assetId);
+  }
+
+  public async fetchById(id: string): Promise<AssetAccount | undefined> {
+    return this.map.get(id);
+  }
+}
+
+export class InMemoryPeerAccountRepository implements PeerAccountRepository {
+  map: Map<string, PeerAccount> = new Map();
+
+  public async store(peerAccount: PeerAccount): Promise<void> {
+    this.map.set(peerAccount.peerId, peerAccount);
+  }
+
+  public async exists(assetId: string): Promise<boolean> {
+    return this.map.has(assetId);
+  }
+
+  public async fetchById(id: string): Promise<PeerAccount | undefined> {
+    return this.map.get(id);
+  }
+}
+
+export class InMemoryWalletAddressAccountRepository
+  implements WalletAddressAccountRepository
+{
+  map: Map<string, WalletAddressAccount> = new Map();
+
+  public async store(
+    walletAddressAccount: WalletAddressAccount
+  ): Promise<void> {
+    this.map.set(walletAddressAccount.walletAddressId, walletAddressAccount);
+  }
+
+  public async exists(assetId: string): Promise<boolean> {
+    return this.map.has(assetId);
+  }
+
+  public async fetchById(
+    id: string
+  ): Promise<WalletAddressAccount | undefined> {
+    return this.map.get(id);
   }
 }
 
@@ -227,6 +336,7 @@ export class InMemoryLedgerAccountRepository
   public async store(accounts: LedgerAccount[]): Promise<void> {
     for (const account of accounts) {
       this.map.set(account.id, account);
+      logger.debug({ account }, "Created ledger account");
     }
   }
 }

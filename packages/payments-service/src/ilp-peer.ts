@@ -1,5 +1,21 @@
 import { Pool } from "pg";
 import { Asset } from "./shared";
+import { EventProducerAdapter, Event } from "./event";
+
+export enum IlpPeerEvent {
+  ILP_PEER_CREATED = "ILP_PEER_CREATED",
+}
+
+export interface IlpPeerCreatedEvent extends Event {
+  type: IlpPeerEvent.ILP_PEER_CREATED;
+  data: {
+    peer: {
+      id: string;
+      assetCode: string;
+      assetScale: number;
+    };
+  };
+}
 
 export interface IlpPeer {
   id: string;
@@ -23,7 +39,10 @@ export interface IlpPeerServiceAdapter {
 }
 
 export class IlpPeerService implements IlpPeerServiceAdapter {
-  constructor(private peerRepository: PeerRepository) {}
+  constructor(
+    private peerRepository: PeerRepository,
+    private eventProducer: EventProducerAdapter
+  ) {}
 
   public async getById(id: string): Promise<IlpPeer | undefined> {
     return this.peerRepository.fetchById(id);
@@ -42,6 +61,19 @@ export class IlpPeerService implements IlpPeerServiceAdapter {
     };
 
     await this.peerRepository.store(newPeer);
+
+    const peerCreatedEvent: IlpPeerCreatedEvent = {
+      type: IlpPeerEvent.ILP_PEER_CREATED,
+      data: {
+        peer: {
+          id: newPeer.id,
+          assetScale: newPeer.asset.scale,
+          assetCode: newPeer.asset.code,
+        },
+      },
+    };
+
+    await this.eventProducer.publish([peerCreatedEvent]);
 
     return newPeer.id;
   }
