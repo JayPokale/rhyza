@@ -5,12 +5,14 @@ import {
   RemoteIncomingPaymentService,
   IlpConnector,
 } from "payments-service";
+import { TelemetryService } from "telemetry";
 
 export function createApp(
   port: number,
   paymentService: PaymentService,
   remoteIncomingPaymentService: RemoteIncomingPaymentService,
-  ilpConnector: IlpConnector
+  ilpConnector: IlpConnector,
+  telemetryService: TelemetryService
 ) {
   const app = fastify();
 
@@ -107,6 +109,7 @@ export function createApp(
       quoteId: requestBody.quoteId,
     });
 
+    telemetryService.incrementCounter("outgoing_payment_create_api_replies", 1);
     reply.code(201).send({ id });
   });
 

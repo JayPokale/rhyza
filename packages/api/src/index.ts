@@ -7,6 +7,7 @@ import {
   remoteIncomingPaymentService,
   init as initPaymentService,
 } from "payments-service";
+import { TelemetryService } from "telemetry";
 import logger from "./logger";
 
 (async () => {
@@ -16,7 +17,13 @@ import logger from "./logger";
     Number(process.env["API_PORT"] ?? 3000),
     paymentService,
     remoteIncomingPaymentService,
-    ilpConnector
+    ilpConnector,
+    TelemetryService.getInstance({
+      serviceName: "api",
+      collectorUrl:
+        process.env["OPEN_TELEMETRY_COLLECTOR_URL"] ||
+        "http://otel-collector:4317",
+    })
   );
 
   await start();
