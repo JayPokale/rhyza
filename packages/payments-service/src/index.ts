@@ -23,11 +23,16 @@ import {
 import pool from "./db";
 import { readFileSync } from "fs";
 import logger from "./logger";
+import { AssetEvent, AssetPsqlRepository, AssetService } from "./asset";
 
 const eventEmitterPubSub = new EventEmitterPubSub();
 const eventConsumer = eventEmitterPubSub;
 const eventProducer = eventEmitterPubSub;
 
+const assetService = new AssetService(
+  new AssetPsqlRepository(pool),
+  eventProducer
+);
 const walletAddressService = new WalletAddressService(
   new WalletAddressPsqlRepository(pool)
 );
@@ -83,6 +88,10 @@ async function seed(seedFilePath: string) {
 
     // Got the lock, do the seeding
     logger.info("Seeding database...");
+
+    for (const asset of seed.assets) {
+      await assetService.createAsset(asset);
+    }
 
     for (const walletAddress of seed.walletAddresses) {
       await walletAddressService.createWalletAddress(walletAddress);
