@@ -4,6 +4,7 @@ import { EventEmitterPubSub } from "./event";
 import {
   InMemoryAssetAccountRepository,
   InMemoryLedgerAccountRepository,
+  InMemoryLedgerTransferRepository,
   InMemoryPeerAccountRepository,
   InMemoryWalletAddressAccountRepository,
   LiquidityService,
@@ -57,6 +58,7 @@ const liquidityService = new LiquidityService(
   new InMemoryAssetAccountRepository(),
   new InMemoryPeerAccountRepository(),
   new InMemoryWalletAddressAccountRepository(),
+  new InMemoryLedgerTransferRepository(),
   new InMemoryLedgerAccountRepository()
 );
 

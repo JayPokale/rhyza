@@ -1,5 +1,5 @@
 import {
-  FundWalletAddressLiquidityRequest,
+  WalletAddressDepositLiquidityRequest,
   LiquidityRequestType,
   LiquidityServiceAdapter,
   PeerToWalletAddressLiquidityRequest,
@@ -765,7 +765,7 @@ export class PaymentService {
         throw new IncomingPaymentInvalidStateError();
       }
 
-      const walletAddressFundRequest: FundWalletAddressLiquidityRequest = {
+      const walletAddressFundRequest: WalletAddressDepositLiquidityRequest = {
         id: crypto.randomUUID(),
         type: LiquidityRequestType.DEPOSIT_WALLET_ADDRESS,
         data: {
@@ -807,7 +807,7 @@ export class PaymentService {
       return outgoingPayment.id;
     }
 
-    const walletAddressFundRequest: FundWalletAddressLiquidityRequest = {
+    const walletAddressFundRequest: WalletAddressDepositLiquidityRequest = {
       id: crypto.randomUUID(),
       type: LiquidityRequestType.DEPOSIT_WALLET_ADDRESS,
       data: {
@@ -929,10 +929,9 @@ export class PaymentService {
       id: crypto.randomUUID(),
       type: LiquidityRequestType.WALLET_ADDRESS_TO_WALLET_ADDRESS,
       data: {
-        sourceWalletAddressId: quote.senderWalletAddressId,
-        sourceAmount: quote.debitAmount,
-        destinationWalletAddressId: incomingPayment.walletAddressId,
-        destinationAmount: quote.receiveAmount,
+        walletAddressIdToDebit: quote.senderWalletAddressId,
+        walletAddressIdToCredit: incomingPayment.walletAddressId,
+        amount: quote.debitAmount,
       },
     };
 

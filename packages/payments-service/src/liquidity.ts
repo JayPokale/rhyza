@@ -40,6 +40,7 @@ import { WalletAddressCreatedEvent } from "./wallet-address";
 
 class DuplicateAssetAccountFoundError extends Error {}
 class DuplicatePeerAccountFoundError extends Error {}
+class AccountNotFoundError extends Error {}
 
 export enum LiquidityRequestType {
   DEPOSIT_ASSET = "DEPOSIT_ASSET",
@@ -53,24 +54,30 @@ export enum LiquidityRequestType {
   WALLET_ADDRESS_TO_PEER = "WALLET_ADDRESS_TO_PEER",
 }
 
-export interface LiquidityRequest {
+export interface LiquidityRequestBase {
   id: string;
   type: LiquidityRequestType;
   data: Record<string, unknown>;
 }
 
+export type LiquidityRequest =
+  | WalletToWalletAddressLiquidityRequest
+  | WalletAddressDepositLiquidityRequest
+  | WalletAddressToPeerLiquidityRequest
+  | PeerToWalletAddressLiquidityRequest;
+
 export interface WalletToWalletAddressLiquidityRequest
-  extends LiquidityRequest {
+  extends LiquidityRequestBase {
   type: LiquidityRequestType.WALLET_ADDRESS_TO_WALLET_ADDRESS;
   data: {
-    sourceWalletAddressId: string;
-    sourceAmount: Amount;
-    destinationWalletAddressId: string;
-    destinationAmount: Amount;
+    walletAddressIdToDebit: string;
+    walletAddressIdToCredit: string;
+    amount: Amount;
   };
 }
 
-export interface FundWalletAddressLiquidityRequest extends LiquidityRequest {
+export interface WalletAddressDepositLiquidityRequest
+  extends LiquidityRequestBase {
   type: LiquidityRequestType.DEPOSIT_WALLET_ADDRESS;
   data: {
     walletAddressId: string;
@@ -78,7 +85,8 @@ export interface FundWalletAddressLiquidityRequest extends LiquidityRequest {
   };
 }
 
-export interface WalletAddressToPeerLiquidityRequest extends LiquidityRequest {
+export interface WalletAddressToPeerLiquidityRequest
+  extends LiquidityRequestBase {
   type: LiquidityRequestType.WALLET_ADDRESS_TO_PEER;
   data: {
     peerId: string;
@@ -87,7 +95,8 @@ export interface WalletAddressToPeerLiquidityRequest extends LiquidityRequest {
   };
 }
 
-export interface PeerToWalletAddressLiquidityRequest extends LiquidityRequest {
+export interface PeerToWalletAddressLiquidityRequest
+  extends LiquidityRequestBase {
   type: LiquidityRequestType.PEER_TO_WALLET_ADDRESS;
   data: {
     peerId: string;
@@ -111,8 +120,8 @@ interface LedgerAccount {
   id: string;
   type: LedgerAccountType;
   externalRef: string;
-  readonly creditsPosted: BigInt;
-  readonly debitsPosted: BigInt;
+  readonly creditsPosted: bigint;
+  readonly debitsPosted: bigint;
 }
 
 interface AssetAccount {
@@ -121,8 +130,8 @@ interface AssetAccount {
   assetScale: number;
   settlementAccountId: string;
   liquidityAccountId: string;
-  lowLiquidityThreshold?: BigInt;
-  highLiquidityThreshold?: BigInt;
+  lowLiquidityThreshold?: bigint;
+  highLiquidityThreshold?: bigint;
 }
 
 interface PeerAccount {
@@ -130,8 +139,8 @@ interface PeerAccount {
   assetCode: string;
   assetScale: number;
   liquidityAccountId: string;
-  lowLiquidityThreshold?: BigInt;
-  highLiquidityThreshold?: BigInt;
+  lowLiquidityThreshold?: bigint;
+  highLiquidityThreshold?: bigint;
 }
 
 interface WalletAddressAccount {
@@ -151,7 +160,7 @@ interface LedgerTransfer {
 interface AssetAccountRepository {
   store(entity: AssetAccount): Promise<void>;
   exists(id: string): Promise<boolean>;
-  fetchById(id: string): Promise<AssetAccount | undefined>;
+  fetchByCode(code: string): Promise<AssetAccount | undefined>;
 }
 
 interface PeerAccountRepository {
@@ -170,16 +179,95 @@ interface LedgerAccountRepository {
   store(accounts: LedgerAccount[]): Promise<void>;
 }
 
+interface LedgerTransferRepository {
+  create(transfers: LedgerTransfer[]): Promise<void>;
+}
+
 export class LiquidityService implements LiquidityServiceAdapter {
+  LEDGER_SCALE_MAGIC_NUMBER = 20n;
+
   constructor(
     private assetAccountRepository: AssetAccountRepository,
     private peerAccountRepository: PeerAccountRepository,
     private walletAddressAccountRepository: WalletAddressAccountRepository,
+    private ledgerTransferRepository: LedgerTransferRepository,
     private ledgerAccountRepository: LedgerAccountRepository
   ) {}
 
   public async execute(requests: LiquidityRequest[]): Promise<void> {
-    // not implemented
+    const transfersToCreate: LedgerTransfer[] = [];
+
+    for (const request of requests) {
+      if (request.type === LiquidityRequestType.DEPOSIT_WALLET_ADDRESS) {
+        transfersToCreate.push(
+          await this.prepareWalletAddressDepositTransfer(request)
+        );
+      }
+
+      if (
+        request.type === LiquidityRequestType.WALLET_ADDRESS_TO_WALLET_ADDRESS
+      ) {
+        transfersToCreate.push(
+          await this.prepareWalletToWalletAddressTransfer(request)
+        );
+      }
+    }
+
+    await this.ledgerTransferRepository.create(transfersToCreate);
+  }
+
+  private async prepareWalletAddressDepositTransfer(
+    request: WalletAddressDepositLiquidityRequest
+  ): Promise<LedgerTransfer> {
+    const [settlementAccount, walletAddressAccount] = await Promise.all([
+      this.assetAccountRepository.fetchByCode(request.data.amount.assetCode),
+      this.walletAddressAccountRepository.fetchById(
+        request.data.walletAddressId
+      ),
+    ]);
+
+    if (!settlementAccount || !walletAddressAccount) {
+      throw new AccountNotFoundError();
+    }
+
+    return {
+      id: request.id,
+      debitAccountId: settlementAccount.settlementAccountId,
+      creditAccountId: walletAddressAccount.liquidityAccountId,
+      amount:
+        request.data.amount.value *
+        10n **
+          (this.LEDGER_SCALE_MAGIC_NUMBER -
+            BigInt(request.data.amount.assetScale)),
+    };
+  }
+
+  private async prepareWalletToWalletAddressTransfer(
+    request: WalletToWalletAddressLiquidityRequest
+  ): Promise<LedgerTransfer> {
+    const [walletAddressToDebit, walletAddressToCredit] = await Promise.all([
+      this.walletAddressAccountRepository.fetchById(
+        request.data.walletAddressIdToDebit
+      ),
+      this.walletAddressAccountRepository.fetchById(
+        request.data.walletAddressIdToCredit
+      ),
+    ]);
+
+    if (!walletAddressToDebit || !walletAddressToCredit) {
+      throw new AccountNotFoundError();
+    }
+
+    return {
+      id: request.id,
+      debitAccountId: walletAddressToDebit.liquidityAccountId,
+      creditAccountId: walletAddressToCredit.liquidityAccountId,
+      amount:
+        request.data.amount.value *
+        10n **
+          (this.LEDGER_SCALE_MAGIC_NUMBER -
+            BigInt(request.data.amount.assetScale)),
+    };
   }
 
   public async handleAssetCreatedEvent(
@@ -285,8 +373,10 @@ export class InMemoryAssetAccountRepository implements AssetAccountRepository {
     return this.map.has(assetId);
   }
 
-  public async fetchById(id: string): Promise<AssetAccount | undefined> {
-    return this.map.get(id);
+  public async fetchByCode(code: string): Promise<AssetAccount | undefined> {
+    return [...this.map.values()].find(
+      (assetAccount) => assetAccount.assetCode === code
+    );
   }
 }
 
@@ -336,7 +426,20 @@ export class InMemoryLedgerAccountRepository
   public async store(accounts: LedgerAccount[]): Promise<void> {
     for (const account of accounts) {
       this.map.set(account.id, account);
-      logger.debug({ account }, "Created ledger account");
+      logger.info({ account }, "Created ledger account");
+    }
+  }
+}
+
+export class InMemoryLedgerTransferRepository
+  implements LedgerTransferRepository
+{
+  map: Map<string, LedgerTransfer> = new Map();
+
+  public async create(transfers: LedgerTransfer[]): Promise<void> {
+    for (const transfer of transfers) {
+      this.map.set(transfer.id, transfer);
+      logger.info({ transfer }, "Created ledger transfer");
     }
   }
 }
