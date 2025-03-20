@@ -2,6 +2,7 @@ import { Pool } from "pg";
 import { IlpDetails } from "./ilp-connector";
 import logger from "./logger";
 import { Amount } from "./shared";
+import { Logger } from "pino";
 
 export interface RemoteIncomingPayment {
   id: string;
@@ -9,7 +10,7 @@ export interface RemoteIncomingPayment {
   ilpDetails: IlpDetails;
 }
 
-interface CreateRemoteIncomingPaymentArgs {
+export interface CreateRemoteIncomingPaymentArgs {
   resourceServerUrl: string;
   expiresAt?: Date;
   incomingAmount?: Amount;
@@ -23,32 +24,16 @@ export interface RemoteIncomingPaymentServiceAdapter {
   getById(id: string): Promise<RemoteIncomingPayment | undefined>;
 }
 
-export interface RemoteIncomingPaymentRepository {
+export interface IRemoteIncomingPaymentRepository {
   store(payment: RemoteIncomingPayment): Promise<void>;
   fetchById(id: string): Promise<RemoteIncomingPayment | undefined>;
-}
-
-export class RemoteIncomingPaymentInMemoryRepository
-  implements RemoteIncomingPaymentRepository
-{
-  private map: Map<string, RemoteIncomingPayment> = new Map();
-
-  public async store(payment: RemoteIncomingPayment): Promise<void> {
-    this.map.set(payment.id, payment);
-  }
-
-  public async fetchById(
-    id: string
-  ): Promise<RemoteIncomingPayment | undefined> {
-    return this.map.get(id);
-  }
 }
 
 export class RemoteIncomingPaymentService
   implements RemoteIncomingPaymentServiceAdapter
 {
   constructor(
-    private remoteIncomingPaymentRepository: RemoteIncomingPaymentRepository
+    private remoteIncomingPaymentRepository: IRemoteIncomingPaymentRepository
   ) {}
 
   public async createRemoteIncomingPayment(
@@ -126,10 +111,10 @@ interface RemoteIncomingPaymentRecord {
   ilp_shared_secret: string;
 }
 export class RemoteIncomingPaymentPsqlRepository
-  implements RemoteIncomingPaymentRepository
+  implements IRemoteIncomingPaymentRepository
 {
   TABLE_NAME = "remote_incoming_payments";
-  constructor(private pool: Pool) {}
+  constructor(private pool: Pool, private logger: Logger) {}
 
   public async store(
     remoteIncomingPayment: RemoteIncomingPayment
@@ -148,7 +133,7 @@ export class RemoteIncomingPaymentPsqlRepository
 
       await this.pool.query(query, values);
     } catch (error) {
-      console.error("Error storing remote incoming payment:", error);
+      this.logger.error("Error storing remote incoming payment:", error);
       throw error;
     }
   }

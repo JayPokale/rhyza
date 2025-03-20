@@ -6,8 +6,8 @@ import {
   DuplicateWalletAddressFoundError,
   WalletAddress,
   WalletAddressService,
-  WalletAddressInMemoryRepository,
 } from "../src/wallet-address";
+import { WalletAddressInMemoryRepository } from "../src/repository";
 
 describe("WalletAddressService", () => {
   const walletAddressRepo = new WalletAddressInMemoryRepository();

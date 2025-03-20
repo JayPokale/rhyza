@@ -8,6 +8,10 @@ It is intended for experimental purposes only.
 
 `pnpm dev`
 
+### Docker
+
+`docker compose -f docker/docker-compose.yaml up`
+
 ## Main changes from current implementation
 
 - Event driven
@@ -27,17 +31,83 @@ The scope of the PoC is a single payment flow:
 3. Creating an outgoing payment
 4. Completing the outgoing payment (whether that's a local payment, or through ILP)
 
-### High level
+### Local Payments
+
+#### Sequence diagram
+
+```mermaid
+---
+config:
+  theme: base
+---
+sequenceDiagram
+    autonumber
+    participant ASE as ASE
+    
+    box <br>Rafiki Admin API
+    participant GQL as Admin API
+    end
+
+    box Rafiki Domain
+    participant PS as Payment Service
+    participant LS as Liquidity Service
+    end
+
+    rect rgba(0, 0, 0, .05)
+    note right of ASE: Create incoming payment
+    ASE->>GQL: Create incoming payment
+    GQL->>PS: Create incoming payment 
+    PS->>PS: Persist incoming payment
+    PS->>GQL: Return incoming payment
+    GQL->>ASE: Return incoming payment
+    end
+
+    rect rgba(0, 0, 0, .05)
+    note right of ASE: Create quote
+    ASE->>GQL: Create quote 
+    GQL->>PS: Create quote 
+    PS->>PS: Fetch incoming payment
+    PS->>PS: Get rates (from Rate Service)
+    PS->>PS: Create quote (and persist)
+    PS->>GQL: Return created quote
+    GQL->>ASE: Return created Quote
+    end
+
+    rect rgba(0, 0, 0, .05)
+    note right of ASE: Create outgoing payment
+    ASE->>GQL: Create outgoing payment <br>(already funded)
+    GQL->>PS: Create outgoing payment
+    PS->>PS: Fetch quote, check status, expiry
+    PS->>PS: Fetch incoming payment
+    PS->>LS: Deposit <br>funds into sending wallet address
+    PS->>PS: Publish outgoing payment prepared event
+    GQL->>ASE: Response OK, on it
+    end
+
+    rect rgba(0, 0, 0, .05)
+    note left of PS: Local outgoing payment consumer
+    PS-->>PS: Receive outgoing payment prepared event
+    PS->>LS: Debit sending wallet address <br>and credit receiving wallet address
+    PS->>PS: Increment sent amount in outgoing payment<br>and persist
+    PS->>PS: Increment received amount in incoming payment<br>and persist
+    PS->>PS: Publish outgoing payment completed event
+    PS->>PS: Publish incoming payment completed event
+
+    end
+```
+
+
+### Remote Payments
 
 #### Sending prepare packets
 
 ![Sending Rafiki](./img/sending.png)
 
-##### Receiving prepare packets
+#### Receiving prepare packets
 
 ![Receiving Rafiki](./img/receiving.png)
 
-### Sequence diagram
+#### Sequence diagram
 
 ```mermaid
 ---
@@ -142,3 +212,6 @@ sequenceDiagram
 
     end
 ```
+
+
+

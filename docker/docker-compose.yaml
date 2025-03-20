@@ -9,6 +9,7 @@ services:
       SEED_FILE_LOCATION: /workspace/seed.json
       OPEN_TELEMETRY_COLLECTOR_URL: http://otel-collector:4317
       DATABASE_URL: postgres://postgres:password@pg-container:5432/database
+      REDIS_URL: redis://redis:6379
     depends_on:
       pg-container:
         condition: service_healthy
@@ -17,6 +18,7 @@ services:
 
   pg-container:
     image: postgres
+    command: -c 'max_connections=200'
     restart: always
     environment:
       POSTGRES_USER: postgres
@@ -33,6 +35,13 @@ services:
       retries: 5
       start_period: 30s
       timeout: 10s
+    networks:
+      - rafiki-poc
+
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
     networks:
       - rafiki-poc
 
@@ -82,6 +91,8 @@ services:
       - api
     networks:
       - rafiki-poc
+    sysctls:
+      net.ipv4.ip_local_port_range: "10240 65535"
 
 networks:
   rafiki-poc:

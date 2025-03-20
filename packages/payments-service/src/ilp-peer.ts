@@ -1,5 +1,6 @@
 import { Pool } from "pg";
 import { Asset } from "./shared";
+import { Logger } from "pino";
 
 export interface IlpPeer {
   id: string;
@@ -16,6 +17,12 @@ export interface CreateIlpPeerArgs {
   callbackUrl: string;
 }
 
+export interface IIlpPeerRepository {
+  store(walletAddress: IlpPeer): Promise<void>;
+  fetchById(id: string): Promise<IlpPeer | undefined>;
+  getByDestinationAddress(address: string): Promise<IlpPeer | undefined>;
+}
+
 export interface IlpPeerServiceAdapter {
   getById(id: string): Promise<IlpPeer | undefined>;
   getByDestinationAddress(address: string): Promise<IlpPeer | undefined>;
@@ -23,7 +30,7 @@ export interface IlpPeerServiceAdapter {
 }
 
 export class IlpPeerService implements IlpPeerServiceAdapter {
-  constructor(private peerRepository: PeerRepository) {}
+  constructor(private peerRepository: IIlpPeerRepository) {}
 
   public async getById(id: string): Promise<IlpPeer | undefined> {
     return this.peerRepository.fetchById(id);
@@ -58,7 +65,7 @@ interface IlpPeerRecord {
 
 export class IlpPeerPsqlRepository implements PeerRepository {
   TABLE_NAME = "ilp_peers";
-  constructor(private pool: Pool) {}
+  constructor(private pool: Pool, private logger: Logger) {}
 
   public async store(ilpPeer: IlpPeer): Promise<void> {
     try {
@@ -77,7 +84,7 @@ export class IlpPeerPsqlRepository implements PeerRepository {
 
       await this.pool.query(query, values);
     } catch (error) {
-      console.error("Error storing ILP Peer:", error);
+      this.logger.error("Error storing ILP Peer:", error);
       throw error;
     }
   }
