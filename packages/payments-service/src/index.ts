@@ -40,8 +40,6 @@ const remoteIncomingPaymentService = new RemoteIncomingPaymentService(
   new RemoteIncomingPaymentPsqlRepository(pool)
 );
 const ilpConnector = new IlpConnector(ilpPeerService, eventProducer);
-// TODO: instantiate in api (and elsewhere in future)?
-// api should be able to use telemetry, repositories, etc.
 const paymentService = new PaymentService(
   walletAddressService,
   ilpPeerService,

@@ -6,8 +6,6 @@ import {
   PeriodicExportingMetricReader,
 } from "@opentelemetry/sdk-metrics";
 
-// TODO: remove? made a shared telemetry service. Or pass this in?
-
 const metricExporter = new PeriodicExportingMetricReader({
   exporter: new OTLPMetricExporter({
     url: process.env["OPEN_TELEMETRY_COLLECTOR_URL"],
