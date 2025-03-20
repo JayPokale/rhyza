@@ -3,11 +3,11 @@ require("./telemetry.js"); // Load telemetry before running the rest of the app
 import { EventEmitterPubSub } from "./event";
 import {
   InMemoryAssetAccountRepository,
-  InMemoryLedgerAccountRepository,
-  InMemoryLedgerTransferRepository,
   InMemoryPeerAccountRepository,
   InMemoryWalletAddressAccountRepository,
   LiquidityService,
+  TBLedgerAccountRepository,
+  TBLedgerTransferRepository,
 } from "./liquidity";
 import {
   IncomingPaymentPsqlRepository,
@@ -36,6 +36,14 @@ import pool from "./db";
 import { readFileSync } from "fs";
 import logger from "./logger";
 import { AssetEvent, AssetPsqlRepository, AssetService } from "./asset";
+import { createClient } from "tigerbeetle-node";
+
+const tbClient = createClient({
+  cluster_id: 0n,
+  replica_addresses: (
+    process.env["TB_REPLICA_ADDRESSES"] as unknown as string
+  ).split(","),
+});
 
 const eventEmitterPubSub = new EventEmitterPubSub();
 const eventConsumer = eventEmitterPubSub;
@@ -58,8 +66,8 @@ const liquidityService = new LiquidityService(
   new InMemoryAssetAccountRepository(),
   new InMemoryPeerAccountRepository(),
   new InMemoryWalletAddressAccountRepository(),
-  new InMemoryLedgerTransferRepository(),
-  new InMemoryLedgerAccountRepository()
+  new TBLedgerTransferRepository(tbClient),
+  new TBLedgerAccountRepository(tbClient)
 );
 
 const remoteIncomingPaymentService = new RemoteIncomingPaymentService(

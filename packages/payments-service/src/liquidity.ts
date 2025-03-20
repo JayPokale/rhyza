@@ -3,6 +3,7 @@ import { IlpPeerCreatedEvent } from "./ilp-peer";
 import logger from "./logger";
 import { Amount } from "./shared";
 import { WalletAddressCreatedEvent } from "./wallet-address";
+import { Client as TigerBeetleClient } from "tigerbeetle-node";
 
 /**
  * ACCOUNT MOVEMENTS
@@ -41,6 +42,7 @@ import { WalletAddressCreatedEvent } from "./wallet-address";
 class DuplicateAssetAccountFoundError extends Error {}
 class DuplicatePeerAccountFoundError extends Error {}
 class AccountNotFoundError extends Error {}
+class AssetScaleTooHighError extends Error {}
 
 export enum LiquidityRequestType {
   DEPOSIT_ASSET = "DEPOSIT_ASSET",
@@ -118,6 +120,7 @@ export enum LedgerAccountType {
 
 interface LedgerAccount {
   id: string;
+  assetCode: string;
   type: LedgerAccountType;
   externalRef: string;
   readonly creditsPosted: bigint;
@@ -154,7 +157,8 @@ interface LedgerTransfer {
   id: string;
   debitAccountId: string;
   creditAccountId: string;
-  amount: BigInt;
+  amount: bigint;
+  assetCode: string;
 }
 
 interface AssetAccountRepository {
@@ -234,6 +238,7 @@ export class LiquidityService implements LiquidityServiceAdapter {
       id: request.id,
       debitAccountId: settlementAccount.settlementAccountId,
       creditAccountId: walletAddressAccount.liquidityAccountId,
+      assetCode: request.data.amount.assetCode,
       amount:
         request.data.amount.value *
         10n **
@@ -262,6 +267,7 @@ export class LiquidityService implements LiquidityServiceAdapter {
       id: request.id,
       debitAccountId: walletAddressToDebit.liquidityAccountId,
       creditAccountId: walletAddressToCredit.liquidityAccountId,
+      assetCode: request.data.amount.assetCode,
       amount:
         request.data.amount.value *
         10n **
@@ -279,9 +285,15 @@ export class LiquidityService implements LiquidityServiceAdapter {
       throw new DuplicateAssetAccountFoundError();
     }
 
+    // This should go into the asset service
+    if (asset.scale > this.LEDGER_SCALE_MAGIC_NUMBER) {
+      throw new AssetScaleTooHighError();
+    }
+
     const liquidityAccount: LedgerAccount = {
       id: crypto.randomUUID(),
       externalRef: asset.id,
+      assetCode: asset.code,
       type: LedgerAccountType.LIQUIDITY_ASSET,
       creditsPosted: 0n,
       debitsPosted: 0n,
@@ -290,6 +302,7 @@ export class LiquidityService implements LiquidityServiceAdapter {
     const settlementAccount: LedgerAccount = {
       id: crypto.randomUUID(),
       externalRef: asset.id,
+      assetCode: asset.code,
       type: LedgerAccountType.SETTLEMENT,
       creditsPosted: 0n,
       debitsPosted: 0n,
@@ -320,6 +333,7 @@ export class LiquidityService implements LiquidityServiceAdapter {
 
     const liquidityAccount: LedgerAccount = {
       id: crypto.randomUUID(),
+      assetCode: event.data.peer.assetCode,
       externalRef: peer.id,
       type: LedgerAccountType.LIQUIDITY_PEER,
       creditsPosted: 0n,
@@ -345,6 +359,7 @@ export class LiquidityService implements LiquidityServiceAdapter {
 
     const liquidityAccount: LedgerAccount = {
       id: crypto.randomUUID(),
+      assetCode: event.data.assetCode,
       externalRef: event.data.id,
       type: LedgerAccountType.LIQUIDITY_WALLET_ADDRESS,
       creditsPosted: 0n,
@@ -418,28 +433,132 @@ export class InMemoryWalletAddressAccountRepository
   }
 }
 
-export class InMemoryLedgerAccountRepository
-  implements LedgerAccountRepository
-{
-  map: Map<string, LedgerAccount> = new Map();
+export enum TigerBeetleAccountCode {
+  LIQUIDITY_ASSET = 1,
+  LIQUIDITY_PEER = 2,
+  LIQUIDITY_WALLET_ADDRESS = 3,
+  SETTLEMENT = 101,
+}
+
+export const convertToTigerBeetleAccountType: {
+  [key in LedgerAccountType]: TigerBeetleAccountCode;
+} = {
+  [LedgerAccountType.LIQUIDITY_WALLET_ADDRESS]:
+    TigerBeetleAccountCode.LIQUIDITY_WALLET_ADDRESS,
+  [LedgerAccountType.LIQUIDITY_ASSET]: TigerBeetleAccountCode.LIQUIDITY_ASSET,
+  [LedgerAccountType.LIQUIDITY_PEER]: TigerBeetleAccountCode.LIQUIDITY_PEER,
+  [LedgerAccountType.SETTLEMENT]: TigerBeetleAccountCode.SETTLEMENT,
+};
+
+export const convertFromTigerBeetleAccountType: {
+  [key in TigerBeetleAccountCode]: LedgerAccountType;
+} = {
+  [TigerBeetleAccountCode.LIQUIDITY_WALLET_ADDRESS]:
+    LedgerAccountType.LIQUIDITY_WALLET_ADDRESS,
+  [TigerBeetleAccountCode.LIQUIDITY_ASSET]: LedgerAccountType.LIQUIDITY_ASSET,
+  [TigerBeetleAccountCode.LIQUIDITY_PEER]: LedgerAccountType.LIQUIDITY_PEER,
+  [TigerBeetleAccountCode.SETTLEMENT]: LedgerAccountType.SETTLEMENT,
+};
+
+function assetCodeToUInt32(assetCode: string): number {
+  const byte1 = assetCode.charCodeAt(0) << 16;
+  const byte2 = assetCode.charCodeAt(1) << 8;
+  const byte3 = assetCode.charCodeAt(2);
+
+  return byte1 | byte2 | byte3;
+}
+
+function uint32ToAssetCode(value: number): string {
+  const byte1 = (value >> 16) & 0xff;
+  const byte2 = (value >> 8) & 0xff;
+  const byte3 = value & 0xff;
+
+  return (
+    String.fromCharCode(byte1) +
+    String.fromCharCode(byte2) +
+    String.fromCharCode(byte3)
+  );
+}
+
+function toTbId(uuid: string): bigint {
+  return BigInt(`0x${uuid.replace(/-/g, "")}`);
+}
+
+function fromTbIdToUuid(id: bigint): string {
+  const hexString = id.toString(16).padStart(32, "0");
+
+  return `${hexString.slice(0, 8)}-${hexString.slice(8, 12)}-${hexString.slice(
+    12,
+    16
+  )}-${hexString.slice(16, 20)}-${hexString.slice(20)}`;
+}
+
+export class TBLedgerAccountRepository implements LedgerAccountRepository {
+  constructor(private client: TigerBeetleClient) {}
+
+  public async fetchById(id: string): Promise<LedgerAccount | undefined> {
+    const accounts = await this.client.lookupAccounts([toTbId(id)]);
+
+    if (!accounts.length) {
+      return undefined;
+    }
+
+    const acc = accounts[0];
+
+    return {
+      id,
+      type: convertFromTigerBeetleAccountType[
+        acc.code as TigerBeetleAccountCode
+      ],
+      assetCode: uint32ToAssetCode(acc.ledger),
+      creditsPosted: acc.credits_posted,
+      debitsPosted: acc.debits_posted,
+      externalRef: fromTbIdToUuid(acc.user_data_128),
+    };
+  }
 
   public async store(accounts: LedgerAccount[]): Promise<void> {
-    for (const account of accounts) {
-      this.map.set(account.id, account);
-      logger.info({ account }, "Created ledger account");
-    }
+    await this.client.createAccounts(
+      accounts.map((account) => ({
+        id: toTbId(account.id),
+        code: convertToTigerBeetleAccountType[account.type],
+        ledger: assetCodeToUInt32(account.assetCode),
+        user_data_32: 0,
+        user_data_64: 0n,
+        user_data_128: toTbId(account.externalRef),
+        reserved: 0,
+        flags: 0,
+        debits_pending: 0n,
+        debits_posted: 0n,
+        credits_pending: 0n,
+        credits_posted: 0n,
+        timestamp: 0n,
+      }))
+    );
   }
 }
 
-export class InMemoryLedgerTransferRepository
-  implements LedgerTransferRepository
-{
-  map: Map<string, LedgerTransfer> = new Map();
+export class TBLedgerTransferRepository implements LedgerTransferRepository {
+  constructor(private client: TigerBeetleClient) {}
 
   public async create(transfers: LedgerTransfer[]): Promise<void> {
-    for (const transfer of transfers) {
-      this.map.set(transfer.id, transfer);
-      logger.info({ transfer }, "Created ledger transfer");
-    }
+    await this.client.createTransfers(
+      transfers.map((transfer) => ({
+        id: toTbId(transfer.id),
+        code: 1,
+        ledger: assetCodeToUInt32(transfer.assetCode),
+        debit_account_id: toTbId(transfer.debitAccountId),
+        credit_account_id: toTbId(transfer.creditAccountId),
+        user_data_32: 0,
+        user_data_64: 0n,
+        user_data_128: 0n,
+        reserved: 0,
+        flags: 0,
+        timestamp: 0n,
+        amount: transfer.amount,
+        pending_id: 0n,
+        timeout: 0,
+      }))
+    );
   }
 }
