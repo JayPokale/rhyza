@@ -57,7 +57,8 @@ export class CreateQuoteCmd extends CommandMsg {
 
   constructor(payload: CreateQuoteCmdPayload, requestId: string) {
     super()
-    this.aggregateId = this.msgKey = `${payload.id}`
+    this.msgKey = `${payload.id}`
+    this.aggregateId = payload.incomingPaymentId
     this.payload = payload
     this.requestId = requestId
   }
@@ -79,7 +80,8 @@ export class CreateOutgoingPaymentFromQuoteCmd extends CommandMsg {
 
   constructor(payload: CreateOutgoingPaymentFromQuoteCmdPayload, requestId: string) {
     super()
-    this.aggregateId = this.msgKey = `${payload.id}`
+    this.msgKey = `${payload.id}`
+    this.aggregateId = payload.quoteId
     this.payload = payload
     this.requestId = requestId
   }

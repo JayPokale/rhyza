@@ -1,13 +1,10 @@
 name: rafiki-poc
 services:
-  api:
+  api-1:
     build:
       context: ../
-      #dockerfile: ./packages/api/Dockerfile
-      dockerfile: ./docker/Dockerfile-app
+      dockerfile: ./packages/api/Dockerfile-api
     restart: always
-    depends_on:
-      - app-backend
     ports:
       - '3000:3000'
     environment:
@@ -17,23 +14,45 @@ services:
       KAFKA_URL: kafka:19092
       SERVICE_MODE: api
     depends_on:
-      pg-container:
-        condition: service_healthy
+      - backend
+      - pg-container
     networks:
       - rafiki-poc
 
-  app-backend:
+  api-2:
     build:
       context: ../
-      dockerfile: ./docker/Dockerfile-app
+      dockerfile: ./packages/api/Dockerfile-api
     restart: always
+    ports:
+      - '3001:3000'
+    environment:
+      SEED_FILE_LOCATION: /workspace/seed.json
+      OPEN_TELEMETRY_COLLECTOR_URL: http://otel-collector:4317
+      DATABASE_URL: postgres://postgres:password@pg-container:5432/database
+      KAFKA_URL: kafka:19092
+      SERVICE_MODE: api
     depends_on:
-      - init-kafka
+      - backend
+      - pg-container
+    networks:
+      - rafiki-poc
+
+  backend:
+    build:
+      context: ../
+      dockerfile: ./packages/payments-service/Dockerfile-backend
+    restart: always
     environment:
       SEED_FILE_LOCATION: /workspace/seed.json
       OPEN_TELEMETRY_COLLECTOR_URL: http://otel-collector:4317
       KAFKA_URL: kafka:19092
+      DATABASE_URL: postgres://postgres:password@pg-container:5432/database
       SERVICE_MODE: backend
+    depends_on:
+      - init-kafka
+    networks:
+      - rafiki-poc
 
   pg-container:
     image: postgres
@@ -56,7 +75,6 @@ services:
     networks:
       - rafiki-poc
 
-
   zoo:
     image: confluentinc/cp-zookeeper:7.2.1
     restart: unless-stopped
@@ -66,6 +84,8 @@ services:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_SERVER_ID: 1
       ZOOKEEPER_SERVERS: zoo:2888:3888
+    networks:
+      - rafiki-poc
 
   kafka:
     image: confluentinc/cp-kafka:7.2.1
@@ -98,6 +118,8 @@ services:
       interval: 10s
       timeout: 10s
       retries: 10
+    networks:
+      - rafiki-poc
 
   init-kafka:
     image: confluentinc/cp-kafka:7.2.1
@@ -112,14 +134,16 @@ services:
       echo -e '\nCreating kafka topics:'
       kafka-topics --bootstrap-server kafka:19092 --create --if-not-exists --topic audits
       kafka-topics --bootstrap-server kafka:19092 --create --if-not-exists --topic logs
-      kafka-topics --bootstrap-server kafka:19092 --create --if-not-exists --topic rafiki-commands
-      kafka-topics --bootstrap-server kafka:19092 --create --if-not-exists --topic incoming-payment-commands
-      kafka-topics --bootstrap-server kafka:19092 --create --if-not-exists --topic quote-commands
-      kafka-topics --bootstrap-server kafka:19092 --create --if-not-exists --topic outgoing-payment-from-quote-commands
+      kafka-topics --bootstrap-server kafka:19092 --create --if-not-exists --partitions 3 --topic rafiki-commands
+      kafka-topics --bootstrap-server kafka:19092 --create --if-not-exists --partitions 3 --topic incoming-payment-commands
+      kafka-topics --bootstrap-server kafka:19092 --create --if-not-exists --partitions 3 --topic quote-commands
+      kafka-topics --bootstrap-server kafka:19092 --create --if-not-exists --partitions 3 --topic outgoing-payment-from-quote-commands
       kafka-topics --bootstrap-server kafka:19092 --create --if-not-exists --topic api-request-commands
       echo -e '\nSuccessfully created the following topics:'
       kafka-topics --bootstrap-server kafka:19092 --list
       "
+    networks:
+      - rafiki-poc
 
   otel-collector:
     image: otel/opentelemetry-collector:latest
@@ -148,7 +172,8 @@ services:
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf
     depends_on:
-      - api
+      - api-1
+      - api-2
     networks:
       - rafiki-poc
 

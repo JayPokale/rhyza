@@ -23,6 +23,7 @@ import {
 } from "../event"
 
 import logger from "../../logger";
+import os from "os";
 
 export class RafikiCommandHandler {
   private _messageConsumer: IMessageConsumer
@@ -52,14 +53,17 @@ export class RafikiCommandHandler {
     // eslint-disable-next-line no-async-promise-executor
     return await new Promise<void>(async (resolve) => {
       logger.debug(`Got message in RafikiCommandHandler with name: ${message.msgName}:${message.requestId} -> ${message}`)
+      logger.debug(`Handler(${os.hostname()}): JASON: Receiving payment to be processed by Rafiki: ${JSON.stringify(message)}`)
       try {
         switch (message.msgName) {
           case CreateIncomingPaymentCmd.name:
             const inPayId = await this._paymentService.createIncomingPayment(this.toDomainIncoming(message as CreateIncomingPaymentCmd))
             if (message.requestId) {
-              await this._messageProducer.send(new ApiRspIncomingPaymentEvent({
+              const event = new ApiRspIncomingPaymentEvent({
                 createdId: inPayId,
-              }, message.requestId))
+              }, message.requestId)
+              await this._messageProducer.send(event)
+              logger.debug(`Handler(${os.hostname()}): JASON: Sending: ${JSON.stringify(event)}`)
             }
             break
           case CreateQuoteCmd.name:
@@ -106,6 +110,7 @@ export class RafikiCommandHandler {
         }
         logger.error(err)
       } finally {
+        logger.debug(`Handler(${os.hostname()}): JASON: Complete.`)
         resolve()
       }
     })

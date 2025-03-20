@@ -1,24 +1,33 @@
-import fastify from "fastify";
+import fastify, {FastifyReply} from "fastify";
 import logger from "./logger";
 import {
   PaymentService,
   RemoteIncomingPaymentService,
-  IlpConnector,
+  IlpConnector
 } from "payments-service";
 
-export function createAppCommandHandler(
-  paymentService: PaymentService,
-  msgConsumer: IMessageConsumer,
-  msgProducer: IMessageProducer
-) {
-  const rafikiCommandHandler = new RafikiCommandHandler(msgConsumer, msgProducer, paymentService)
-  return async () => {
-    logger.info(`🥺 Starting Rafiki Command Handler::: ->`)
-    await rafikiCommandHandler.start()
-    logger.info(`Rafiki Command Handler started`)
-    return rafikiCommandHandler
-  }
-}
+import {
+  IMessage,
+  IMessageConsumer,
+  IMessageProducer
+} from "payments-service/dist/message-broker/message";
+import os from 'os';
+import {
+  CreateIncomingPaymentCmd,
+  CreateOutgoingPaymentFromQuoteCmd,
+  CreateQuoteCmd,
+  Topic
+} from "payments-service/dist/message-broker/command";
+import {randomUUID} from "node:crypto";
+import {
+  ApiRspErrorEvent,
+  ApiRspErrorPayload,
+  ApiRspEventPayload,
+  ApiRspIncomingPaymentEvent,
+  ApiRspOutgoingPaymentEvent,
+  ApiRspQuoteEvent
+} from "payments-service/dist/message-broker/event";
+import {deprecate} from "node:util";
 
 export function createApp(
   port: number,
@@ -33,7 +42,7 @@ export function createApp(
 
   const rafikiApiRsp = new RafikiApiResponseEventHandler(msgConsumer, mapRsp, ilpConnector)
   const initRafikiApiRsp = async () => {
-    logger.info(`🥺 Starting Rafiki API Handler::: ->`);
+    logger.info(`🥺🥺🥺 Starting Rafiki API Handler::: ->`);
     await rafikiApiRsp.start()
     logger.info(`🥋🥋🥋 Rafiki API Handler started`)
   }
@@ -65,13 +74,12 @@ export function createApp(
       walletAddressId: requestBody.walletAddressId,
     }
 
+    logger.debug(`API(${os.hostname()}): JASON: Sending incoming-payment to be processed by Rafiki: ${JSON.stringify(payload)}`)
+
     const cmd = new CreateIncomingPaymentCmd(payload, randomUUID())
     mapRsp.set(cmd.requestId!, reply)
     await msgProducer.send(cmd)
-    //TODO reply.hijack()
     return reply
-    //const ilpDetails = ilpConnector.getIlpDetails()
-    //reply.code(201).send({ id : inPayRsp.response, ilpDetails });
   });
 
   app.post("/remote-incoming-payment", async function handler(request, reply) {
@@ -122,6 +130,8 @@ export function createApp(
       incomingPaymentId: requestBody.incomingPaymentId,
     }
 
+    logger.debug(`API(${os.hostname()}): JASON: Sending quote to be processed by Rafiki: ${JSON.stringify(payload)}`)
+
     const cmd = new CreateQuoteCmd(payload, randomUUID())
     mapRsp.set(cmd.requestId!, reply)
     await msgProducer.send(cmd)
@@ -168,7 +178,7 @@ export function createApp(
 
   return async () => {
     await app.listen({ port, host: "0.0.0.0" });
-    logger.info(`Listening on port '${port}'`);
+    logger.info(`Listening on port '${port}' 🕹`);
   };
 }
 
@@ -202,28 +212,31 @@ class RafikiApiResponseEventHandler {
     // eslint-disable-next-line no-async-promise-executor
     return await new Promise<void>(async (resolve) => {
       logger.debug(`Got message in RafikiApiResponseEventHandler with name: ${message.msgName}:${message.requestId}`)
+      logger.debug(`Event(${os.hostname()}): JASON: EventReceived: ${JSON.stringify(message)}`)
       try {
         const reply = (message.requestId) ?
           this._rspMap.get(message.requestId) as FastifyReply : undefined
+
+        if (!reply) {
+          logger.debug(`Event(${os.hostname()}): JASON: No event found for ${message.requestId}. Ignoring.`)
+          return
+        }
 
         switch (message.msgName) {
           case ApiRspIncomingPaymentEvent.name: {
             const payload = message.payload as ApiRspEventPayload
             const ilpDetails = this._ilpConnector.getIlpDetails()
-            if (reply) {
-              //TODO await this._fastlyRespond(reply, 201, { id : payload.createdId, ilpDetails })
-              reply.code(201).send({ id : payload.createdId, ilpDetails });
-            }
+            if (reply) reply.code(200).send({ id : payload.createdId, ilpDetails });
             break
           }
           case ApiRspQuoteEvent.name: {
             const payloadOther = message.payload as ApiRspEventPayload
-            if (reply) reply.code(201).send({ id : payloadOther.createdId});
+            if (reply) reply.code(200).send({ id : payloadOther.createdId});
             break
           }
           case ApiRspOutgoingPaymentEvent.name: {
             const payloadOut = message.payload as ApiRspEventPayload
-            if (reply) reply.code(201).send({ id : payloadOut.createdId});
+            if (reply) reply.code(200).send({ id : payloadOut.createdId});
             break
           }
           case ApiRspErrorEvent.name: {
@@ -235,7 +248,7 @@ class RafikiApiResponseEventHandler {
             logger.warn(`RafikiApiResponseEventHandler - unknown event - msgName: ${message?.msgName} msgKey: ${message?.msgKey} msgId: ${message?.msgId}`)
           }
         }
-        if (reply) this._rspMap.delete(message.requestId as string)
+        this._rspMap.delete(message.requestId as string)
       } catch (err) {
         logger.error(`RafikiApiResponseEventHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${(err as Error)?.message?.toString()}`, err)
         logger.error(err)
@@ -247,6 +260,17 @@ class RafikiApiResponseEventHandler {
     })
   }
 
+  /**@deprecated Use standard reply.code(code).send(payload) instead.
+   *
+   * Sends a raw HTTP response using Fastify's raw response object.
+   * Logs the payload and response details during the process.
+   *
+   * @param {FastifyReply} reply - The Fastify reply object used for sending the response.
+   * @param {number} code - The HTTP status code for the response.
+   * @param {any} payload - The response payload to be sent as JSON.
+   * @return {Promise<void>} Resolves when the response has been sent successfully.
+   *
+   */
   private async _fastlyRespond(reply: FastifyReply, code: number, payload: any) {
     logger.info(`Fastly is treating it as raw ${JSON.stringify(payload)}`)
     const res = reply.raw;

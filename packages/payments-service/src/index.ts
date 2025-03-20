@@ -1,3 +1,11 @@
+import {
+  RafikiKafkaJsonConsumer,
+  RafikiKafkaJsonConsumerOptions,
+  RafikiKafkaJsonProducer,
+  RafikiKafkaJsonProducerOptions
+} from "./message-broker";
+import {createAppCommandHandler} from './app'
+
 require("./telemetry.js"); // Load telemetry before running the rest of the app
 
 import { EventEmitterPubSub } from "./event";
@@ -50,6 +58,37 @@ const paymentService = new PaymentService(
   new QuotePsqlRepository(pool),
   eventProducer
 );
+
+(async () => {
+  //Kafka:
+  const kafkaUrl = process.env["KAFKA_URL"] || "kafka:29092"
+  const kafkaProducerCommonOptions: RafikiKafkaJsonProducerOptions = {
+    kafkaBrokerList: kafkaUrl,
+    producerClientId: `rafiki-${crypto.randomUUID()}`,
+  }
+  const kafkaConsumerCommonOptions: RafikiKafkaJsonConsumerOptions = {
+    kafkaBrokerList: kafkaUrl,
+    kafkaGroupId: `rafiki-commands`
+  }
+  logger.info(`Init Kafka on '${kafkaUrl}'`)
+
+  // Init Producer/Consumer:
+  const producer = new RafikiKafkaJsonProducer(kafkaProducerCommonOptions)
+  await producer.connect()
+  let consumer = new RafikiKafkaJsonConsumer(kafkaConsumerCommonOptions)
+
+  const start = createAppCommandHandler(
+    paymentService,
+    producer,
+    consumer
+  );
+  await start();
+
+  process.on("SIGINT", () => {
+    logger.info("Received SIGINT. Shutting down gracefully...");
+    process.exit(0);
+  });
+})();
 
 async function seed(seedFilePath: string) {
   logger.info(`Running seed from ${seedFilePath}`);

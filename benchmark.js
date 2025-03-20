@@ -7,8 +7,6 @@ export const options = {
   // iterations: 1,
 };
 
-const BASE_URL = "http://localhost";
-
 const RECEIVER_WALLET_ADDRESS_ID = "a1469618-077a-447d-b5a3-a9ed11265a63";
 const SENDER_WALLET_ADDRESS_ID = "a1469618-077a-447d-b5a3-a9ed11265a64";
 
@@ -24,8 +22,7 @@ function request(url, data) {
 
 function baseUrl() {
   lastPort = lastPort === 3000 ? 3001 : 3000;
-  //TODO return `http://localhost:${lastPort}`;
-  return `http://localhost:3000`;
+  return `http://localhost:${lastPort}`;
 }
 
 export default function (data) {
@@ -34,7 +31,7 @@ export default function (data) {
   });
 
   check(incomingPaymentRes, {
-    "incoming payment created": (r) => r.status === 201,
+    "incoming payment created": (r) => r.status === 200,
   });
 
   const incomingPaymentId = JSON.parse(incomingPaymentRes.body).id;
@@ -49,7 +46,7 @@ export default function (data) {
   });
 
   check(quoteRes, {
-    "quote created": (r) => r.status === 201,
+    "quote created": (r) => r.status === 200,
   });
 
   const quoteId = JSON.parse(quoteRes.body).id;
@@ -59,6 +56,6 @@ export default function (data) {
     senderWalletAddressId: SENDER_WALLET_ADDRESS_ID,
   });
   check(outgoingPaymentRes, {
-    "outgoing payment created": (r) => r.status === 201,
+    "outgoing payment created": (r) => r.status === 200,
   });
 }
