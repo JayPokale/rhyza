@@ -31,7 +31,7 @@ pnpm test
 
 #### Build:
 Start the containers up with 3 command handlers.
-`docker-compose up -d --build --scale=backend=3`
+`docker-compose up -d --build --scale=backend=3 --scale=api=2`
 
 Inspect the logs:
 `docker-compose logs -f backend`

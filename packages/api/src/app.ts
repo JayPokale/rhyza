@@ -74,7 +74,7 @@ export function createApp(
       walletAddressId: requestBody.walletAddressId,
     }
 
-    logger.debug(`API(${os.hostname()}): JASON: Sending incoming-payment to be processed by Rafiki: ${JSON.stringify(payload)}`)
+    logger.debug(`API(${os.hostname()}): Sending incoming-payment to be processed by Rafiki: ${JSON.stringify(payload)}`)
 
     const cmd = new CreateIncomingPaymentCmd(payload, randomUUID())
     mapRsp.set(cmd.requestId!, reply)
@@ -130,7 +130,7 @@ export function createApp(
       incomingPaymentId: requestBody.incomingPaymentId,
     }
 
-    logger.debug(`API(${os.hostname()}): JASON: Sending quote to be processed by Rafiki: ${JSON.stringify(payload)}`)
+    logger.debug(`API(${os.hostname()}): Sending quote to be processed by Rafiki: ${JSON.stringify(payload)}`)
 
     const cmd = new CreateQuoteCmd(payload, randomUUID())
     mapRsp.set(cmd.requestId!, reply)
@@ -144,7 +144,8 @@ export function createApp(
     const payload = {
       id: requestBody.id,
       senderWalletAddressId: requestBody.senderWalletAddressId,
-      quoteId: requestBody.quoteId,
+      incomingPaymentId: requestBody.incomingPaymentId,
+      quoteId: requestBody.quoteId
     }
 
     const cmd = new CreateOutgoingPaymentFromQuoteCmd(payload, randomUUID())
@@ -212,13 +213,13 @@ class RafikiApiResponseEventHandler {
     // eslint-disable-next-line no-async-promise-executor
     return await new Promise<void>(async (resolve) => {
       logger.debug(`Got message in RafikiApiResponseEventHandler with name: ${message.msgName}:${message.requestId}`)
-      logger.debug(`Event(${os.hostname()}): JASON: EventReceived: ${JSON.stringify(message)}`)
+      logger.debug(`Event(${os.hostname()}): EventReceived: ${JSON.stringify(message)}`)
       try {
         const reply = (message.requestId) ?
           this._rspMap.get(message.requestId) as FastifyReply : undefined
 
         if (!reply) {
-          logger.debug(`Event(${os.hostname()}): JASON: No event found for ${message.requestId}. Ignoring.`)
+          logger.debug(`Event(${os.hostname()}): No event found for ${message.requestId}. Ignoring.`)
           return
         }
 

@@ -10,7 +10,7 @@ export const options = {
 const RECEIVER_WALLET_ADDRESS_ID = "a1469618-077a-447d-b5a3-a9ed11265a63";
 const SENDER_WALLET_ADDRESS_ID = "a1469618-077a-447d-b5a3-a9ed11265a64";
 
-var lastPort = 3000;
+const BASE_URL = "http://localhost:80";
 
 function request(url, data) {
   return http.post(url, JSON.stringify(data), {
@@ -20,13 +20,8 @@ function request(url, data) {
   });
 }
 
-function baseUrl() {
-  lastPort = lastPort === 3000 ? 3001 : 3000;
-  return `http://localhost:${lastPort}`;
-}
-
 export default function (data) {
-  const incomingPaymentRes = request(`${baseUrl()}/incoming-payment`, {
+  const incomingPaymentRes = request(`${BASE_URL}/incoming-payment`, {
     walletAddressId: RECEIVER_WALLET_ADDRESS_ID,
   });
 
@@ -35,7 +30,8 @@ export default function (data) {
   });
 
   const incomingPaymentId = JSON.parse(incomingPaymentRes.body).id;
-  const quoteRes = request(`${baseUrl()}/quote`, {
+  const quoteRes = request(`${BASE_URL}/quote`, {
+    id: incomingPaymentId,
     debitAmount: {
       assetScale: 2,
       assetCode: "USD",
@@ -51,7 +47,8 @@ export default function (data) {
 
   const quoteId = JSON.parse(quoteRes.body).id;
 
-  const outgoingPaymentRes = request(`${baseUrl()}/outgoing-payment`, {
+  const outgoingPaymentRes = request(`${BASE_URL}/outgoing-payment`, {
+    id: incomingPaymentId,
     quoteId,
     senderWalletAddressId: SENDER_WALLET_ADDRESS_ID,
   });

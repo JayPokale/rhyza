@@ -53,7 +53,7 @@ export class RafikiCommandHandler {
     // eslint-disable-next-line no-async-promise-executor
     return await new Promise<void>(async (resolve) => {
       logger.debug(`Got message in RafikiCommandHandler with name: ${message.msgName}:${message.requestId} -> ${message}`)
-      logger.debug(`Handler(${os.hostname()}): JASON: Receiving payment to be processed by Rafiki: ${JSON.stringify(message)}`)
+      logger.debug(`Handler(${os.hostname()}): Receiving payment to be processed by Rafiki: ${JSON.stringify(message)}`)
       try {
         switch (message.msgName) {
           case CreateIncomingPaymentCmd.name:
@@ -63,7 +63,7 @@ export class RafikiCommandHandler {
                 createdId: inPayId,
               }, message.requestId)
               await this._messageProducer.send(event)
-              logger.debug(`Handler(${os.hostname()}): JASON: Sending: ${JSON.stringify(event)}`)
+              logger.debug(`Handler(${os.hostname()}): Sending: ${JSON.stringify(event)}`)
             }
             break
           case CreateQuoteCmd.name:
@@ -110,7 +110,7 @@ export class RafikiCommandHandler {
         }
         logger.error(err)
       } finally {
-        logger.debug(`Handler(${os.hostname()}): JASON: Complete.`)
+        logger.debug(`Handler(${os.hostname()}): Complete.`)
         resolve()
       }
     })
