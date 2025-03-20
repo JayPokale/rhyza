@@ -75,6 +75,8 @@ services:
       - api
     networks:
       - rafiki-poc
+    sysctls:
+      net.ipv4.ip_local_port_range: "10240 65535"
 
 networks:
   rafiki-poc:
