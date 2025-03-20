@@ -1,9 +1,4 @@
 import {
-  MeterProvider,
-  PeriodicExportingMetricReader,
-} from "@opentelemetry/sdk-metrics";
-import { OTLPMetricExporter } from "@opentelemetry/exporter-metrics-otlp-grpc";
-import {
   metrics,
   Counter,
   Histogram,
@@ -13,23 +8,15 @@ import {
 
 const METER_NAME = "rafiki-poc";
 
+/**
+ * Expects consumer (api, payments-server, etc.) to setGlobalMeterProvider on start.
+ */
 export class TelemetryService {
   private static instance: TelemetryService;
-  private meterProvider: MeterProvider;
   private counters: Map<string, Counter>;
   private histograms: Map<string, Histogram>;
 
   private constructor(serviceName: string, collectorUrl: string) {
-    const exporter = new OTLPMetricExporter({ url: collectorUrl });
-    const metricReader = new PeriodicExportingMetricReader({
-      exporter,
-      exportIntervalMillis: 1000,
-    });
-    this.meterProvider = new MeterProvider({
-      readers: [metricReader],
-    });
-    metrics.setGlobalMeterProvider(this.meterProvider);
-
     this.counters = new Map();
     this.histograms = new Map();
   }
@@ -97,9 +84,5 @@ export class TelemetryService {
         ...additionalAttributes,
       });
     };
-  }
-
-  public async shutdown(): Promise<void> {
-    await this.meterProvider.shutdown();
   }
 }
