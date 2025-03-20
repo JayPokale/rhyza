@@ -1,7 +1,8 @@
-import { Pool } from "pg";
-import { Redis } from "ioredis";
-import { WalletAddress, IWalletAddressRepository } from "./wallet-address";
-import {
+import type { Pool } from "pg";
+import type { Redis } from "ioredis";
+import type { Logger } from "pino";
+import type { WalletAddress, IWalletAddressRepository } from "./wallet-address";
+import type {
   IncomingPayment,
   IIncomingPaymentRepository,
   IncomingPaymentWithMicroPayments,
@@ -16,11 +17,11 @@ import {
   IOutgoingPaymentRepository,
   IQuoteRepository,
 } from "./payment";
-import {
+import type {
   IRemoteIncomingPaymentRepository,
   RemoteIncomingPayment,
 } from "./remote-incoming-payment";
-import { IlpPeer, IIlpPeerRepository } from "./ilp-peer";
+import type { IlpPeer, IIlpPeerRepository } from "./ilp-peer";
 
 interface Cache<T> {
   get(key: string): Promise<T | undefined>;
@@ -80,6 +81,7 @@ export class RedisCache<T> implements Cache<T> {
   constructor(
     private redisClient: Redis,
     private keyTtlMs: number,
+    private logger: Logger,
     private parseFn?: (value: string) => T
   ) {}
 
@@ -94,7 +96,7 @@ export class RedisCache<T> implements Cache<T> {
         return JSON.parse(value) as T;
       }
     } catch (err) {
-      console.error("Error parsing cached value:", err); // TODO: use logger
+      this.logger.error("Error parsing cached value:", err);
       return;
     }
   }
@@ -146,7 +148,11 @@ export class WalletAddressPsqlRepository implements IWalletAddressRepository {
   private TABLE_NAME = "wallet_addresses";
   private CACHE_BY_ID_PREFIX = "wallet_address_by_id:";
 
-  constructor(private cache: Cache<WalletAddress>, private pool: Pool) {}
+  constructor(
+    private cache: Cache<WalletAddress>,
+    private pool: Pool,
+    private logger: Logger
+  ) {}
 
   public async fetchById(id: string): Promise<WalletAddress | undefined> {
     const cached = await this.cache.get(this.CACHE_BY_ID_PREFIX + id);
@@ -175,7 +181,7 @@ export class WalletAddressPsqlRepository implements IWalletAddressRepository {
       );
       return walletAddress;
     } catch (error) {
-      console.error("Error fetching wallet address by ID:", error);
+      this.logger.error("Error fetching wallet address by ID:", error);
       throw error;
     }
   }
@@ -191,7 +197,7 @@ export class WalletAddressPsqlRepository implements IWalletAddressRepository {
       );
       return res.rows[0].exists;
     } catch (error) {
-      console.error("Error checking if wallet address exists:", error);
+      this.logger.error("Error checking if wallet address exists:", error);
       throw error;
     }
   }
@@ -217,7 +223,7 @@ export class WalletAddressPsqlRepository implements IWalletAddressRepository {
         walletAddress
       );
     } catch (error) {
-      console.error("Error storing wallet address:", error);
+      this.logger.error("Error storing wallet address:", error);
       throw error;
     }
   }
@@ -263,7 +269,11 @@ export class IncomingPaymentPsqlRepository
   private MICRO_PAYMENT_TABLE_NAME = "incoming_micro_payments";
   private CACHE_BY_ID_PREFIX = "incoming_payment_by_id:";
 
-  constructor(private cache: Cache<IncomingPayment>, private pool: Pool) {}
+  constructor(
+    private cache: Cache<IncomingPayment>,
+    private pool: Pool,
+    private logger: Logger
+  ) {}
 
   public async exists(id: string): Promise<boolean> {
     const found = await this.cache.get(this.CACHE_BY_ID_PREFIX + id);
@@ -276,7 +286,7 @@ export class IncomingPaymentPsqlRepository
       );
       return res.rows[0].exists;
     } catch (error) {
-      console.error("Error checking if incoming payment exists:", error);
+      this.logger.error("Error checking if incoming payment exists:", error);
       throw error;
     }
   }
@@ -307,7 +317,7 @@ export class IncomingPaymentPsqlRepository
         incomingPayment
       );
     } catch (error) {
-      console.error("Error storing incoming payment:", error);
+      this.logger.error("Error storing incoming payment:", error);
       throw error;
     }
   }
@@ -358,7 +368,7 @@ export class IncomingPaymentPsqlRepository
       this.cache.set(this.CACHE_BY_ID_PREFIX + id, incomingPayment);
     } catch (error) {
       await client.query("ROLLBACK");
-      console.error(
+      this.logger.error(
         "Error updating incoming payment and inserting micro payment:",
         error
       );
@@ -404,7 +414,7 @@ export class IncomingPaymentPsqlRepository
       );
       return incomingPayment;
     } catch (error) {
-      console.error("Error fetching incoming payment by ID:", error);
+      this.logger.error("Error fetching incoming payment by ID:", error);
       throw error;
     }
   }
@@ -490,7 +500,11 @@ export class OutgoingPaymentPsqlRepository
   private MICRO_PAYMENT_TABLE_NAME = "outgoing_micro_payments";
   private CACHE_BY_ID_PREFIX = "outgoing_payment_by_id:";
 
-  constructor(private cache: Cache<OutgoingPayment>, private pool: Pool) {}
+  constructor(
+    private cache: Cache<OutgoingPayment>,
+    private pool: Pool,
+    private logger: Logger
+  ) {}
 
   public async exists(id: string): Promise<boolean> {
     const found = await this.cache.get(this.CACHE_BY_ID_PREFIX + id);
@@ -503,7 +517,7 @@ export class OutgoingPaymentPsqlRepository
       );
       return res.rows[0].exists;
     } catch (error) {
-      console.error("Error checking if outgoing payment exists:", error);
+      this.logger.error("Error checking if outgoing payment exists:", error);
       throw error;
     }
   }
@@ -534,7 +548,7 @@ export class OutgoingPaymentPsqlRepository
         outgoingPayment
       );
     } catch (error) {
-      console.error("Error storing outgoing payment:", error);
+      this.logger.error("Error storing outgoing payment:", error);
       throw error;
     }
   }
@@ -585,7 +599,7 @@ export class OutgoingPaymentPsqlRepository
       await this.cache.set(this.CACHE_BY_ID_PREFIX + id, outgoingPayment);
     } catch (error) {
       await client.query("ROLLBACK");
-      console.error(
+      this.logger.error(
         "Error updating outgoing payment and inserting micro-payment:",
         error
       );
@@ -630,7 +644,7 @@ export class OutgoingPaymentPsqlRepository
       );
       return outgoingPayment;
     } catch (error) {
-      console.error("Error fetching outgoing payment by ID:", error);
+      this.logger.error("Error fetching outgoing payment by ID:", error);
       throw error;
     }
   }
@@ -714,7 +728,11 @@ export class QuotePsqlRepository implements IQuoteRepository {
   private TABLE_NAME = "quotes";
   private CACHE_BY_ID_PREFIX = "quote_by_id:";
 
-  constructor(private cache: Cache<Quote>, private pool: Pool) {}
+  constructor(
+    private cache: Cache<Quote>,
+    private pool: Pool,
+    private logger: Logger
+  ) {}
 
   public async exists(id: string): Promise<boolean> {
     const found = await this.cache.get(this.CACHE_BY_ID_PREFIX + id);
@@ -727,7 +745,7 @@ export class QuotePsqlRepository implements IQuoteRepository {
       );
       return res.rows[0].exists;
     } catch (error) {
-      console.error("Error checking if quote exists:", error);
+      this.logger.error("Error checking if quote exists:", error);
       throw error;
     }
   }
@@ -756,7 +774,7 @@ export class QuotePsqlRepository implements IQuoteRepository {
       await this.pool.query(query, values);
       await this.cache.set(this.CACHE_BY_ID_PREFIX + quote.id, quote);
     } catch (error) {
-      console.error("Error storing quote:", error);
+      this.logger.error("Error storing quote:", error);
       throw error;
     }
   }
@@ -796,7 +814,7 @@ export class QuotePsqlRepository implements IQuoteRepository {
       await this.cache.set(this.CACHE_BY_ID_PREFIX + quote.id, quote);
       return quote;
     } catch (error) {
-      console.error("Error fetching quote by ID:", error);
+      this.logger.error("Error fetching quote by ID:", error);
       throw error;
     }
   }
@@ -824,7 +842,7 @@ export class QuotePsqlRepository implements IQuoteRepository {
         await this.cache.set(this.CACHE_BY_ID_PREFIX + id, cachedQuote);
       }
     } catch (error) {
-      console.error("Error updating quote amounts:", error);
+      this.logger.error("Error updating quote amounts:", error);
       throw error;
     }
   }
@@ -889,7 +907,8 @@ export class RemoteIncomingPaymentPsqlRepository
 
   constructor(
     private cache: Cache<RemoteIncomingPayment>,
-    private pool: Pool
+    private pool: Pool,
+    private logger: Logger
   ) {}
 
   public async store(
@@ -913,7 +932,7 @@ export class RemoteIncomingPaymentPsqlRepository
         remoteIncomingPayment
       );
     } catch (error) {
-      console.error("Error storing remote incoming payment:", error);
+      this.logger.error("Error storing remote incoming payment:", error);
       throw error;
     }
   }
@@ -949,7 +968,7 @@ export class RemoteIncomingPaymentPsqlRepository
       );
       return remoteIncomingPayment;
     } catch (error) {
-      console.error("Error fetching remote incoming payment by ID:", error);
+      this.logger.error("Error fetching remote incoming payment by ID:", error);
       throw error;
     }
   }
@@ -992,7 +1011,8 @@ export class IlpPeerPsqlRepository implements IIlpPeerRepository {
   constructor(
     private cache: Cache<IlpPeer>,
     private idCache: Cache<string>,
-    private pool: Pool
+    private pool: Pool,
+    private logger: Logger
   ) {}
 
   public async store(ilpPeer: IlpPeer): Promise<void> {
@@ -1017,7 +1037,7 @@ export class IlpPeerPsqlRepository implements IIlpPeerRepository {
         ilpPeer.id
       );
     } catch (error) {
-      console.error("Error storing ILP Peer:", error);
+      this.logger.error("Error storing ILP Peer:", error);
       throw error;
     }
   }
@@ -1049,7 +1069,7 @@ export class IlpPeerPsqlRepository implements IIlpPeerRepository {
       await this.cache.set(this.CACHE_BY_ID_PREFIX + ilpPeer.id, ilpPeer);
       return ilpPeer;
     } catch (error) {
-      console.error("Error fetching ILP Peer by ID:", error);
+      this.logger.error("Error fetching ILP Peer by ID:", error);
       throw error;
     }
   }
@@ -1094,7 +1114,10 @@ export class IlpPeerPsqlRepository implements IIlpPeerRepository {
       );
       return ilpPeer;
     } catch (error) {
-      console.error("Error fetching ILP Peer by destination address:", error);
+      this.logger.error(
+        "Error fetching ILP Peer by destination address:",
+        error
+      );
       throw error;
     }
   }

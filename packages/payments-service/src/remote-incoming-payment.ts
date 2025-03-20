@@ -2,6 +2,7 @@ import { Pool } from "pg";
 import { IlpDetails } from "./ilp-connector";
 import logger from "./logger";
 import { Amount } from "./shared";
+import { Logger } from "pino";
 
 export interface RemoteIncomingPayment {
   id: string;
@@ -113,7 +114,7 @@ export class RemoteIncomingPaymentPsqlRepository
   implements IRemoteIncomingPaymentRepository
 {
   TABLE_NAME = "remote_incoming_payments";
-  constructor(private pool: Pool) {}
+  constructor(private pool: Pool, private logger: Logger) {}
 
   public async store(
     remoteIncomingPayment: RemoteIncomingPayment
@@ -132,7 +133,7 @@ export class RemoteIncomingPaymentPsqlRepository
 
       await this.pool.query(query, values);
     } catch (error) {
-      console.error("Error storing remote incoming payment:", error);
+      this.logger.error("Error storing remote incoming payment:", error);
       throw error;
     }
   }

@@ -1,4 +1,5 @@
 import { Pool } from "pg";
+import { Logger } from "pino";
 
 export class DuplicateWalletAddressFoundError extends Error {}
 
@@ -98,7 +99,7 @@ export class WalletAddressInMemoryRepository
 
 export class WalletAddressPsqlRepository implements IWalletAddressRepository {
   TABLE_NAME = "wallet_addresses";
-  constructor(private pool: Pool) {}
+  constructor(private pool: Pool, private logger: Logger) {}
 
   public async exists(id: string): Promise<boolean> {
     try {
@@ -108,7 +109,7 @@ export class WalletAddressPsqlRepository implements IWalletAddressRepository {
       );
       return res.rows[0].exists;
     } catch (error) {
-      console.error("Error checking if wallet address exists:", error);
+      this.logger.error("Error checking if wallet address exists:", error);
       throw error;
     }
   }
@@ -130,7 +131,7 @@ export class WalletAddressPsqlRepository implements IWalletAddressRepository {
 
       await this.pool.query(query, values);
     } catch (error) {
-      console.error("Error storing wallet address:", error);
+      this.logger.error("Error storing wallet address:", error);
       throw error;
     }
   }

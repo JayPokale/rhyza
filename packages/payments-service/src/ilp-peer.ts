@@ -1,5 +1,6 @@
 import { Pool } from "pg";
 import { Asset } from "./shared";
+import { Logger } from "pino";
 
 export interface IlpPeer {
   id: string;
@@ -64,7 +65,7 @@ interface IlpPeerRecord {
 
 export class IlpPeerPsqlRepository implements PeerRepository {
   TABLE_NAME = "ilp_peers";
-  constructor(private pool: Pool) {}
+  constructor(private pool: Pool, private logger: Logger) {}
 
   public async store(ilpPeer: IlpPeer): Promise<void> {
     try {
@@ -83,7 +84,7 @@ export class IlpPeerPsqlRepository implements PeerRepository {
 
       await this.pool.query(query, values);
     } catch (error) {
-      console.error("Error storing ILP Peer:", error);
+      this.logger.error("Error storing ILP Peer:", error);
       throw error;
     }
   }
