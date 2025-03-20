@@ -1,3 +1,4 @@
+import { Pool } from "pg";
 import { AssetCreatedEvent } from "./asset";
 import { IlpPeerCreatedEvent } from "./ilp-peer";
 import logger from "./logger";
@@ -128,26 +129,26 @@ interface LedgerAccount {
 }
 
 interface AssetAccount {
-  assetId: string;
+  id: string;
   assetCode: string;
   assetScale: number;
   settlementAccountId: string;
   liquidityAccountId: string;
-  lowLiquidityThreshold?: bigint;
-  highLiquidityThreshold?: bigint;
+  // lowLiquidityThreshold?: bigint;
+  // highLiquidityThreshold?: bigint;
 }
 
 interface PeerAccount {
-  peerId: string;
+  id: string;
   assetCode: string;
   assetScale: number;
   liquidityAccountId: string;
-  lowLiquidityThreshold?: bigint;
-  highLiquidityThreshold?: bigint;
+  // lowLiquidityThreshold?: bigint;
+  // highLiquidityThreshold?: bigint;
 }
 
 interface WalletAddressAccount {
-  walletAddressId: string;
+  id: string;
   assetCode: string;
   assetScale: number;
   liquidityAccountId: string;
@@ -314,7 +315,7 @@ export class LiquidityService implements LiquidityServiceAdapter {
     ]);
 
     await this.assetAccountRepository.store({
-      assetId: asset.id,
+      id: asset.id,
       assetCode: asset.code,
       assetScale: asset.scale,
       settlementAccountId: settlementAccount.id,
@@ -343,7 +344,7 @@ export class LiquidityService implements LiquidityServiceAdapter {
     await this.ledgerAccountRepository.store([liquidityAccount]);
 
     await this.peerAccountRepository.store({
-      peerId: peer.id,
+      id: peer.id,
       assetCode: peer.assetCode,
       assetScale: peer.assetScale,
       liquidityAccountId: liquidityAccount.id,
@@ -369,7 +370,7 @@ export class LiquidityService implements LiquidityServiceAdapter {
     await this.ledgerAccountRepository.store([liquidityAccount]);
 
     await this.walletAddressAccountRepository.store({
-      walletAddressId: event.data.id,
+      id: event.data.id,
       assetCode: event.data.assetCode,
       assetScale: event.data.assetScale,
       liquidityAccountId: liquidityAccount.id,
@@ -377,59 +378,210 @@ export class LiquidityService implements LiquidityServiceAdapter {
   }
 }
 
-export class InMemoryAssetAccountRepository implements AssetAccountRepository {
-  map: Map<string, AssetAccount> = new Map();
+interface AssetAccountRecord {
+  id: string;
+  asset_code: string;
+  asset_scale: number;
+  liquidity_account_id: string;
+  settlement_account_id: string;
+}
 
-  public async store(assetAccount: AssetAccount): Promise<void> {
-    this.map.set(assetAccount.assetId, assetAccount);
+export class AssetAccountPsqlRepository implements AssetAccountRepository {
+  TABLE_NAME = "asset_accounts";
+
+  constructor(private pool: Pool) {}
+
+  public async exists(id: string): Promise<boolean> {
+    try {
+      const res = await this.pool.query(
+        `SELECT EXISTS(SELECT 1 FROM ${this.TABLE_NAME} WHERE id = $1)`,
+        [id]
+      );
+      return res.rows[0].exists;
+    } catch (error) {
+      logger.error({ error }, "Error checking if asset account exists");
+      throw error;
+    }
   }
 
-  public async exists(assetId: string): Promise<boolean> {
-    return this.map.has(assetId);
+  public async store(assetAccount: AssetAccount): Promise<void> {
+    try {
+      const query = `
+        INSERT INTO ${this.TABLE_NAME} 
+        (id, asset_code, asset_scale, liquidity_account_id, settlement_account_id)
+        VALUES ($1, $2, $3, $4, $5)
+      `;
+      const values = [
+        assetAccount.id,
+        assetAccount.assetCode,
+        assetAccount.assetScale,
+        assetAccount.liquidityAccountId,
+        assetAccount.settlementAccountId,
+      ];
+
+      await this.pool.query(query, values);
+    } catch (error) {
+      logger.error({ error }, "Error storing asset account");
+      throw error;
+    }
   }
 
   public async fetchByCode(code: string): Promise<AssetAccount | undefined> {
-    return [...this.map.values()].find(
-      (assetAccount) => assetAccount.assetCode === code
+    const res = await this.pool.query<AssetAccountRecord>(
+      `SELECT id, asset_code, asset_scale, liquidity_account_id, settlement_account_id FROM ${this.TABLE_NAME} WHERE asset_code = $1`,
+      [code]
     );
+
+    if (res.rows.length === 0) return undefined;
+
+    const row = res.rows[0];
+
+    return {
+      id: row.id,
+      assetCode: row.asset_code,
+      assetScale: row.asset_scale,
+      liquidityAccountId: row.liquidity_account_id,
+      settlementAccountId: row.settlement_account_id,
+    };
   }
 }
 
-export class InMemoryPeerAccountRepository implements PeerAccountRepository {
-  map: Map<string, PeerAccount> = new Map();
+interface PeerAccountRecord {
+  id: string;
+  asset_code: string;
+  asset_scale: number;
+  liquidity_account_id: string;
+}
 
-  public async store(peerAccount: PeerAccount): Promise<void> {
-    this.map.set(peerAccount.peerId, peerAccount);
+export class PeerAccountPsqlRepository implements PeerAccountRepository {
+  TABLE_NAME = "peer_accounts";
+
+  constructor(private pool: Pool) {}
+
+  public async exists(id: string): Promise<boolean> {
+    try {
+      const res = await this.pool.query(
+        `SELECT EXISTS(SELECT 1 FROM ${this.TABLE_NAME} WHERE id = $1)`,
+        [id]
+      );
+      return res.rows[0].exists;
+    } catch (error) {
+      logger.error({ error }, "Error checking if peer account exists");
+      throw error;
+    }
   }
 
-  public async exists(assetId: string): Promise<boolean> {
-    return this.map.has(assetId);
+  public async store(peerAccount: PeerAccount): Promise<void> {
+    try {
+      const query = `
+        INSERT INTO ${this.TABLE_NAME} 
+        (id, asset_code, asset_scale, liquidity_account_id)
+        VALUES ($1, $2, $3, $4)
+      `;
+      const values = [
+        peerAccount.id,
+        peerAccount.assetCode,
+        peerAccount.assetScale,
+        peerAccount.liquidityAccountId,
+      ];
+
+      await this.pool.query(query, values);
+    } catch (error) {
+      logger.error({ error }, "Error storing peer account");
+      throw error;
+    }
   }
 
   public async fetchById(id: string): Promise<PeerAccount | undefined> {
-    return this.map.get(id);
+    const res = await this.pool.query<PeerAccountRecord>(
+      `SELECT id, asset_code, asset_scale, liquidity_account_id FROM ${this.TABLE_NAME} WHERE id = $1`,
+      [id]
+    );
+
+    if (res.rows.length === 0) return undefined;
+
+    const row = res.rows[0];
+
+    return {
+      id: row.id,
+      assetCode: row.asset_code,
+      assetScale: row.asset_scale,
+      liquidityAccountId: row.liquidity_account_id,
+    };
   }
 }
 
-export class InMemoryWalletAddressAccountRepository
+interface WalletAddressAccountRecord {
+  id: string;
+  asset_code: string;
+  asset_scale: number;
+  liquidity_account_id: string;
+}
+
+export class WalletAddressAccountPsqlRepository
   implements WalletAddressAccountRepository
 {
-  map: Map<string, WalletAddressAccount> = new Map();
+  TABLE_NAME = "wallet_address_accounts";
+
+  constructor(private pool: Pool) {}
+
+  public async exists(id: string): Promise<boolean> {
+    try {
+      const res = await this.pool.query(
+        `SELECT EXISTS(SELECT 1 FROM ${this.TABLE_NAME} WHERE id = $1)`,
+        [id]
+      );
+      return res.rows[0].exists;
+    } catch (error) {
+      logger.error(
+        { error },
+        "Error checking if wallet address account exists"
+      );
+      throw error;
+    }
+  }
 
   public async store(
     walletAddressAccount: WalletAddressAccount
   ): Promise<void> {
-    this.map.set(walletAddressAccount.walletAddressId, walletAddressAccount);
-  }
+    try {
+      const query = `
+        INSERT INTO ${this.TABLE_NAME} 
+        (id, asset_code, asset_scale, liquidity_account_id)
+        VALUES ($1, $2, $3, $4)
+      `;
+      const values = [
+        walletAddressAccount.id,
+        walletAddressAccount.assetCode,
+        walletAddressAccount.assetScale,
+        walletAddressAccount.liquidityAccountId,
+      ];
 
-  public async exists(assetId: string): Promise<boolean> {
-    return this.map.has(assetId);
+      await this.pool.query(query, values);
+    } catch (error) {
+      logger.error({ error }, "Error storing wallet address account");
+      throw error;
+    }
   }
 
   public async fetchById(
     id: string
   ): Promise<WalletAddressAccount | undefined> {
-    return this.map.get(id);
+    const res = await this.pool.query<WalletAddressAccountRecord>(
+      `SELECT id, asset_code, asset_scale, liquidity_account_id FROM ${this.TABLE_NAME} WHERE id = $1`,
+      [id]
+    );
+
+    if (res.rows.length === 0) return undefined;
+
+    const row = res.rows[0];
+
+    return {
+      id: row.id,
+      assetCode: row.asset_code,
+      assetScale: row.asset_scale,
+      liquidityAccountId: row.liquidity_account_id,
+    };
   }
 }
 

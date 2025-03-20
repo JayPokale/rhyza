@@ -2,12 +2,12 @@ require("./telemetry.js"); // Load telemetry before running the rest of the app
 
 import { EventEmitterPubSub } from "./event";
 import {
-  InMemoryAssetAccountRepository,
-  InMemoryPeerAccountRepository,
-  InMemoryWalletAddressAccountRepository,
+  AssetAccountPsqlRepository,
   LiquidityService,
+  PeerAccountPsqlRepository,
   TBLedgerAccountRepository,
   TBLedgerTransferRepository,
+  WalletAddressAccountPsqlRepository,
 } from "./liquidity";
 import {
   IncomingPaymentPsqlRepository,
@@ -63,9 +63,9 @@ const ilpPeerService = new IlpPeerService(
 );
 const ratesService = new RatesService();
 const liquidityService = new LiquidityService(
-  new InMemoryAssetAccountRepository(),
-  new InMemoryPeerAccountRepository(),
-  new InMemoryWalletAddressAccountRepository(),
+  new AssetAccountPsqlRepository(pool),
+  new PeerAccountPsqlRepository(pool),
+  new WalletAddressAccountPsqlRepository(pool),
   new TBLedgerTransferRepository(tbClient),
   new TBLedgerAccountRepository(tbClient)
 );
