@@ -8,56 +8,20 @@ import {createAppCommandHandler} from './app'
 
 require("./telemetry.js"); // Load telemetry before running the rest of the app
 
-import { EventEmitterPubSub } from "./event";
-import { LiquidityService } from "./liquidity";
 import {
-  IncomingPaymentPsqlRepository,
-  OutgoingPaymentPsqlRepository,
-  PaymentEventType,
-  PaymentService,
-  QuotePsqlRepository,
+  PaymentEventType
 } from "./payment";
-import { IlpPeerPsqlRepository, IlpPeerService } from "./ilp-peer";
-import { RatesService } from "./rates";
-import {
-  WalletAddressService,
-  WalletAddressPsqlRepository,
-} from "./wallet-address";
-import { IlpConnector } from "./ilp-connector";
-import {
-  RemoteIncomingPaymentPsqlRepository,
-  RemoteIncomingPaymentService,
-} from "./remote-incoming-payment";
 import pool from "./db";
 import { readFileSync } from "fs";
 import logger from "./logger";
 
-const eventEmitterPubSub = new EventEmitterPubSub();
-const eventConsumer = eventEmitterPubSub;
-const eventProducer = eventEmitterPubSub;
-
-const walletAddressService = new WalletAddressService(
-  new WalletAddressPsqlRepository(pool)
-);
-const ilpPeerService = new IlpPeerService(new IlpPeerPsqlRepository(pool));
-const ratesService = new RatesService();
-const liquidityService = new LiquidityService();
-
-const remoteIncomingPaymentService = new RemoteIncomingPaymentService(
-  new RemoteIncomingPaymentPsqlRepository(pool)
-);
-const ilpConnector = new IlpConnector(ilpPeerService, eventProducer);
-const paymentService = new PaymentService(
+import {
+  paymentService,
+  ilpConnector,
   walletAddressService,
   ilpPeerService,
-  ratesService,
-  liquidityService,
-  remoteIncomingPaymentService,
-  new IncomingPaymentPsqlRepository(pool),
-  new OutgoingPaymentPsqlRepository(pool),
-  new QuotePsqlRepository(pool),
-  eventProducer
-);
+  eventConsumer,
+} from "./public";
 
 (async () => {
   //Kafka:
@@ -78,12 +42,16 @@ const paymentService = new PaymentService(
   await producer.connect()
   let consumer = new RafikiKafkaJsonConsumer(kafkaConsumerCommonOptions)
 
+  //Init the app:
+  await init()
+
+  //Start the handler:
   const start = createAppCommandHandler(
     paymentService,
     producer,
     consumer
   );
-  await start();
+  await start()
 
   process.on("SIGINT", () => {
     logger.info("Received SIGINT. Shutting down gracefully...");
@@ -196,13 +164,3 @@ async function init() {
   );
 }
 
-export {
-  init,
-  pool,
-  paymentService,
-  PaymentService,
-  ilpConnector,
-  IlpConnector,
-  remoteIncomingPaymentService,
-  RemoteIncomingPaymentService,
-};

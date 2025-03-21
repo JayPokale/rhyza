@@ -3,7 +3,7 @@ import logger from "./logger";
 import {
   RemoteIncomingPaymentService,
   IlpConnector
-} from "payments-service";
+} from "payments-service/dist/public";
 
 import {
   IMessage,
@@ -226,8 +226,6 @@ class RafikiApiResponseEventHandler {
           case ApiRspIncomingPaymentEvent.name: {
             const payload = message.payload as ApiRspEventPayload
             const ilpDetails = this._ilpConnector.getIlpDetails()
-
-            logger.info(`Sending response ${JSON.stringify(payload)} to ${message.requestId}`)
             await reply.code(200).send({ id : payload.createdId, ilpDetails });
             break
           }

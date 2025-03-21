@@ -10,14 +10,11 @@ require("./telemetry.js"); // Load telemetry before running the rest of the app
 import { createApp } from "./app";
 import {
   ilpConnector,
-  remoteIncomingPaymentService,
-  init as initPaymentService,
-} from "payments-service";
+  remoteIncomingPaymentService
+} from "payments-service/dist/public";
 import logger from "./logger";
 
 (async () => {
-  await initPaymentService();
-
   //Kafka:
   const kafkaUrl = process.env["KAFKA_URL"] || "kafka:29092"
   const kafkaProducerCommonOptions: RafikiKafkaJsonProducerOptions = {
