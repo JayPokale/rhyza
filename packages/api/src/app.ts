@@ -1,33 +1,29 @@
-import fastify, {FastifyReply} from "fastify";
+import fastify, { FastifyReply } from "fastify";
 import logger from "./logger";
-import {
-  RemoteIncomingPaymentService,
-  IlpConnector
-} from "payments-service/dist/public";
 
-import {
-  IMessage,
-  IMessageConsumer,
-  IMessageProducer
-} from "payments-service/dist/message-broker/message";
-import os from 'os';
+import os from "os";
+import { randomUUID } from "node:crypto";
+import { IlpConnector } from "payments-service/src/ilp-connector";
 import {
   CreateIncomingPaymentCmd,
+  CreateQuoteCmd,
   CreateOutgoingPaymentFromQuoteCmd,
-  CreateQuoteCmd
-} from "payments-service/dist/message-broker/command";
+} from "payments-service/src/message-broker/command";
 import {
-  Topic
-} from "payments-service/dist/message-broker/event";
-import {randomUUID} from "node:crypto";
-import {
+  ApiRspIncomingPaymentEvent,
+  ApiRspEventPayload,
+  ApiRspQuoteEvent,
+  ApiRspOutgoingPaymentEvent,
   ApiRspErrorEvent,
   ApiRspErrorPayload,
-  ApiRspEventPayload,
-  ApiRspIncomingPaymentEvent,
-  ApiRspOutgoingPaymentEvent,
-  ApiRspQuoteEvent
-} from "payments-service/dist/message-broker/event";
+  Topic,
+} from "payments-service/src/message-broker/event";
+import {
+  IMessageProducer,
+  IMessageConsumer,
+  IMessage,
+} from "payments-service/src/message-broker/message";
+import { RemoteIncomingPaymentService } from "payments-service/src/remote-incoming-payment";
 
 export function createApp(
   port: number,
@@ -36,7 +32,7 @@ export function createApp(
   msgProducer: IMessageProducer,
   msgConsumer: IMessageConsumer
 ) {
-  const mapRsp: Map<string, FastifyReply> = new Map()
+  const mapRsp: Map<string, FastifyReply> = new Map();
   const app = fastify();
 
   app.addContentTypeParser(
@@ -57,20 +53,23 @@ export function createApp(
       expiresAt: requestBody.expiresAt,
       incomingAmount: requestBody.incomingAmount
         ? {
-          assetCode: requestBody.incomingAmount.assetCode,
-          assetScale: requestBody.incomingAmount.assetScale,
-          value: requestBody.incomingAmount.value,
-        }
+            assetCode: requestBody.incomingAmount.assetCode,
+            assetScale: requestBody.incomingAmount.assetScale,
+            value: requestBody.incomingAmount.value,
+          }
         : undefined,
       walletAddressId: requestBody.walletAddressId,
-    }
+    };
 
-    logger.debug(`API(${os.hostname()}): Sending incoming-payment to be processed by Rafiki: ${JSON.stringify(payload)}`)
+    logger.debug(
+      { payload },
+      `API(${os.hostname()}): Sending incoming-payment`
+    );
 
-    const cmd = new CreateIncomingPaymentCmd(payload, randomUUID())
-    mapRsp.set(cmd.requestId!, reply)
-    await msgProducer.send(cmd)
-    return reply
+    const cmd = new CreateIncomingPaymentCmd(payload, randomUUID());
+    mapRsp.set(cmd.requestId!, reply);
+    await msgProducer.send(cmd);
+    return reply;
   });
 
   app.post("/remote-incoming-payment", async function handler(request, reply) {
@@ -105,28 +104,28 @@ export function createApp(
       id: requestBody.id,
       debitAmount: requestBody.debitAmount
         ? {
-          assetCode: requestBody.debitAmount.assetCode,
-          assetScale: requestBody.debitAmount.assetScale,
-          value: requestBody.debitAmount.value,
-        }
+            assetCode: requestBody.debitAmount.assetCode,
+            assetScale: requestBody.debitAmount.assetScale,
+            value: requestBody.debitAmount.value,
+          }
         : undefined,
       receiveAmount: requestBody.receiveAmount
         ? {
-          assetCode: requestBody.receiveAmount.assetCode,
-          assetScale: requestBody.receiveAmount.assetScale,
-          value: requestBody.receiveAmount.value,
-        }
+            assetCode: requestBody.receiveAmount.assetCode,
+            assetScale: requestBody.receiveAmount.assetScale,
+            value: requestBody.receiveAmount.value,
+          }
         : undefined,
       senderWalletAddressId: requestBody.senderWalletAddressId,
       incomingPaymentId: requestBody.incomingPaymentId,
-    }
+    };
 
-    logger.debug(`API(${os.hostname()}): Sending quote to be processed by Rafiki: ${JSON.stringify(payload)}`)
+    logger.debug({ payload }, `API(${os.hostname()}): Sending quote`);
 
-    const cmd = new CreateQuoteCmd(payload, randomUUID())
-    mapRsp.set(cmd.requestId!, reply)
-    await msgProducer.send(cmd)
-    return reply
+    const cmd = new CreateQuoteCmd(payload, randomUUID());
+    mapRsp.set(cmd.requestId!, reply);
+    await msgProducer.send(cmd);
+    return reply;
   });
 
   app.post("/outgoing-payment", async function handler(request, reply) {
@@ -136,13 +135,18 @@ export function createApp(
       id: requestBody.id,
       senderWalletAddressId: requestBody.senderWalletAddressId,
       incomingPaymentId: requestBody.incomingPaymentId,
-      quoteId: requestBody.quoteId
-    }
+      quoteId: requestBody.quoteId,
+    };
 
-    const cmd = new CreateOutgoingPaymentFromQuoteCmd(payload, randomUUID())
-    mapRsp.set(cmd.requestId!, reply)
-    await msgProducer.send(cmd)
-    return reply
+    logger.debug(
+      { payload },
+      `API(${os.hostname()}): Sending outgoing-payment`
+    );
+
+    const cmd = new CreateOutgoingPaymentFromQuoteCmd(payload, randomUUID());
+    mapRsp.set(cmd.requestId!, reply);
+    await msgProducer.send(cmd);
+    return reply;
   });
 
   app.post("/ilp", async function handler(request, reply) {
@@ -169,10 +173,13 @@ export function createApp(
   });
 
   return async () => {
-    const rafikiApiRsp = new RafikiApiResponseEventHandler(msgConsumer, mapRsp, ilpConnector)
-    logger.info(`🥺🥺🥺 Starting Rafiki API Event Handler::: ->`);
-    await rafikiApiRsp.start()
-    logger.info(`🥋🥋🥋 Rafiki API Event Handler started`)
+    const rafikiApiRsp = new RafikiApiResponseEventHandler(
+      msgConsumer,
+      mapRsp,
+      ilpConnector
+    );
+    await rafikiApiRsp.start();
+    logger.info(`🥋🥋🥋 Rafiki API Event Handler started`);
 
     await app.listen({ port, host: "0.0.0.0" });
     logger.info(`🕹🕹🕹 API Listening on port '${port}'`);
@@ -187,65 +194,81 @@ class RafikiApiResponseEventHandler {
   ) {}
 
   async start(): Promise<void> {
-    this._messageConsumer.setTopics([Topic.ApiResponseEvents])
-    this._messageConsumer.setCallbackFn(this._msgHandler.bind(this))
-    await this._messageConsumer.connect()
-    await this._messageConsumer.startAndWaitForRebalance()
+    this._messageConsumer.setTopics([Topic.ApiResponseEvents]);
+    this._messageConsumer.setCallbackFn(this._msgHandler.bind(this));
+    await this._messageConsumer.connect();
+    await this._messageConsumer.startAndWaitForRebalance();
   }
 
-  async stop():Promise<void>{
-    await this._messageConsumer.stop()
+  async stop(): Promise<void> {
+    await this._messageConsumer.stop();
   }
 
   private async _msgHandler(message: IMessage): Promise<void> {
     // eslint-disable-next-line no-async-promise-executor
     return await new Promise<void>(async (resolve) => {
-      logger.debug(`Got message in RafikiApiResponseEventHandler with name: ${message.msgName}:${message.requestId}`)
-      logger.debug(`--> Event(${os.hostname()}): EventReceived: ${JSON.stringify(message)}`)
+      logger.debug(
+        { message },
+        `Got message in RafikiApiResponseEventHandler with name: ${message.msgName}:${message.requestId}`
+      );
       try {
-        const reply = (message.requestId) ?
-          this._rspMap.get(message.requestId) : undefined
+        const reply = message.requestId
+          ? this._rspMap.get(message.requestId)
+          : undefined;
 
         if (!reply) {
-          logger.debug(`Event(${os.hostname()}): No event found for ${message.requestId}. Ignoring.`)
-          return
+          logger.debug(
+            `Event(${os.hostname()}): No event found for ${
+              message.requestId
+            }. Ignoring.`
+          );
+          return;
         }
 
         switch (message.msgName) {
           case ApiRspIncomingPaymentEvent.name: {
-            const payload = message.payload as ApiRspEventPayload
-            const ilpDetails = this._ilpConnector.getIlpDetails()
-            await reply.code(200).send({ id : payload.createdId, ilpDetails });
-            break
+            const payload = message.payload as ApiRspEventPayload;
+            const ilpDetails = this._ilpConnector.getIlpDetails();
+            await reply.code(200).send({ id: payload.createdId, ilpDetails });
+            break;
           }
           case ApiRspQuoteEvent.name: {
-            const payloadOther = message.payload as ApiRspEventPayload
-            await reply.code(200).send({ id : payloadOther.createdId});
-            break
+            const payloadOther = message.payload as ApiRspEventPayload;
+            await reply.code(200).send({ id: payloadOther.createdId });
+            break;
           }
           case ApiRspOutgoingPaymentEvent.name: {
-            const payloadOut = message.payload as ApiRspEventPayload
-            await reply.code(200).send({ id : payloadOut.createdId});
-            break
+            const payloadOut = message.payload as ApiRspEventPayload;
+            await reply.code(200).send({ id: payloadOut.createdId });
+            break;
           }
           case ApiRspErrorEvent.name: {
-            const payloadErr = message.payload as ApiRspErrorPayload
+            const payloadErr = message.payload as ApiRspErrorPayload;
             await reply.code(500).send(payloadErr);
-            break
-          } default: {
-            logger.warn(`RafikiApiResponseEventHandler - unknown event - msgName: ${message?.msgName} msgKey: ${message?.msgKey} msgId: ${message?.msgId}`)
+            break;
+          }
+          default: {
+            logger.warn(
+              `RafikiApiResponseEventHandler - unknown event - msgName: ${message?.msgName} msgKey: ${message?.msgKey} msgId: ${message?.msgId}`
+            );
           }
         }
-        this._rspMap.delete(message.requestId as string)
+        this._rspMap.delete(message.requestId as string);
       } catch (err) {
-        logger.error(`RafikiApiResponseEventHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${(err as Error)?.message?.toString()}`, err)
-        logger.error(err)
-        logger.error("API -> Payload for error:")
-        logger.error(message)
+        logger.error(
+          `RafikiApiResponseEventHandler - processing event - ${
+            message?.msgName
+          }:${message?.msgKey}:${message?.msgId} - Error: ${(
+            err as Error
+          )?.message?.toString()}`,
+          err
+        );
+        logger.error(err);
+        logger.error("API -> Payload for error:");
+        logger.error(message);
       } finally {
-        resolve()
+        resolve();
       }
-    })
+    });
   }
 }
-

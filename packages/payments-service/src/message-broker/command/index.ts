@@ -1,6 +1,4 @@
-"use strict"
-
-import {CommandMsg} from "../message"
+import { CommandMsg } from "../message";
 
 /**
  * Enum representing different topics for message handling or command processing.
@@ -32,18 +30,18 @@ export interface CreateIncomingPaymentCmdPayload {
 }
 
 export class CreateIncomingPaymentCmd extends CommandMsg {
-  contextName: string = 'payment'
-  aggregateId: string
-  aggregateName: string = 'payments'
-  msgKey: string
-  msgTopic: string = Topic.IncomingPayments
-  payload: CreateIncomingPaymentCmdPayload
+  contextName: string = "payment";
+  aggregateId: string;
+  aggregateName: string = "payments";
+  msgKey: string;
+  msgTopic: string = Topic.IncomingPayments;
+  payload: CreateIncomingPaymentCmdPayload;
 
   constructor(payload: CreateIncomingPaymentCmdPayload, requestId: string) {
-    super()
-    this.aggregateId = this.msgKey = payload.id!
-    this.requestId = requestId
-    this.payload = payload
+    super();
+    this.aggregateId = this.msgKey = payload.id!;
+    this.requestId = requestId;
+    this.payload = payload;
   }
 }
 
@@ -56,18 +54,18 @@ export interface CreateQuoteCmdPayload {
 }
 
 export class CreateQuoteCmd extends CommandMsg {
-  contextName: string = 'payment'
-  aggregateId: string
-  aggregateName: string = 'payments'
-  msgKey: string
-  msgTopic: string = Topic.Quotes
-  payload: CreateQuoteCmdPayload
+  contextName: string = "payment";
+  aggregateId: string;
+  aggregateName: string = "payments";
+  msgKey: string;
+  msgTopic: string = Topic.Quotes;
+  payload: CreateQuoteCmdPayload;
 
   constructor(payload: CreateQuoteCmdPayload, requestId: string) {
-    super()
-    this.msgKey = this.aggregateId = payload.id!
-    this.payload = payload
-    this.requestId = requestId
+    super();
+    this.msgKey = this.aggregateId = payload.id!;
+    this.payload = payload;
+    this.requestId = requestId;
   }
 }
 
@@ -78,19 +76,20 @@ export interface CreateOutgoingPaymentFromQuoteCmdPayload {
 }
 
 export class CreateOutgoingPaymentFromQuoteCmd extends CommandMsg {
-  contextName: string = 'payment'
-  aggregateId: string
-  aggregateName: string = 'payments'
-  msgKey: string
-  msgTopic: string = Topic.OutgoingPaymentsFromQuote
-  payload: CreateOutgoingPaymentFromQuoteCmdPayload
+  contextName: string = "payment";
+  aggregateId: string;
+  aggregateName: string = "payments";
+  msgKey: string;
+  msgTopic: string = Topic.OutgoingPaymentsFromQuote;
+  payload: CreateOutgoingPaymentFromQuoteCmdPayload;
 
-  constructor(payload: CreateOutgoingPaymentFromQuoteCmdPayload, requestId: string) {
-    super()
-    this.msgKey = this.aggregateId = payload.id!
-    this.payload = payload
-    this.requestId = requestId
+  constructor(
+    payload: CreateOutgoingPaymentFromQuoteCmdPayload,
+    requestId: string
+  ) {
+    super();
+    this.msgKey = this.aggregateId = payload.id!;
+    this.payload = payload;
+    this.requestId = requestId;
   }
 }
-
-

@@ -3,10 +3,12 @@ require("./telemetry.js"); // Load telemetry before running the rest of the app
 import { EventEmitterPubSub } from "./event";
 import { LiquidityService } from "./liquidity";
 import {
-  IncomingPayment, OutgoingPayment,
-  PaymentService, Quote
+  IncomingPayment,
+  OutgoingPayment,
+  PaymentService,
+  Quote,
 } from "./payment";
-import {IlpPeerPsqlRepository, IlpPeerService} from "./ilp-peer";
+import { IlpPeerPsqlRepository, IlpPeerService } from "./ilp-peer";
 import { RatesService } from "./rates";
 import {
   WalletAddressService,
@@ -24,9 +26,9 @@ import {
   IncomingPaymentPsqlRepository,
   OutgoingPaymentPsqlRepository,
   QuotePsqlRepository,
-  RedisCache
+  RedisCache,
 } from "./repository";
-import {Amount} from "./shared";
+import { Amount } from "./shared";
 
 const ONE_HOUR_IN_MS = 3_600_000;
 
@@ -151,5 +153,5 @@ export {
   RemoteIncomingPaymentService,
   walletAddressService,
   ilpPeerService,
-  eventConsumer
+  eventConsumer,
 };

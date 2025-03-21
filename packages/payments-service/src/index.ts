@@ -1,16 +1,12 @@
+require("./telemetry.js"); // Load telemetry before running the rest of the app
 import {
   RafikiKafkaJsonConsumer,
   RafikiKafkaJsonConsumerOptions,
   RafikiKafkaJsonProducer,
-  RafikiKafkaJsonProducerOptions
+  RafikiKafkaJsonProducerOptions,
 } from "./message-broker";
-import {createAppCommandHandler} from './app'
-
-require("./telemetry.js"); // Load telemetry before running the rest of the app
-
-import {
-  PaymentEventType
-} from "./payment";
+import { createAppCommandHandler } from "./app";
+import { PaymentEventType } from "./payment";
 import pool from "./db";
 import { readFileSync } from "fs";
 import logger from "./logger";
@@ -25,33 +21,29 @@ import {
 
 (async () => {
   //Kafka:
-  const kafkaUrl = process.env["KAFKA_URL"] || "kafka:29092"
+  const kafkaUrl = process.env["KAFKA_URL"] || "kafka:29092";
   const kafkaProducerCommonOptions: RafikiKafkaJsonProducerOptions = {
     kafkaBrokerList: kafkaUrl,
     producerClientId: `rafiki-producer-backend-${crypto.randomUUID()}`,
-  }
+  };
   const kafkaConsumerCommonOptions: RafikiKafkaJsonConsumerOptions = {
     kafkaBrokerList: kafkaUrl,
     // Ensure we are sending to a single instance via [murmur2_random]:
-    kafkaGroupId: `rafiki-commands`
-  }
-  logger.info(`Init Kafka on '${kafkaUrl}'`)
+    kafkaGroupId: `rafiki-commands`,
+  };
+  logger.info(`Init Kafka on '${kafkaUrl}'`);
 
   // Init Producer/Consumer:
-  const producer = new RafikiKafkaJsonProducer(kafkaProducerCommonOptions)
-  await producer.connect()
-  let consumer = new RafikiKafkaJsonConsumer(kafkaConsumerCommonOptions)
+  const producer = new RafikiKafkaJsonProducer(kafkaProducerCommonOptions);
+  await producer.connect();
+  let consumer = new RafikiKafkaJsonConsumer(kafkaConsumerCommonOptions);
 
   //Init the app:
-  await init()
+  await init();
 
   //Start the handler:
-  const start = createAppCommandHandler(
-    paymentService,
-    producer,
-    consumer
-  );
-  await start()
+  const start = createAppCommandHandler(paymentService, producer, consumer);
+  await start();
 
   process.on("SIGINT", () => {
     logger.info("Received SIGINT. Shutting down gracefully...");
@@ -163,4 +155,3 @@ async function init() {
     ilpConnector.handleRemoteOutgoingPaymentFundedEvent.bind(ilpConnector)
   );
 }
-
