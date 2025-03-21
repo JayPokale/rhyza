@@ -5,7 +5,7 @@ import {
   RafikiKafkaJsonConsumerOptions,
   RafikiKafkaJsonProducer,
   RafikiKafkaJsonProducerOptions,
-} from "payments-service/src/message-broker";
+} from "payments-service/dist/message-broker";
 import { createApp } from "./app";
 import {
   ilpConnector,

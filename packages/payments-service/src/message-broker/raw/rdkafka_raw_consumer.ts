@@ -69,9 +69,7 @@ export class RafikiKafkaRawConsumer
   implements IRawMessageConsumer
 {
   private _options: RafikiKafkaRawConsumerOptions;
-  private _globalConfig: RDKafka.ConsumerGlobalConfig = {
-    "fetch.wait.max.ms": 10,
-  };
+  private _globalConfig: RDKafka.ConsumerGlobalConfig = {};
   private _topicConfig: RDKafka.ConsumerTopicConfig = {};
   private _topics: string[] = [];
   private readonly _client: RDKafka.KafkaConsumer;

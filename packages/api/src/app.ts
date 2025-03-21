@@ -1,29 +1,31 @@
 import fastify, { FastifyReply } from "fastify";
 import logger from "./logger";
+import {
+  RemoteIncomingPaymentService,
+  IlpConnector,
+} from "payments-service/dist/public";
 
+import {
+  IMessage,
+  IMessageConsumer,
+  IMessageProducer,
+} from "payments-service/dist/message-broker/message";
 import os from "os";
-import { randomUUID } from "node:crypto";
-import { IlpConnector } from "payments-service/src/ilp-connector";
 import {
   CreateIncomingPaymentCmd,
-  CreateQuoteCmd,
   CreateOutgoingPaymentFromQuoteCmd,
-} from "payments-service/src/message-broker/command";
+  CreateQuoteCmd,
+} from "payments-service/dist/message-broker/command";
+import { Topic } from "payments-service/dist/message-broker/event";
+import { randomUUID } from "node:crypto";
 import {
-  ApiRspIncomingPaymentEvent,
-  ApiRspEventPayload,
-  ApiRspQuoteEvent,
-  ApiRspOutgoingPaymentEvent,
   ApiRspErrorEvent,
   ApiRspErrorPayload,
-  Topic,
-} from "payments-service/src/message-broker/event";
-import {
-  IMessageProducer,
-  IMessageConsumer,
-  IMessage,
-} from "payments-service/src/message-broker/message";
-import { RemoteIncomingPaymentService } from "payments-service/src/remote-incoming-payment";
+  ApiRspEventPayload,
+  ApiRspIncomingPaymentEvent,
+  ApiRspOutgoingPaymentEvent,
+  ApiRspQuoteEvent,
+} from "payments-service/dist/message-broker/event";
 
 export function createApp(
   port: number,
@@ -207,10 +209,7 @@ class RafikiApiResponseEventHandler {
   private async _msgHandler(message: IMessage): Promise<void> {
     // eslint-disable-next-line no-async-promise-executor
     return await new Promise<void>(async (resolve) => {
-      logger.debug(
-        { message },
-        `Got message in RafikiApiResponseEventHandler with name: ${message.msgName}:${message.requestId}`
-      );
+      logger.debug({ message }, `Event(${os.hostname()}): EventReceived`);
       try {
         const reply = message.requestId
           ? this._rspMap.get(message.requestId)
