@@ -175,7 +175,7 @@ export function createApp(
     logger.info(`🥋🥋🥋 Rafiki API Event Handler started`)
 
     await app.listen({ port, host: "0.0.0.0" });
-    logger.info(`Listening on port '${port}' 🕹`);
+    logger.info(`🕹🕹🕹 API Listening on port '${port}'`);
   };
 }
 
