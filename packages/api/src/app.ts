@@ -1,7 +1,6 @@
 import fastify, {FastifyReply} from "fastify";
 import logger from "./logger";
 import {
-  PaymentService,
   RemoteIncomingPaymentService,
   IlpConnector
 } from "payments-service";
@@ -27,11 +26,9 @@ import {
   ApiRspOutgoingPaymentEvent,
   ApiRspQuoteEvent
 } from "payments-service/dist/message-broker/event";
-import {deprecate} from "node:util";
 
 export function createApp(
   port: number,
-  paymentService: PaymentService,
   remoteIncomingPaymentService: RemoteIncomingPaymentService,
   ilpConnector: IlpConnector,
   msgProducer: IMessageProducer,
@@ -199,7 +196,7 @@ class RafikiApiResponseEventHandler {
   }
 
   async start(): Promise<void> {
-    this._messageConsumer.setTopics([Topic.ApiRequest])
+    this._messageConsumer.setTopics([Topic.ApiResponseEvents])
     this._messageConsumer.setCallbackFn(this._msgHandler.bind(this))
     await this._messageConsumer.connect()
     await this._messageConsumer.startAndWaitForRebalance()
@@ -219,7 +216,7 @@ class RafikiApiResponseEventHandler {
           this._rspMap.get(message.requestId) as FastifyReply : undefined
 
         if (!reply) {
-          logger.debug(`Event(${os.hostname()}): No event found for ${message.requestId}. Ignoring.`)
+          logger.warn(`Event(${os.hostname()}): No event found for ${message.requestId}. Ignoring.`)
           return
         }
 
@@ -227,25 +224,26 @@ class RafikiApiResponseEventHandler {
           case ApiRspIncomingPaymentEvent.name: {
             const payload = message.payload as ApiRspEventPayload
             const ilpDetails = this._ilpConnector.getIlpDetails()
-            if (reply) reply.code(200).send({ id : payload.createdId, ilpDetails });
+
+            logger.info(`Sending response ${JSON.stringify(payload)} to ${message.requestId}`)
+            reply.code(200).send({ id : payload.createdId, ilpDetails });
             break
           }
           case ApiRspQuoteEvent.name: {
             const payloadOther = message.payload as ApiRspEventPayload
-            if (reply) reply.code(200).send({ id : payloadOther.createdId});
+            reply.code(200).send({ id : payloadOther.createdId});
             break
           }
           case ApiRspOutgoingPaymentEvent.name: {
             const payloadOut = message.payload as ApiRspEventPayload
-            if (reply) reply.code(200).send({ id : payloadOut.createdId});
+            reply.code(200).send({ id : payloadOut.createdId});
             break
           }
           case ApiRspErrorEvent.name: {
             const payloadErr = message.payload as ApiRspErrorPayload
-            if (reply) reply.code(500).send(payloadErr);
+            reply.code(500).send(payloadErr);
             break
-          }
-          default: {
+          } default: {
             logger.warn(`RafikiApiResponseEventHandler - unknown event - msgName: ${message?.msgName} msgKey: ${message?.msgKey} msgId: ${message?.msgId}`)
           }
         }
@@ -253,36 +251,12 @@ class RafikiApiResponseEventHandler {
       } catch (err) {
         logger.error(`RafikiApiResponseEventHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${(err as Error)?.message?.toString()}`, err)
         logger.error(err)
-        logger.error("Payload for error:")
+        logger.error("API -> Payload for error:")
         logger.error(message)
       } finally {
         resolve()
       }
     })
-  }
-
-  /**@deprecated Use standard reply.code(code).send(payload) instead.
-   *
-   * Sends a raw HTTP response using Fastify's raw response object.
-   * Logs the payload and response details during the process.
-   *
-   * @param {FastifyReply} reply - The Fastify reply object used for sending the response.
-   * @param {number} code - The HTTP status code for the response.
-   * @param {any} payload - The response payload to be sent as JSON.
-   * @return {Promise<void>} Resolves when the response has been sent successfully.
-   *
-   */
-  private async _fastlyRespond(reply: FastifyReply, code: number, payload: any) {
-    logger.info(`Fastly is treating it as raw ${JSON.stringify(payload)}`)
-    const res = reply.raw;
-
-    // Set up initial response headers manually.
-    res.writeHead(code, {
-      'Content-Type': 'application/json',
-    });
-    res.write(JSON.stringify(payload));
-    res.end();
-    logger.info(`Fastly has responded with ${JSON.stringify(payload)}`)
   }
 }
 

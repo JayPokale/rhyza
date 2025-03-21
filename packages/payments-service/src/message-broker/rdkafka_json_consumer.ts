@@ -31,7 +31,6 @@ export class RafikiKafkaJsonConsumerOptions {
 }
 
 export class RafikiKafkaJsonConsumer extends EventEmitter implements IMessageConsumer {
-  //private readonly _logger: ILogger | null
   private readonly _kafkaRawConsumer: RafikiKafkaRawConsumer
   private _handlerCallback: ((message: IMessage) => Promise<void>) | null = null
   private _batchHandlerCallback: ((messages: IMessage[]) => Promise<void>) | null = null
@@ -41,7 +40,6 @@ export class RafikiKafkaJsonConsumer extends EventEmitter implements IMessageCon
   constructor(options: RafikiKafkaJsonConsumerOptions/*, logger: ILogger | null = null*/) {
     super()
     this._options = options
-    //this._logger = logger
 
     const rawOptions: RafikiKafkaRawConsumerOptions = {
       ...options,

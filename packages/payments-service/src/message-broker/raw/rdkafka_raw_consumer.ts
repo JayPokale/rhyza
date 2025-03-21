@@ -63,7 +63,7 @@ export class RafikiKafkaRawConsumer extends EventEmitter implements IRawMessageC
 	private _options: RafikiKafkaRawConsumerOptions
 	private _globalConfig: RDKafka.ConsumerGlobalConfig = {}
 	private _topicConfig: RDKafka.ConsumerTopicConfig = {}
-	private _topics: string[] = [Topic.Commands]
+	private _topics: string[] = []
 	private readonly _client: RDKafka.KafkaConsumer
 	private _handlerCallback: ((message: IRawMessage) => Promise<void>) | null = null
 	private _batchHandlerCallback: ((messages: IRawMessage[]) => Promise<void>) | null = null

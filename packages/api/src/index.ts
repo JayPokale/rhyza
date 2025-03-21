@@ -9,7 +9,6 @@ require("./telemetry.js"); // Load telemetry before running the rest of the app
 
 import { createApp } from "./app";
 import {
-  paymentService,
   ilpConnector,
   remoteIncomingPaymentService,
   init as initPaymentService,
@@ -23,7 +22,7 @@ import logger from "./logger";
   const kafkaUrl = process.env["KAFKA_URL"] || "kafka:29092"
   const kafkaProducerCommonOptions: RafikiKafkaJsonProducerOptions = {
     kafkaBrokerList: kafkaUrl,
-    producerClientId: `rafiki-${crypto.randomUUID()}`,
+    producerClientId: `rafiki-command-producer-${crypto.randomUUID()}`,
   }
   const kafkaConsumerCommonOptions: RafikiKafkaJsonConsumerOptions = {
     kafkaBrokerList: kafkaUrl,
@@ -34,11 +33,10 @@ import logger from "./logger";
   // Init Producer/Consumer:
   const producer = new RafikiKafkaJsonProducer(kafkaProducerCommonOptions)
   await producer.connect()
-  let consumer = new RafikiKafkaJsonConsumer(kafkaConsumerCommonOptions)
+  const consumer = new RafikiKafkaJsonConsumer(kafkaConsumerCommonOptions)
 
   const start = createApp(
     Number(process.env["API_PORT"] ?? 3000),
-    paymentService,
     remoteIncomingPaymentService,
     ilpConnector,
     producer,

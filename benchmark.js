@@ -10,7 +10,7 @@ export const options = {
 const RECEIVER_WALLET_ADDRESS_ID = "a1469618-077a-447d-b5a3-a9ed11265a63";
 const SENDER_WALLET_ADDRESS_ID = "a1469618-077a-447d-b5a3-a9ed11265a64";
 
-const BASE_URL = "http://localhost:80";
+const BASE_URL = "http://localhost";
 
 function request(url, data) {
   return http.post(url, JSON.stringify(data), {

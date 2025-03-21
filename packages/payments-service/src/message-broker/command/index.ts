@@ -3,11 +3,12 @@
 import {CommandMsg} from "../message"
 
 export enum Topic {
-  "Commands" = "rafiki-commands",
+  // Commands:
   "IncomingPayments" = "incoming-payment-commands",
   "Quotes" = "quote-commands",
   "OutgoingPaymentsFromQuote" = "outgoing-payment-from-quote-commands",
-  "ApiRequest" = "api-request-commands"
+  // Events (for internal):
+  "ApiResponseEvents" = "api-response-events"
 }
 
 export interface AmountPayload {

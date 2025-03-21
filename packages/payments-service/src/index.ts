@@ -64,7 +64,7 @@ const paymentService = new PaymentService(
   const kafkaUrl = process.env["KAFKA_URL"] || "kafka:29092"
   const kafkaProducerCommonOptions: RafikiKafkaJsonProducerOptions = {
     kafkaBrokerList: kafkaUrl,
-    producerClientId: `rafiki-${crypto.randomUUID()}`,
+    producerClientId: `rafiki-api-response-producer-${crypto.randomUUID()}`,
   }
   const kafkaConsumerCommonOptions: RafikiKafkaJsonConsumerOptions = {
     kafkaBrokerList: kafkaUrl,

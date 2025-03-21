@@ -82,7 +82,7 @@ export class ApiRspErrorEvent extends DomainEventMsg {
 
   constructor(payload: ApiRspErrorPayload, requestId: string) {
     super()
-    this.aggregateId = this.msgKey = `${payload.requestId}`
+    this.aggregateId = this.msgKey = payload.requestId
     this.payload = payload
     this.requestId = requestId
   }

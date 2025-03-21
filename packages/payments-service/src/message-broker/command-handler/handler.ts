@@ -42,7 +42,7 @@ export class RafikiCommandHandler {
 
   async start(): Promise<void> {
     this._messageConsumer.setTopics([
-      Topic.Commands, Topic.IncomingPayments, Topic.Quotes, Topic.OutgoingPaymentsFromQuote
+      Topic.IncomingPayments, Topic.Quotes, Topic.OutgoingPaymentsFromQuote
     ])
     this._messageConsumer.setCallbackFn(this._msgHandler.bind(this))
     await this._messageConsumer.connect()
@@ -91,7 +91,7 @@ export class RafikiCommandHandler {
       } catch (err) {
         logger.error(`RafikiCommandHandler - error processing command - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${(err as Error)?.message?.toString()}`, err)
         logger.error(err)
-        logger.error("Payload for error:")
+        logger.error("CommandHandler -> Payload for error:")
         logger.error(message)
         if (err instanceof Error) {
           if (message.requestId) {
