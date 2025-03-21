@@ -414,8 +414,8 @@ export class RafikiKafkaRawConsumer extends EventEmitter implements IRawMessageC
 				// throw if topics not found in metadata
 				if (this._topics) {
 					this._topics.forEach(topicName => {
-						logger.info(`RafikiRawKafkaConsumer - checking if topic '${topicName}' exists in kafka...`, metadata)
-						logger.info(metadata)
+						logger.debug(`RafikiRawKafkaConsumer - checking if topic '${topicName}' exists in kafka...`, metadata)
+						logger.debug(metadata)
 
 						if (!metadata || !metadata.topics) {
 							logger.error('Fetching Meta-Data:')

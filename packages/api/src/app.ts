@@ -39,14 +39,6 @@ export function createApp(
   const mapRsp: Map<string, FastifyReply> = new Map()
   const app = fastify();
 
-  const rafikiApiRsp = new RafikiApiResponseEventHandler(msgConsumer, mapRsp, ilpConnector)
-  const initRafikiApiRsp = async () => {
-    logger.info(`🥺🥺🥺 Starting Rafiki API Event Handler::: ->`);
-    await rafikiApiRsp.start()
-    logger.info(`🥋🥋🥋 Rafiki API Event Handler started`)
-  }
-  initRafikiApiRsp()
-
   app.addContentTypeParser(
     "application/octet-stream",
     {
@@ -177,25 +169,25 @@ export function createApp(
   });
 
   return async () => {
+    const rafikiApiRsp = new RafikiApiResponseEventHandler(msgConsumer, mapRsp, ilpConnector)
+    const initRafikiApiRsp = async () => {
+      logger.info(`🥺🥺🥺 Starting Rafiki API Event Handler::: ->`);
+      await rafikiApiRsp.start()
+      logger.info(`🥋🥋🥋 Rafiki API Event Handler started`)
+    }
+    initRafikiApiRsp()
+
     await app.listen({ port, host: "0.0.0.0" });
     logger.info(`Listening on port '${port}' 🕹`);
   };
 }
 
 class RafikiApiResponseEventHandler {
-  private _messageConsumer: IMessageConsumer
-  private _rspMap: Map<string, FastifyReply>
-  private _ilpConnector: IlpConnector
-
   constructor(
-    messageConsumer: IMessageConsumer,
-    rspMap: Map<string, FastifyReply>,
-    ilpConnector: IlpConnector
-  ) {
-    this._messageConsumer = messageConsumer
-    this._rspMap = rspMap
-    this._ilpConnector = ilpConnector
-  }
+    private _messageConsumer: IMessageConsumer,
+    private _rspMap: Map<string, FastifyReply>,
+    private _ilpConnector: IlpConnector
+  ) {}
 
   async start(): Promise<void> {
     this._messageConsumer.setTopics([Topic.ApiResponseEvents])
@@ -215,10 +207,10 @@ class RafikiApiResponseEventHandler {
       logger.debug(`--> Event(${os.hostname()}): EventReceived: ${JSON.stringify(message)}`)
       try {
         const reply = (message.requestId) ?
-          this._rspMap.get(message.requestId) as FastifyReply : undefined
+          this._rspMap.get(message.requestId) : undefined
 
         if (!reply) {
-          logger.warn(`Event(${os.hostname()}): No event found for ${message.requestId}. Ignoring.`)
+          logger.debug(`Event(${os.hostname()}): No event found for ${message.requestId}. Ignoring.`)
           return
         }
 
