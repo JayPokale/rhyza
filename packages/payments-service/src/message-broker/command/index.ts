@@ -2,13 +2,20 @@
 
 import {CommandMsg} from "../message"
 
+/**
+ * Enum representing different topics for message handling or command processing.
+ *
+ * The `Topic` enum provides topic names associated with specific commands or message types,
+ * which can be utilized for routing or handling purposes in the application.
+ *
+ * - `IncomingPayments`: Represents the topic for incoming payment commands.
+ * - `Quotes`: Represents the topic for quote-related commands.
+ * - `OutgoingPaymentsFromQuote`: Represents the topic for outgoing payment commands originating from a quote.
+ */
 export enum Topic {
-  // Commands:
   "IncomingPayments" = "incoming-payment-commands",
   "Quotes" = "quote-commands",
   "OutgoingPaymentsFromQuote" = "outgoing-payment-from-quote-commands",
-  // Events (for internal):
-  "ApiResponseEvents" = "api-response-events"
 }
 
 export interface AmountPayload {

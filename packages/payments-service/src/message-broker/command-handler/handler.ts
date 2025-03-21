@@ -53,7 +53,7 @@ export class RafikiCommandHandler {
     // eslint-disable-next-line no-async-promise-executor
     return await new Promise<void>(async (resolve) => {
       logger.debug(`Got message in RafikiCommandHandler with name: ${message.msgName}:${message.requestId} -> ${message}`)
-      logger.debug(`Handler(${os.hostname()}): Receiving payment to be processed by Rafiki: ${JSON.stringify(message)}`)
+      logger.debug(`Handler(${os.hostname()}): Receiving command to be processed by Rafiki: ${JSON.stringify(message)}`)
       try {
         switch (message.msgName) {
           case CreateIncomingPaymentCmd.name:
@@ -95,7 +95,7 @@ export class RafikiCommandHandler {
         logger.error(message)
         if (err instanceof Error) {
           if (message.requestId) {
-            await this._messageProducer.send(new ApiRspErrorEvent({
+            const errEvent = new ApiRspErrorEvent({
               requestId: message.requestId,
               isCmdErrorResponse: true,
               errorType: err.constructor.name,
@@ -103,14 +103,14 @@ export class RafikiCommandHandler {
               stack: err.stack,
               message: err.message,
               name: err.name
-            },
-            message.requestId
-          ))
+            }, message.requestId)
+            logger.error(`CommandHandler -> Sending error event: ${JSON.stringify(errEvent)}`)
+            await this._messageProducer.send(errEvent)
           }
         }
         logger.error(err)
       } finally {
-        logger.debug(`Handler(${os.hostname()}): Complete.`)
+        logger.debug(`CommandHandler -> (${os.hostname()}): Complete.`)
         resolve()
       }
     })

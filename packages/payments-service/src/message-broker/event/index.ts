@@ -2,12 +2,18 @@
 
 import {DomainEventMsg} from "../message"
 
+/**
+ * Enumeration representing various topics used in the system.
+ *
+ * This enum provides a set of predefined constants that represent specific
+ * topics utilized for communication, event handling, or other system-level
+ * categorization.
+ *
+ * Enum Members:
+ * - ApiResponseEvents: Represents topics related to API response events.
+ */
 export enum Topic {
-  "Commands" = "rafiki-commands",
-  "IncomingPayments" = "incoming-payment-commands",
-  "Quotes" = "quote-commands",
-  "OutgoingPaymentsFromQuote" = "outgoing-payment-from-quote-commands",
-  "ApiRequest" = "api-request-commands"
+  "ApiResponseEvents" = "api-response-events"
 }
 
 export interface ApiRspEventPayload {
@@ -19,7 +25,7 @@ export class ApiRspIncomingPaymentEvent extends DomainEventMsg {
   aggregateId: string
   aggregateName: string = 'api-response-incoming-payment'
   msgKey: string
-  msgTopic: string = Topic.ApiRequest
+  msgTopic: string = Topic.ApiResponseEvents
   payload: ApiRspEventPayload
 
   constructor(payload: ApiRspEventPayload, requestId: string) {
@@ -35,7 +41,7 @@ export class ApiRspQuoteEvent extends DomainEventMsg {
   aggregateId: string
   aggregateName: string = 'api-response-quote'
   msgKey: string
-  msgTopic: string = Topic.ApiRequest
+  msgTopic: string = Topic.ApiResponseEvents
   payload: ApiRspEventPayload
 
   constructor(payload: ApiRspEventPayload, requestId: string) {
@@ -51,7 +57,7 @@ export class ApiRspOutgoingPaymentEvent extends DomainEventMsg {
   aggregateId: string
   aggregateName: string = 'api-response-outgoing-payment'
   msgKey: string
-  msgTopic: string = Topic.ApiRequest
+  msgTopic: string = Topic.ApiResponseEvents
   payload: ApiRspEventPayload
 
   constructor(payload: ApiRspEventPayload, requestId: string) {
@@ -77,7 +83,7 @@ export class ApiRspErrorEvent extends DomainEventMsg {
   aggregateId: string
   aggregateName: string = 'api-response-error'
   msgKey: string
-  msgTopic: string = Topic.ApiRequest
+  msgTopic: string = Topic.ApiResponseEvents
   payload: ApiRspErrorPayload
 
   constructor(payload: ApiRspErrorPayload, requestId: string) {

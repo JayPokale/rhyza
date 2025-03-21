@@ -15,8 +15,8 @@ services:
       - pg-container
     networks:
       - rafiki-poc
-    ports:
-      - 3000:3000
+    #ports:
+    #  - 3000:3000
 
   backend:
     build:

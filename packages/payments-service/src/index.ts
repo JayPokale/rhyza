@@ -64,10 +64,11 @@ const paymentService = new PaymentService(
   const kafkaUrl = process.env["KAFKA_URL"] || "kafka:29092"
   const kafkaProducerCommonOptions: RafikiKafkaJsonProducerOptions = {
     kafkaBrokerList: kafkaUrl,
-    producerClientId: `rafiki-api-response-producer-${crypto.randomUUID()}`,
+    producerClientId: `rafiki-producer-backend-${crypto.randomUUID()}`,
   }
   const kafkaConsumerCommonOptions: RafikiKafkaJsonConsumerOptions = {
     kafkaBrokerList: kafkaUrl,
+    // Ensure we are sending to a single instance via [murmur2_random]:
     kafkaGroupId: `rafiki-commands`
   }
   logger.info(`Init Kafka on '${kafkaUrl}'`)

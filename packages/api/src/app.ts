@@ -14,9 +14,11 @@ import os from 'os';
 import {
   CreateIncomingPaymentCmd,
   CreateOutgoingPaymentFromQuoteCmd,
-  CreateQuoteCmd,
-  Topic
+  CreateQuoteCmd
 } from "payments-service/dist/message-broker/command";
+import {
+  Topic
+} from "payments-service/dist/message-broker/event";
 import {randomUUID} from "node:crypto";
 import {
   ApiRspErrorEvent,
@@ -39,9 +41,9 @@ export function createApp(
 
   const rafikiApiRsp = new RafikiApiResponseEventHandler(msgConsumer, mapRsp, ilpConnector)
   const initRafikiApiRsp = async () => {
-    logger.info(`🥺🥺🥺 Starting Rafiki API Handler::: ->`);
+    logger.info(`🥺🥺🥺 Starting Rafiki API Event Handler::: ->`);
     await rafikiApiRsp.start()
-    logger.info(`🥋🥋🥋 Rafiki API Handler started`)
+    logger.info(`🥋🥋🥋 Rafiki API Event Handler started`)
   }
   initRafikiApiRsp()
 
@@ -210,7 +212,7 @@ class RafikiApiResponseEventHandler {
     // eslint-disable-next-line no-async-promise-executor
     return await new Promise<void>(async (resolve) => {
       logger.debug(`Got message in RafikiApiResponseEventHandler with name: ${message.msgName}:${message.requestId}`)
-      logger.debug(`Event(${os.hostname()}): EventReceived: ${JSON.stringify(message)}`)
+      logger.debug(`--> Event(${os.hostname()}): EventReceived: ${JSON.stringify(message)}`)
       try {
         const reply = (message.requestId) ?
           this._rspMap.get(message.requestId) as FastifyReply : undefined
@@ -226,22 +228,22 @@ class RafikiApiResponseEventHandler {
             const ilpDetails = this._ilpConnector.getIlpDetails()
 
             logger.info(`Sending response ${JSON.stringify(payload)} to ${message.requestId}`)
-            reply.code(200).send({ id : payload.createdId, ilpDetails });
+            await reply.code(200).send({ id : payload.createdId, ilpDetails });
             break
           }
           case ApiRspQuoteEvent.name: {
             const payloadOther = message.payload as ApiRspEventPayload
-            reply.code(200).send({ id : payloadOther.createdId});
+            await reply.code(200).send({ id : payloadOther.createdId});
             break
           }
           case ApiRspOutgoingPaymentEvent.name: {
             const payloadOut = message.payload as ApiRspEventPayload
-            reply.code(200).send({ id : payloadOut.createdId});
+            await reply.code(200).send({ id : payloadOut.createdId});
             break
           }
           case ApiRspErrorEvent.name: {
             const payloadErr = message.payload as ApiRspErrorPayload
-            reply.code(500).send(payloadErr);
+            await reply.code(500).send(payloadErr);
             break
           } default: {
             logger.warn(`RafikiApiResponseEventHandler - unknown event - msgName: ${message?.msgName} msgKey: ${message?.msgKey} msgId: ${message?.msgId}`)

@@ -22,10 +22,11 @@ import logger from "./logger";
   const kafkaUrl = process.env["KAFKA_URL"] || "kafka:29092"
   const kafkaProducerCommonOptions: RafikiKafkaJsonProducerOptions = {
     kafkaBrokerList: kafkaUrl,
-    producerClientId: `rafiki-command-producer-${crypto.randomUUID()}`,
+    producerClientId: `rafiki-producer-api-${crypto.randomUUID()}`,
   }
   const kafkaConsumerCommonOptions: RafikiKafkaJsonConsumerOptions = {
     kafkaBrokerList: kafkaUrl,
+    // Event received by all api instances, but ignored where not applicable:
     kafkaGroupId: `rafiki-events-${crypto.randomUUID()}`
   }
   logger.info(`Init Kafka on '${kafkaUrl}'`)
