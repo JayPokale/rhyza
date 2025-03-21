@@ -3,7 +3,7 @@ services:
   api:
     build:
       context: ../
-      dockerfile: ./packages/api/Dockerfile-api
+      dockerfile: ./packages/api/Dockerfile
     restart: always
     environment:
       SEED_FILE_LOCATION: /workspace/seed.json
@@ -20,7 +20,7 @@ services:
   backend:
     build:
       context: ../
-      dockerfile: ./packages/payments-service/Dockerfile-backend
+      dockerfile: ./packages/payments-service/Dockerfile
     restart: always
     environment:
       SEED_FILE_LOCATION: /workspace/seed.json

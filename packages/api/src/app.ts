@@ -170,12 +170,9 @@ export function createApp(
 
   return async () => {
     const rafikiApiRsp = new RafikiApiResponseEventHandler(msgConsumer, mapRsp, ilpConnector)
-    const initRafikiApiRsp = async () => {
-      logger.info(`🥺🥺🥺 Starting Rafiki API Event Handler::: ->`);
-      await rafikiApiRsp.start()
-      logger.info(`🥋🥋🥋 Rafiki API Event Handler started`)
-    }
-    initRafikiApiRsp()
+    logger.info(`🥺🥺🥺 Starting Rafiki API Event Handler::: ->`);
+    await rafikiApiRsp.start()
+    logger.info(`🥋🥋🥋 Rafiki API Event Handler started`)
 
     await app.listen({ port, host: "0.0.0.0" });
     logger.info(`Listening on port '${port}' 🕹`);
