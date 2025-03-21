@@ -29,7 +29,8 @@ services:
       REDIS_URL: redis://redis:6379
       KAFKA_URL: kafka:19092
     depends_on:
-      - init-kafka
+      init-kafka:
+        condition: service_completed_successfully
     networks:
       - rafiki-poc
 
