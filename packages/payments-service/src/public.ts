@@ -1,14 +1,7 @@
 require("./telemetry.js"); // Load telemetry before running the rest of the app
 
 import { EventEmitterPubSub } from "./event";
-import {
-  AssetAccountPsqlRepository,
-  LiquidityService,
-  PeerAccountPsqlRepository,
-  TBLedgerAccountRepository,
-  TBLedgerTransferRepository,
-  WalletAddressAccountPsqlRepository,
-} from "./liquidity";
+import { LiquidityService } from "./liquidity";
 import {
   IncomingPayment,
   OutgoingPayment,
@@ -36,15 +29,7 @@ import {
   RedisCache,
 } from "./repository";
 import { Amount } from "./shared";
-import { createClient } from "tigerbeetle-node";
 import { AssetPsqlRepository, AssetService } from "./asset";
-
-const tbClient = createClient({
-  cluster_id: 0n,
-  replica_addresses: (
-    process.env["TB_REPLICA_ADDRESSES"] as unknown as string
-  ).split(","),
-});
 
 const ONE_HOUR_IN_MS = 3_600_000;
 
@@ -82,13 +67,7 @@ const ilpPeerRepository = new IlpPeerPsqlRepository(
 const ilpPeerService = new IlpPeerService(ilpPeerRepository, eventProducer);
 
 const ratesService = new RatesService();
-const liquidityService = new LiquidityService(
-  new AssetAccountPsqlRepository(pool),
-  new PeerAccountPsqlRepository(pool),
-  new WalletAddressAccountPsqlRepository(pool),
-  new TBLedgerTransferRepository(tbClient),
-  new TBLedgerAccountRepository(tbClient)
-);
+const liquidityService = new LiquidityService();
 const remoteIncomingPaymentRepository = new RemoteIncomingPaymentPsqlRepository(
   //TODO new RedisCache<RemoteIncomingPayment>(redisClient, ONE_HOUR_IN_MS, logger),
   pool,

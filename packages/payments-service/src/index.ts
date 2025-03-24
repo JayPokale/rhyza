@@ -10,7 +10,6 @@ import { PaymentEventType } from "./payment";
 import pool from "./db";
 import { readFileSync } from "fs";
 import logger from "./logger";
-import { AssetEvent } from "./asset";
 
 import {
   paymentService,
@@ -19,10 +18,7 @@ import {
   ilpPeerService,
   eventConsumer,
   assetService,
-  liquidityService,
 } from "./public";
-import { IlpPeerEvent } from "./ilp-peer";
-import { WalletAddressEvent } from "./wallet-address";
 
 (async () => {
   //Kafka:
@@ -160,21 +156,6 @@ async function init() {
   await eventConsumer.registerConsumer(
     PaymentEventType.REMOTE_OUTGOING_PAYMENT_FUNDED,
     ilpConnector.handleRemoteOutgoingPaymentFundedEvent.bind(ilpConnector)
-  );
-
-  await eventConsumer.registerConsumer(
-    AssetEvent.ASSET_CREATED,
-    liquidityService.handleAssetCreatedEvent.bind(liquidityService)
-  );
-
-  await eventConsumer.registerConsumer(
-    IlpPeerEvent.ILP_PEER_CREATED,
-    liquidityService.handleIlpPeerCreatedEvent.bind(liquidityService)
-  );
-
-  await eventConsumer.registerConsumer(
-    WalletAddressEvent.WALLET_ADDRESS_CREATED,
-    liquidityService.handleWalletAddressCreatedEvent.bind(liquidityService)
   );
 
   await seed(process.env["SEED_FILE_LOCATION"] || "seed.json");

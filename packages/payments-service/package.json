@@ -19,7 +19,6 @@
     "ioredis": "^5.6.0",
     "pg": "^8.13.1",
     "pino": "^9.6.0",
-    "tigerbeetle-node": "0.16.32",
     "node-rdkafka": "~3.3.0"
   },
   "devDependencies": {
