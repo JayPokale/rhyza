@@ -289,7 +289,7 @@ export class PaymentService {
     private outgoingPaymentRepository: IOutgoingPaymentRepository,
     private quoteRepository: IQuoteRepository,
     private paymentEventProducer: EventProducerAdapter,
-    private telementryService: TelemetryService
+    private telemetryService: TelemetryService
   ) {}
 
   public async createIncomingPayment(
