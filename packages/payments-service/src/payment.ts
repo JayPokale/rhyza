@@ -990,7 +990,7 @@ export class PaymentService {
     ]);
 
     await this.paymentEventProducer.publish(events);
-    this.telementryService.incrementCounter("outgoing_payments_completed", 1);
+    this.telemetryService.incrementCounter("outgoing_payments_completed", 1);
   }
 
   public async handleIlpPaymentFulfillPacketReceivedEvent(
@@ -1068,7 +1068,7 @@ export class PaymentService {
         update
       );
       await this.paymentEventProducer.publish(events);
-      this.telementryService.incrementCounter("outgoing_payments_completed", 1);
+      this.telemetryService.incrementCounter("outgoing_payments_completed", 1);
     } else {
       throw new Error("FX during packet handling not implemented");
     }
