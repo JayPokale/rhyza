@@ -1,11 +1,3 @@
-import {
-  RafikiKafkaJsonConsumer,
-  RafikiKafkaJsonConsumerOptions,
-  RafikiKafkaJsonProducer,
-  RafikiKafkaJsonProducerOptions
-} from "./message-broker";
-import {createAppCommandHandler} from './app'
-
 require("./telemetry.js"); // Load telemetry before running the rest of the app
 import {
   RafikiKafkaJsonConsumer,

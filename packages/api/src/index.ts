@@ -1,10 +1,3 @@
-import {
-  RafikiKafkaJsonConsumer,
-  RafikiKafkaJsonConsumerOptions,
-  RafikiKafkaJsonProducer,
-  RafikiKafkaJsonProducerOptions
-} from "payments-service/dist/message-broker";
-
 require("./telemetry.js"); // Load telemetry before running the rest of the app
 
 import {
