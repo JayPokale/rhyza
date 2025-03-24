@@ -16,7 +16,7 @@ import {
   RemoteIncomingPayment,
   RemoteIncomingPaymentServiceAdapter,
 } from "./remote-incoming-payment";
-import { TelemetryService } from "telemetry";
+import type { ITelemetryService } from "telemetry";
 
 export class WalletAddressNotFoundError extends Error {}
 export class WalletAddressInactiveError extends Error {}
@@ -289,7 +289,7 @@ export class PaymentService {
     private outgoingPaymentRepository: IOutgoingPaymentRepository,
     private quoteRepository: IQuoteRepository,
     private paymentEventProducer: EventProducerAdapter,
-    private telemetryService: TelemetryService
+    private telemetryService: ITelemetryService
   ) {}
 
   public async createIncomingPayment(

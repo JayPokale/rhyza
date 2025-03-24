@@ -8,10 +8,18 @@ import {
 
 const METER_NAME = "rafiki-poc";
 
+export interface ITelemetryService {
+  incrementCounter(name: string, amount: number, attributes?: Attributes): void;
+  startTimer(
+    name: string,
+    attributes?: Attributes
+  ): (additionalAttributes?: Attributes) => void;
+}
+
 /**
  * Expects consumer (api, payments-server, etc.) to setGlobalMeterProvider on start.
  */
-export class TelemetryService {
+export class TelemetryService implements ITelemetryService {
   private static instance: TelemetryService;
   private counters: Map<string, Counter>;
   private histograms: Map<string, Histogram>;
@@ -65,7 +73,7 @@ export class TelemetryService {
     this.getOrCreateCounter(name).add(amount, attributes);
   }
 
-  public recordHistogram(
+  private recordHistogram(
     name: string,
     value: number,
     attributes?: Attributes
