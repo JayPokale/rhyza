@@ -36,7 +36,7 @@ export class DuplicateOutgoingPaymentFoundError extends Error {}
 export class OutgoingPaymentNotFoundError extends Error {}
 export class OutgoingPaymentInvalidStateError extends Error {}
 
-interface CreateIncomingPaymentRequest {
+export interface CreateIncomingPaymentRequest {
   id?: string;
   walletAddressId: string; // we can consider using URIs here: might be easier for integrators to deal with + gives us flexibility particularly when it comes to paying into incoming payments on remote Rafikis
   expiresAt?: Date;
@@ -259,7 +259,7 @@ export type IncomingPaymentWithMicroPayments = IncomingPayment & {
   microPayments: MicroPayment[];
 };
 
-interface CreateQuoteRequest {
+export interface CreateQuoteRequest {
   id?: string;
   senderWalletAddressId: string;
   incomingPaymentId: string;
@@ -267,7 +267,7 @@ interface CreateQuoteRequest {
   receiveAmount?: Amount;
 }
 
-interface CreateOutgoingPaymentFromQuoteRequest {
+export interface CreateOutgoingPaymentFromQuoteRequest {
   id?: string;
   quoteId: string;
   senderWalletAddressId: string;
