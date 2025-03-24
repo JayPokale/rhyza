@@ -133,6 +133,16 @@ services:
     networks:
       - rafiki-poc
 
+  tempo:
+    image: grafana/tempo:latest
+    command: "-config.file=/etc/tempo.yaml"
+    networks:
+      - rafiki-poc
+    ports:
+      - "3200:3200"
+    volumes:
+      - ./tempo.yaml:/etc/tempo.yaml
+      - tempo-data:/var/tempo
   grafana:
     image: grafana/grafana:latest
     ports:
@@ -168,3 +178,4 @@ networks:
 volumes:
   postgres-data:
   grafana-data:
+  tempo-data:

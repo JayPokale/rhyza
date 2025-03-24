@@ -10,6 +10,11 @@ processors:
 exporters:
   prometheus:
     endpoint: 0.0.0.0:8491
+  # TODO: name otlp/tempo to distinguish from otlp receiver?
+  otlp:
+    endpoint: http://tempo:8492
+    tls:
+      insecure: true
 
 service:
   telemetry:
@@ -20,3 +25,7 @@ service:
       receivers: [otlp]
       processors: [batch]
       exporters: [prometheus]
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp]
