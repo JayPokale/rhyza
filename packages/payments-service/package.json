@@ -1,7 +1,7 @@
 {
   "name": "payments-service",
   "main": "dist/index.js",
-  "types": "dist/index",
+  "types": "dist/index.d.ts",
   "scripts": {
     "test": "node --import tsx --test test/*.test.ts",
     "build": "tsc --build"
