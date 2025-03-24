@@ -1,7 +1,14 @@
 require("./telemetry.js"); // Load telemetry before running the rest of the app
 
 import { EventEmitterPubSub } from "./event";
-import { LiquidityService } from "./liquidity";
+import {
+  AssetAccountPsqlRepository,
+  LiquidityService,
+  PeerAccountPsqlRepository,
+  TBLedgerAccountRepository,
+  TBLedgerTransferRepository,
+  WalletAddressAccountPsqlRepository,
+} from "./liquidity";
 import {
   IncomingPayment,
   OutgoingPayment,
@@ -29,6 +36,15 @@ import {
   RedisCache,
 } from "./repository";
 import { Amount } from "./shared";
+import { createClient } from "tigerbeetle-node";
+import { AssetPsqlRepository, AssetService } from "./asset";
+
+const tbClient = createClient({
+  cluster_id: 0n,
+  replica_addresses: (
+    process.env["TB_REPLICA_ADDRESSES"] as unknown as string
+  ).split(","),
+});
 
 const ONE_HOUR_IN_MS = 3_600_000;
 
@@ -49,18 +65,30 @@ const walletAddressRepository = new WalletAddressPsqlRepository(
   logger
 );
 
-const walletAddressService = new WalletAddressService(walletAddressRepository);
+const assetService = new AssetService(
+  new AssetPsqlRepository(pool),
+  eventProducer
+);
+const walletAddressService = new WalletAddressService(
+  walletAddressRepository,
+  eventProducer
+);
 const ilpPeerRepository = new IlpPeerPsqlRepository(
   //TODO new RedisCache<IlpPeer>(redisClient, ONE_HOUR_IN_MS, logger),
   //TODO new RedisCache<string>(redisClient, ONE_HOUR_IN_MS, logger),
   pool,
   logger
 );
-const ilpPeerService = new IlpPeerService(ilpPeerRepository);
+const ilpPeerService = new IlpPeerService(ilpPeerRepository, eventProducer);
 
 const ratesService = new RatesService();
-const liquidityService = new LiquidityService();
-
+const liquidityService = new LiquidityService(
+  new AssetAccountPsqlRepository(pool),
+  new PeerAccountPsqlRepository(pool),
+  new WalletAddressAccountPsqlRepository(pool),
+  new TBLedgerTransferRepository(tbClient),
+  new TBLedgerAccountRepository(tbClient)
+);
 const remoteIncomingPaymentRepository = new RemoteIncomingPaymentPsqlRepository(
   //TODO new RedisCache<RemoteIncomingPayment>(redisClient, ONE_HOUR_IN_MS, logger),
   pool,
@@ -154,4 +182,6 @@ export {
   walletAddressService,
   ilpPeerService,
   eventConsumer,
+  assetService,
+  liquidityService,
 };

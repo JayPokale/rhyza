@@ -10,15 +10,7 @@ import { PaymentEventType } from "./payment";
 import pool from "./db";
 import { readFileSync } from "fs";
 import logger from "./logger";
-import { AssetEvent, AssetPsqlRepository, AssetService } from "./asset";
-import { createClient } from "tigerbeetle-node";
-
-const tbClient = createClient({
-  cluster_id: 0n,
-  replica_addresses: (
-    process.env["TB_REPLICA_ADDRESSES"] as unknown as string
-  ).split(","),
-});
+import { AssetEvent } from "./asset";
 
 import {
   paymentService,
@@ -26,7 +18,11 @@ import {
   walletAddressService,
   ilpPeerService,
   eventConsumer,
+  assetService,
+  liquidityService,
 } from "./public";
+import { IlpPeerEvent } from "./ilp-peer";
+import { WalletAddressEvent } from "./wallet-address";
 
 (async () => {
   //Kafka:
