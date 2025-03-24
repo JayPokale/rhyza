@@ -16,6 +16,17 @@ RUN apk update && apk add --no-cache \
     musl-dev
 
 WORKDIR /workspace
+
+RUN apk update && apk add --no-cache \
+    librdkafka-dev \
+    cyrus-sasl-dev \
+    openssl-dev \
+    gcc \
+    g++ \
+    python3 \
+    make \
+    musl-dev
+
 COPY . .
 
 FROM base AS prod-deps
