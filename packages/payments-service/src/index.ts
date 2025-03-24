@@ -1,37 +1,12 @@
 require("./telemetry.js"); // Load telemetry before running the rest of the app
-
-import { EventEmitterPubSub } from "./event";
 import {
-  AssetAccountPsqlRepository,
-  LiquidityService,
-  PeerAccountPsqlRepository,
-  TBLedgerAccountRepository,
-  TBLedgerTransferRepository,
-  WalletAddressAccountPsqlRepository,
-} from "./liquidity";
-import {
-  IncomingPaymentPsqlRepository,
-  OutgoingPaymentPsqlRepository,
-  PaymentEventType,
-  PaymentService,
-  QuotePsqlRepository,
-} from "./payment";
-import {
-  IlpPeerEvent,
-  IlpPeerPsqlRepository,
-  IlpPeerService,
-} from "./ilp-peer";
-import { RatesService } from "./rates";
-import {
-  WalletAddressService,
-  WalletAddressPsqlRepository,
-  WalletAddressEvent,
-} from "./wallet-address";
-import { IlpConnector } from "./ilp-connector";
-import {
-  RemoteIncomingPaymentPsqlRepository,
-  RemoteIncomingPaymentService,
-} from "./remote-incoming-payment";
+  RafikiKafkaJsonConsumer,
+  RafikiKafkaJsonConsumerOptions,
+  RafikiKafkaJsonProducer,
+  RafikiKafkaJsonProducerOptions,
+} from "./message-broker";
+import { createAppCommandHandler } from "./app";
+import { PaymentEventType } from "./payment";
 import pool from "./db";
 import { readFileSync } from "fs";
 import logger from "./logger";
@@ -45,46 +20,45 @@ const tbClient = createClient({
   ).split(","),
 });
 
-const eventEmitterPubSub = new EventEmitterPubSub();
-const eventConsumer = eventEmitterPubSub;
-const eventProducer = eventEmitterPubSub;
-
-const assetService = new AssetService(
-  new AssetPsqlRepository(pool),
-  eventProducer
-);
-const walletAddressService = new WalletAddressService(
-  new WalletAddressPsqlRepository(pool),
-  eventProducer
-);
-const ilpPeerService = new IlpPeerService(
-  new IlpPeerPsqlRepository(pool),
-  eventProducer
-);
-const ratesService = new RatesService();
-const liquidityService = new LiquidityService(
-  new AssetAccountPsqlRepository(pool),
-  new PeerAccountPsqlRepository(pool),
-  new WalletAddressAccountPsqlRepository(pool),
-  new TBLedgerTransferRepository(tbClient),
-  new TBLedgerAccountRepository(tbClient)
-);
-
-const remoteIncomingPaymentService = new RemoteIncomingPaymentService(
-  new RemoteIncomingPaymentPsqlRepository(pool)
-);
-const ilpConnector = new IlpConnector(ilpPeerService, eventProducer);
-const paymentService = new PaymentService(
+import {
+  paymentService,
+  ilpConnector,
   walletAddressService,
   ilpPeerService,
-  ratesService,
-  liquidityService,
-  remoteIncomingPaymentService,
-  new IncomingPaymentPsqlRepository(pool),
-  new OutgoingPaymentPsqlRepository(pool),
-  new QuotePsqlRepository(pool),
-  eventProducer
-);
+  eventConsumer,
+} from "./public";
+
+(async () => {
+  //Kafka:
+  const kafkaUrl = process.env["KAFKA_URL"] || "kafka:29092";
+  const kafkaProducerCommonOptions: RafikiKafkaJsonProducerOptions = {
+    kafkaBrokerList: kafkaUrl,
+    producerClientId: `rafiki-producer-backend-${crypto.randomUUID()}`,
+  };
+  const kafkaConsumerCommonOptions: RafikiKafkaJsonConsumerOptions = {
+    kafkaBrokerList: kafkaUrl,
+    // Ensure we are sending to a single instance via [murmur2_random]:
+    kafkaGroupId: `rafiki-commands`,
+  };
+  logger.info(`Init Kafka on '${kafkaUrl}'`);
+
+  // Init Producer/Consumer:
+  const producer = new RafikiKafkaJsonProducer(kafkaProducerCommonOptions);
+  await producer.connect();
+  let consumer = new RafikiKafkaJsonConsumer(kafkaConsumerCommonOptions);
+
+  //Init the app:
+  await init();
+
+  //Start the handler:
+  const start = createAppCommandHandler(paymentService, producer, consumer);
+  await start();
+
+  process.on("SIGINT", () => {
+    logger.info("Received SIGINT. Shutting down gracefully...");
+    process.exit(0);
+  });
+})();
 
 async function seed(seedFilePath: string) {
   logger.info(`Running seed from ${seedFilePath}`);
@@ -209,14 +183,3 @@ async function init() {
 
   await seed(process.env["SEED_FILE_LOCATION"] || "seed.json");
 }
-
-export {
-  init,
-  pool,
-  paymentService,
-  PaymentService,
-  ilpConnector,
-  IlpConnector,
-  remoteIncomingPaymentService,
-  RemoteIncomingPaymentService,
-};

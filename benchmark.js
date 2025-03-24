@@ -7,10 +7,10 @@ export const options = {
   // iterations: 1,
 };
 
-const BASE_URL = "http://localhost";
-
 const RECEIVER_WALLET_ADDRESS_ID = "a1469618-077a-447d-b5a3-a9ed11265a63";
 const SENDER_WALLET_ADDRESS_ID = "a1469618-077a-447d-b5a3-a9ed11265a64";
+
+const BASE_URL = "http://localhost";
 
 function request(url, data) {
   return http.post(url, JSON.stringify(data), {
@@ -26,12 +26,12 @@ export default function (data) {
   });
 
   check(incomingPaymentRes, {
-    "incoming payment created": (r) => r.status === 201,
+    "incoming payment created": (r) => r.status === 200,
   });
 
   const incomingPaymentId = JSON.parse(incomingPaymentRes.body).id;
-
   const quoteRes = request(`${BASE_URL}/quote`, {
+    id: incomingPaymentId,
     debitAmount: {
       assetScale: 2,
       assetCode: "USD",
@@ -42,16 +42,17 @@ export default function (data) {
   });
 
   check(quoteRes, {
-    "quote created": (r) => r.status === 201,
+    "quote created": (r) => r.status === 200,
   });
 
   const quoteId = JSON.parse(quoteRes.body).id;
 
   const outgoingPaymentRes = request(`${BASE_URL}/outgoing-payment`, {
+    id: incomingPaymentId,
     quoteId,
     senderWalletAddressId: SENDER_WALLET_ADDRESS_ID,
   });
   check(outgoingPaymentRes, {
-    "outgoing payment created": (r) => r.status === 201,
+    "outgoing payment created": (r) => r.status === 200,
   });
 }

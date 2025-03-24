@@ -1,6 +1,7 @@
 import { Pool } from "pg";
 import { Asset } from "./shared";
 import { EventProducerAdapter, Event } from "./event";
+import { Logger } from "pino";
 
 export enum IlpPeerEvent {
   ILP_PEER_CREATED = "ILP_PEER_CREATED",
@@ -30,6 +31,12 @@ export interface CreateIlpPeerArgs {
   address: string;
   connectorUrl: string;
   callbackUrl: string;
+}
+
+export interface IIlpPeerRepository {
+  store(walletAddress: IlpPeer): Promise<void>;
+  fetchById(id: string): Promise<IlpPeer | undefined>;
+  getByDestinationAddress(address: string): Promise<IlpPeer | undefined>;
 }
 
 export interface IlpPeerServiceAdapter {
@@ -90,7 +97,10 @@ interface IlpPeerRecord {
 
 export class IlpPeerPsqlRepository implements PeerRepository {
   TABLE_NAME = "ilp_peers";
-  constructor(private pool: Pool) {}
+  constructor(
+    private pool: Pool,
+    private logger: Logger
+  ) {}
 
   public async store(ilpPeer: IlpPeer): Promise<void> {
     try {
@@ -109,7 +119,7 @@ export class IlpPeerPsqlRepository implements PeerRepository {
 
       await this.pool.query(query, values);
     } catch (error) {
-      console.error("Error storing ILP Peer:", error);
+      this.logger.error("Error storing ILP Peer:", error);
       throw error;
     }
   }

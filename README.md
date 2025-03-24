@@ -6,7 +6,49 @@ It is intended for experimental purposes only.
 
 ## Usage
 
-`pnpm dev`
+Prepare correct Node.
+```shell
+nvm install
+nvm use
+```
+
+Build and start POC.
+```shell
+corepack enable
+# Install & Build:
+pnpm i
+pnpm build
+# Run (port 3000):
+pnpm dev
+```
+
+Full build and install:
+```shell
+pnpm i && pnpm -r build
+```
+
+Once ready, run test.
+```shell
+pnpm test
+```
+
+## Docker-Compose
+
+#### Build:
+Start the containers up with 3 command handlers and 2 api instances.
+```shell
+docker compose up -d --build --scale=backend=3 --scale=api=2
+```
+
+Inspect the logs:
+```shell
+docker-compose logs -f backend
+```
+
+Shut down and clear images and volumes:
+```shell
+docker-compose down --volumes --rmi all 
+```
 
 ### Docker
 
