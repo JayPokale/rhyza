@@ -10,7 +10,6 @@ import { PaymentEventType } from "./payment";
 import pool from "./db";
 import { readFileSync } from "fs";
 import logger from "./logger";
-
 import {
   paymentService,
   ilpConnector,

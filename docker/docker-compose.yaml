@@ -30,8 +30,8 @@ services:
       REDIS_URL: redis://redis:6379
       KAFKA_URL: kafka:19092
     depends_on:
-        init-kafka:
-          condition: service_completed_successfully
+      init-kafka:
+        condition: service_completed_successfully
     networks:
       - rafiki-poc
 
@@ -87,7 +87,7 @@ services:
     image: apache/kafka:4.0.0
     depends_on:
       - kafka
-    entrypoint: [ "/bin/sh", "-c" ]
+    entrypoint: ["/bin/sh", "-c"]
     working_dir: /opt/kafka/bin/
     command: |
       "
@@ -131,6 +131,22 @@ services:
       - ./prometheus.yaml:/etc/prometheus/prometheus.yaml
     ports:
       - "9090:9090"
+    networks:
+      - rafiki-poc
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "4501:3000"
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/dashboards:/etc/grafana/dashboards
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - prometheus
     networks:
       - rafiki-poc
 
@@ -183,3 +199,4 @@ networks:
 volumes:
   tigerbeetle-data:
   postgres-data:
+  grafana-data:

@@ -129,9 +129,6 @@ export class RedisCache<T> implements Cache<T> {
   }
 }
 
-// TODO: reconsider passing in repository as well. Ie new WalletAddressRepository(new InMemoryCache(ttl), new WalletAddressPsqlRepository(pool))
-// - why not do this? just sets us up from using another repo. mongodb, etc.
-
 // ==========================
 // Wallet Address
 // ==========================

@@ -28,6 +28,7 @@ import {
   QuoteInMemoryRepository,
   RemoteIncomingPaymentInMemoryRepository,
 } from "../src/repository";
+import { ITelemetryService } from "telemetry";
 
 describe("Payment Service", () => {
   const incomingPaymentRepo = new IncomingPaymentInMemoryRepository();
@@ -44,6 +45,11 @@ describe("Payment Service", () => {
     new RemoteIncomingPaymentInMemoryRepository()
   );
 
+  const mockTelemetryService: ITelemetryService = {
+    incrementCounter: () => {},
+    startTimer: () => () => {},
+  };
+
   const paymentService = new PaymentService(
     walletAddressService,
     ilpPeerService,
@@ -53,7 +59,8 @@ describe("Payment Service", () => {
     incomingPaymentRepo,
     outgoingPaymentRepo,
     quoteRepo,
-    eventProducer
+    eventProducer,
+    mockTelemetryService
   );
 
   describe("createIncomingPayment", async (t) => {

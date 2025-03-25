@@ -4,6 +4,7 @@ import {
   RemoteIncomingPaymentService,
   IlpConnector,
 } from "payments-service/dist/public";
+import { TelemetryService } from "telemetry";
 
 import {
   IMessage,
@@ -31,6 +32,7 @@ export function createApp(
   port: number,
   remoteIncomingPaymentService: RemoteIncomingPaymentService,
   ilpConnector: IlpConnector,
+  telemetryService: TelemetryService,
   msgProducer: IMessageProducer,
   msgConsumer: IMessageConsumer
 ) {
@@ -178,7 +180,8 @@ export function createApp(
     const rafikiApiRsp = new RafikiApiResponseEventHandler(
       msgConsumer,
       mapRsp,
-      ilpConnector
+      ilpConnector,
+      telemetryService
     );
     await rafikiApiRsp.start();
     logger.info(`🥋🥋🥋 Rafiki API Event Handler started`);
@@ -192,7 +195,8 @@ class RafikiApiResponseEventHandler {
   constructor(
     private _messageConsumer: IMessageConsumer,
     private _rspMap: Map<string, FastifyReply>,
-    private _ilpConnector: IlpConnector
+    private _ilpConnector: IlpConnector,
+    private _telemetryService: TelemetryService
   ) {}
 
   async start(): Promise<void> {
@@ -233,6 +237,10 @@ class RafikiApiResponseEventHandler {
           }
           case ApiRspQuoteEvent.name: {
             const payloadOther = message.payload as ApiRspEventPayload;
+            this._telemetryService.incrementCounter(
+              "outgoing_payment_create_api_replies",
+              1
+            );
             await reply.code(200).send({ id: payloadOther.createdId });
             break;
           }

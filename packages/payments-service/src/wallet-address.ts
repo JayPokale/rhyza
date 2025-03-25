@@ -1,6 +1,4 @@
-import { Pool } from "pg";
 import { Event, EventProducerAdapter } from "./event";
-import { Logger } from "pino";
 
 export class DuplicateWalletAddressFoundError extends Error {}
 
@@ -97,92 +95,5 @@ export class WalletAddressService implements WalletAddressServiceAdapter {
 
   public getById(id: string): Promise<WalletAddress | undefined> {
     return this.walletAddressRepository.fetchById(id);
-  }
-}
-
-interface WalletAddressRecord {
-  id: string;
-  url: string;
-  is_active: boolean;
-  asset_code: string;
-  asset_scale: number;
-}
-
-export class WalletAddressInMemoryRepository
-  implements IWalletAddressRepository
-{
-  map: Map<string, WalletAddress> = new Map();
-
-  public async store(entity: WalletAddress): Promise<void> {
-    this.map.set(entity.id, entity);
-  }
-
-  public async fetchById(id: string): Promise<WalletAddress | undefined> {
-    return this.map.get(id);
-  }
-
-  public async exists(id: string): Promise<boolean> {
-    return this.map.has(id);
-  }
-}
-
-export class WalletAddressPsqlRepository implements IWalletAddressRepository {
-  TABLE_NAME = "wallet_addresses";
-  constructor(
-    private pool: Pool,
-    private logger: Logger
-  ) {}
-
-  public async exists(id: string): Promise<boolean> {
-    try {
-      const res = await this.pool.query(
-        `SELECT EXISTS(SELECT 1 FROM ${this.TABLE_NAME} WHERE id = $1)`,
-        [id]
-      );
-      return res.rows[0].exists;
-    } catch (error) {
-      this.logger.error("Error checking if wallet address exists:", error);
-      throw error;
-    }
-  }
-
-  public async store(walletAddress: WalletAddress): Promise<void> {
-    try {
-      const query = `
-        INSERT INTO ${this.TABLE_NAME} (id, url, is_active, asset_code, asset_scale)
-        VALUES ($1, $2, $3, $4, $5)
-      `;
-
-      const values = [
-        walletAddress.id,
-        walletAddress.url,
-        walletAddress.isActive,
-        walletAddress.assetCode,
-        walletAddress.assetScale,
-      ];
-
-      await this.pool.query(query, values);
-    } catch (error) {
-      this.logger.error("Error storing wallet address:", error);
-      throw error;
-    }
-  }
-
-  public async fetchById(id: string): Promise<WalletAddress | undefined> {
-    const res = await this.pool.query<WalletAddressRecord>(
-      `SELECT id, url, is_active, asset_code, asset_scale FROM ${this.TABLE_NAME} WHERE id = $1`,
-      [id]
-    );
-
-    if (res.rows.length === 0) return undefined;
-
-    const row = res.rows[0];
-    return {
-      id: row.id,
-      url: row.url,
-      isActive: row.is_active,
-      assetCode: row.asset_code,
-      assetScale: row.asset_scale,
-    };
   }
 }

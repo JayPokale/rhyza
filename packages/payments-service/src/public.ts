@@ -1,5 +1,3 @@
-require("./telemetry.js"); // Load telemetry before running the rest of the app
-
 import { EventEmitterPubSub } from "./event";
 import { LiquidityService } from "./liquidity";
 import {
@@ -8,15 +6,12 @@ import {
   PaymentService,
   Quote,
 } from "./payment";
-import { IlpPeerPsqlRepository, IlpPeerService } from "./ilp-peer";
+import { IlpPeer, IlpPeerService } from "./ilp-peer";
 import { RatesService } from "./rates";
-import {
-  WalletAddressService,
-  WalletAddressPsqlRepository,
-} from "./wallet-address";
+import { WalletAddressService, WalletAddress } from "./wallet-address";
 import { IlpConnector } from "./ilp-connector";
 import {
-  RemoteIncomingPaymentPsqlRepository,
+  RemoteIncomingPayment,
   RemoteIncomingPaymentService,
 } from "./remote-incoming-payment";
 import pool from "./db";
@@ -26,10 +21,14 @@ import {
   IncomingPaymentPsqlRepository,
   OutgoingPaymentPsqlRepository,
   QuotePsqlRepository,
+  RemoteIncomingPaymentPsqlRepository,
   RedisCache,
+  WalletAddressPsqlRepository,
+  IlpPeerPsqlRepository,
 } from "./repository";
 import { Amount } from "./shared";
 import { AssetPsqlRepository, AssetService } from "./asset";
+import { TelemetryService } from "telemetry";
 
 const ONE_HOUR_IN_MS = 3_600_000;
 
@@ -45,7 +44,7 @@ const eventConsumer = eventEmitterPubSub;
 const eventProducer = eventEmitterPubSub;
 
 const walletAddressRepository = new WalletAddressPsqlRepository(
-  //TODO new RedisCache<WalletAddress>(redisClient, ONE_HOUR_IN_MS, logger),
+  new RedisCache<WalletAddress>(redisClient, ONE_HOUR_IN_MS, logger),
   pool,
   logger
 );
@@ -59,8 +58,8 @@ const walletAddressService = new WalletAddressService(
   eventProducer
 );
 const ilpPeerRepository = new IlpPeerPsqlRepository(
-  //TODO new RedisCache<IlpPeer>(redisClient, ONE_HOUR_IN_MS, logger),
-  //TODO new RedisCache<string>(redisClient, ONE_HOUR_IN_MS, logger),
+  new RedisCache<IlpPeer>(redisClient, ONE_HOUR_IN_MS, logger),
+  new RedisCache<string>(redisClient, ONE_HOUR_IN_MS, logger),
   pool,
   logger
 );
@@ -69,7 +68,7 @@ const ilpPeerService = new IlpPeerService(ilpPeerRepository, eventProducer);
 const ratesService = new RatesService();
 const liquidityService = new LiquidityService();
 const remoteIncomingPaymentRepository = new RemoteIncomingPaymentPsqlRepository(
-  //TODO new RedisCache<RemoteIncomingPayment>(redisClient, ONE_HOUR_IN_MS, logger),
+  new RedisCache<RemoteIncomingPayment>(redisClient, ONE_HOUR_IN_MS, logger),
   pool,
   logger
 );
@@ -147,7 +146,13 @@ const paymentService = new PaymentService(
   incomingPaymentRepository,
   outgoingPaymentRepository,
   quotePaymentRepository,
-  eventProducer
+  eventProducer,
+  TelemetryService.getInstance({
+    serviceName: "payments_service",
+    collectorUrl:
+      process.env["OPEN_TELEMETRY_COLLECTOR_URL"] ||
+      "http://otel-collector:4317",
+  })
 );
 
 export {

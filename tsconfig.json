@@ -5,7 +5,7 @@
     "skipLibCheck": true,
     "lib": ["es2023"],
     "target": "es2023",
-    "module": "NodeNext",
+    "module": "NodeNext"
   },
   "references": [
     {
@@ -14,6 +14,9 @@
     {
       "path": "./packages/payments-service"
     },
+    {
+      "path": "./packages/telemetry"
+    }
   ],
   "files": [],
   "include": []

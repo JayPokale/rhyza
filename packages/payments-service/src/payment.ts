@@ -16,6 +16,7 @@ import {
   RemoteIncomingPayment,
   RemoteIncomingPaymentServiceAdapter,
 } from "./remote-incoming-payment";
+import type { ITelemetryService } from "telemetry";
 
 export class WalletAddressNotFoundError extends Error {}
 export class WalletAddressInactiveError extends Error {}
@@ -287,7 +288,8 @@ export class PaymentService {
     private incomingPaymentRepository: IIncomingPaymentRepository,
     private outgoingPaymentRepository: IOutgoingPaymentRepository,
     private quoteRepository: IQuoteRepository,
-    private paymentEventProducer: EventProducerAdapter
+    private paymentEventProducer: EventProducerAdapter,
+    private telemetryService: ITelemetryService
   ) {}
 
   public async createIncomingPayment(
@@ -986,6 +988,7 @@ export class PaymentService {
     ]);
 
     await this.paymentEventProducer.publish(events);
+    this.telemetryService.incrementCounter("outgoing_payments_completed", 1);
   }
 
   public async handleIlpPaymentFulfillPacketReceivedEvent(
@@ -1063,6 +1066,7 @@ export class PaymentService {
         update
       );
       await this.paymentEventProducer.publish(events);
+      this.telemetryService.incrementCounter("outgoing_payments_completed", 1);
     } else {
       throw new Error("FX during packet handling not implemented");
     }

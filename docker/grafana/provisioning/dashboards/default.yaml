@@ -1,0 +1,7 @@
+apiVersion: 1
+
+providers:
+  - name: Rafiki POC
+    type: file
+    options:
+      path: /etc/grafana/dashboards
