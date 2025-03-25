@@ -10,12 +10,10 @@ import {
   WalletAddressAccountPsqlRepository,
 } from "./liquidity";
 import { createClient } from "tigerbeetle-node";
+import { AssetEvent } from "./asset";
+import { WalletAddressEvent } from "./wallet-address";
+import { IlpPeerEvent } from "./ilp-peer";
 import { createApp } from "./app";
-import {
-  RafikiKafkaJsonConsumer,
-  RafikiKafkaJsonConsumerOptions,
-} from "./message-broker";
-import { LiquidityServiceEventHandler } from "./message-broker/event/handler";
 
 const tbClient = createClient({
   cluster_id: 0n,
@@ -44,31 +42,12 @@ const liquidityService = new LiquidityService(
 
   await seed(process.env["SEED_FILE_LOCATION"] || "seed.json");
 
-  //Kafka:
-  const kafkaUrl = process.env["KAFKA_URL"] || "kafka:29092";
-
-  const kafkaConsumerCommonOptions: RafikiKafkaJsonConsumerOptions = {
-    kafkaBrokerList: kafkaUrl,
-    // Ensure we are sending to a single instance via [murmur2_random]:
-    kafkaGroupId: `rafiki-commands`,
-  };
-  logger.info(`Init Kafka on '${kafkaUrl}'`);
-
-  const consumer = new RafikiKafkaJsonConsumer(kafkaConsumerCommonOptions);
-
-  const liquidityEventHandler = new LiquidityServiceEventHandler(
-    consumer,
-    liquidityService
-  );
-
-  await liquidityEventHandler.start();
-
-  const startApp = createApp(
+  const start = createApp(
     Number(process.env["API_PORT"] ?? 3000),
     liquidityService
   );
 
-  await startApp();
+  await start();
 
   process.on("SIGINT", () => {
     logger.info("Received SIGINT. Shutting down gracefully...");
@@ -110,26 +89,39 @@ async function seed(seedFilePath: string) {
     logger.info("Seeding database...");
 
     for (const asset of seed.assets) {
-      await liquidityService.createAssetAccount({
-        id: crypto.randomUUID(),
-        code: asset.code,
-        scale: asset.scale,
+      await liquidityService.handleAssetCreatedEvent({
+        type: AssetEvent.ASSET_CREATED,
+        data: {
+          asset: {
+            id: crypto.randomUUID(),
+            code: asset.code,
+            scale: asset.scale,
+          },
+        },
       });
     }
 
     for (const walletAddress of seed.walletAddresses) {
-      await liquidityService.createWalletAddressAccount({
-        id: crypto.randomUUID(),
-        assetCode: walletAddress.assetCode,
-        assetScale: walletAddress.assetScale,
+      await liquidityService.handleWalletAddressCreatedEvent({
+        type: WalletAddressEvent.WALLET_ADDRESS_CREATED,
+        data: {
+          id: crypto.randomUUID(),
+          assetCode: walletAddress.assetCode,
+          assetScale: walletAddress.assetScale,
+        },
       });
     }
 
     for (const peer of seed.peers) {
-      await liquidityService.createIlpPeerAccount({
-        id: crypto.randomUUID(),
-        assetCode: peer.assetCode,
-        assetScale: peer.assetScale,
+      await liquidityService.handleIlpPeerCreatedEvent({
+        type: IlpPeerEvent.ILP_PEER_CREATED,
+        data: {
+          peer: {
+            id: crypto.randomUUID(),
+            assetCode: peer.assetCode,
+            assetScale: peer.assetScale,
+          },
+        },
       });
     }
 

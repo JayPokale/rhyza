@@ -1,6 +1,9 @@
 import { Pool } from "pg";
+import { AssetCreatedEvent } from "./asset";
+import { IlpPeerCreatedEvent } from "./ilp-peer";
 import logger from "./logger";
-import { Amount, Asset, IlpPeer, WalletAddress } from "./shared";
+import { Amount } from "./shared";
+import { WalletAddressCreatedEvent } from "./wallet-address";
 import { Client as TigerBeetleClient } from "tigerbeetle-node";
 
 /**
@@ -274,7 +277,11 @@ export class LiquidityService implements LiquidityServiceAdapter {
     };
   }
 
-  public async createAssetAccount(asset: Asset): Promise<void> {
+  public async handleAssetCreatedEvent(
+    event: AssetCreatedEvent
+  ): Promise<void> {
+    const { asset } = event.data;
+
     if (await this.assetAccountRepository.exists(asset.id)) {
       throw new DuplicateAssetAccountFoundError();
     }
@@ -316,14 +323,18 @@ export class LiquidityService implements LiquidityServiceAdapter {
     });
   }
 
-  public async createIlpPeerAccount(peer: IlpPeer): Promise<void> {
+  public async handleIlpPeerCreatedEvent(
+    event: IlpPeerCreatedEvent
+  ): Promise<void> {
+    const { peer } = event.data;
+
     if (await this.peerAccountRepository.exists(peer.id)) {
       throw new DuplicatePeerAccountFoundError();
     }
 
     const liquidityAccount: LedgerAccount = {
       id: crypto.randomUUID(),
-      assetCode: peer.assetCode,
+      assetCode: event.data.peer.assetCode,
       externalRef: peer.id,
       type: LedgerAccountType.LIQUIDITY_PEER,
       creditsPosted: 0n,
@@ -340,17 +351,17 @@ export class LiquidityService implements LiquidityServiceAdapter {
     });
   }
 
-  public async createWalletAddressAccount(
-    walletAddress: WalletAddress
+  public async handleWalletAddressCreatedEvent(
+    event: WalletAddressCreatedEvent
   ): Promise<void> {
-    if (await this.walletAddressAccountRepository.exists(walletAddress.id)) {
+    if (await this.walletAddressAccountRepository.exists(event.data.id)) {
       throw new DuplicatePeerAccountFoundError();
     }
 
     const liquidityAccount: LedgerAccount = {
       id: crypto.randomUUID(),
-      assetCode: walletAddress.assetCode,
-      externalRef: walletAddress.id,
+      assetCode: event.data.assetCode,
+      externalRef: event.data.id,
       type: LedgerAccountType.LIQUIDITY_WALLET_ADDRESS,
       creditsPosted: 0n,
       debitsPosted: 0n,
@@ -359,9 +370,9 @@ export class LiquidityService implements LiquidityServiceAdapter {
     await this.ledgerAccountRepository.store([liquidityAccount]);
 
     await this.walletAddressAccountRepository.store({
-      id: walletAddress.id,
-      assetCode: walletAddress.assetCode,
-      assetScale: walletAddress.assetScale,
+      id: event.data.id,
+      assetCode: event.data.assetCode,
+      assetScale: event.data.assetScale,
       liquidityAccountId: liquidityAccount.id,
     });
   }
