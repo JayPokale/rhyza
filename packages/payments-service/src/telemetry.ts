@@ -15,11 +15,16 @@ import {
   NodeTracerProvider,
 } from "@opentelemetry/sdk-trace-node";
 
+const COLLECTOR_URL = process.env["OPEN_TELEMETRY_COLLECTOR_URL"];
+if (!COLLECTOR_URL) {
+  throw new Error("OPEN_TELEMETRY_COLLECTOR_URL is required");
+}
+
 const SERVICE_NAME = "RAFIKI_POC_PAYMENTS_SERVICE";
 
 const metricExporter = new PeriodicExportingMetricReader({
   exporter: new OTLPMetricExporter({
-    url: process.env["OPEN_TELEMETRY_COLLECTOR_URL"],
+    url: COLLECTOR_URL,
   }),
   exportIntervalMillis: 1000,
 });
@@ -32,7 +37,7 @@ const meterProvider = new MeterProvider({
 api.metrics.setGlobalMeterProvider(meterProvider);
 
 const traceExporter = new OTLPTraceExporter({
-  url: process.env["OPEN_TELEMETRY_TRACE_COLLECTOR_URL"],
+  url: COLLECTOR_URL,
 });
 
 const tracerProvider = new NodeTracerProvider({

@@ -14,12 +14,18 @@ import {
   BatchSpanProcessor,
   NodeTracerProvider,
 } from "@opentelemetry/sdk-trace-node";
+import { FastifyOtelInstrumentation } from "@fastify/otel";
+
+const COLLECTOR_URL = process.env["OPEN_TELEMETRY_COLLECTOR_URL"];
+if (!COLLECTOR_URL) {
+  throw new Error("OPEN_TELEMETRY_COLLECTOR_URL is required");
+}
 
 const SERVICE_NAME = "RAFIKI_POC_API";
 
 const metricExporter = new PeriodicExportingMetricReader({
   exporter: new OTLPMetricExporter({
-    url: process.env["OPEN_TELEMETRY_COLLECTOR_URL"],
+    url: COLLECTOR_URL,
   }),
   exportIntervalMillis: 1000,
 });
@@ -32,7 +38,7 @@ const meterProvider = new MeterProvider({
 api.metrics.setGlobalMeterProvider(meterProvider);
 
 const traceExporter = new OTLPTraceExporter({
-  url: process.env["OPEN_TELEMETRY_TRACE_COLLECTOR_URL"],
+  url: COLLECTOR_URL,
 });
 
 const tracerProvider = new NodeTracerProvider({
@@ -40,8 +46,19 @@ const tracerProvider = new NodeTracerProvider({
   spanProcessors: [new BatchSpanProcessor(traceExporter)],
 });
 
+const fastifyOtelInstrumentation = new FastifyOtelInstrumentation({
+  servername: SERVICE_NAME,
+});
+fastifyOtelInstrumentation.setTracerProvider(tracerProvider);
+
 tracerProvider.register();
 
 registerInstrumentations({
-  instrumentations: [new HttpInstrumentation(), new PgInstrumentation()],
+  instrumentations: [
+    // Fastify instrumentation expects HTTP instrumentation
+    new HttpInstrumentation(),
+    new PgInstrumentation(),
+  ],
 });
+
+export { fastifyOtelInstrumentation };

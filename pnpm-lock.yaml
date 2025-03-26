@@ -48,6 +48,12 @@ importers:
 
   packages/api:
     dependencies:
+      '@fastify/otel':
+        specifier: ^0.5.0
+        version: 0.5.0(@opentelemetry/api@1.9.0)
+      '@opentelemetry/api':
+        specifier: ^1.9.0
+        version: 1.9.0
       '@opentelemetry/exporter-metrics-otlp-grpc':
         specifier: ^0.57.1
         version: 0.57.1(@opentelemetry/api@1.9.0)
@@ -331,6 +337,11 @@ packages:
 
   '@fastify/merge-json-schemas@0.2.1':
     resolution: {integrity: sha512-OA3KGBCy6KtIvLf8DINC5880o5iBlDX4SxzLQS8HorJAbqluzLRn80UXU0bxZn7UOFhFgpRJDasfwn9nG4FG4A==}
+
+  '@fastify/otel@0.5.0':
+    resolution: {integrity: sha512-wZ2yl/2iuW6jerdktR/mpkkI83/qHhbRShQtNA3x+6+bQ/RKqmhifc5M29fmHbyIw+DF3SXJAKMSdURSQt4W0w==}
+    peerDependencies:
+      '@opentelemetry/api': ^1.9.0
 
   '@fastify/proxy-addr@5.0.0':
     resolution: {integrity: sha512-37qVVA1qZ5sgH7KpHkkC4z9SK6StIsIcOmpjvMPXNb3vx2GQxhZocogVYbr2PbbeLCQxYIPDok307xEvRZOzGA==}
@@ -1199,6 +1210,15 @@ snapshots:
   '@fastify/merge-json-schemas@0.2.1':
     dependencies:
       dequal: 2.0.3
+
+  '@fastify/otel@0.5.0(@opentelemetry/api@1.9.0)':
+    dependencies:
+      '@opentelemetry/api': 1.9.0
+      '@opentelemetry/core': 1.30.1(@opentelemetry/api@1.9.0)
+      '@opentelemetry/instrumentation': 0.57.1(@opentelemetry/api@1.9.0)
+      '@opentelemetry/semantic-conventions': 1.30.0
+    transitivePeerDependencies:
+      - supports-color
 
   '@fastify/proxy-addr@5.0.0':
     dependencies:
