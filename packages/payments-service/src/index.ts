@@ -19,6 +19,11 @@ import {
   assetService,
 } from "./public";
 
+//@ts-ignore
+BigInt.prototype.toJSON = function () {
+  return this.toString();
+};
+
 (async () => {
   //Kafka:
   const kafkaUrl = process.env["KAFKA_URL"] || "kafka:29092";

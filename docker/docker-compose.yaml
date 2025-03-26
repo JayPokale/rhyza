@@ -9,7 +9,6 @@ services:
       SEED_FILE_LOCATION: /workspace/seed.json
       OPEN_TELEMETRY_COLLECTOR_URL: http://otel-collector:4317
       DATABASE_URL: postgres://postgres:password@pg-container:5432/database
-      TB_REPLICA_ADDRESSES: 10.5.0.50:4342
       REDIS_URL: redis://redis:6379
       KAFKA_URL: kafka:19092
     depends_on:
@@ -29,9 +28,34 @@ services:
       DATABASE_URL: postgres://postgres:password@pg-container:5432/database
       REDIS_URL: redis://redis:6379
       KAFKA_URL: kafka:19092
+      LIQUIDITY_SERVICE_URL: http://liquidity-service:3000
     depends_on:
       init-kafka:
         condition: service_completed_successfully
+      liquidity-service:
+        condition: service_healthy
+    networks:
+      - rafiki-poc
+
+  liquidity-service:
+    build:
+      context: ../
+      dockerfile: ./packages/liquidity-service/Dockerfile
+    restart: always
+    environment:
+      OPEN_TELEMETRY_COLLECTOR_URL: http://otel-collector:4317
+      DATABASE_URL: postgres://postgres:password@pg-container:5432/database
+      REDIS_URL: redis://redis:6379
+      TB_REPLICA_ADDRESSES: 10.5.0.50:4342
+    depends_on:
+      init-kafka:
+        condition: service_completed_successfully
+    healthcheck:
+      test: nc -z 0.0.0.0 3000 || exit -1
+      start_period: 30s
+      interval: 10s
+      timeout: 10s
+      retries: 10
     networks:
       - rafiki-poc
 

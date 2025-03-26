@@ -1,17 +1,20 @@
 import fastify from "fastify";
 import logger from "./logger";
 
-import { LiquidityService } from "./liquidity";
+import { LiquidityRequest, LiquidityService } from "./liquidity";
 
 export function createApp(port: number, liquidityService: LiquidityService) {
   const app = fastify();
 
   app.post("/transfers", async function handler(request, reply) {
-    const requestBody = request.body as any;
+    const requestBody = (request.body as LiquidityRequest[]).map((req) => {
+      req.data.amount.value = BigInt(req.data.amount.value);
+      return req;
+    });
 
     await liquidityService.execute(requestBody);
 
-    reply.code(201);
+    reply.code(201).send();
   });
 
   app.post("/asset-account", async function handler(request, reply) {
@@ -23,7 +26,7 @@ export function createApp(port: number, liquidityService: LiquidityService) {
       scale: requestBody.scale,
     });
 
-    reply.code(201);
+    reply.code(201).send();
   });
 
   app.post("/wallet-address-account", async function handler(request, reply) {
@@ -35,7 +38,7 @@ export function createApp(port: number, liquidityService: LiquidityService) {
       assetScale: requestBody.assetScale,
     });
 
-    reply.code(201);
+    reply.code(201).send();
   });
 
   app.post("/ilp-peer-account", async function handler(request, reply) {
@@ -47,7 +50,7 @@ export function createApp(port: number, liquidityService: LiquidityService) {
       assetScale: requestBody.assetScale,
     });
 
-    reply.code(201);
+    reply.code(201).send();
   });
 
   return async () => {

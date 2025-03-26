@@ -1,20 +1,5 @@
 import { Asset } from "./shared";
-import { EventProducerAdapter, Event } from "./event";
-
-export enum IlpPeerEvent {
-  ILP_PEER_CREATED = "ILP_PEER_CREATED",
-}
-
-export interface IlpPeerCreatedEvent extends Event {
-  type: IlpPeerEvent.ILP_PEER_CREATED;
-  data: {
-    peer: {
-      id: string;
-      assetCode: string;
-      assetScale: number;
-    };
-  };
-}
+import { LiquidityServiceAdapter } from "./liquidity";
 
 export interface IlpPeer {
   id: string;
@@ -46,7 +31,7 @@ export interface IlpPeerServiceAdapter {
 export class IlpPeerService implements IlpPeerServiceAdapter {
   constructor(
     private peerRepository: IIlpPeerRepository,
-    private eventProducer: EventProducerAdapter
+    private liquidityService: LiquidityServiceAdapter
   ) {}
 
   public async getById(id: string): Promise<IlpPeer | undefined> {
@@ -67,18 +52,11 @@ export class IlpPeerService implements IlpPeerServiceAdapter {
 
     await this.peerRepository.store(newPeer);
 
-    const peerCreatedEvent: IlpPeerCreatedEvent = {
-      type: IlpPeerEvent.ILP_PEER_CREATED,
-      data: {
-        peer: {
-          id: newPeer.id,
-          assetScale: newPeer.asset.scale,
-          assetCode: newPeer.asset.code,
-        },
-      },
-    };
-
-    await this.eventProducer.publish([peerCreatedEvent]);
+    await this.liquidityService.createIlpPeerAccount({
+      id: newPeer.id,
+      assetScale: newPeer.asset.scale,
+      assetCode: newPeer.asset.code,
+    });
 
     return newPeer.id;
   }

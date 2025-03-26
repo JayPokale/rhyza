@@ -1,7 +1,7 @@
 import { Pool } from "pg";
 import logger from "./logger";
-import { EventProducerAdapter } from "./event";
 import { Event } from "./event";
+import { LiquidityServiceAdapter } from "./liquidity";
 
 export class DuplicateAssetFoundError extends Error {}
 
@@ -77,7 +77,7 @@ export class AssetPsqlRepository implements AssetRepository {
 export class AssetService implements AssetServiceAdapter {
   constructor(
     private assetRepository: AssetRepository,
-    private eventProducer: EventProducerAdapter
+    private liquidityService: LiquidityServiceAdapter
   ) {}
 
   public async createAsset(args: CreateAssetArgs): Promise<string> {
@@ -95,18 +95,11 @@ export class AssetService implements AssetServiceAdapter {
       code: args.code,
     });
 
-    const assetCreatedEvent: AssetCreatedEvent = {
-      type: AssetEvent.ASSET_CREATED,
-      data: {
-        asset: {
-          id,
-          scale: args.scale,
-          code: args.code,
-        },
-      },
-    };
-
-    await this.eventProducer.publish([assetCreatedEvent]);
+    await this.liquidityService.createAssetAccount({
+      id,
+      scale: args.scale,
+      code: args.code,
+    });
 
     return id;
   }

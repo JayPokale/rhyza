@@ -1,3 +1,4 @@
+import logger from "./logger";
 import { Amount } from "./shared";
 
 export enum LiquidityRequestType {
@@ -65,12 +66,73 @@ export interface PeerToWalletAddressLiquidityRequest
 
 export interface LiquidityServiceAdapter {
   execute(requests: LiquidityRequest[]): Promise<void>;
+  createWalletAddressAccount(walletAddress: {
+    id: string;
+    assetScale: number;
+    assetCode: string;
+  }): Promise<void>;
+  createAssetAccount(asset: {
+    id: string;
+    scale: number;
+    code: string;
+  }): Promise<void>;
+  createIlpPeerAccount(ilpPeer: {
+    id: string;
+    assetScale: number;
+    assetCode: string;
+  }): Promise<void>;
 }
 
 export class LiquidityService implements LiquidityServiceAdapter {
-  constructor() {}
+  constructor(private liquidityServiceUrl: string) {}
 
   public async execute(requests: LiquidityRequest[]): Promise<void> {
-    // do nothing
+    await this.sendRequest(
+      this.liquidityServiceUrl + "/transfers",
+      JSON.stringify(requests)
+    );
+  }
+
+  public async createAssetAccount(asset: {
+    id: string;
+    scale: number;
+    code: string;
+  }): Promise<void> {
+    await this.sendRequest(
+      this.liquidityServiceUrl + "/asset-account",
+      JSON.stringify(asset)
+    );
+  }
+
+  public async createWalletAddressAccount(walletAddress: {
+    id: string;
+    assetScale: number;
+    assetCode: string;
+  }): Promise<void> {
+    await this.sendRequest(
+      this.liquidityServiceUrl + "/wallet-address-account",
+      JSON.stringify(walletAddress)
+    );
+  }
+
+  public async createIlpPeerAccount(ilpPeer: {
+    id: string;
+    assetScale: number;
+    assetCode: string;
+  }): Promise<void> {
+    await this.sendRequest(
+      this.liquidityServiceUrl + "/ilp-peer-account",
+      JSON.stringify(ilpPeer)
+    );
+  }
+
+  private async sendRequest(url: string, body: string): Promise<void> {
+    const res = await fetch(url, {
+      method: "POST",
+      body,
+      headers: {
+        "content-type": "application/json",
+      },
+    });
   }
 }

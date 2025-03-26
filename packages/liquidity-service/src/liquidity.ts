@@ -105,10 +105,6 @@ export interface PeerToWalletAddressLiquidityRequest
   };
 }
 
-export interface LiquidityServiceAdapter {
-  execute(requests: LiquidityRequest[]): Promise<void>;
-}
-
 enum LedgerAccountType {
   LIQUIDITY_ASSET = "LIQUIDITY_ASSET",
   LIQUIDITY_PEER = "LIQUIDITY_PEER",
@@ -183,6 +179,13 @@ interface LedgerAccountRepository {
 
 interface LedgerTransferRepository {
   create(transfers: LedgerTransfer[]): Promise<void>;
+}
+
+export interface LiquidityServiceAdapter {
+  execute(requests: LiquidityRequest[]): Promise<void>;
+  createWalletAddressAccount(walletAddress: WalletAddress): Promise<void>;
+  createAssetAccount(asset: Asset): Promise<void>;
+  createIlpPeerAccount(ilpPeer: IlpPeer): Promise<void>;
 }
 
 export class LiquidityService implements LiquidityServiceAdapter {

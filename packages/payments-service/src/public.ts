@@ -49,13 +49,17 @@ const walletAddressRepository = new WalletAddressPsqlRepository(
   logger
 );
 
+const liquidityService = new LiquidityService(
+  process.env["LIQUIDITY_SERVICE_URL"] as string
+);
+
 const assetService = new AssetService(
   new AssetPsqlRepository(pool),
-  eventProducer
+  liquidityService
 );
 const walletAddressService = new WalletAddressService(
   walletAddressRepository,
-  eventProducer
+  liquidityService
 );
 const ilpPeerRepository = new IlpPeerPsqlRepository(
   new RedisCache<IlpPeer>(redisClient, ONE_HOUR_IN_MS, logger),
@@ -63,10 +67,10 @@ const ilpPeerRepository = new IlpPeerPsqlRepository(
   pool,
   logger
 );
-const ilpPeerService = new IlpPeerService(ilpPeerRepository, eventProducer);
+const ilpPeerService = new IlpPeerService(ilpPeerRepository, liquidityService);
 
 const ratesService = new RatesService();
-const liquidityService = new LiquidityService();
+
 const remoteIncomingPaymentRepository = new RemoteIncomingPaymentPsqlRepository(
   new RedisCache<RemoteIncomingPayment>(redisClient, ONE_HOUR_IN_MS, logger),
   pool,
