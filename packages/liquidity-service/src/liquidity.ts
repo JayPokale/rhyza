@@ -380,10 +380,15 @@ interface AssetAccountRecord {
 
 export class AssetAccountPsqlRepository implements AssetAccountRepository {
   TABLE_NAME = "asset_accounts";
+  map: Map<string, AssetAccount> = new Map();
 
   constructor(private pool: Pool) {}
 
   public async exists(id: string): Promise<boolean> {
+    if (this.map.has(id)) {
+      return true;
+    }
+
     try {
       const res = await this.pool.query(
         `SELECT EXISTS(SELECT 1 FROM ${this.TABLE_NAME} WHERE id = $1)`,
@@ -412,6 +417,7 @@ export class AssetAccountPsqlRepository implements AssetAccountRepository {
       ];
 
       await this.pool.query(query, values);
+      this.map.set(assetAccount.id, assetAccount);
     } catch (error) {
       logger.error({ error }, "Error storing asset account");
       throw error;
@@ -419,6 +425,13 @@ export class AssetAccountPsqlRepository implements AssetAccountRepository {
   }
 
   public async fetchByCode(code: string): Promise<AssetAccount | undefined> {
+    const cached = [...this.map.values()].find(
+      (assetAccount) => assetAccount.assetCode === code
+    );
+    if (cached) {
+      return cached;
+    }
+
     const res = await this.pool.query<AssetAccountRecord>(
       `SELECT id, asset_code, asset_scale, liquidity_account_id, settlement_account_id FROM ${this.TABLE_NAME} WHERE asset_code = $1`,
       [code]
@@ -447,10 +460,15 @@ interface PeerAccountRecord {
 
 export class PeerAccountPsqlRepository implements PeerAccountRepository {
   TABLE_NAME = "peer_accounts";
+  map: Map<string, PeerAccount> = new Map();
 
   constructor(private pool: Pool) {}
 
   public async exists(id: string): Promise<boolean> {
+    if (this.map.has(id)) {
+      return true;
+    }
+
     try {
       const res = await this.pool.query(
         `SELECT EXISTS(SELECT 1 FROM ${this.TABLE_NAME} WHERE id = $1)`,
@@ -478,6 +496,7 @@ export class PeerAccountPsqlRepository implements PeerAccountRepository {
       ];
 
       await this.pool.query(query, values);
+      this.map.set(peerAccount.id, peerAccount);
     } catch (error) {
       logger.error({ error }, "Error storing peer account");
       throw error;
@@ -485,6 +504,12 @@ export class PeerAccountPsqlRepository implements PeerAccountRepository {
   }
 
   public async fetchById(id: string): Promise<PeerAccount | undefined> {
+    const cached = this.map.get(id);
+
+    if (cached) {
+      return cached;
+    }
+
     const res = await this.pool.query<PeerAccountRecord>(
       `SELECT id, asset_code, asset_scale, liquidity_account_id FROM ${this.TABLE_NAME} WHERE id = $1`,
       [id]
@@ -514,10 +539,15 @@ export class WalletAddressAccountPsqlRepository
   implements WalletAddressAccountRepository
 {
   TABLE_NAME = "wallet_address_accounts";
+  map: Map<string, WalletAddressAccount> = new Map();
 
   constructor(private pool: Pool) {}
 
   public async exists(id: string): Promise<boolean> {
+    if (this.map.has(id)) {
+      return true;
+    }
+
     try {
       const res = await this.pool.query(
         `SELECT EXISTS(SELECT 1 FROM ${this.TABLE_NAME} WHERE id = $1)`,
@@ -550,6 +580,7 @@ export class WalletAddressAccountPsqlRepository
       ];
 
       await this.pool.query(query, values);
+      this.map.set(walletAddressAccount.id, walletAddressAccount);
     } catch (error) {
       logger.error({ error }, "Error storing wallet address account");
       throw error;
@@ -559,6 +590,12 @@ export class WalletAddressAccountPsqlRepository
   public async fetchById(
     id: string
   ): Promise<WalletAddressAccount | undefined> {
+    const cached = this.map.get(id);
+
+    if (cached) {
+      return cached;
+    }
+
     const res = await this.pool.query<WalletAddressAccountRecord>(
       `SELECT id, asset_code, asset_scale, liquidity_account_id FROM ${this.TABLE_NAME} WHERE id = $1`,
       [id]
