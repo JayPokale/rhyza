@@ -39,6 +39,10 @@ Start the containers up with 3 command handlers and 2 api instances.
 ```shell
 docker compose up -d --build --scale=backend=3 --scale=api=2
 ```
+Then you can run the benchmark as follows:
+```shell
+k6 run benchmark.js
+```
 
 Inspect the logs:
 ```shell

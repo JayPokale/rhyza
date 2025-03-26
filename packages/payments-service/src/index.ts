@@ -16,6 +16,7 @@ import {
   walletAddressService,
   ilpPeerService,
   eventConsumer,
+  telemetryService
 } from "./public";
 
 (async () => {
@@ -35,13 +36,18 @@ import {
   // Init Producer/Consumer:
   const producer = new RafikiKafkaJsonProducer(kafkaProducerCommonOptions);
   await producer.connect();
-  let consumer = new RafikiKafkaJsonConsumer(kafkaConsumerCommonOptions);
+  let consumer = new RafikiKafkaJsonConsumer(kafkaConsumerCommonOptions, telemetryService);
 
   //Init the app:
   await init();
 
   //Start the handler:
-  const start = createAppCommandHandler(paymentService, producer, consumer);
+  const start = createAppCommandHandler(
+    paymentService,
+    producer,
+    consumer,
+    telemetryService
+  );
   await start();
 
   process.on("SIGINT", () => {

@@ -130,6 +130,13 @@ const quotePaymentRepository = new QuotePsqlRepository(
   logger
 );
 
+const telemetryService = TelemetryService.getInstance({
+  serviceName: "payments_service",
+  collectorUrl:
+    process.env["OPEN_TELEMETRY_COLLECTOR_URL"] ||
+    "http://otel-collector:4317",
+})
+
 const paymentService = new PaymentService(
   walletAddressService,
   ilpPeerService,
@@ -140,12 +147,7 @@ const paymentService = new PaymentService(
   outgoingPaymentRepository,
   quotePaymentRepository,
   eventProducer,
-  TelemetryService.getInstance({
-    serviceName: "payments_service",
-    collectorUrl:
-      process.env["OPEN_TELEMETRY_COLLECTOR_URL"] ||
-      "http://otel-collector:4317",
-  })
+  telemetryService
 );
 
 export {
@@ -159,4 +161,5 @@ export {
   walletAddressService,
   ilpPeerService,
   eventConsumer,
+  telemetryService
 };
