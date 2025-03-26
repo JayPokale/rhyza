@@ -100,6 +100,8 @@ export function createApp(
     )
     await msgProducer.send(cmd);
     stopTimerPublish()
+    telemetryService.incrementCounter("api_incoming_payment_received", 1)
+    telemetryService.incrementCounter("api_received", 1)
     return reply;
   });
 
@@ -175,6 +177,8 @@ export function createApp(
     )
     await msgProducer.send(cmd);
     stopTimerPublish()
+    telemetryService.incrementCounter("api_quote_received", 1)
+    telemetryService.incrementCounter("api_received", 1)
     return reply;
   });
 
@@ -215,6 +219,8 @@ export function createApp(
     )
     await msgProducer.send(cmd);
     stopTimerPublish()
+    telemetryService.incrementCounter("api_outgoing_payment_received", 1)
+    telemetryService.incrementCounter("api_received", 1)
     return reply;
   });
 
