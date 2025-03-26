@@ -27,6 +27,14 @@ import {
   ApiRspOutgoingPaymentEvent,
   ApiRspQuoteEvent,
 } from "payments-service/dist/message-broker/event";
+import {Attributes} from "@opentelemetry/api";
+
+type TimerFunction = (additionalAttributes?: Attributes) => void
+
+interface ApiReqCacheData {
+  fastifyReply: FastifyReply
+  timer: TimerFunction
+}
 
 export function createApp(
   port: number,
@@ -36,7 +44,7 @@ export function createApp(
   msgProducer: IMessageProducer,
   msgConsumer: IMessageConsumer
 ) {
-  const mapRsp: Map<string, FastifyReply> = new Map();
+  const mapRsp: Map<string, ApiReqCacheData> = new Map();
   const app = fastify();
 
   app.addContentTypeParser(
@@ -50,6 +58,14 @@ export function createApp(
   );
 
   app.post("/incoming-payment", async function handler(request, reply) {
+    const stopTimerReqRsp = telemetryService.startTimer(
+      'api_incoming_payment_ms',
+      {
+        callName: 'Api:internalApiProcessIncomingPayment',
+        description: 'Internal time to process an incoming payment request.'
+      }
+    )
+
     const requestBody = request.body as any;
 
     const payload = {
@@ -71,8 +87,19 @@ export function createApp(
     );
 
     const cmd = new CreateIncomingPaymentCmd(payload, randomUUID());
-    mapRsp.set(cmd.requestId!, reply);
+    mapRsp.set(cmd.requestId!, {
+      fastifyReply: reply,
+      timer: stopTimerReqRsp
+    });
+    const stopTimerPublish = telemetryService.startTimer(
+      'api_incoming_payment_publish_ms',
+      {
+        callName: 'Api:publishIncomingPayment',
+        description: 'Internal time to publish an incoming payment request to the message broker.'
+      }
+    )
     await msgProducer.send(cmd);
+    stopTimerPublish()
     return reply;
   });
 
@@ -100,6 +127,14 @@ export function createApp(
   });
 
   app.post("/quote", async function handler(request, reply) {
+    const stopTimerReqRsp = telemetryService.startTimer(
+      'api_quote_ms',
+      {
+        callName: 'Api:internalApiProcessQuote',
+        description: 'Internal time to process a quote request.'
+      }
+    )
+
     const requestBody = request.body as any;
 
     // TODO: As an enhancement, we can allow the client to specify whether they want back a 202
@@ -127,12 +162,31 @@ export function createApp(
     logger.debug({ payload }, `API(${os.hostname()}): Sending quote`);
 
     const cmd = new CreateQuoteCmd(payload, randomUUID());
-    mapRsp.set(cmd.requestId!, reply);
+    mapRsp.set(cmd.requestId!, {
+      fastifyReply: reply,
+      timer: stopTimerReqRsp
+    });
+    const stopTimerPublish = telemetryService.startTimer(
+      'api_quote_publish_ms',
+      {
+        callName: 'Api:publishQuote',
+        description: 'Internal time to publish a quote request to the message broker.'
+      }
+    )
     await msgProducer.send(cmd);
+    stopTimerPublish()
     return reply;
   });
 
   app.post("/outgoing-payment", async function handler(request, reply) {
+    const stopTimerReqRsp = telemetryService.startTimer(
+      'api_outgoing_payment_ms',
+      {
+        callName: 'Api:internalApiProcessOutgoingPayment',
+        description: 'Internal time to process an outgoing payment request.'
+      }
+    )
+
     const requestBody = request.body as any;
 
     const payload = {
@@ -148,8 +202,19 @@ export function createApp(
     );
 
     const cmd = new CreateOutgoingPaymentFromQuoteCmd(payload, randomUUID());
-    mapRsp.set(cmd.requestId!, reply);
+    mapRsp.set(cmd.requestId!, {
+      fastifyReply: reply,
+      timer: stopTimerReqRsp
+    });
+    const stopTimerPublish = telemetryService.startTimer(
+      'api_outgoing_payment_publish_ms',
+      {
+        callName: 'Api:publishOutgoingPayment',
+        description: 'Internal time to publish an outgoing payment request to the message broker.'
+      }
+    )
     await msgProducer.send(cmd);
+    stopTimerPublish()
     return reply;
   });
 
@@ -194,7 +259,7 @@ export function createApp(
 class RafikiApiResponseEventHandler {
   constructor(
     private _messageConsumer: IMessageConsumer,
-    private _rspMap: Map<string, FastifyReply>,
+    private _rspMap: Map<string, ApiReqCacheData>,
     private _ilpConnector: IlpConnector,
     private _telemetryService: TelemetryService
   ) {}
@@ -214,11 +279,10 @@ class RafikiApiResponseEventHandler {
     // eslint-disable-next-line no-async-promise-executor
     return await new Promise<void>(async (resolve) => {
       logger.debug({ message }, `Event(${os.hostname()}): EventReceived`);
+      const reply = message.requestId
+        ? this._rspMap.get(message.requestId)
+        : undefined;
       try {
-        const reply = message.requestId
-          ? this._rspMap.get(message.requestId)
-          : undefined;
-
         if (!reply) {
           logger.debug(
             `Event(${os.hostname()}): No event found for ${
@@ -232,7 +296,7 @@ class RafikiApiResponseEventHandler {
           case ApiRspIncomingPaymentEvent.name: {
             const payload = message.payload as ApiRspEventPayload;
             const ilpDetails = this._ilpConnector.getIlpDetails();
-            await reply.code(200).send({ id: payload.createdId, ilpDetails });
+            await reply.fastifyReply.code(200).send({ id: payload.createdId, ilpDetails });
             break;
           }
           case ApiRspQuoteEvent.name: {
@@ -241,17 +305,17 @@ class RafikiApiResponseEventHandler {
               "outgoing_payment_create_api_replies",
               1
             );
-            await reply.code(200).send({ id: payloadOther.createdId });
+            await reply.fastifyReply.code(200).send({ id: payloadOther.createdId });
             break;
           }
           case ApiRspOutgoingPaymentEvent.name: {
             const payloadOut = message.payload as ApiRspEventPayload;
-            await reply.code(200).send({ id: payloadOut.createdId });
+            await reply.fastifyReply.code(200).send({ id: payloadOut.createdId });
             break;
           }
           case ApiRspErrorEvent.name: {
             const payloadErr = message.payload as ApiRspErrorPayload;
-            await reply.code(500).send(payloadErr);
+            await reply.fastifyReply.code(500).send(payloadErr);
             break;
           }
           default: {
@@ -274,8 +338,14 @@ class RafikiApiResponseEventHandler {
         logger.error("API -> Payload for error:");
         logger.error(message);
       } finally {
+        if (reply) this.callMyFunction(reply.timer)
+
         resolve();
       }
     });
+  }
+
+  callMyFunction(fn: TimerFunction) {
+    return fn();
   }
 }
