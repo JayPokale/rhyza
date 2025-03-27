@@ -1,9 +1,10 @@
 import http from "k6/http";
 import { check } from "k6";
+import { uuidv4 } from 'https://jslib.k6.io/k6-utils/1.4.0/index.js';
 
 export const options = {
   vus: 20,
-  duration: "300s",
+  duration: "30s",
   // iterations: 1,
 };
 
@@ -21,7 +22,9 @@ function request(url, data) {
 }
 
 export default function (data) {
+  const id = uuidv4()
   const incomingPaymentRes = request(`${BASE_URL}/incoming-payment`, {
+    id,
     walletAddressId: RECEIVER_WALLET_ADDRESS_ID,
   });
 
@@ -31,7 +34,7 @@ export default function (data) {
 
   const incomingPaymentId = JSON.parse(incomingPaymentRes.body).id;
   const quoteRes = request(`${BASE_URL}/quote`, {
-    id: incomingPaymentId,
+    id: id,
     debitAmount: {
       assetScale: 2,
       assetCode: "USD",
@@ -48,7 +51,7 @@ export default function (data) {
   const quoteId = JSON.parse(quoteRes.body).id;
 
   const outgoingPaymentRes = request(`${BASE_URL}/outgoing-payment`, {
-    id: incomingPaymentId,
+    id: id,
     quoteId,
     senderWalletAddressId: SENDER_WALLET_ADDRESS_ID,
   });
