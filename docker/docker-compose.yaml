@@ -82,6 +82,18 @@ services:
     networks:
       - rafiki-poc
 
+  redpanda-console:
+    depends_on:
+      - kafka
+    image: redpandadata/console:latest
+    restart: unless-stopped
+    environment:
+      - KAFKA_BROKERS=kafka:19092
+    ports:
+      - 8080:8080
+    networks:
+      - rafiki-poc
+
   init-kafka:
     image: apache/kafka:4.0.0
     depends_on:
