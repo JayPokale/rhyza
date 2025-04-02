@@ -1,6 +1,5 @@
 import { Pool } from "pg";
 import logger from "./logger";
-import { Event } from "./event";
 import { LiquidityServiceAdapter } from "./liquidity";
 
 export class DuplicateAssetFoundError extends Error {}
@@ -19,21 +18,6 @@ interface CreateAssetArgs {
 interface AssetRepository {
   existsByCode(code: string): Promise<boolean>;
   store(asset: Asset): Promise<void>;
-}
-
-export enum AssetEvent {
-  ASSET_CREATED = "ASSET_CREATED",
-}
-
-export interface AssetCreatedEvent extends Event {
-  type: AssetEvent.ASSET_CREATED;
-  data: {
-    asset: {
-      id: string;
-      code: string;
-      scale: number;
-    };
-  };
 }
 
 export interface AssetServiceAdapter {
