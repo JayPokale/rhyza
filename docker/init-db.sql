@@ -1,8 +1,7 @@
 CREATE TABLE IF NOT EXISTS assets (
   id UUID PRIMARY KEY NOT NULL,
-  code VARCHAR(20) NOT NULL,
-  scale SMALLINT NOT NULL, 
-  UNIQUE (code)
+  code TEXT NOT NULL,
+  scale SMALLINT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS wallet_addresses (
@@ -94,23 +93,22 @@ CREATE TABLE IF NOT EXISTS outgoing_micro_payments (
 
 CREATE TABLE IF NOT EXISTS asset_accounts (
   id UUID PRIMARY KEY NOT NULL,
-  asset_code VARCHAR(20) NOT NULL,
+  asset_code TEXT NOT NULL,
   asset_scale INT NOT NULL,
   settlement_account_id UUID NOT NULL,
-  liquidity_account_id UUID NOT NULL,
-  UNIQUE (asset_code)
+  liquidity_account_id UUID NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS peer_accounts (
   id UUID PRIMARY KEY NOT NULL,
-  asset_code VARCHAR(20) NOT NULL,
+  asset_code TEXT NOT NULL,
   asset_scale INT NOT NULL,
   liquidity_account_id UUID NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS wallet_address_accounts (
   id UUID PRIMARY KEY NOT NULL,
-  asset_code VARCHAR(20) NOT NULL,
+  asset_code TEXT NOT NULL,
   asset_scale INT NOT NULL,
   liquidity_account_id UUID NOT NULL
 );

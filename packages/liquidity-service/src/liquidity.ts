@@ -1,7 +1,7 @@
 import { Pool } from "pg";
 import logger from "./logger";
 import { Amount, Asset, IlpPeer, WalletAddress } from "./shared";
-import { Client as TigerBeetleClient } from "tigerbeetle-node";
+import { AccountFlags, Client as TigerBeetleClient } from "tigerbeetle-node";
 
 /**
  * ACCOUNT MOVEMENTS
@@ -157,7 +157,7 @@ interface LedgerTransfer {
 
 interface AssetAccountRepository {
   store(entity: AssetAccount): Promise<void>;
-  exists(id: string): Promise<boolean>;
+  existsByCode(id: string): Promise<boolean>;
   fetchByCode(code: string): Promise<AssetAccount | undefined>;
 }
 
@@ -278,7 +278,7 @@ export class LiquidityService implements LiquidityServiceAdapter {
   }
 
   public async createAssetAccount(asset: Asset): Promise<void> {
-    if (await this.assetAccountRepository.exists(asset.id)) {
+    if (await this.assetAccountRepository.existsByCode(asset.code)) {
       throw new DuplicateAssetAccountFoundError();
     }
 
@@ -380,19 +380,19 @@ interface AssetAccountRecord {
 
 export class AssetAccountPsqlRepository implements AssetAccountRepository {
   TABLE_NAME = "asset_accounts";
-  map: Map<string, AssetAccount> = new Map();
+  map: Map<string, AssetAccount> = new Map(); // code, AssetAccount
 
   constructor(private pool: Pool) {}
 
-  public async exists(id: string): Promise<boolean> {
-    if (this.map.has(id)) {
+  public async existsByCode(code: string): Promise<boolean> {
+    if (this.map.has(code)) {
       return true;
     }
 
     try {
       const res = await this.pool.query(
-        `SELECT EXISTS(SELECT 1 FROM ${this.TABLE_NAME} WHERE id = $1)`,
-        [id]
+        `SELECT EXISTS(SELECT 1 FROM ${this.TABLE_NAME} WHERE asset_code = $1)`,
+        [code]
       );
       return res.rows[0].exists;
     } catch (error) {
@@ -417,7 +417,7 @@ export class AssetAccountPsqlRepository implements AssetAccountRepository {
       ];
 
       await this.pool.query(query, values);
-      this.map.set(assetAccount.id, assetAccount);
+      this.map.set(assetAccount.assetCode, assetAccount);
     } catch (error) {
       logger.error({ error }, "Error storing asset account");
       throw error;
@@ -425,9 +425,7 @@ export class AssetAccountPsqlRepository implements AssetAccountRepository {
   }
 
   public async fetchByCode(code: string): Promise<AssetAccount | undefined> {
-    const cached = [...this.map.values()].find(
-      (assetAccount) => assetAccount.assetCode === code
-    );
+    const cached = this.map.get(code);
     if (cached) {
       return cached;
     }
