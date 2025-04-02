@@ -45,7 +45,6 @@ services:
     environment:
       OPEN_TELEMETRY_COLLECTOR_URL: http://otel-collector:4317
       DATABASE_URL: postgres://postgres:password@pg-container:5432/database
-      REDIS_URL: redis://redis:6379
       TB_REPLICA_ADDRESSES: 10.5.0.50:4342
     depends_on:
       init-kafka:

@@ -7,24 +7,13 @@ RUN corepack enable
 RUN corepack prepare pnpm@10.0.0 --activate
 
 WORKDIR /workspace
-
-RUN apk update && apk add --no-cache \
-    librdkafka-dev \
-    cyrus-sasl-dev \
-    openssl-dev \
-    gcc \
-    g++ \
-    python3 \
-    make \
-    musl-dev
-
 COPY . .
 
 FROM base AS prod-deps
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store BUILD_LIBRDKAFKA=0 pnpm install --prod --frozen-lockfile
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --prod --frozen-lockfile
 
 FROM base AS build
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store BUILD_LIBRDKAFKA=0 pnpm install --frozen-lockfile
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 RUN pnpm --filter liquidity-service build
 
 FROM base
