@@ -1,4 +1,5 @@
 import fastify, { FastifyReply } from "fastify";
+import { fastifyOtelInstrumentation } from "./telemetry";
 import logger from "./logger";
 import {
   RemoteIncomingPaymentService,
@@ -56,6 +57,8 @@ export function createApp(
       return payload;
     }
   );
+
+  app.register(fastifyOtelInstrumentation.plugin());
 
   app.post("/incoming-payment", async function handler(request, reply) {
     const stopTimerReqRsp = telemetryService.startTimer(
