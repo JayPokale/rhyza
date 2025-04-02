@@ -127,12 +127,19 @@ export class LiquidityService implements LiquidityServiceAdapter {
   }
 
   private async sendRequest(url: string, body: string): Promise<void> {
-    const res = await fetch(url, {
+    const response = await fetch(url, {
       method: "POST",
       body,
       headers: {
         "content-type": "application/json",
       },
     });
+
+    if (!response.ok) {
+      const errorMessage = "Could not make request to liquidity service";
+
+      logger.error({ status: response.status, url }, errorMessage);
+      throw new Error(errorMessage);
+    }
   }
 }
