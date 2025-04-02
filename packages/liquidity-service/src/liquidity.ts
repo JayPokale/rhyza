@@ -672,6 +672,15 @@ function fromTbIdToUuid(id: bigint): string {
   )}-${hexString.slice(16, 20)}-${hexString.slice(20)}`;
 }
 
+function toTbAccountFlags(account: LedgerAccount): AccountFlags {
+  const flags =
+    account.type === LedgerAccountType.SETTLEMENT
+      ? AccountFlags.credits_must_not_exceed_debits
+      : AccountFlags.debits_must_not_exceed_credits;
+
+  return flags;
+}
+
 export class TBLedgerAccountRepository implements LedgerAccountRepository {
   constructor(private client: TigerBeetleClient) {}
 
@@ -706,7 +715,7 @@ export class TBLedgerAccountRepository implements LedgerAccountRepository {
         user_data_64: 0n,
         user_data_128: toTbId(account.externalRef),
         reserved: 0,
-        flags: 0,
+        flags: toTbAccountFlags(account),
         debits_pending: 0n,
         debits_posted: 0n,
         credits_pending: 0n,
