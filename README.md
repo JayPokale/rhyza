@@ -44,6 +44,13 @@ Then you can run the benchmark as follows:
 k6 run benchmark.js
 ```
 
+You can monitor performance results on the Grafana dashboard at:
+http://localhost:4501/d/aeg4uh40kdl34d/rafiki-poc?orgId=1&from=now-5m&to=now&timezone=browser&refresh=5s
+
+You can monitor Kafka processing on the Redpanda dashboard at:
+http://localhost:8080
+
+
 Inspect the logs:
 ```shell
 docker-compose logs -f backend

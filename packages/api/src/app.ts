@@ -347,14 +347,10 @@ class RafikiApiResponseEventHandler {
         logger.error("API -> Payload for error:");
         logger.error(message);
       } finally {
-        if (reply) this.callMyFunction(reply.timer)
+        if (reply) reply.timer()
 
         resolve();
       }
     });
-  }
-
-  callMyFunction(fn: TimerFunction) {
-    return fn();
   }
 }
