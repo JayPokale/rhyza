@@ -1,3 +1,4 @@
+require("./telemetry.js"); // Load telemetry before running the rest of the app
 import logger from "./logger";
 import pool from "./db";
 import {
