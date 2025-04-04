@@ -2,14 +2,14 @@ import logger from "./logger";
 import pool from "./db";
 import {
   AssetAccountPsqlRepository,
-  LiquidityService,
   PeerAccountPsqlRepository,
   TBLedgerAccountRepository,
   TBLedgerTransferRepository,
   WalletAddressAccountPsqlRepository,
-} from "./liquidity";
+} from "./repository";
 import { createClient } from "tigerbeetle-node";
 import { createApp } from "./app";
+import { LiquidityService } from "./liquidity";
 
 const tbClient = createClient({
   cluster_id: 0n,
