@@ -129,9 +129,59 @@ export class RedisCache<T> implements Cache<T> {
   }
 }
 
-// ==========================
-// Wallet Address
-// ==========================
+//#region Asset
+
+interface Asset {
+  id: string;
+  code: string;
+  scale: number; // this is just a display scale (for viewing)
+}
+
+export interface AssetRepository {
+  existsByCode(code: string): Promise<boolean>;
+  store(asset: Asset): Promise<void>;
+}
+
+export class AssetPsqlRepository implements AssetRepository {
+  TABLE_NAME = "assets";
+  constructor(
+    private pool: Pool,
+    private logger: Logger
+  ) {}
+
+  public async existsByCode(code: string): Promise<boolean> {
+    try {
+      const res = await this.pool.query(
+        `SELECT EXISTS(SELECT 1 FROM ${this.TABLE_NAME} WHERE code = $1)`,
+        [code]
+      );
+      return res.rows[0].exists;
+    } catch (error) {
+      this.logger.error({ error }, "Error checking if asset exists");
+      throw error;
+    }
+  }
+
+  public async store(asset: Asset): Promise<void> {
+    try {
+      const query = `
+          INSERT INTO ${this.TABLE_NAME} (id, code, scale)
+          VALUES ($1, $2, $3)
+        `;
+
+      const values = [asset.id, asset.code, asset.scale];
+
+      await this.pool.query(query, values);
+    } catch (error) {
+      this.logger.error({ error }, "Error storing asset");
+      throw error;
+    }
+  }
+}
+
+//#endregion
+
+//#region Wallet Address
 
 interface WalletAddressRecord {
   id: string;
@@ -202,8 +252,8 @@ export class WalletAddressPsqlRepository implements IWalletAddressRepository {
   public async store(walletAddress: WalletAddress): Promise<void> {
     try {
       const query = `
-        INSERT INTO ${this.TABLE_NAME} (id, url, is_active, asset_code, asset_scale)
-        VALUES ($1, $2, $3, $4, $5)
+      INSERT INTO ${this.TABLE_NAME} (id, url, is_active, asset_code, asset_scale)
+      VALUES ($1, $2, $3, $4, $5)
       `;
 
       const values = [
@@ -244,9 +294,9 @@ export class WalletAddressInMemoryRepository
   }
 }
 
-// ==========================
-// Incoming Payment
-// ==========================
+//#endregion
+
+//#region Incoming Payment
 
 interface IncomingPaymentRecord {
   id: string;
@@ -473,9 +523,9 @@ export class IncomingPaymentInMemoryRepository
   }
 }
 
-// ==========================
-// Outgoing Payment
-// ==========================
+//#endregion
+
+//#region Outgoing Payment
 
 interface OutgoingPaymentRecord {
   id: string;
@@ -703,9 +753,9 @@ export class OutgoingPaymentInMemoryRepository
   }
 }
 
-// ==========================
-// Quote
-// ==========================
+//#endregion
+
+//#region Quote
 
 interface QuoteRecord {
   id: string;
@@ -881,9 +931,9 @@ export class QuoteInMemoryRepository implements IQuoteRepository {
   }
 }
 
-// ==========================
-// Remote Incoming Payment
-// ==========================
+//#endregion
+
+//#region Remote Incoming Payment
 
 interface RemoteIncomingPaymentRecord {
   id: string;
@@ -987,9 +1037,9 @@ export class RemoteIncomingPaymentInMemoryRepository
   }
 }
 
-// ==========================
-// Peer
-// ==========================
+//#endregion
+
+//#region Peer
 
 interface IlpPeerRecord {
   id: string;
@@ -1137,3 +1187,5 @@ export class IlpPeerInMemoryRepository implements IIlpPeerRepository {
     return [...this.map.values()].find((peer) => peer.address === address);
   }
 }
+
+//#endregion

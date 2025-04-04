@@ -25,9 +25,10 @@ import {
   RedisCache,
   WalletAddressPsqlRepository,
   IlpPeerPsqlRepository,
+  AssetPsqlRepository,
 } from "./repository";
 import { Amount } from "./shared";
-import { AssetPsqlRepository, AssetService } from "./asset";
+import { AssetService } from "./asset";
 import { TelemetryService } from "telemetry";
 
 const ONE_HOUR_IN_MS = 3_600_000;
@@ -54,7 +55,7 @@ const liquidityService = new LiquidityService(
 );
 
 const assetService = new AssetService(
-  new AssetPsqlRepository(pool),
+  new AssetPsqlRepository(pool, logger),
   liquidityService
 );
 const walletAddressService = new WalletAddressService(
