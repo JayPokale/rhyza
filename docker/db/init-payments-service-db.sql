@@ -1,3 +1,6 @@
+CREATE DATABASE "payments-service";
+\c payments-service
+
 CREATE TABLE IF NOT EXISTS assets (
   id UUID PRIMARY KEY NOT NULL,
   code TEXT NOT NULL,
