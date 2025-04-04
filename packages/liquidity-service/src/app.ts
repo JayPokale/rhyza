@@ -2,9 +2,12 @@ import fastify from "fastify";
 import logger from "./logger";
 
 import { LiquidityRequest, LiquidityService } from "./liquidity";
+import { fastifyOtelInstrumentation } from "./telemetry";
 
 export function createApp(port: number, liquidityService: LiquidityService) {
   const app = fastify();
+
+  app.register(fastifyOtelInstrumentation.plugin());
 
   app.post("/transfers", async function handler(request, reply) {
     const requestBody = (request.body as LiquidityRequest[]).map((req) => {
