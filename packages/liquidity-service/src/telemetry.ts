@@ -3,6 +3,7 @@ import { OTLPMetricExporter } from "@opentelemetry/exporter-metrics-otlp-grpc";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-grpc";
 import { registerInstrumentations } from "@opentelemetry/instrumentation";
 import { HttpInstrumentation } from "@opentelemetry/instrumentation-http";
+import { PgInstrumentation } from "@opentelemetry/instrumentation-pg";
 import { ATTR_SERVICE_NAME } from "@opentelemetry/semantic-conventions";
 import { resourceFromAttributes } from "@opentelemetry/resources";
 import {
@@ -53,7 +54,7 @@ fastifyOtelInstrumentation.setTracerProvider(tracerProvider);
 tracerProvider.register();
 
 registerInstrumentations({
-  instrumentations: [new HttpInstrumentation()],
+  instrumentations: [new HttpInstrumentation(), new PgInstrumentation()],
 });
 
 export { fastifyOtelInstrumentation };
