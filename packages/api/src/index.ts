@@ -29,20 +29,21 @@ import logger from "./logger";
   logger.info(`Init Kafka on '${kafkaUrl}'`);
 
   // Init Producer/Consumer:
+  const telemetryService = TelemetryService.getInstance({
+    serviceName: "api",
+    collectorUrl:
+      process.env["OPEN_TELEMETRY_COLLECTOR_URL"] ||
+      "http://otel-collector:4317",
+  })
   const producer = new RafikiKafkaJsonProducer(kafkaProducerCommonOptions);
   await producer.connect();
-  const consumer = new RafikiKafkaJsonConsumer(kafkaConsumerCommonOptions);
+  const consumer = new RafikiKafkaJsonConsumer(kafkaConsumerCommonOptions, telemetryService);
 
   const start = createApp(
     Number(process.env["API_PORT"] ?? 3000),
     remoteIncomingPaymentService,
     ilpConnector,
-    TelemetryService.getInstance({
-      serviceName: "api",
-      collectorUrl:
-        process.env["OPEN_TELEMETRY_COLLECTOR_URL"] ||
-        "http://otel-collector:4317",
-    }),
+    telemetryService,
     producer,
     consumer
   );

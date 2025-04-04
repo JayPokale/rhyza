@@ -22,6 +22,7 @@ import {
 } from "../event";
 
 import logger from "../../logger";
+import type { ITelemetryService } from "../../../../telemetry";
 
 export class RafikiCommandHandler {
   private _messageConsumer: IMessageConsumer;
@@ -31,7 +32,8 @@ export class RafikiCommandHandler {
   constructor(
     messageConsumer: IMessageConsumer,
     messageProducer: IMessageProducer,
-    paymentService: PaymentService
+    paymentService: PaymentService,
+    private _telemetryService: ITelemetryService
   ) {
     this._messageConsumer = messageConsumer;
     this._messageProducer = messageProducer;
@@ -53,6 +55,14 @@ export class RafikiCommandHandler {
     // eslint-disable-next-line no-async-promise-executor
     return await new Promise<void>(async (resolve) => {
       logger.debug({ message }, `CommandHandler: Received command`);
+
+      const stopTimerMsgHandler = this._telemetryService.startTimer(
+        'command_handler_msg_handler_ms',
+        {
+          callName: 'Handler:handleMessage',
+          description: 'Time to process a message.'
+        }
+      )
       try {
         switch (message.msgName) {
           case CreateIncomingPaymentCmd.name:
@@ -145,6 +155,9 @@ export class RafikiCommandHandler {
         }
         logger.error(err);
       } finally {
+        stopTimerMsgHandler()
+        this._telemetryService.incrementCounter("message_handler_commands_processed", 1);
+
         logger.debug(`CommandHandler: Done`);
         resolve();
       }

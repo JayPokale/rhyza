@@ -6,6 +6,7 @@ import {
   RafikiKafkaRawConsumerOptions,
 } from "./raw/rdkafka_raw_consumer";
 import { IRawAuthenticationOptions, IRawMessage } from "./raw/raw_types";
+import type { ITelemetryService } from "../../../telemetry";
 
 type RafikiKafkaJsonConsumerEvents = "rebalance";
 type RafikiKafkaJsonConsumerEventListenerMap = {
@@ -44,7 +45,7 @@ export class RafikiKafkaJsonConsumer
   private _options: RafikiKafkaJsonConsumerOptions;
 
   constructor(
-    options: RafikiKafkaJsonConsumerOptions /*, logger: ILogger | null = null*/
+    options: RafikiKafkaJsonConsumerOptions , telemetryService: ITelemetryService
   ) {
     super();
     this._options = options;
@@ -55,7 +56,7 @@ export class RafikiKafkaJsonConsumer
     };
 
     this._kafkaRawConsumer = new RafikiKafkaRawConsumer(
-      rawOptions /*, logger*/
+      rawOptions , telemetryService
     );
 
     // if (this._options.batchSize && this._options.batchSize > 1) {

@@ -9,6 +9,7 @@ import {
 } from "./raw_types";
 import * as crypto from "crypto";
 import logger from "../../logger";
+import type { ITelemetryService } from "../../../../telemetry";
 
 export enum RafikiKafkaRawConsumerOutputType {
   Raw,
@@ -80,7 +81,7 @@ export class RafikiKafkaRawConsumer
     | null = null;
   private _batchSize = defaultOptions.batchSize;
 
-  constructor(options: RafikiKafkaRawConsumerOptions) {
+  constructor(options: RafikiKafkaRawConsumerOptions, private _telemetryService: ITelemetryService) {
     super();
     this._options = options;
 
@@ -402,6 +403,14 @@ export class RafikiKafkaRawConsumer
             return callContinue();
           });
         } else if (this._handlerCallback) {
+          const stopTimerRawConsumed = this._telemetryService.startTimer(
+            'raw_kafka_consumed_ms',
+            {
+              callName: 'RdKafkaRaw:consume',
+              description: 'Time to consume a single message from Kafka.'
+            }
+          )
+
           if (kafkaMessages.length > 1)
             throw new Error(
               "RafikiKafkaRawConsumer single handler callback configured with batchSize > 1 - these two parameters must match"
@@ -413,6 +422,8 @@ export class RafikiKafkaRawConsumer
             this._commitMsg(kafkaMessages[0]);
             return callContinue();
           });
+          stopTimerRawConsumed()
+          this._telemetryService.incrementCounter("raw_kafka_consumed", 1);
         } else {
           // maybe no handler was set yet
           return callContinue();
