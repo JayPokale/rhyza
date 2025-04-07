@@ -13,7 +13,7 @@ import { CommandMsg } from "../message";
 export enum Topic {
   "IncomingPayments" = "incoming-payment-commands",
   "Quotes" = "quote-commands",
-  "OutgoingPaymentsFromQuote" = "outgoing-payment-from-quote-commands",
+  "OutgoingPaymentsFromQuote" = "outgoing-payment-commands",
 }
 
 export interface AmountPayload {
@@ -69,24 +69,24 @@ export class CreateQuoteCmd extends CommandMsg {
   }
 }
 
-export interface CreateOutgoingPaymentFromQuoteCmdPayload {
+export interface CreateOutgoingPaymentCmdPayload {
   id?: string;
-  quoteId: string;
+  quoteId?: string;
   senderWalletAddressId: string;
+  incomingPaymentId?: string;
+  debitAmount?: AmountPayload;
+  receiveAmount?: AmountPayload;
 }
 
-export class CreateOutgoingPaymentFromQuoteCmd extends CommandMsg {
+export class CreateOutgoingPaymentCmd extends CommandMsg {
   contextName: string = "payment";
   aggregateId: string;
   aggregateName: string = "payments";
   msgKey: string;
   msgTopic: string = Topic.OutgoingPaymentsFromQuote;
-  payload: CreateOutgoingPaymentFromQuoteCmdPayload;
+  payload: CreateOutgoingPaymentCmdPayload;
 
-  constructor(
-    payload: CreateOutgoingPaymentFromQuoteCmdPayload,
-    requestId: string
-  ) {
+  constructor(payload: CreateOutgoingPaymentCmdPayload, requestId: string) {
     super();
     this.msgKey = this.aggregateId = payload.id!;
     this.payload = payload;

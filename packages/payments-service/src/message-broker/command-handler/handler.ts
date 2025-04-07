@@ -2,6 +2,7 @@ import { IMessage, IMessageConsumer, IMessageProducer } from "../message";
 
 import {
   CreateIncomingPaymentRequest,
+  CreateOutgoingPaymentFromIncomingPaymentRequest,
   CreateOutgoingPaymentFromQuoteRequest,
   CreateQuoteRequest,
   PaymentService,
@@ -9,7 +10,7 @@ import {
 
 import {
   CreateIncomingPaymentCmd,
-  CreateOutgoingPaymentFromQuoteCmd,
+  CreateOutgoingPaymentCmd,
   CreateQuoteCmd,
   Topic,
 } from "../command";
@@ -95,13 +96,10 @@ export class RafikiCommandHandler {
               );
             }
             break;
-          case CreateOutgoingPaymentFromQuoteCmd.name:
-            const outPayId =
-              await this._paymentService.createOutgoingPaymentFromQuote(
-                this.toDomainOutgoingFromQuote(
-                  message as CreateOutgoingPaymentFromQuoteCmd
-                )
-              );
+          case CreateOutgoingPaymentCmd.name:
+            const outPayId = await this._paymentService.createOutgoingPayment(
+              this.toDomainOutgoing(message as CreateOutgoingPaymentCmd)
+            );
             if (message.requestId) {
               await this._messageProducer.send(
                 new ApiRspOutgoingPaymentEvent(
@@ -207,13 +205,46 @@ export class RafikiCommandHandler {
     };
   }
 
-  public toDomainOutgoingFromQuote(
-    cmd: CreateOutgoingPaymentFromQuoteCmd
-  ): CreateOutgoingPaymentFromQuoteRequest {
-    return {
-      id: cmd.payload.id,
+  // TODO: return type of this is probably not quite right...
+  // Union (|) vs Intersection (&) type
+  // If the service is a union, should all the types alongt he way (return type here,
+  // command payload type, etc) be union as well?
+  // Should I change the service to not be a union, but an intersection?
+  // I guess the value in the union is it uses the explicit types the udnerlying createFrom
+  // functions use but we no longer really care about that from the outside.
+  // Maybe createOutgoingPayment type should be an intersection then manually form the explicit
+  // createFrom arg types?
+  public toDomainOutgoing(
+    cmd: CreateOutgoingPaymentCmd
+  ): CreateOutgoingPaymentFromQuoteRequest &
+    CreateOutgoingPaymentFromIncomingPaymentRequest {
+    const request = {
       senderWalletAddressId: cmd.payload.senderWalletAddressId,
-      quoteId: cmd.payload.quoteId,
-    };
+    } as CreateOutgoingPaymentFromQuoteRequest &
+      CreateOutgoingPaymentFromIncomingPaymentRequest;
+
+    if (cmd.payload.id) {
+      request.id = cmd.payload.id;
+    }
+    if (cmd.payload.incomingPaymentId) {
+      request.incomingPaymentId = cmd.payload.incomingPaymentId;
+    }
+    if (cmd.payload.quoteId) {
+      request.quoteId = cmd.payload.quoteId;
+    }
+    if (cmd.payload.debitAmount) {
+      request.debitAmount = {
+        ...cmd.payload.debitAmount,
+        value: BigInt(cmd.payload.debitAmount.value),
+      };
+    }
+    if (cmd.payload.receiveAmount) {
+      request.receiveAmount = {
+        ...cmd.payload.receiveAmount,
+        value: BigInt(cmd.payload.receiveAmount.value),
+      };
+    }
+
+    return request;
   }
 }

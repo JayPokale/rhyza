@@ -110,7 +110,7 @@ services:
       ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --topic logs
       ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 3 --topic incoming-payment-commands
       ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 3 --topic quote-commands
-      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 3 --topic outgoing-payment-from-quote-commands
+      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 3 --topic outgoing-payment-commands
       ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 2 --topic api-response-events
       echo -e '\nSuccessfully created the following topics:'
       ./kafka-topics.sh --bootstrap-server kafka:19092 --list

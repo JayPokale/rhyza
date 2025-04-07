@@ -15,7 +15,7 @@ import {
 import os from "os";
 import {
   CreateIncomingPaymentCmd,
-  CreateOutgoingPaymentFromQuoteCmd,
+  CreateOutgoingPaymentCmd,
   CreateQuoteCmd,
 } from "payments-service/dist/message-broker/command";
 import { Topic } from "payments-service/dist/message-broker/event";
@@ -28,7 +28,7 @@ import {
   ApiRspOutgoingPaymentEvent,
   ApiRspQuoteEvent,
 } from "payments-service/dist/message-broker/event";
-import {Attributes} from "@opentelemetry/api";
+import { Attributes } from "@opentelemetry/api";
 
 type TimerFunction = (additionalAttributes?: Attributes) => void
 
@@ -201,6 +201,8 @@ export function createApp(
       senderWalletAddressId: requestBody.senderWalletAddressId,
       incomingPaymentId: requestBody.incomingPaymentId,
       quoteId: requestBody.quoteId,
+      debitAmount: requestBody.debitAmount,
+      receiveAmount: requestBody.receiveAmount,
     };
 
     logger.debug(
@@ -208,7 +210,7 @@ export function createApp(
       `API(${os.hostname()}): Sending outgoing-payment`
     );
 
-    const cmd = new CreateOutgoingPaymentFromQuoteCmd(payload, randomUUID());
+    const cmd = new CreateOutgoingPaymentCmd(payload, randomUUID());
     mapRsp.set(cmd.requestId!, {
       fastifyReply: reply,
       timer: stopTimerReqRsp

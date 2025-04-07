@@ -33,6 +33,7 @@ export class PeerNotFoundError extends Error {}
 export class QuoteExpiredError extends Error {}
 export class IncomingPaymentCannotReceiveMicroPayment extends Error {}
 export class DuplicateOutgoingPaymentFoundError extends Error {}
+export class OutgoingPaymentMissingIdentifierError extends Error {}
 export class OutgoingPaymentNotFoundError extends Error {}
 export class OutgoingPaymentInvalidStateError extends Error {}
 
@@ -73,7 +74,7 @@ export interface MicroPayment {
 
 export interface OutgoingPayment {
   id: string;
-  quoteId: string;
+  quoteId?: string;
   asset: Asset;
   state: OutgoingPaymentState;
   sentAmount: bigint;
@@ -234,7 +235,7 @@ export interface IlpQuotePacketReceivedEvent extends Event {
   };
 }
 
-const LocalIncomingPaymentState = {
+export const LocalIncomingPaymentState = {
   CREATED: "CREATED", // normal state, can add new micropayments
   EXPIRED: "EXPIRED", // available for reads only, cannot add new entries
   COMPLETED: "COMPLETED", // not available to reads or writes, historic only (can be changed back to inactive)
@@ -274,6 +275,13 @@ export interface CreateOutgoingPaymentFromQuoteRequest {
   // isFunded: boolean; TODO if the outgoing payment request came from a third party we need to webhook out to the ASE to "fund" the payment
 }
 
+export interface CreateOutgoingPaymentFromIncomingPaymentRequest {
+  id?: string;
+  incomingPaymentId: string;
+  senderWalletAddressId: string;
+  debitAmount?: Amount;
+  receiveAmount?: Amount;
+}
 export class PaymentService {
   private INCOMING_PAYMENT_MAX_EXPIRY_MS = 2592000000; // 30 days
   private INCOMING_PAYMENT_DEFAULT_EXPIRY = 1000 * 60 * 10;
@@ -714,7 +722,26 @@ export class PaymentService {
     };
   }
 
-  public async createOutgoingPaymentFromQuote(
+  public async createOutgoingPayment(
+    request:
+      | CreateOutgoingPaymentFromQuoteRequest
+      | CreateOutgoingPaymentFromIncomingPaymentRequest
+  ) {
+    if ("quoteId" in request) {
+      console.log("creating from quote");
+      return this.createOutgoingPaymentFromQuote(
+        request as CreateOutgoingPaymentFromQuoteRequest
+      );
+    } else if ("incomingPaymentId" in request) {
+      return this.createOutgoingPaymentFromIncomingPayment(
+        request as CreateOutgoingPaymentFromIncomingPaymentRequest
+      );
+    } else {
+      throw new OutgoingPaymentMissingIdentifierError();
+    }
+  }
+
+  private async createOutgoingPaymentFromQuote(
     request: CreateOutgoingPaymentFromQuoteRequest
   ) {
     let outgoingPaymentId;
@@ -853,8 +880,203 @@ export class PaymentService {
     }
   }
 
-  public async createOutgoingPaymentFromIncomingPayment() {
-    throw new Error("not implemented");
+  private async createOutgoingPaymentFromIncomingPayment(
+    request: CreateOutgoingPaymentFromIncomingPaymentRequest
+  ) {
+    let outgoingPaymentId;
+
+    if (request.id) {
+      const exists = await this.outgoingPaymentRepository.exists(request.id);
+
+      if (exists) {
+        throw new DuplicateOutgoingPaymentFoundError();
+      }
+      outgoingPaymentId = request.id;
+    } else {
+      outgoingPaymentId = crypto.randomUUID();
+    }
+
+    const [walletAddress, incomingPayment] = await Promise.all([
+      this.walletAddressService.getById(request.senderWalletAddressId),
+      this.fetchIncomingPayment(request.incomingPaymentId),
+    ]);
+
+    if (!walletAddress) {
+      throw new WalletAddressNotFoundError();
+    }
+
+    if (!walletAddress.isActive) {
+      throw new WalletAddressInactiveError();
+    }
+
+    if (!incomingPayment) {
+      throw new IncomingPaymentNotFoundError();
+    }
+
+    if (incomingPayment.type === "LOCAL") {
+      if (incomingPayment.state !== LocalIncomingPaymentState.CREATED) {
+        throw new IncomingPaymentInvalidStateError();
+      }
+
+      // TODO: maybe de-duplicate with createLocalQuote. the amount determination
+      // was copy-pasted from there
+      let debitAmount: Amount;
+      let receiveAmount: Amount;
+      let exchangeRate: number;
+      if (request.debitAmount) {
+        if (
+          request.debitAmount.assetCode !== walletAddress.assetCode ||
+          request.debitAmount.assetScale !== walletAddress.assetScale ||
+          request.debitAmount.value <= 0n
+        ) {
+          // TODO: rename to not be quote related
+          throw new InvalidQuoteAmountError();
+        }
+
+        debitAmount = request.debitAmount;
+
+        // TODO: rename to not be quote related
+        const result = await this.calculateQuoteFromDebitAmount({
+          debitAmount,
+          walletAddress,
+          incomingPayment,
+        });
+
+        receiveAmount = result.receiveAmount;
+      } else if (request.receiveAmount) {
+        receiveAmount = request.receiveAmount;
+
+        // TODO: rename to not be quote related
+        const result = await this.calculateQuoteFromReceiveAmount({
+          receiveAmount: request.receiveAmount,
+          walletAddress,
+          incomingPayment,
+        });
+
+        debitAmount = result.debitAmount;
+        exchangeRate = result.exchangeRate;
+      } else if (incomingPayment.incomingAmount) {
+        // TODO: rename to not be quote related
+        const result = await this.calculateQuoteFromIncomingPaymentAmount({
+          walletAddress,
+          incomingPayment: {
+            ...incomingPayment,
+            incomingAmount: incomingPayment.incomingAmount,
+          },
+        });
+
+        debitAmount = result.debitAmount;
+        receiveAmount = {
+          assetCode: incomingPayment.asset.code,
+          assetScale: incomingPayment.asset.scale,
+          value: incomingPayment.incomingAmount,
+        };
+      } else {
+        // TODO: rename to not be quote related
+        throw new InvalidQuoteAmountError();
+      }
+
+      const walletAddressFundRequest: FundWalletAddressLiquidityRequest = {
+        id: crypto.randomUUID(),
+        type: LiquidityRequestType.FUND_WALLET_ADDRESS,
+        data: {
+          walletAddressId: walletAddress.id,
+          amount: debitAmount,
+        },
+      };
+
+      await this.liquidityService.execute([walletAddressFundRequest]);
+
+      const outgoingPayment: OutgoingPayment = {
+        id: outgoingPaymentId,
+        senderWalletAddressId: walletAddress.id,
+        asset: {
+          code: walletAddress.assetCode,
+          scale: walletAddress.assetScale,
+        },
+        debitAmount: debitAmount.value,
+        sentAmount: 0n,
+        localIncomingPaymentId: incomingPayment.id,
+        state: OutgoingPaymentState.FUNDED,
+      };
+
+      const localOutgoingPaymentFundedEvent: LocalOutgoingPaymentFundedEvent = {
+        type: PaymentEventType.LOCAL_OUTGOING_PAYMENT_FUNDED,
+        data: {
+          outgoingPayment,
+          incomingPayment,
+          // TODO: handle "quote" better. Maybe rename on event and narrow type to:
+          // - senderWalletAddressId, receiveAmount, debitAmount
+          // We dont have the quote here but need to pass along the
+          // payment details.
+          // Handler currently uses:
+          // - quote.receiveAMount.value
+          // - quote.receiveAmount
+          // - quote.debitAmount
+          // - quote.senderWalletAddressId
+          quote: {
+            senderWalletAddressId: walletAddress.id,
+            receiveAmount,
+            debitAmount,
+          } as Quote,
+        },
+      };
+
+      await this.outgoingPaymentRepository.store(outgoingPayment);
+      await this.paymentEventProducer.publish([
+        localOutgoingPaymentFundedEvent,
+      ]);
+
+      return outgoingPayment.id;
+    } else {
+      // TODO: handle debitAmount, receiveAmount
+      if (!request.debitAmount) throw new Error("Expected debitAmount");
+      if (!request.receiveAmount) throw new Error("Expected receiveAmount");
+
+      const walletAddressFundRequest: FundWalletAddressLiquidityRequest = {
+        id: crypto.randomUUID(),
+        type: LiquidityRequestType.FUND_WALLET_ADDRESS,
+        data: {
+          walletAddressId: request.senderWalletAddressId,
+          amount: request.debitAmount,
+        },
+      };
+
+      await this.liquidityService.execute([walletAddressFundRequest]);
+
+      const outgoingPayment: OutgoingPayment = {
+        id: crypto.randomUUID(),
+        // quoteId: quote.id,
+        senderWalletAddressId: walletAddress.id,
+        asset: {
+          code: walletAddress.assetCode,
+          scale: walletAddress.assetScale,
+        },
+        debitAmount: request.debitAmount.value,
+        sentAmount: 0n,
+        remoteIncomingPaymentUrl: incomingPayment.id,
+        state: OutgoingPaymentState.FUNDED,
+      };
+      await this.outgoingPaymentRepository.store(outgoingPayment);
+
+      const remoteOutgoingPaymentFundedEvent: RemoteOutgoingPaymentFundedEvent =
+        {
+          type: PaymentEventType.REMOTE_OUTGOING_PAYMENT_FUNDED,
+          data: {
+            outgoingPaymentId: outgoingPayment.id,
+            debitAmount: request.debitAmount,
+            receiveAmount: request.receiveAmount,
+            remoteIncomingPaymentUrl: outgoingPayment.remoteIncomingPaymentUrl!,
+            quoteExpiresAt: new Date(Date.now() + this.QUOTE_EXPIRY_MS),
+            ilpDetails: incomingPayment.ilpDetails,
+          },
+        };
+
+      await this.paymentEventProducer.publish([
+        remoteOutgoingPaymentFundedEvent,
+      ]);
+      return outgoingPayment.id;
+    }
   }
 
   private addMicroPaymentToIncomingPayment(
