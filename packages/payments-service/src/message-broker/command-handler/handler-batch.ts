@@ -206,15 +206,6 @@ export class RafikiCommandHandler {
     };
   }
 
-  // TODO: return type of this is probably not quite right...
-  // Union (|) vs Intersection (&) type
-  // If the service is a union, should all the types alongt he way (return type here,
-  // command payload type, etc) be union as well?
-  // Should I change the service to not be a union, but an intersection?
-  // I guess the value in the union is it uses the explicit types the udnerlying createFrom
-  // functions use but we no longer really care about that from the outside.
-  // Maybe createOutgoingPayment type should be an intersection then manually form the explicit
-  // createFrom arg types?
   public toDomainOutgoing(
     cmd: CreateOutgoingPaymentCmd
   ): CreateOutgoingPaymentFromQuoteRequest &

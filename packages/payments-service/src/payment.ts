@@ -176,9 +176,11 @@ interface OutgoingPaymentCompletedEvent extends Event {
 interface LocalOutgoingPaymentFundedEvent extends Event {
   type: PaymentEventType.LOCAL_OUTGOING_PAYMENT_FUNDED;
   data: {
-    quote: Quote;
     outgoingPayment: OutgoingPayment;
     incomingPayment: IncomingPayment;
+    senderWalletAddressId: string;
+    receiveAmount: Amount;
+    debitAmount: Amount;
   };
 }
 
@@ -438,7 +440,7 @@ export class PaymentService {
     let exchangeRate: number;
 
     if (request.debitAmount) {
-      const result = await this.calculateQuoteFromDebitAmount({
+      const result = await this.calculateReceiveAmountFromDebitAmount({
         debitAmount: request.debitAmount,
         walletAddress,
         incomingPayment,
@@ -448,7 +450,7 @@ export class PaymentService {
       exchangeRate = result.exchangeRate;
       quoteDebitAmount = request.debitAmount;
     } else if (request.receiveAmount) {
-      const result = await this.calculateQuoteFromReceiveAmount({
+      const result = await this.calculateDebitAmountFromReceiveAmount({
         receiveAmount: request.receiveAmount,
         walletAddress,
         incomingPayment,
@@ -458,7 +460,7 @@ export class PaymentService {
       exchangeRate = result.exchangeRate;
       quoteReceiveAmount = request.receiveAmount;
     } else if (incomingPayment.incomingAmount) {
-      const result = await this.calculateQuoteFromIncomingPaymentAmount({
+      const result = await this.calculateDebitAmountFromIncomingPaymentAmount({
         walletAddress,
         incomingPayment: {
           ...incomingPayment,
@@ -536,7 +538,7 @@ export class PaymentService {
     return id;
   }
 
-  private async calculateQuoteFromDebitAmount({
+  private async calculateReceiveAmountFromDebitAmount({
     debitAmount,
     walletAddress,
     incomingPayment,
@@ -599,7 +601,7 @@ export class PaymentService {
     };
   }
 
-  private async calculateQuoteFromReceiveAmount({
+  private async calculateDebitAmountFromReceiveAmount({
     receiveAmount,
     walletAddress,
     incomingPayment,
@@ -662,7 +664,7 @@ export class PaymentService {
     };
   }
 
-  private async calculateQuoteFromIncomingPaymentAmount({
+  private async calculateDebitAmountFromIncomingPaymentAmount({
     walletAddress,
     incomingPayment,
   }: {
@@ -823,7 +825,9 @@ export class PaymentService {
         data: {
           outgoingPayment,
           incomingPayment,
-          quote,
+          senderWalletAddressId: quote.senderWalletAddressId,
+          receiveAmount: quote.receiveAmount,
+          debitAmount: quote.debitAmount,
         },
       };
 
@@ -935,8 +939,7 @@ export class PaymentService {
 
         debitAmount = request.debitAmount;
 
-        // TODO: rename to not be quote related
-        const result = await this.calculateQuoteFromDebitAmount({
+        const result = await this.calculateReceiveAmountFromDebitAmount({
           debitAmount,
           walletAddress,
           incomingPayment,
@@ -946,8 +949,7 @@ export class PaymentService {
       } else if (request.receiveAmount) {
         receiveAmount = request.receiveAmount;
 
-        // TODO: rename to not be quote related
-        const result = await this.calculateQuoteFromReceiveAmount({
+        const result = await this.calculateDebitAmountFromReceiveAmount({
           receiveAmount: request.receiveAmount,
           walletAddress,
           incomingPayment,
@@ -956,14 +958,15 @@ export class PaymentService {
         debitAmount = result.debitAmount;
         exchangeRate = result.exchangeRate;
       } else if (incomingPayment.incomingAmount) {
-        // TODO: rename to not be quote related
-        const result = await this.calculateQuoteFromIncomingPaymentAmount({
-          walletAddress,
-          incomingPayment: {
-            ...incomingPayment,
-            incomingAmount: incomingPayment.incomingAmount,
-          },
-        });
+        const result = await this.calculateDebitAmountFromIncomingPaymentAmount(
+          {
+            walletAddress,
+            incomingPayment: {
+              ...incomingPayment,
+              incomingAmount: incomingPayment.incomingAmount,
+            },
+          }
+        );
 
         debitAmount = result.debitAmount;
         receiveAmount = {
@@ -1005,20 +1008,9 @@ export class PaymentService {
         data: {
           outgoingPayment,
           incomingPayment,
-          // TODO: handle "quote" better. Maybe rename on event and narrow type to:
-          // - senderWalletAddressId, receiveAmount, debitAmount
-          // We dont have the quote here but need to pass along the
-          // payment details.
-          // Handler currently uses:
-          // - quote.receiveAMount.value
-          // - quote.receiveAmount
-          // - quote.debitAmount
-          // - quote.senderWalletAddressId
-          quote: {
-            senderWalletAddressId: walletAddress.id,
-            receiveAmount,
-            debitAmount,
-          } as Quote,
+          senderWalletAddressId: walletAddress.id,
+          receiveAmount,
+          debitAmount,
         },
       };
 
@@ -1029,7 +1021,7 @@ export class PaymentService {
 
       return outgoingPayment.id;
     } else {
-      // TODO: handle debitAmount, receiveAmount
+      // TODO: handle debit & receive amount
       if (!request.debitAmount) throw new Error("Expected debitAmount");
       if (!request.receiveAmount) throw new Error("Expected receiveAmount");
 
@@ -1138,7 +1130,13 @@ export class PaymentService {
   public async handleLocalOutgoingPaymentFundedEvent(
     event: LocalOutgoingPaymentFundedEvent
   ) {
-    const { outgoingPayment, quote, incomingPayment } = event.data;
+    const {
+      outgoingPayment,
+      senderWalletAddressId,
+      debitAmount,
+      receiveAmount,
+      incomingPayment,
+    } = event.data;
 
     const exists = await this.outgoingPaymentRepository.exists(
       outgoingPayment.id
@@ -1151,10 +1149,10 @@ export class PaymentService {
       id: crypto.randomUUID(),
       type: LiquidityRequestType.WALLET_ADDRESS_TO_WALLET_ADDRESS,
       data: {
-        sourceWalletAddressId: quote.senderWalletAddressId,
-        sourceAmount: quote.debitAmount,
+        sourceWalletAddressId: senderWalletAddressId,
+        sourceAmount: debitAmount,
         destinationWalletAddressId: incomingPayment.walletAddressId,
-        destinationAmount: quote.receiveAmount,
+        destinationAmount: receiveAmount,
       },
     };
 
@@ -1184,7 +1182,7 @@ export class PaymentService {
       incomingPayment,
       {
         requestId: outgoingPayment.id,
-        amount: quote.receiveAmount.value, // TODO: need to send _up to_ to incomingAmount, as the quoted amount might be more
+        amount: receiveAmount.value, // TODO: need to send _up to_ to incomingAmount, as the quoted amount might be more
         method: "LOCAL",
       }
     );
