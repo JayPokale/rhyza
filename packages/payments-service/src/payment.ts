@@ -1036,7 +1036,6 @@ export class PaymentService {
 
       const outgoingPayment: OutgoingPayment = {
         id: crypto.randomUUID(),
-        // quoteId: quote.id,
         senderWalletAddressId: walletAddress.id,
         asset: {
           code: walletAddress.assetCode,
