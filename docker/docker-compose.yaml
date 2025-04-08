@@ -44,7 +44,7 @@ services:
     environment:
       OPEN_TELEMETRY_COLLECTOR_URL: http://otel-collector:4317
       DATABASE_URL: postgres://postgres:password@pg-container:5432/liquidity-service
-      TB_REPLICA_ADDRESSES: 10.5.0.50:4342
+      TB_REPLICA_ADDRESSES: 10.5.1.51:4342
     depends_on:
       init-kafka:
         condition: service_completed_successfully
@@ -214,7 +214,7 @@ services:
       - tigerbeetle-data:/var/lib/tigerbeetle
     networks:
       rafiki-poc:
-        ipv4_address: 10.5.0.50
+        ipv4_address: 10.5.1.51
     entrypoint:
       - /bin/sh
       - -c
@@ -238,7 +238,7 @@ networks:
     driver: bridge
     ipam:
       config:
-        - subnet: 10.5.0.0/24
+        - subnet: 10.5.1.0/24
 
 volumes:
   tigerbeetle-data:
