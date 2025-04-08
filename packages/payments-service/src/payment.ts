@@ -25,7 +25,7 @@ export class IncomingPaymentNotFoundError extends Error {}
 export class IncomingPaymentInvalidStateError extends Error {}
 export class InvalidIncomingPaymentExpiryError extends Error {}
 export class DuplicateIncomingPaymentFoundError extends Error {}
-export class InvalidQuoteAmountError extends Error {}
+export class InvalidAmountError extends Error {}
 export class CouldNotConvertExchangeRatesError extends Error {}
 export class DuplicateQuoteFoundError extends Error {}
 export class QuoteNotFoundError extends Error {}
@@ -476,7 +476,7 @@ export class PaymentService {
         value: incomingPayment.incomingAmount,
       };
     } else {
-      throw new InvalidQuoteAmountError();
+      throw new InvalidAmountError();
     }
 
     const quoteDefaultExpiryMs = new Date().getTime() + this.QUOTE_EXPIRY_MS;
@@ -555,7 +555,7 @@ export class PaymentService {
       debitAmount.assetScale !== walletAddress.assetScale ||
       debitAmount.value <= 0n
     ) {
-      throw new InvalidQuoteAmountError();
+      throw new InvalidAmountError();
     }
 
     const isSameAssetQuote =
@@ -618,7 +618,7 @@ export class PaymentService {
       receiveAmount.assetScale !== incomingPayment.asset.scale ||
       receiveAmount.value <= 0n
     ) {
-      throw new InvalidQuoteAmountError();
+      throw new InvalidAmountError();
     }
 
     const isSameAssetQuote =
@@ -680,7 +680,7 @@ export class PaymentService {
       walletAddress.assetCode !== incomingPayment.asset.code ||
       walletAddress.assetScale !== incomingPayment.asset.scale
     ) {
-      throw new InvalidQuoteAmountError();
+      throw new InvalidAmountError();
     }
 
     if (incomingPayment.asset.code === walletAddress.assetCode) {
@@ -933,8 +933,7 @@ export class PaymentService {
           request.debitAmount.assetScale !== walletAddress.assetScale ||
           request.debitAmount.value <= 0n
         ) {
-          // TODO: rename to not be quote related
-          throw new InvalidQuoteAmountError();
+          throw new InvalidAmountError();
         }
 
         debitAmount = request.debitAmount;
@@ -975,8 +974,7 @@ export class PaymentService {
           value: incomingPayment.incomingAmount,
         };
       } else {
-        // TODO: rename to not be quote related
-        throw new InvalidQuoteAmountError();
+        throw new InvalidAmountError();
       }
 
       const walletAddressFundRequest: FundWalletAddressLiquidityRequest = {
