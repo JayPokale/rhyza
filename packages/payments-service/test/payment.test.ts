@@ -17,6 +17,7 @@ import {
   WalletAddressNotFoundError,
   LocalIncomingPaymentState,
   OutgoingPaymentMissingIdentifierError,
+  InvalidIdLengthError,
 } from "../src/payment";
 import { WalletAddress, WalletAddressService } from "../src/wallet-address";
 import { EventEmitterPubSub } from "../src/event";
@@ -73,6 +74,19 @@ describe("Payment Service", () => {
 
   describe("createIncomingPayment", async (t) => {
     describe("throws", async (t) => {
+      test("if provided id is over 64 chars", async (t) => {
+        const id = "a".padEnd(65, "1"); // id of length 65
+        const request = {
+          id,
+          walletAddressId: randomUUID(),
+        };
+
+        await assert.rejects(
+          paymentService.createIncomingPayment(request),
+          InvalidIdLengthError,
+          "Does not throw InvalidIdLengthError"
+        );
+      });
       test("if provided id is not unique", async (t) => {
         const id = randomUUID();
         const request = {
@@ -355,6 +369,21 @@ describe("Payment Service", () => {
 
   describe("createQuote", async (t) => {
     describe("throws", async (t) => {
+      test("if provided id is over 64 chars", async (t) => {
+        const id = "a".padEnd(65, "1"); // id of length 65
+        const request = {
+          id,
+          walletAddressId: randomUUID(),
+          senderWalletAddressId: randomUUID(),
+          incomingPaymentId: randomUUID(),
+        };
+
+        await assert.rejects(
+          paymentService.createQuote(request),
+          InvalidIdLengthError,
+          "Does not throw InvalidIdLengthError"
+        );
+      });
       test("if provided id is not unique", async (t) => {
         const id = randomUUID();
         const request = {
@@ -431,6 +460,22 @@ describe("Payment Service", () => {
 
   describe("createOutgoingPaymentFromIncomingPayment", async (t) => {
     describe("throws", async (t) => {
+      test("if provided id is over 64 chars", async (t) => {
+        const id = "a".padEnd(65, "1"); // id of length 65
+        const request = {
+          id,
+          senderWalletAddressId: randomUUID(),
+          incomingPaymentId: randomUUID(),
+        };
+
+        await assert.rejects(
+          (paymentService as any).createOutgoingPaymentFromIncomingPayment(
+            request
+          ),
+          InvalidIdLengthError,
+          "Does not throw InvalidIdLengthError"
+        );
+      });
       test("if provided id is not unique", async (t) => {
         const id = randomUUID();
         const request = {
@@ -565,7 +610,7 @@ describe("Payment Service", () => {
         );
         t.mock.method(
           paymentService as any,
-          "calculateQuoteFromIncomingPaymentAmount",
+          "calculateDebitAmountFromIncomingPaymentAmount",
           async () => {
             return {
               exchangeRate: 1,

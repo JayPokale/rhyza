@@ -36,6 +36,7 @@ export class DuplicateOutgoingPaymentFoundError extends Error {}
 export class OutgoingPaymentMissingIdentifierError extends Error {}
 export class OutgoingPaymentNotFoundError extends Error {}
 export class OutgoingPaymentInvalidStateError extends Error {}
+export class InvalidIdLengthError extends Error {}
 
 export interface CreateIncomingPaymentRequest {
   id?: string;
@@ -308,6 +309,12 @@ export class PaymentService {
     let id: string;
 
     if (request.id) {
+      if (request.id.length > 64) {
+        throw new InvalidIdLengthError(
+          "Incoming Payment ID is too long (max 64 characters)"
+        );
+      }
+
       const exists = await this.incomingPaymentRepository.exists(request.id);
 
       if (exists) {
@@ -389,6 +396,12 @@ export class PaymentService {
   public async createQuote(request: CreateQuoteRequest): Promise<string> {
     let id: string;
     if (request.id) {
+      if (request.id.length > 64) {
+        throw new InvalidIdLengthError(
+          "Quote ID is too long (max 64 characters)"
+        );
+      }
+
       const exists = await this.quoteRepository.exists(request.id);
 
       if (exists) {
@@ -730,7 +743,6 @@ export class PaymentService {
       | CreateOutgoingPaymentFromIncomingPaymentRequest
   ) {
     if ("quoteId" in request) {
-      console.log("creating from quote");
       return this.createOutgoingPaymentFromQuote(
         request as CreateOutgoingPaymentFromQuoteRequest
       );
@@ -749,6 +761,12 @@ export class PaymentService {
     let outgoingPaymentId;
 
     if (request.id) {
+      if (request.id.length > 64) {
+        throw new InvalidIdLengthError(
+          "Outgoing Payment ID is too long (max 64 characters)"
+        );
+      }
+
       const exists = await this.outgoingPaymentRepository.exists(request.id);
 
       if (exists) {
@@ -890,6 +908,12 @@ export class PaymentService {
     let outgoingPaymentId;
 
     if (request.id) {
+      if (request.id.length > 64) {
+        throw new InvalidIdLengthError(
+          "Outgoing Payment ID is too long (max 64 characters)"
+        );
+      }
+
       const exists = await this.outgoingPaymentRepository.exists(request.id);
 
       if (exists) {

@@ -1,4 +1,5 @@
 export class DuplicateWalletAddressFoundError extends Error {}
+export class InvalidIdLengthError extends Error {}
 
 export interface WalletAddress {
   id: string;
@@ -35,6 +36,12 @@ export class WalletAddressService implements WalletAddressServiceAdapter {
     let id: string;
 
     if (args.id) {
+      if (args.id.length > 64) {
+        throw new InvalidIdLengthError(
+          "Wallet Address ID is too long (max 64 characters)"
+        );
+      }
+
       const existingWalletAddress = await this.walletAddressRepository.exists(
         args.id
       );
