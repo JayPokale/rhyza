@@ -1,11 +1,5 @@
 require("./telemetry.js"); // Load telemetry before running the rest of the app
 
-import {
-  RafikiKafkaJsonConsumer,
-  RafikiKafkaJsonConsumerOptions,
-  RafikiKafkaJsonProducer,
-  RafikiKafkaJsonProducerOptions,
-} from "payments-service/dist/message-broker";
 import { createApp } from "./app";
 import {
   ilpConnector,
@@ -13,20 +7,23 @@ import {
 } from "payments-service/dist/public";
 import { TelemetryService } from "telemetry";
 import logger from "./logger";
+import { Kafka } from "kafkajs";
 
 (async () => {
-  //Kafka:
-  const kafkaUrl = process.env["KAFKA_URL"] || "kafka:29092";
-  const kafkaProducerCommonOptions: RafikiKafkaJsonProducerOptions = {
-    kafkaBrokerList: kafkaUrl,
-    producerClientId: `rafiki-producer-api-${crypto.randomUUID()}`,
-  };
-  const kafkaConsumerCommonOptions: RafikiKafkaJsonConsumerOptions = {
-    kafkaBrokerList: kafkaUrl,
-    // Event received by all api instances, but ignored where not applicable:
-    kafkaGroupId: `rafiki-events-${crypto.randomUUID()}`,
-  };
-  logger.info(`Init Kafka on '${kafkaUrl}'`);
+  const kafkaClient = new Kafka({
+    clientId: "api",
+    brokers: [process.env["KAFKA_URL"] || "kafka:29092"],
+  });
+
+  const producer = kafkaClient.producer();
+
+  await producer.connect();
+
+  const consumer = kafkaClient.consumer({
+    groupId: `rafiki-events-${crypto.randomUUID()}`,
+  });
+
+  await consumer.connect();
 
   // Init Producer/Consumer:
   const telemetryService = TelemetryService.getInstance({
@@ -34,10 +31,7 @@ import logger from "./logger";
     collectorUrl:
       process.env["OPEN_TELEMETRY_COLLECTOR_URL"] ||
       "http://otel-collector:4317",
-  })
-  const producer = new RafikiKafkaJsonProducer(kafkaProducerCommonOptions);
-  await producer.connect();
-  const consumer = new RafikiKafkaJsonConsumer(kafkaConsumerCommonOptions, telemetryService);
+  });
 
   const start = createApp(
     Number(process.env["API_PORT"] ?? 3000),

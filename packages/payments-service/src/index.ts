@@ -1,10 +1,5 @@
 require("./telemetry.js"); // Load telemetry before running the rest of the app
-import {
-  RafikiKafkaJsonConsumer,
-  RafikiKafkaJsonConsumerOptions,
-  RafikiKafkaJsonProducer,
-  RafikiKafkaJsonProducerOptions,
-} from "./message-broker";
+import { Kafka } from "kafkajs";
 import { createAppCommandHandler } from "./app";
 import { PaymentEventType } from "./payment";
 import pool from "./db";
@@ -26,26 +21,15 @@ BigInt.prototype.toJSON = function () {
 };
 
 (async () => {
-  //Kafka:
-  const kafkaUrl = process.env["KAFKA_URL"] || "kafka:29092";
-  const kafkaProducerCommonOptions: RafikiKafkaJsonProducerOptions = {
-    kafkaBrokerList: kafkaUrl,
-    producerClientId: `rafiki-producer-backend-${crypto.randomUUID()}`,
-  };
-  const kafkaConsumerCommonOptions: RafikiKafkaJsonConsumerOptions = {
-    kafkaBrokerList: kafkaUrl,
-    // Ensure we are sending to a single instance via [murmur2_random]:
-    kafkaGroupId: `rafiki-commands`,
-  };
-  logger.info(`Init Kafka on '${kafkaUrl}'`);
+  const kafkaClient = new Kafka({
+    clientId: "payment-service",
+    brokers: [process.env["KAFKA_URL"] || "kafka:29092"],
+  });
 
-  // Init Producer/Consumer:
-  const producer = new RafikiKafkaJsonProducer(kafkaProducerCommonOptions);
+  const producer = kafkaClient.producer();
   await producer.connect();
-  let consumer = new RafikiKafkaJsonConsumer(
-    kafkaConsumerCommonOptions,
-    telemetryService
-  );
+
+  const consumer = kafkaClient.consumer({ groupId: "rafiki-commands" });
 
   //Init the app:
   await init();

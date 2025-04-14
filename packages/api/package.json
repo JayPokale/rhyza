@@ -24,6 +24,7 @@
     "@opentelemetry/sdk-trace-node": "^2.0.0",
     "@opentelemetry/semantic-conventions": "^1.30.0",
     "fastify": "^5.2.1",
+    "kafkajs": "^2.2.4",
     "payments-service": "workspace:*",
     "pino": "^9.6.0",
     "telemetry": "workspace:*"

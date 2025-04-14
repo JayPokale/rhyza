@@ -1,13 +1,13 @@
 import logger from "./logger";
 import { PaymentService } from "./payment";
-import { IMessageConsumer, IMessageProducer } from "./message-broker/message";
 import { RafikiCommandHandler } from "./message-broker/command-handler/handler";
 import type { ITelemetryService } from "telemetry";
+import { Consumer, Producer } from "kafkajs";
 
 export function createAppCommandHandler(
   paymentService: PaymentService,
-  msgProducer: IMessageProducer,
-  msgConsumer: IMessageConsumer,
+  msgProducer: Producer,
+  msgConsumer: Consumer,
   telemetryService: ITelemetryService
 ) {
   const rafikiCommandHandler = new RafikiCommandHandler(
