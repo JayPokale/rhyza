@@ -312,15 +312,15 @@ class RafikiApiResponseEventHandler {
           }
           case ApiRspQuoteEvent.name: {
             const payloadOther = message.payload as ApiRspEventPayload;
-            this._telemetryService.incrementCounter(
-              "outgoing_payment_create_api_replies",
-              1
-            );
             await reply.fastifyReply.code(200).send({ id: payloadOther.createdId });
             break;
           }
           case ApiRspOutgoingPaymentEvent.name: {
             const payloadOut = message.payload as ApiRspEventPayload;
+            this._telemetryService.incrementCounter(
+              "outgoing_payment_create_api_replies",
+              1
+            );
             await reply.fastifyReply.code(200).send({ id: payloadOut.createdId });
             break;
           }
