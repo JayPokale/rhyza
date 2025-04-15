@@ -63,7 +63,10 @@ export class CreateQuoteCmd extends CommandMsg {
 
   constructor(payload: CreateQuoteCmdPayload, requestId: string) {
     super();
-    this.msgKey = this.aggregateId = payload.id!;
+    this.msgKey = payload.incomingPaymentId;
+    // TODO: what is aggregateId used for? can we now drop the non-null assertion because
+    // we dont necessarily need to pass in the id from the client and let it be null/undefined?
+    this.aggregateId = payload.id!;
     this.payload = payload;
     this.requestId = requestId;
   }
@@ -73,7 +76,7 @@ export interface CreateOutgoingPaymentCmdPayload {
   id?: string;
   quoteId?: string;
   senderWalletAddressId: string;
-  incomingPaymentId?: string;
+  incomingPaymentId: string;
   debitAmount?: AmountPayload;
   receiveAmount?: AmountPayload;
 }
@@ -88,7 +91,10 @@ export class CreateOutgoingPaymentCmd extends CommandMsg {
 
   constructor(payload: CreateOutgoingPaymentCmdPayload, requestId: string) {
     super();
-    this.msgKey = this.aggregateId = payload.id!;
+    this.msgKey = payload.incomingPaymentId;
+    // TODO: what is aggregateId used for? can we now drop the non-null assertion because
+    // we dont necessarily need to pass in the id from the client and let it be null/undefined?
+    this.aggregateId = payload.id!;
     this.payload = payload;
     this.requestId = requestId;
   }

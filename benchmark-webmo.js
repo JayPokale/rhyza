@@ -22,9 +22,9 @@ function request(url, data) {
 }
 
 export default function (data) {
-  const id = uuidv4();
+  const incomingPaymentId = uuidv4();
   const incomingPaymentRes = request(`${BASE_URL}/incoming-payment`, {
-    id,
+    id: incomingPaymentId,
     walletAddressId: RECEIVER_WALLET_ADDRESS_ID,
   });
 
@@ -33,8 +33,7 @@ export default function (data) {
   });
 
   const outgoingPaymentRes = request(`${BASE_URL}/outgoing-payment`, {
-    id: id,
-    incomingPaymentId: id,
+    incomingPaymentId,
     debitAmount: {
       assetScale: 2,
       assetCode: "USD",

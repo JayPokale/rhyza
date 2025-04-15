@@ -349,7 +349,7 @@ class RafikiApiResponseEventHandler {
         logger.error("API -> Payload for error:");
         logger.error(message);
       } finally {
-        if (reply) reply.timer()
+        if (reply) reply.timer();
 
         resolve();
       }
