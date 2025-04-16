@@ -18,6 +18,7 @@ import {
   LocalIncomingPaymentState,
   OutgoingPaymentMissingIdentifierError,
   InvalidIdLengthError,
+  CreateOutgoingPaymentFromIncomingPaymentRequest,
 } from "../src/payment";
 import { WalletAddress, WalletAddressService } from "../src/wallet-address";
 import { EventEmitterPubSub } from "../src/event";
@@ -592,14 +593,23 @@ describe("Payment Service", () => {
           incomingAmount: 100n,
           receivedAmount: 0n,
         };
-        const request = {
+        const request: CreateOutgoingPaymentFromIncomingPaymentRequest = {
           id: randomUUID(),
           senderWalletAddressId: randomUUID(),
           incomingPaymentId: mockIncomingPayment.id,
+          debitAmount: {
+            assetCode: "USD",
+            assetScale: 2,
+            value: 100n,
+          },
         };
 
         t.mock.method(walletAddressRepo, "fetchById", async () => {
-          return { isActive: true } as WalletAddress;
+          return {
+            assetCode: "USD",
+            assetScale: 2,
+            isActive: true,
+          } as WalletAddress;
         });
         t.mock.method(
           paymentService as any,
@@ -610,18 +620,18 @@ describe("Payment Service", () => {
         );
         t.mock.method(
           paymentService as any,
-          "calculateDebitAmountFromIncomingPaymentAmount",
+          "calculateReceiveAmountFromDebitAmount",
           async () => {
             return {
               exchangeRate: 1,
-              debitAmount: {
+              receiveAmount: {
                 assetCode: "USD",
                 assetScale: 2,
                 value: 100n,
               },
             } as {
               exchangeRate: number;
-              debitAmount: Amount;
+              receiveAmount: Amount;
             };
           }
         );
@@ -734,6 +744,7 @@ describe("Payment Service", () => {
         const request = {
           senderWalletAddressId: randomUUID(),
           incomingPaymentId: randomUUID(),
+          debitAmount: { assetCode: "usd", assetScale: 2, value: 1n },
         };
 
         const spy = t.mock.method(

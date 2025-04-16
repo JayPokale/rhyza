@@ -230,12 +230,6 @@ export class RafikiCommandHandler {
         value: BigInt(cmd.payload.debitAmount.value),
       };
     }
-    if (cmd.payload.receiveAmount) {
-      request.receiveAmount = {
-        ...cmd.payload.receiveAmount,
-        value: BigInt(cmd.payload.receiveAmount.value),
-      };
-    }
 
     return request;
   }

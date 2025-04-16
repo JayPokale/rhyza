@@ -153,8 +153,9 @@ export interface RemoteOutgoingPaymentFundedEvent extends Event {
   data: {
     outgoingPaymentId: string;
     debitAmount: Amount;
-    receiveAmount: Amount;
-    quoteExpiresAt: Date;
+    // Wont have receiveAmount when creating outgoing payment from remote local incoming payment
+    receiveAmount?: Amount;
+    quoteExpiresAt?: Date;
     remoteIncomingPaymentUrl: string;
     ilpDetails: IlpDetails;
   };
@@ -282,8 +283,7 @@ export interface CreateOutgoingPaymentFromIncomingPaymentRequest {
   id?: string;
   incomingPaymentId: string;
   senderWalletAddressId: string;
-  debitAmount?: Amount;
-  receiveAmount?: Amount;
+  debitAmount: Amount;
 }
 export class PaymentService {
   private INCOMING_PAYMENT_MAX_EXPIRY_MS = 2592000000; // 30 days
@@ -946,58 +946,31 @@ export class PaymentService {
         throw new IncomingPaymentInvalidStateError();
       }
 
-      // TODO: maybe de-duplicate with createLocalQuote. the amount determination
-      // was copy-pasted from there
       let debitAmount: Amount;
       let receiveAmount: Amount;
-      let exchangeRate: number;
-      if (request.debitAmount) {
-        if (
-          request.debitAmount.assetCode !== walletAddress.assetCode ||
-          request.debitAmount.assetScale !== walletAddress.assetScale ||
-          request.debitAmount.value <= 0n
-        ) {
-          throw new InvalidAmountError();
-        }
 
-        debitAmount = request.debitAmount;
+      if (
+        request.debitAmount.assetCode !== walletAddress.assetCode ||
+        request.debitAmount.assetScale !== walletAddress.assetScale ||
+        request.debitAmount.value <= 0n
+      ) {
+        throw new InvalidAmountError();
+      }
 
-        const result = await this.calculateReceiveAmountFromDebitAmount({
-          debitAmount,
-          walletAddress,
-          incomingPayment,
-        });
+      debitAmount = request.debitAmount;
 
-        receiveAmount = result.receiveAmount;
-      } else if (request.receiveAmount) {
-        receiveAmount = request.receiveAmount;
+      const result = await this.calculateReceiveAmountFromDebitAmount({
+        debitAmount,
+        walletAddress,
+        incomingPayment,
+      });
 
-        const result = await this.calculateDebitAmountFromReceiveAmount({
-          receiveAmount: request.receiveAmount,
-          walletAddress,
-          incomingPayment,
-        });
+      receiveAmount = result.receiveAmount;
 
-        debitAmount = result.debitAmount;
-        exchangeRate = result.exchangeRate;
-      } else if (incomingPayment.incomingAmount) {
-        const result = await this.calculateDebitAmountFromIncomingPaymentAmount(
-          {
-            walletAddress,
-            incomingPayment: {
-              ...incomingPayment,
-              incomingAmount: incomingPayment.incomingAmount,
-            },
-          }
-        );
-
-        debitAmount = result.debitAmount;
-        receiveAmount = {
-          assetCode: incomingPayment.asset.code,
-          assetScale: incomingPayment.asset.scale,
-          value: incomingPayment.incomingAmount,
-        };
-      } else {
+      if (
+        typeof incomingPayment.incomingAmount === "bigint" &&
+        receiveAmount.value < incomingPayment.incomingAmount
+      ) {
         throw new InvalidAmountError();
       }
 
@@ -1043,10 +1016,6 @@ export class PaymentService {
 
       return outgoingPayment.id;
     } else {
-      // TODO: handle debit & receive amount
-      if (!request.debitAmount) throw new Error("Expected debitAmount");
-      if (!request.receiveAmount) throw new Error("Expected receiveAmount");
-
       const walletAddressFundRequest: FundWalletAddressLiquidityRequest = {
         id: crypto.randomUUID(),
         type: LiquidityRequestType.FUND_WALLET_ADDRESS,
@@ -1078,9 +1047,7 @@ export class PaymentService {
           data: {
             outgoingPaymentId: outgoingPayment.id,
             debitAmount: request.debitAmount,
-            receiveAmount: request.receiveAmount,
             remoteIncomingPaymentUrl: outgoingPayment.remoteIncomingPaymentUrl!,
-            quoteExpiresAt: new Date(Date.now() + this.QUOTE_EXPIRY_MS),
             ilpDetails: incomingPayment.ilpDetails,
           },
         };
