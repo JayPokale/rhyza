@@ -18,7 +18,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 2,
+  "id": 1,
   "links": [],
   "panels": [
     {
@@ -26,7 +26,6 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
-      "description": "Count of successful replies from POST /outgoing-payments (api create outgoing payment route)",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -70,7 +69,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -87,8 +87,7 @@
         "x": 0,
         "y": 0
       },
-      "id": 2,
-      "interval": "1s",
+      "id": 10,
       "options": {
         "legend": {
           "calcs": [],
@@ -102,21 +101,21 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.6.0",
+      "pluginVersion": "11.5.2",
       "targets": [
         {
           "disableTextWrap": false,
           "editorMode": "code",
-          "expr": "rate(outgoing_payment_create_api_replies_total[$__rate_interval])",
+          "expr": "histogram_quantile(0.95, sum by(le, http_route) (rate(http_server_duration_milliseconds_bucket{net_host_name=\"api\"}[$__rate_interval])))",
           "fullMetaSearch": false,
           "includeNullMetadata": true,
-          "legendFormat": "Successful Replies",
+          "legendFormat": "__auto",
           "range": true,
           "refId": "A",
           "useBackend": false
         }
       ],
-      "title": "POST /outgoing-payments success count",
+      "title": "API Request Duration (95th)",
       "type": "timeseries"
     },
     {
@@ -168,7 +167,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -200,7 +200,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.6.0",
+      "pluginVersion": "11.5.2",
       "targets": [
         {
           "datasource": {
@@ -226,7 +226,7 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
-      "description": "Rate of API Requests Per Second.",
+      "description": "Count of successful replies from POST /outgoing-payments (api create outgoing payment route)",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -270,7 +270,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -287,7 +288,7 @@
         "x": 0,
         "y": 8
       },
-      "id": 8,
+      "id": 2,
       "interval": "1s",
       "options": {
         "legend": {
@@ -302,25 +303,21 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.6.0",
+      "pluginVersion": "11.5.2",
       "targets": [
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
           "disableTextWrap": false,
           "editorMode": "code",
-          "expr": "rate(api_received_total[$__rate_interval])",
+          "expr": "rate(outgoing_payment_create_api_replies_total[$__rate_interval])",
           "fullMetaSearch": false,
-          "includeNullMetadata": false,
-          "legendFormat": "Completed",
+          "includeNullMetadata": true,
+          "legendFormat": "Successful Replies",
           "range": true,
           "refId": "A",
           "useBackend": false
         }
       ],
-      "title": "API Requests Received",
+      "title": "POST /outgoing-payments success count",
       "type": "timeseries"
     },
     {
@@ -372,7 +369,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -403,7 +401,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.6.0",
+      "pluginVersion": "11.5.2",
       "targets": [
         {
           "editorMode": "code",
@@ -481,6 +479,215 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
+      "description": "Rate of API Requests Per Second.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
+      "id": 8,
+      "interval": "1s",
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.5.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "disableTextWrap": false,
+          "editorMode": "code",
+          "expr": "rate(api_received_total[$__rate_interval])",
+          "fullMetaSearch": false,
+          "includeNullMetadata": false,
+          "legendFormat": "Completed",
+          "range": true,
+          "refId": "A",
+          "useBackend": false
+        }
+      ],
+      "title": "API Requests Received",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "description": "Processing durations for the command handler.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
+      "id": 6,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.5.2",
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum by (callName) (rate(raw_kafka_consumed_ms_sum[$__rate_interval])/rate(raw_kafka_consumed_ms_count[$__rate_interval]))",
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "sum by (callName) (rate(command_handler_msg_handler_ms_sum[$__rate_interval])/rate(command_handler_msg_handler_ms_count[$__rate_interval]))",
+          "hide": false,
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "title": "Command Handler Duration",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
       "description": "Rate of RAW messages being consumed.",
       "fieldConfig": {
         "defaults": {
@@ -525,7 +732,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -538,9 +746,9 @@
       },
       "gridPos": {
         "h": 7,
-        "w": 8,
+        "w": 12,
         "x": 0,
-        "y": 16
+        "y": 24
       },
       "id": 7,
       "interval": "1s",
@@ -557,7 +765,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.6.0",
+      "pluginVersion": "11.5.2",
       "targets": [
         {
           "datasource": {
@@ -627,7 +835,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -640,9 +849,9 @@
       },
       "gridPos": {
         "h": 7,
-        "w": 7,
-        "x": 8,
-        "y": 16
+        "w": 12,
+        "x": 12,
+        "y": 24
       },
       "id": 9,
       "interval": "1s",
@@ -659,7 +868,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.6.0",
+      "pluginVersion": "11.5.2",
       "targets": [
         {
           "datasource": {
@@ -685,7 +894,6 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
-      "description": "Processing durations for the command handler.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -729,7 +937,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -741,12 +950,12 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 7,
-        "w": 9,
-        "x": 15,
-        "y": 16
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 31
       },
-      "id": 6,
+      "id": 11,
       "options": {
         "legend": {
           "calcs": [],
@@ -760,29 +969,21 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.6.0",
+      "pluginVersion": "11.5.2",
       "targets": [
         {
-          "editorMode": "code",
-          "expr": "sum by (callName) (rate(raw_kafka_consumed_ms_sum[$__rate_interval])/rate(raw_kafka_consumed_ms_count[$__rate_interval]))",
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "histogram_quantile(0.95, sum by(le, http_route) (rate(http_server_duration_milliseconds_bucket{net_host_name=\"liquidity-service\"}[$__rate_interval])))",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
           "legendFormat": "__auto",
           "range": true,
-          "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "editorMode": "code",
-          "expr": "sum by (callName) (rate(command_handler_msg_handler_ms_sum[$__rate_interval])/rate(command_handler_msg_handler_ms_count[$__rate_interval]))",
-          "hide": false,
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "B"
+          "refId": "A",
+          "useBackend": false
         }
       ],
-      "title": "Command Handler Duration",
+      "title": "Liquidity Service API Request Duration (95th)",
       "type": "timeseries"
     },
     {
@@ -822,7 +1023,7 @@
         "h": 11,
         "w": 24,
         "x": 0,
-        "y": 23
+        "y": 39
       },
       "id": 3,
       "options": {
@@ -830,9 +1031,7 @@
         "footer": {
           "countRows": false,
           "fields": "",
-          "reducer": [
-            "sum"
-          ],
+          "reducer": ["sum"],
           "show": false
         },
         "showHeader": true,
@@ -843,7 +1042,7 @@
           }
         ]
       },
-      "pluginVersion": "11.6.0",
+      "pluginVersion": "11.5.2",
       "targets": [
         {
           "datasource": {
@@ -885,7 +1084,7 @@
   ],
   "preload": false,
   "refresh": "",
-  "schemaVersion": 41,
+  "schemaVersion": 40,
   "tags": [],
   "templating": {
     "list": []
@@ -898,5 +1097,6 @@
   "timezone": "browser",
   "title": "Rafiki POC",
   "uid": "aeg4uh40kdl34d",
-  "version": 1
+  "version": 3,
+  "weekStart": ""
 }

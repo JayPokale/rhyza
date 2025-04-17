@@ -1,4 +1,5 @@
 import { Asset } from "./shared";
+import { LiquidityServiceAdapter } from "./liquidity";
 
 export interface IlpPeer {
   id: string;
@@ -28,7 +29,10 @@ export interface IlpPeerServiceAdapter {
 }
 
 export class IlpPeerService implements IlpPeerServiceAdapter {
-  constructor(private peerRepository: IIlpPeerRepository) {}
+  constructor(
+    private peerRepository: IIlpPeerRepository,
+    private liquidityService: LiquidityServiceAdapter
+  ) {}
 
   public async getById(id: string): Promise<IlpPeer | undefined> {
     return this.peerRepository.fetchById(id);
@@ -47,6 +51,12 @@ export class IlpPeerService implements IlpPeerServiceAdapter {
     };
 
     await this.peerRepository.store(newPeer);
+
+    await this.liquidityService.createIlpPeerAccount({
+      id: newPeer.id,
+      assetScale: newPeer.asset.scale,
+      assetCode: newPeer.asset.code,
+    });
 
     return newPeer.id;
   }

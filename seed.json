@@ -1,4 +1,5 @@
 {
+  "assets": [{ "code": "USD", "scale": 2 }],
   "walletAddresses": [
     {
       "id": "a1469618-077a-447d-b5a3-a9ed11265a63",

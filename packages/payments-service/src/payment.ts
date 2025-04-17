@@ -1,5 +1,5 @@
 import {
-  FundWalletAddressLiquidityRequest,
+  WalletAddressDepositLiquidityRequest,
   LiquidityRequestType,
   LiquidityServiceAdapter,
   PeerToWalletAddressLiquidityRequest,
@@ -813,9 +813,9 @@ export class PaymentService {
         throw new IncomingPaymentInvalidStateError();
       }
 
-      const walletAddressFundRequest: FundWalletAddressLiquidityRequest = {
+      const walletAddressFundRequest: WalletAddressDepositLiquidityRequest = {
         id: crypto.randomUUID(),
-        type: LiquidityRequestType.FUND_WALLET_ADDRESS,
+        type: LiquidityRequestType.DEPOSIT_WALLET_ADDRESS,
         data: {
           walletAddressId: quote.senderWalletAddressId,
           amount: quote.debitAmount,
@@ -855,51 +855,50 @@ export class PaymentService {
       ]);
 
       return outgoingPayment.id;
-    } else {
-      const walletAddressFundRequest: FundWalletAddressLiquidityRequest = {
-        id: crypto.randomUUID(),
-        type: LiquidityRequestType.FUND_WALLET_ADDRESS,
-        data: {
-          walletAddressId: request.senderWalletAddressId,
-          amount: quote.debitAmount,
-        },
-      };
-
-      await this.liquidityService.execute([walletAddressFundRequest]);
-
-      const outgoingPayment: OutgoingPayment = {
-        id: crypto.randomUUID(),
-        quoteId: quote.id,
-        senderWalletAddressId: walletAddress.id,
-        asset: {
-          code: walletAddress.assetCode,
-          scale: walletAddress.assetScale,
-        },
-        debitAmount: quote.debitAmount.value,
-        sentAmount: 0n,
-        remoteIncomingPaymentUrl: incomingPayment.id,
-        state: "FUNDED",
-      };
-      await this.outgoingPaymentRepository.store(outgoingPayment);
-
-      const remoteOutgoingPaymentFundedEvent: RemoteOutgoingPaymentFundedEvent =
-        {
-          type: PaymentEventType.REMOTE_OUTGOING_PAYMENT_FUNDED,
-          data: {
-            outgoingPaymentId: outgoingPayment.id,
-            debitAmount: quote.debitAmount,
-            receiveAmount: quote.receiveAmount,
-            remoteIncomingPaymentUrl: outgoingPayment.remoteIncomingPaymentUrl!,
-            quoteExpiresAt: quote.expiresAt,
-            ilpDetails: incomingPayment.ilpDetails,
-          },
-        };
-
-      await this.paymentEventProducer.publish([
-        remoteOutgoingPaymentFundedEvent,
-      ]);
-      return outgoingPayment.id;
     }
+
+    const walletAddressFundRequest: WalletAddressDepositLiquidityRequest = {
+      id: crypto.randomUUID(),
+      type: LiquidityRequestType.DEPOSIT_WALLET_ADDRESS,
+      data: {
+        walletAddressId: request.senderWalletAddressId,
+        amount: quote.debitAmount,
+      },
+    };
+
+    await this.liquidityService.execute([walletAddressFundRequest]);
+
+    const outgoingPayment: OutgoingPayment = {
+      id: crypto.randomUUID(),
+      quoteId: quote.id,
+      senderWalletAddressId: walletAddress.id,
+      asset: {
+        code: walletAddress.assetCode,
+        scale: walletAddress.assetScale,
+      },
+      debitAmount: quote.debitAmount.value,
+      sentAmount: 0n,
+      remoteIncomingPaymentUrl: incomingPayment.id,
+      state: "FUNDED",
+    };
+    await this.outgoingPaymentRepository.store(outgoingPayment);
+
+    const remoteOutgoingPaymentFundedEvent: RemoteOutgoingPaymentFundedEvent = {
+      type: PaymentEventType.REMOTE_OUTGOING_PAYMENT_FUNDED,
+      data: {
+        outgoingPaymentId: outgoingPayment.id,
+        debitAmount: quote.debitAmount,
+        receiveAmount: quote.receiveAmount,
+        remoteIncomingPaymentUrl: outgoingPayment.remoteIncomingPaymentUrl!,
+        quoteExpiresAt: quote.expiresAt,
+        ilpDetails: incomingPayment.ilpDetails,
+      },
+    };
+
+    // TODO: Do we need to place a hold amount for a wallet address => peer transfer? Even though we fully funded the payment already?
+
+    await this.paymentEventProducer.publish([remoteOutgoingPaymentFundedEvent]);
+    return outgoingPayment.id;
   }
 
   private async createOutgoingPaymentFromIncomingPayment(
@@ -974,9 +973,9 @@ export class PaymentService {
         throw new InvalidAmountError();
       }
 
-      const walletAddressFundRequest: FundWalletAddressLiquidityRequest = {
+      const walletAddressFundRequest: WalletAddressDepositLiquidityRequest = {
         id: crypto.randomUUID(),
-        type: LiquidityRequestType.FUND_WALLET_ADDRESS,
+        type: LiquidityRequestType.DEPOSIT_WALLET_ADDRESS,
         data: {
           walletAddressId: walletAddress.id,
           amount: debitAmount,
@@ -1016,9 +1015,9 @@ export class PaymentService {
 
       return outgoingPayment.id;
     } else {
-      const walletAddressFundRequest: FundWalletAddressLiquidityRequest = {
+      const walletAddressFundRequest: WalletAddressDepositLiquidityRequest = {
         id: crypto.randomUUID(),
-        type: LiquidityRequestType.FUND_WALLET_ADDRESS,
+        type: LiquidityRequestType.DEPOSIT_WALLET_ADDRESS,
         data: {
           walletAddressId: request.senderWalletAddressId,
           amount: request.debitAmount,
@@ -1137,10 +1136,9 @@ export class PaymentService {
       id: crypto.randomUUID(),
       type: LiquidityRequestType.WALLET_ADDRESS_TO_WALLET_ADDRESS,
       data: {
-        sourceWalletAddressId: senderWalletAddressId,
-        sourceAmount: debitAmount,
-        destinationWalletAddressId: incomingPayment.walletAddressId,
-        destinationAmount: receiveAmount,
+        walletAddressIdToDebit: senderWalletAddressId,
+        walletAddressIdToCredit: incomingPayment.walletAddressId,
+        amount: debitAmount,
       },
     };
 

@@ -16,8 +16,14 @@ import {
   walletAddressService,
   ilpPeerService,
   eventConsumer,
-  telemetryService
+  assetService,
+  telemetryService,
 } from "./public";
+
+//@ts-ignore
+BigInt.prototype.toJSON = function () {
+  return this.toString();
+};
 
 (async () => {
   //Kafka:
@@ -36,7 +42,10 @@ import {
   // Init Producer/Consumer:
   const producer = new RafikiKafkaJsonProducer(kafkaProducerCommonOptions);
   await producer.connect();
-  let consumer = new RafikiKafkaJsonConsumer(kafkaConsumerCommonOptions, telemetryService);
+  let consumer = new RafikiKafkaJsonConsumer(
+    kafkaConsumerCommonOptions,
+    telemetryService
+  );
 
   //Init the app:
   await init();
@@ -89,6 +98,10 @@ async function seed(seedFilePath: string) {
     // Got the lock, do the seeding
     logger.info("Seeding database...");
 
+    for (const asset of seed.assets) {
+      await assetService.createAsset(asset);
+    }
+
     for (const walletAddress of seed.walletAddresses) {
       await walletAddressService.createWalletAddress(walletAddress);
     }
@@ -118,8 +131,6 @@ async function init() {
     logger.error("Database connection failed:", err);
     throw err;
   }
-
-  await seed(process.env["SEED_FILE_LOCATION"] || "seed.json");
 
   await eventConsumer.registerConsumer(
     PaymentEventType.LOCAL_OUTGOING_PAYMENT_FUNDED,
@@ -159,4 +170,6 @@ async function init() {
     PaymentEventType.REMOTE_OUTGOING_PAYMENT_FUNDED,
     ilpConnector.handleRemoteOutgoingPaymentFundedEvent.bind(ilpConnector)
   );
+
+  await seed(process.env["SEED_FILE_LOCATION"] || "seed.json");
 }

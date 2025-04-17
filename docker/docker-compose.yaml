@@ -8,7 +8,6 @@ services:
     environment:
       SEED_FILE_LOCATION: /workspace/seed.json
       OPEN_TELEMETRY_COLLECTOR_URL: http://otel-collector:4317
-      DATABASE_URL: postgres://postgres:password@pg-container:5432/database
       REDIS_URL: redis://redis:6379
       KAFKA_URL: kafka:19092
     depends_on:
@@ -25,12 +24,36 @@ services:
     environment:
       SEED_FILE_LOCATION: /workspace/seed.json
       OPEN_TELEMETRY_COLLECTOR_URL: http://otel-collector:4317
-      DATABASE_URL: postgres://postgres:password@pg-container:5432/database
+      DATABASE_URL: postgres://postgres:password@pg-container:5432/payments-service
       REDIS_URL: redis://redis:6379
       KAFKA_URL: kafka:19092
+      LIQUIDITY_SERVICE_URL: http://liquidity-service:3000
     depends_on:
       init-kafka:
         condition: service_completed_successfully
+      liquidity-service:
+        condition: service_healthy
+    networks:
+      - rafiki-poc
+
+  liquidity-service:
+    build:
+      context: ../
+      dockerfile: ./packages/liquidity-service/Dockerfile
+    restart: always
+    environment:
+      OPEN_TELEMETRY_COLLECTOR_URL: http://otel-collector:4317
+      DATABASE_URL: postgres://postgres:password@pg-container:5432/liquidity-service
+      TB_REPLICA_ADDRESSES: 10.5.1.51:4342
+    depends_on:
+      init-kafka:
+        condition: service_completed_successfully
+    healthcheck:
+      test: nc -z 0.0.0.0 3000 || exit -1
+      start_period: 30s
+      interval: 10s
+      timeout: 10s
+      retries: 10
     networks:
       - rafiki-poc
 
@@ -45,7 +68,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+      - ./db/:/docker-entrypoint-initdb.d/
       - postgres-data:/var/lib/postgresql/data/
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "postgres", "-d", "database"]
@@ -184,10 +207,41 @@ services:
     sysctls:
       net.ipv4.ip_local_port_range: "10240 65535"
 
+  tigerbeetle:
+    image: ghcr.io/tigerbeetle/tigerbeetle:0.16.32
+    privileged: true
+    volumes:
+      - tigerbeetle-data:/var/lib/tigerbeetle
+    networks:
+      rafiki-poc:
+        ipv4_address: 10.5.1.51
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -ex
+        DATA_FILE=/var/lib/tigerbeetle/cluster_0_replica_0.tigerbeetle
+        set +e
+        ls $$DATA_FILE
+        DATA_FILE_EXISTS="$$?"
+        set -e
+        echo $$DATA_FILE_EXISTS
+        if [ "$$DATA_FILE_EXISTS" != 0 ]; then 
+          ./tigerbeetle format --cluster=0 --replica=0 --replica-count=1 $$DATA_FILE; 
+        fi
+        hostname -i
+        ls /var/lib/tigerbeetle
+        ./tigerbeetle start --addresses=0.0.0.0:4342 --development $$DATA_FILE
+
 networks:
   rafiki-poc:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.5.1.0/24
 
 volumes:
+  tigerbeetle-data:
   postgres-data:
   grafana-data:
   tempo-data:

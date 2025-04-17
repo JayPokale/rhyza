@@ -1,3 +1,5 @@
+import { LiquidityServiceAdapter } from "./liquidity";
+
 export class DuplicateWalletAddressFoundError extends Error {}
 export class InvalidIdLengthError extends Error {}
 
@@ -28,7 +30,10 @@ export interface IWalletAddressRepository {
 }
 
 export class WalletAddressService implements WalletAddressServiceAdapter {
-  constructor(private walletAddressRepository: IWalletAddressRepository) {}
+  constructor(
+    private walletAddressRepository: IWalletAddressRepository,
+    private liquidityService: LiquidityServiceAdapter
+  ) {}
 
   public async createWalletAddress(
     args: CreateWalletAddressArgs
@@ -66,6 +71,12 @@ export class WalletAddressService implements WalletAddressServiceAdapter {
     };
 
     await this.walletAddressRepository.store(walletAddress);
+
+    await this.liquidityService.createWalletAddressAccount({
+      id: walletAddress.id,
+      assetScale: walletAddress.assetScale,
+      assetCode: walletAddress.assetCode,
+    });
 
     return id;
   }
