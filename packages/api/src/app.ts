@@ -198,6 +198,8 @@ export function createApp(
     const payload = {
       id: requestBody.id,
       senderWalletAddressId: requestBody.senderWalletAddressId,
+      // outgoing payment can be created from EITHER quote OR incoming payment,
+      // but incomingPaymentId is required for proper partitioning
       incomingPaymentId: requestBody.incomingPaymentId,
       quoteId: requestBody.quoteId,
       debitAmount: requestBody.debitAmount,
