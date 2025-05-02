@@ -57,4 +57,4 @@ registerInstrumentations({
   instrumentations: [new HttpInstrumentation(), new PgInstrumentation()],
 });
 
-export { fastifyOtelInstrumentation };
+export { fastifyOtelInstrumentation, tracerProvider };

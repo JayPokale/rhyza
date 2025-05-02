@@ -9,6 +9,7 @@ import {
   PeerAccountRepository,
   WalletAddressAccountRepository,
 } from "./repository";
+import { tracerProvider } from "./telemetry";
 
 /**
  * ACCOUNT MOVEMENTS
@@ -131,25 +132,32 @@ export class LiquidityService implements LiquidityServiceAdapter {
   ) {}
 
   public async execute(requests: LiquidityRequest[]): Promise<void> {
-    const transfersToCreate: LedgerTransfer[] = [];
+    await tracerProvider
+      .getTracer("RAFIKI_POC_LIQUIDITY_SERVICE")
+      .startActiveSpan("LiquidityService.execute", async (span) => {
+        const transfersToCreate: LedgerTransfer[] = [];
 
-    for (const request of requests) {
-      if (request.type === LiquidityRequestType.DEPOSIT_WALLET_ADDRESS) {
-        transfersToCreate.push(
-          await this.prepareWalletAddressDepositTransfer(request)
-        );
-      }
+        for (const request of requests) {
+          if (request.type === LiquidityRequestType.DEPOSIT_WALLET_ADDRESS) {
+            transfersToCreate.push(
+              await this.prepareWalletAddressDepositTransfer(request)
+            );
+          }
 
-      if (
-        request.type === LiquidityRequestType.WALLET_ADDRESS_TO_WALLET_ADDRESS
-      ) {
-        transfersToCreate.push(
-          await this.prepareWalletToWalletAddressTransfer(request)
-        );
-      }
-    }
+          if (
+            request.type ===
+            LiquidityRequestType.WALLET_ADDRESS_TO_WALLET_ADDRESS
+          ) {
+            transfersToCreate.push(
+              await this.prepareWalletToWalletAddressTransfer(request)
+            );
+          }
+        }
 
-    await this.ledgerTransferRepository.create(transfersToCreate);
+        await this.ledgerTransferRepository.create(transfersToCreate);
+
+        span.end();
+      });
   }
 
   private async prepareWalletAddressDepositTransfer(
