@@ -135,13 +135,17 @@ export class AssetAccountPsqlRepository implements AssetAccountRepository {
 
     const row = res.rows[0];
 
-    return {
+    const assetAccount = {
       id: row.id,
       assetCode: row.asset_code,
       assetScale: row.asset_scale,
       liquidityAccountId: row.liquidity_account_id,
       settlementAccountId: row.settlement_account_id,
     };
+
+    this.map.set(code, assetAccount);
+
+    return assetAccount;
   }
 }
 
@@ -219,12 +223,16 @@ export class PeerAccountPsqlRepository implements PeerAccountRepository {
 
     const row = res.rows[0];
 
-    return {
+    const peerAccount = {
       id: row.id,
       assetCode: row.asset_code,
       assetScale: row.asset_scale,
       liquidityAccountId: row.liquidity_account_id,
     };
+
+    this.map.set(id, peerAccount);
+
+    return peerAccount;
   }
 }
 
@@ -311,12 +319,16 @@ export class WalletAddressAccountPsqlRepository
 
     const row = res.rows[0];
 
-    return {
+    const walletAddressAccount = {
       id: row.id,
       assetCode: row.asset_code,
       assetScale: row.asset_scale,
       liquidityAccountId: row.liquidity_account_id,
     };
+
+    this.map.set(id, walletAddressAccount);
+
+    return walletAddressAccount;
   }
 }
 
