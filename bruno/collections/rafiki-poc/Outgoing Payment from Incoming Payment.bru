@@ -1,0 +1,18 @@
+meta {
+  name: Outgoing Payment from Incoming Payment
+  type: http
+  seq: 6
+}
+
+post {
+  url: http://localhost/outgoing-payment
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "senderWalletAddressId":"a1469618-077a-447d-b5a3-a9ed11265a63",
+    "quoteId":"{{quoteId}}"
+  }
+}
