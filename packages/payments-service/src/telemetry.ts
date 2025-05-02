@@ -4,6 +4,8 @@ import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-grpc";
 import { registerInstrumentations } from "@opentelemetry/instrumentation";
 import { HttpInstrumentation } from "@opentelemetry/instrumentation-http";
 import { PgInstrumentation } from "@opentelemetry/instrumentation-pg";
+import { UndiciInstrumentation } from "@opentelemetry/instrumentation-undici";
+import { IORedisInstrumentation } from "@opentelemetry/instrumentation-ioredis";
 import {
   MeterProvider,
   PeriodicExportingMetricReader,
@@ -31,7 +33,9 @@ const metricExporter = new PeriodicExportingMetricReader({
 
 const meterProvider = new MeterProvider({
   readers: [metricExporter],
-  resource: resourceFromAttributes({ [ATTR_SERVICE_NAME]: SERVICE_NAME }),
+  resource: resourceFromAttributes({
+    [ATTR_SERVICE_NAME]: SERVICE_NAME,
+  }),
 });
 
 api.metrics.setGlobalMeterProvider(meterProvider);
@@ -48,5 +52,10 @@ const tracerProvider = new NodeTracerProvider({
 tracerProvider.register();
 
 registerInstrumentations({
-  instrumentations: [new HttpInstrumentation(), new PgInstrumentation()],
+  instrumentations: [
+    new HttpInstrumentation(),
+    new PgInstrumentation(),
+    new UndiciInstrumentation(),
+    new IORedisInstrumentation(),
+  ],
 });
