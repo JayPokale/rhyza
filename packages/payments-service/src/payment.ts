@@ -742,14 +742,10 @@ export class PaymentService {
       | CreateOutgoingPaymentFromQuoteRequest
       | CreateOutgoingPaymentFromIncomingPaymentRequest
   ) {
-    if ("quoteId" in request) {
-      return this.createOutgoingPaymentFromQuote(
-        request as CreateOutgoingPaymentFromQuoteRequest
-      );
-    } else if ("incomingPaymentId" in request) {
-      return this.createOutgoingPaymentFromIncomingPayment(
-        request as CreateOutgoingPaymentFromIncomingPaymentRequest
-      );
+    if ("quoteId" in request && request.quoteId) {
+      return this.createOutgoingPaymentFromQuote(request);
+    } else if ("incomingPaymentId" in request && request.incomingPaymentId) {
+      return this.createOutgoingPaymentFromIncomingPayment(request);
     } else {
       throw new OutgoingPaymentMissingIdentifierError();
     }
