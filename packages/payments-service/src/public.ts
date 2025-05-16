@@ -26,6 +26,7 @@ import {
   WalletAddressPsqlRepository,
   IlpPeerPsqlRepository,
   AssetPsqlRepository,
+  InMemoryCache,
 } from "./repository";
 import { Amount } from "./shared";
 import { AssetService } from "./asset";
@@ -63,8 +64,8 @@ const walletAddressService = new WalletAddressService(
   liquidityService
 );
 const ilpPeerRepository = new IlpPeerPsqlRepository(
-  new RedisCache<IlpPeer>(redisClient, ONE_HOUR_IN_MS, logger),
-  new RedisCache<string>(redisClient, ONE_HOUR_IN_MS, logger),
+  new InMemoryCache<IlpPeer>(ONE_HOUR_IN_MS),
+  new InMemoryCache<string>(ONE_HOUR_IN_MS),
   pool,
   logger
 );
@@ -73,7 +74,7 @@ const ilpPeerService = new IlpPeerService(ilpPeerRepository, liquidityService);
 const ratesService = new RatesService();
 
 const remoteIncomingPaymentRepository = new RemoteIncomingPaymentPsqlRepository(
-  new RedisCache<RemoteIncomingPayment>(redisClient, ONE_HOUR_IN_MS, logger),
+  new InMemoryCache<RemoteIncomingPayment>(ONE_HOUR_IN_MS),
   pool,
   logger
 );
@@ -83,61 +84,17 @@ const remoteIncomingPaymentService = new RemoteIncomingPaymentService(
 const ilpConnector = new IlpConnector(ilpPeerService, eventProducer);
 
 const incomingPaymentRepository = new IncomingPaymentPsqlRepository(
-  new RedisCache<IncomingPayment>(redisClient, ONE_HOUR_IN_MS, logger),
+  new InMemoryCache<IncomingPayment>(ONE_HOUR_IN_MS),
   pool,
   logger
 );
 const outgoingPaymentRepository = new OutgoingPaymentPsqlRepository(
-  new RedisCache<OutgoingPayment>(
-    redisClient,
-    ONE_HOUR_IN_MS,
-    logger,
-    (value: string): OutgoingPayment => {
-      const parsed = JSON.parse(value) as Omit<
-        OutgoingPayment,
-        "debitAmount" | "sentAmount"
-      > & {
-        debitAmount: string;
-        sentAmount: string;
-      };
-      return {
-        ...parsed,
-        debitAmount: BigInt(parsed.debitAmount),
-        sentAmount: BigInt(parsed.sentAmount),
-      };
-    }
-  ),
+  new InMemoryCache<OutgoingPayment>(ONE_HOUR_IN_MS),
   pool,
   logger
 );
 const quotePaymentRepository = new QuotePsqlRepository(
-  new RedisCache<Quote>(
-    redisClient,
-    ONE_HOUR_IN_MS,
-    logger,
-    (value: string): Quote => {
-      const parsed = JSON.parse(value) as Omit<
-        Quote,
-        "receiveAmount" | "debitAmount" | "expiresAt"
-      > & {
-        receiveAmount: Omit<Amount, "value"> & { value: string };
-        debitAmount: Omit<Amount, "value"> & { value: string };
-        expiresAt: string;
-      };
-      return {
-        ...parsed,
-        receiveAmount: {
-          ...parsed.receiveAmount,
-          value: BigInt(parsed.receiveAmount.value),
-        },
-        debitAmount: {
-          ...parsed.debitAmount,
-          value: BigInt(parsed.debitAmount.value),
-        },
-        expiresAt: new Date(parsed.expiresAt),
-      };
-    }
-  ),
+  new InMemoryCache<Quote>(ONE_HOUR_IN_MS),
   pool,
   logger
 );
