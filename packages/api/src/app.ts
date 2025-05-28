@@ -37,6 +37,14 @@ interface ApiReqCacheData {
   timer: TimerFunction;
 }
 
+const wait = (ms: number, fn: any) =>
+  new Promise((resolve) => {
+    setTimeout(() => {
+      fn();
+      resolve(true);
+    }, ms);
+  });
+
 export function createApp(
   port: number,
   remoteIncomingPaymentService: RemoteIncomingPaymentService,
@@ -72,7 +80,7 @@ export function createApp(
     const requestBody = request.body as any;
 
     const payload = {
-      id: requestBody.id,
+      id: requestBody.id || crypto.randomUUID(),
       expiresAt: requestBody.expiresAt,
       incomingAmount: requestBody.incomingAmount
         ? {
@@ -94,6 +102,14 @@ export function createApp(
       fastifyReply: reply,
       timer: stopTimerReqRsp,
     });
+
+    await wait(100, () => {
+      const reply = mapRsp.get(cmd.requestId!)!;
+
+      reply.fastifyReply.code(200).send({ id: payload.id });
+      mapRsp.delete(cmd.requestId!);
+    });
+
     const stopTimerPublish = telemetryService.startTimer(
       "api_incoming_payment_publish_ms",
       {
@@ -143,7 +159,7 @@ export function createApp(
     // TODO: As an enhancement, we can allow the client to specify whether they want back a 202
     // to just be able to fetch the quote later (async mode)
     const payload = {
-      id: requestBody.id,
+      id: requestBody.id || crypto.randomUUID(),
       debitAmount: requestBody.debitAmount
         ? {
             assetCode: requestBody.debitAmount.assetCode,
@@ -178,6 +194,14 @@ export function createApp(
       }
     );
     await msgProducer.send(cmd);
+
+    await wait(100, () => {
+      const reply = mapRsp.get(cmd.requestId!)!;
+
+      reply.fastifyReply.code(200).send({ id: payload.id });
+      mapRsp.delete(cmd.requestId!);
+    });
+
     stopTimerPublish();
     telemetryService.incrementCounter("api_quote_received", 1);
     telemetryService.incrementCounter("api_received", 1);
@@ -215,16 +239,16 @@ export function createApp(
       fastifyReply: reply,
       timer: stopTimerReqRsp,
     });
-    const stopTimerPublish = telemetryService.startTimer(
-      "api_outgoing_payment_publish_ms",
-      {
-        callName: "Api:publishOutgoingPayment",
-        description:
-          "Internal time to publish an outgoing payment request to the message broker.",
-      }
-    );
+
     await msgProducer.send(cmd);
-    stopTimerPublish();
+
+    await wait(100, () => {
+      const reply = mapRsp.get(cmd.requestId!)!;
+
+      reply.fastifyReply.code(200).send({ id: requestBody.id });
+      mapRsp.delete(cmd.requestId!);
+    });
+
     telemetryService.incrementCounter("api_outgoing_payment_received", 1);
     telemetryService.incrementCounter("api_received", 1);
     return reply;
