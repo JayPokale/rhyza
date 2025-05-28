@@ -3,9 +3,19 @@ import { check } from "k6";
 import { uuidv4 } from "https://jslib.k6.io/k6-utils/1.4.0/index.js";
 
 export const options = {
-  vus: 10,
-  duration: "30s",
-  // iterations: 1,
+  // discardResponseBodies: true,
+  scenarios: {
+    contacts: {
+      executor: "ramping-vus",
+      startVUs: 0,
+      stages: [
+        { duration: "15s", target: 500 },
+        { duration: "15s", target: 500 },
+        { duration: "15s", target: 0 },
+      ],
+      // gracefulRampDown: "30s",
+    },
+  },
 };
 
 const RECEIVER_WALLET_ADDRESS_ID = "a1469618-077a-447d-b5a3-a9ed11265a63";
