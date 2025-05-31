@@ -17,6 +17,9 @@ import {
   RemoteIncomingPaymentServiceAdapter,
 } from "./remote-incoming-payment";
 import type { ITelemetryService } from "telemetry";
+import { IMessageProducer } from "./message-broker/message";
+import { OutgoingPaymentCreatedEvent } from "./message-broker/event";
+import { randomUUID } from "crypto";
 
 export class WalletAddressNotFoundError extends Error {}
 export class WalletAddressInactiveError extends Error {}
@@ -131,6 +134,7 @@ export interface IOutgoingPaymentRepository {
 export enum PaymentEventType {
   INCOMING_PAYMENT_CREATED = "INCOMING_PAYMENT_CREATED",
   INCOMING_PAYMENT_COMPLETED = "INCOMING_PAYMENT_COMPLETED",
+  OUTGOING_PAYMENT_CREATED = "OUTGOING_PAYMENT_CREATED",
   OUTGOING_PAYMENT_COMPLETED = "OUTGOING_PAYMENT_COMPLETED",
   REMOTE_OUTGOING_PAYMENT_FUNDED = "REMOTE_OUTGOING_PAYMENT_FUNDED",
   LOCAL_OUTGOING_PAYMENT_FUNDED = "LOCAL_OUTGOING_PAYMENT_FUNDED",
@@ -174,6 +178,14 @@ interface OutgoingPaymentCompletedEvent extends Event {
     outgoingPayment: OutgoingPayment;
   };
 }
+
+// TODO: does this need to be scoped to local? like funded event
+// interface OutgoingPaymentCreatedEvent extends Event {
+//   type: PaymentEventType.OUTGOING_PAYMENT_CREATED;
+//   data: {
+//     outgoingPayment: OutgoingPayment;
+//   };
+// }
 
 interface LocalOutgoingPaymentFundedEvent extends Event {
   type: PaymentEventType.LOCAL_OUTGOING_PAYMENT_FUNDED;
@@ -300,6 +312,7 @@ export class PaymentService {
     private outgoingPaymentRepository: IOutgoingPaymentRepository,
     private quoteRepository: IQuoteRepository,
     private paymentEventProducer: EventProducerAdapter,
+    private messageProducer: IMessageProducer,
     private telemetryService: ITelemetryService
   ) {}
 
@@ -837,6 +850,18 @@ export class PaymentService {
         localIncomingPaymentId: incomingPayment.id,
         state: OutgoingPaymentState.FUNDED, // TODO: check if the outgoing payment request came from third party, and webhook out to ASE instead of marking as FUNDED directly
       };
+
+      // TODO: revist how im interfacing with messageProducer and importing
+      // OutgoingPaymentCreatedEvent. Is there a better way? Something more
+      // driven by payments (but then how to square w/ IMessageProducer)?
+      // Maybe implement new EventPubSub using MessageProducer/Consumer (see src/event.ts)
+      // instead of seperate event handler mirroring the command handler
+      await this.messageProducer.send(
+        new OutgoingPaymentCreatedEvent(
+          { outgoingPayment: outgoingPayment },
+          randomUUID()
+        )
+      );
 
       const localOutgoingPaymentFundedEvent: LocalOutgoingPaymentFundedEvent = {
         type: PaymentEventType.LOCAL_OUTGOING_PAYMENT_FUNDED,

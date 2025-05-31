@@ -1,11 +1,9 @@
 require("./telemetry.js"); // Load telemetry before running the rest of the app
 import {
   RafikiKafkaJsonConsumer,
-  RafikiKafkaJsonConsumerOptions,
   RafikiKafkaJsonProducer,
-  RafikiKafkaJsonProducerOptions,
 } from "./message-broker";
-import { createAppCommandHandler } from "./app";
+import { createAppCommandHandler, createAppEventHandler } from "./app";
 import { PaymentEventType } from "./payment";
 import pool from "./db";
 import { readFileSync } from "fs";
@@ -18,6 +16,8 @@ import {
   eventConsumer,
   assetService,
   telemetryService,
+  kafkaEventProducer,
+  kafkaEventConsumer,
 } from "./public";
 
 //@ts-ignore
@@ -28,36 +28,45 @@ BigInt.prototype.toJSON = function () {
 (async () => {
   //Kafka:
   const kafkaUrl = process.env["KAFKA_URL"] || "kafka:29092";
-  const kafkaProducerCommonOptions: RafikiKafkaJsonProducerOptions = {
-    kafkaBrokerList: kafkaUrl,
-    producerClientId: `rafiki-producer-backend-${crypto.randomUUID()}`,
-  };
-  const kafkaConsumerCommonOptions: RafikiKafkaJsonConsumerOptions = {
-    kafkaBrokerList: kafkaUrl,
-    // Ensure we are sending to a single instance via [murmur2_random]:
-    kafkaGroupId: `rafiki-commands`,
-  };
   logger.info(`Init Kafka on '${kafkaUrl}'`);
 
-  // Init Producer/Consumer:
-  const producer = new RafikiKafkaJsonProducer(kafkaProducerCommonOptions);
-  await producer.connect();
-  let consumer = new RafikiKafkaJsonConsumer(
-    kafkaConsumerCommonOptions,
+  // TODO: revisit decision to use seperate producers & consumers
+  // for event/command handler. Should they use the same ones?
+  // Init Producer/Consumers:
+  const commandProducer = new RafikiKafkaJsonProducer({
+    kafkaBrokerList: kafkaUrl,
+    producerClientId: `rafiki-producer-backend-${crypto.randomUUID()}`,
+  });
+  await commandProducer.connect();
+  const commandConsumer = new RafikiKafkaJsonConsumer(
+    {
+      kafkaBrokerList: kafkaUrl,
+      // Ensure we are sending to a single instance via [murmur2_random]:
+      kafkaGroupId: `rafiki-events`,
+    },
     telemetryService
   );
+  await kafkaEventProducer.connect();
 
   //Init the app:
   await init();
 
   //Start the handler:
-  const start = createAppCommandHandler(
+  const startCommandHandler = createAppCommandHandler(
     paymentService,
-    producer,
-    consumer,
+    commandProducer,
+    commandConsumer,
     telemetryService
   );
-  await start();
+  await startCommandHandler();
+
+  const startEventHandler = createAppEventHandler(
+    paymentService,
+    kafkaEventProducer,
+    kafkaEventConsumer,
+    telemetryService
+  );
+  await startEventHandler();
 
   process.on("SIGINT", () => {
     logger.info("Received SIGINT. Shutting down gracefully...");

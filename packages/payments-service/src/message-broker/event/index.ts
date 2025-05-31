@@ -12,6 +12,8 @@ import { DomainEventMsg } from "../message";
  */
 export enum Topic {
   "ApiResponseEvents" = "api-response-events",
+  "OutgoingPaymentCreated" = "outgoing-payment-created",
+  "OutgoingPaymentFunded" = "outgoing-payment-funded",
 }
 
 export interface ApiRspEventPayload {
@@ -85,6 +87,48 @@ export class ApiRspErrorEvent extends DomainEventMsg {
   payload: ApiRspErrorPayload;
 
   constructor(payload: ApiRspErrorPayload, requestId: string) {
+    super();
+    this.aggregateId = this.msgKey = requestId;
+    this.payload = payload;
+    this.requestId = requestId;
+  }
+}
+
+// TODO: implement
+export type OutgoingPaymentCreatedPayload = unknown;
+
+// TOOD: revisit these contextName and aggregateName values - what impact do they have?
+// - ApiRspError* messages share topic but have different context names
+// - Commands (Quote, IncomingPaymnent, etc.) have diferent topics but share context names
+
+export class OutgoingPaymentCreatedEvent extends DomainEventMsg {
+  contextName: string = "outgoing-payment-created";
+  aggregateId: string;
+  aggregateName: string = "outgoing-payment-created";
+  msgKey: string;
+  msgTopic: string = Topic.OutgoingPaymentCreated;
+  payload: OutgoingPaymentCreatedPayload;
+
+  constructor(payload: OutgoingPaymentCreatedPayload, requestId: string) {
+    super();
+    this.aggregateId = this.msgKey = requestId;
+    this.payload = payload;
+    this.requestId = requestId;
+  }
+}
+
+// TODO: implement
+export type OutgoingPaymentFundedPayload = unknown;
+
+export class OutgoingPaymentFundedEvent extends DomainEventMsg {
+  contextName: string = "outgoing-payment-funded";
+  aggregateId: string;
+  aggregateName: string = "outgoing-payment-funded";
+  msgKey: string;
+  msgTopic: string = Topic.OutgoingPaymentCreated;
+  payload: OutgoingPaymentCreatedPayload;
+
+  constructor(payload: OutgoingPaymentCreatedPayload, requestId: string) {
     super();
     this.aggregateId = this.msgKey = requestId;
     this.payload = payload;

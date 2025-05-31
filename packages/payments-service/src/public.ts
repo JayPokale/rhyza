@@ -30,6 +30,10 @@ import {
 import { Amount } from "./shared";
 import { AssetService } from "./asset";
 import { TelemetryService } from "telemetry";
+import {
+  RafikiKafkaJsonConsumer,
+  RafikiKafkaJsonProducer,
+} from "./message-broker";
 
 const ONE_HOUR_IN_MS = 3_600_000;
 
@@ -148,6 +152,20 @@ const telemetryService = TelemetryService.getInstance({
     process.env["OPEN_TELEMETRY_COLLECTOR_URL"] || "http://otel-collector:4317",
 });
 
+const kafkaUrl = process.env["KAFKA_URL"] || "kafka:29092";
+const kafkaEventProducer = new RafikiKafkaJsonProducer({
+  kafkaBrokerList: kafkaUrl,
+  producerClientId: `rafiki-producer-backend-${crypto.randomUUID()}`,
+});
+const kafkaEventConsumer = new RafikiKafkaJsonConsumer(
+  {
+    kafkaBrokerList: kafkaUrl,
+    // Ensure we are sending to a single instance via [murmur2_random]:
+    kafkaGroupId: `rafiki-commands`,
+  },
+  telemetryService
+);
+
 const paymentService = new PaymentService(
   walletAddressService,
   ilpPeerService,
@@ -158,6 +176,7 @@ const paymentService = new PaymentService(
   outgoingPaymentRepository,
   quotePaymentRepository,
   eventProducer,
+  kafkaEventProducer,
   telemetryService
 );
 
@@ -175,4 +194,6 @@ export {
   assetService,
   liquidityService,
   telemetryService,
+  kafkaEventProducer,
+  kafkaEventConsumer,
 };
