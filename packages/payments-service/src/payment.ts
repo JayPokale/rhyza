@@ -129,6 +129,7 @@ export interface IOutgoingPaymentRepository {
     outgoingPayment: OutgoingPayment,
     request: OutgoingPaymentWithNewMicroPaymentUpdate
   ): Promise<void>;
+  markAsFunded(paymentId: string): Promise<void>;
 }
 
 export enum PaymentEventType {
@@ -826,17 +827,6 @@ export class PaymentService {
         throw new IncomingPaymentInvalidStateError();
       }
 
-      const walletAddressFundRequest: WalletAddressDepositLiquidityRequest = {
-        id: crypto.randomUUID(),
-        type: LiquidityRequestType.DEPOSIT_WALLET_ADDRESS,
-        data: {
-          walletAddressId: quote.senderWalletAddressId,
-          amount: quote.debitAmount,
-        },
-      };
-
-      await this.liquidityService.execute([walletAddressFundRequest]);
-
       const outgoingPayment: OutgoingPayment = {
         id: outgoingPaymentId,
         quoteId: quote.id,
@@ -848,8 +838,10 @@ export class PaymentService {
         debitAmount: quote.debitAmount.value,
         sentAmount: 0n,
         localIncomingPaymentId: incomingPayment.id,
-        state: OutgoingPaymentState.FUNDED, // TODO: check if the outgoing payment request came from third party, and webhook out to ASE instead of marking as FUNDED directly
+        state: OutgoingPaymentState.CREATED,
       };
+
+      await this.outgoingPaymentRepository.store(outgoingPayment);
 
       // TODO: revist how im interfacing with messageProducer and importing
       // OutgoingPaymentCreatedEvent. Is there a better way? Something more
@@ -858,27 +850,17 @@ export class PaymentService {
       // instead of seperate event handler mirroring the command handler
       await this.messageProducer.send(
         new OutgoingPaymentCreatedEvent(
-          { outgoingPayment: outgoingPayment },
+          {
+            outgoingPayment,
+            incomingPayment,
+            quote,
+            senderWalletAddressId: quote.senderWalletAddressId,
+            receiveAmount: quote.receiveAmount,
+            debitAmount: quote.debitAmount,
+          },
           randomUUID()
         )
       );
-
-      const localOutgoingPaymentFundedEvent: LocalOutgoingPaymentFundedEvent = {
-        type: PaymentEventType.LOCAL_OUTGOING_PAYMENT_FUNDED,
-        data: {
-          outgoingPayment,
-          incomingPayment,
-          senderWalletAddressId: quote.senderWalletAddressId,
-          receiveAmount: quote.receiveAmount,
-          debitAmount: quote.debitAmount,
-        },
-      };
-
-      await this.outgoingPaymentRepository.store(outgoingPayment);
-      await this.paymentEventProducer.publish([
-        localOutgoingPaymentFundedEvent,
-      ]);
-
       return outgoingPayment.id;
     }
 
@@ -1135,6 +1117,45 @@ export class PaymentService {
     }
 
     return update;
+  }
+
+  public async handleLocalOutgoingPaymentCreatedEvent(
+    event: OutgoingPaymentCreatedEvent
+  ) {
+    const { quote, outgoingPayment, incomingPayment } = event.payload;
+    const walletAddressFundRequest: WalletAddressDepositLiquidityRequest = {
+      id: crypto.randomUUID(),
+      type: LiquidityRequestType.DEPOSIT_WALLET_ADDRESS,
+      data: {
+        walletAddressId: quote.senderWalletAddressId,
+        amount: quote.debitAmount,
+      },
+    };
+
+    await this.liquidityService.execute([walletAddressFundRequest]);
+
+    await this.outgoingPaymentRepository.markAsFunded(outgoingPayment.id);
+    // TODO: should we fetch in the localOutgoingPaymentFundedEvent instead? or should
+    // we rely 100% on the data in event?
+    const fundedOutgoingPayment =
+      await this.outgoingPaymentRepository.fetchById(outgoingPayment.id);
+
+    if (!fundedOutgoingPayment) {
+      throw new OutgoingPaymentNotFoundError();
+    }
+
+    const localOutgoingPaymentFundedEvent: LocalOutgoingPaymentFundedEvent = {
+      type: PaymentEventType.LOCAL_OUTGOING_PAYMENT_FUNDED,
+      data: {
+        outgoingPayment: fundedOutgoingPayment,
+        incomingPayment,
+        senderWalletAddressId: quote.senderWalletAddressId,
+        receiveAmount: quote.receiveAmount,
+        debitAmount: quote.debitAmount,
+      },
+    };
+
+    await this.paymentEventProducer.publish([localOutgoingPaymentFundedEvent]);
   }
 
   // We can decide whether we want to keep this event or not, or just complete the outgoing payment synchronously in the payment handler,

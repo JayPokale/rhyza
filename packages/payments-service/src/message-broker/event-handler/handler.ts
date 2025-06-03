@@ -45,54 +45,9 @@ export class RafikiEventHandler {
       try {
         switch (message.msgName) {
           case OutgoingPaymentCreatedEvent.name:
-            console.log("handling OutgoingPaymentCreatedEvent: ", {
-              payload: (message as OutgoingPaymentCreatedEvent).payload,
-            });
-          // case CreateIncomingPaymentCmd.name:
-          //   const inPayId = await this._paymentService.createIncomingPayment(
-          //     this.toDomainIncoming(message as CreateIncomingPaymentCmd)
-          //   );
-          //   if (message.requestId) {
-          //     const event = new ApiRspIncomingPaymentEvent(
-          //       {
-          //         createdId: inPayId,
-          //       },
-          //       message.requestId
-          //     );
-          //     await this._messageProducer.send(event);
-          //     logger.debug({ event }, `CommandHandler: Sending response`);
-          //   }
-          //   break;
-          // case CreateQuoteCmd.name:
-          //   const quoteId = await this._paymentService.createQuote(
-          //     this.toDomainQuote(message as CreateQuoteCmd)
-          //   );
-          //   if (message.requestId) {
-          //     await this._messageProducer.send(
-          //       new ApiRspQuoteEvent(
-          //         {
-          //           createdId: quoteId,
-          //         },
-          //         message.requestId
-          //       )
-          //     );
-          //   }
-          //   break;
-          // case CreateOutgoingPaymentCmd.name:
-          //   const outPayId = await this._paymentService.createOutgoingPayment(
-          //     this.toDomainOutgoing(message as CreateOutgoingPaymentCmd)
-          //   );
-          //   if (message.requestId) {
-          //     await this._messageProducer.send(
-          //       new ApiRspOutgoingPaymentEvent(
-          //         {
-          //           createdId: outPayId,
-          //         },
-          //         message.requestId
-          //       )
-          //     );
-          //   }
-          //   break;
+            const msg = message as OutgoingPaymentCreatedEvent;
+            this._paymentService.handleLocalOutgoingPaymentCreatedEvent(msg);
+            break;
           default: {
             logger.warn(
               `RafikiEventHandler - unknown event - msgName: ${message?.msgName} msgKey: ${message?.msgKey} msgId: ${message?.msgId}`

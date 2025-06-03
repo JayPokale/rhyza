@@ -9,7 +9,6 @@ import type {
   LocalIncomingPaymentState,
   MicroPayment,
   OutgoingPayment,
-  OutgoingPaymentState,
   OutgoingPaymentWithMicroPayments,
   Quote,
   IncomingPaymentWithNewMicroPaymentUpdate,
@@ -22,6 +21,8 @@ import type {
   RemoteIncomingPayment,
 } from "./remote-incoming-payment";
 import type { IlpPeer, IIlpPeerRepository } from "./ilp-peer";
+
+import { OutgoingPaymentState } from "./payment";
 
 interface Cache<T> {
   get(key: string): Promise<T | undefined>;
@@ -701,6 +702,38 @@ export class OutgoingPaymentPsqlRepository
   ): Promise<OutgoingPaymentWithMicroPayments | undefined> {
     throw new Error("not implemented");
   }
+
+  public async markAsFunded(paymentId: string): Promise<void> {
+    const client = await this.pool.connect();
+
+    try {
+      await client.query("BEGIN");
+
+      const updateQuery = `
+        UPDATE ${this.TABLE_NAME}
+        SET state = $2
+        WHERE id = $1
+      `;
+      await client.query(updateQuery, [paymentId, OutgoingPaymentState.FUNDED]);
+
+      const cached = await this.cache.get(this.CACHE_BY_ID_PREFIX + paymentId);
+      if (cached) {
+        cached.state = OutgoingPaymentState.FUNDED;
+        await this.cache.set(this.CACHE_BY_ID_PREFIX + paymentId, cached);
+      }
+
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK");
+      this.logger.error(
+        `Error marking payment as ${OutgoingPaymentState.FUNDED}: `,
+        error
+      );
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
 }
 
 export class OutgoingPaymentInMemoryRepository
@@ -750,6 +783,14 @@ export class OutgoingPaymentInMemoryRepository
     if (this.microPaymentMap.has(id)) {
       this.microPaymentMap.delete(id);
     }
+  }
+
+  public async markAsFunded(paymentId: string): Promise<void> {
+    const payment = this.map.get(paymentId);
+    if (!payment) {
+      throw new Error(`Outgoing payment with id ${paymentId} not found`);
+    }
+    payment.state = "FUNDED";
   }
 }
 

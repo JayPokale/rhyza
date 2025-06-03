@@ -1,4 +1,6 @@
 import { DomainEventMsg } from "../message";
+import { IncomingPayment, OutgoingPayment, Quote } from "../../payment";
+import { Amount } from "../../shared";
 
 /**
  * Enumeration representing various topics used in the system.
@@ -94,8 +96,14 @@ export class ApiRspErrorEvent extends DomainEventMsg {
   }
 }
 
-// TODO: implement
-export type OutgoingPaymentCreatedPayload = unknown;
+export type OutgoingPaymentCreatedPayload = {
+  quote: Quote;
+  outgoingPayment: OutgoingPayment;
+  incomingPayment: IncomingPayment;
+  senderWalletAddressId: string;
+  receiveAmount: Amount;
+  debitAmount: Amount;
+};
 
 // TOOD: revisit these contextName and aggregateName values - what impact do they have?
 // - ApiRspError* messages share topic but have different context names
@@ -111,7 +119,7 @@ export class OutgoingPaymentCreatedEvent extends DomainEventMsg {
 
   constructor(payload: OutgoingPaymentCreatedPayload, requestId: string) {
     super();
-    this.aggregateId = this.msgKey = requestId;
+    this.msgKey = this.aggregateId = payload.incomingPayment.id;
     this.payload = payload;
     this.requestId = requestId;
   }
@@ -126,11 +134,20 @@ export class OutgoingPaymentFundedEvent extends DomainEventMsg {
   aggregateName: string = "outgoing-payment-funded";
   msgKey: string;
   msgTopic: string = Topic.OutgoingPaymentCreated;
-  payload: OutgoingPaymentCreatedPayload;
+  payload: OutgoingPaymentFundedPayload;
 
-  constructor(payload: OutgoingPaymentCreatedPayload, requestId: string) {
+  constructor(payload: OutgoingPaymentFundedPayload, requestId: string) {
     super();
-    this.aggregateId = this.msgKey = requestId;
+
+    // TODO: proper type
+    const _payload = payload as any;
+    if (!(payload as any).incomingPayment.id) {
+      throw new Error(
+        "Cannot ceate OutgoingPaymentFundedEvent: no incoming payment id"
+      );
+    }
+
+    this.msgKey = this.aggregateId = _payload.incomingPayment.id;
     this.payload = payload;
     this.requestId = requestId;
   }
