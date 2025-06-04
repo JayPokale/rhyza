@@ -18,7 +18,10 @@ import {
 } from "./remote-incoming-payment";
 import type { ITelemetryService } from "telemetry";
 import { IMessageProducer } from "./message-broker/message";
-import { OutgoingPaymentCreatedEvent } from "./message-broker/event";
+import {
+  LocalOutgoingPaymentCreatedEvent,
+  LocalOutgoingPaymentFundedEvent,
+} from "./message-broker/event";
 import { randomUUID } from "crypto";
 
 export class WalletAddressNotFoundError extends Error {}
@@ -188,7 +191,8 @@ interface OutgoingPaymentCompletedEvent extends Event {
 //   };
 // }
 
-interface LocalOutgoingPaymentFundedEvent extends Event {
+// TODO: refactor create from incoming payment to use new kafka message and delete this when unused
+interface LocalOutgoingPaymentFundedEvent2 extends Event {
   type: PaymentEventType.LOCAL_OUTGOING_PAYMENT_FUNDED;
   data: {
     outgoingPayment: OutgoingPayment;
@@ -849,7 +853,7 @@ export class PaymentService {
       // Maybe implement new EventPubSub using MessageProducer/Consumer (see src/event.ts)
       // instead of seperate event handler mirroring the command handler
       await this.messageProducer.send(
-        new OutgoingPaymentCreatedEvent(
+        new LocalOutgoingPaymentCreatedEvent(
           {
             outgoingPayment,
             incomingPayment,
@@ -1004,16 +1008,17 @@ export class PaymentService {
         state: OutgoingPaymentState.FUNDED,
       };
 
-      const localOutgoingPaymentFundedEvent: LocalOutgoingPaymentFundedEvent = {
-        type: PaymentEventType.LOCAL_OUTGOING_PAYMENT_FUNDED,
-        data: {
-          outgoingPayment,
-          incomingPayment,
-          senderWalletAddressId: walletAddress.id,
-          receiveAmount,
-          debitAmount,
-        },
-      };
+      const localOutgoingPaymentFundedEvent: LocalOutgoingPaymentFundedEvent2 =
+        {
+          type: PaymentEventType.LOCAL_OUTGOING_PAYMENT_FUNDED,
+          data: {
+            outgoingPayment,
+            incomingPayment,
+            senderWalletAddressId: walletAddress.id,
+            receiveAmount,
+            debitAmount,
+          },
+        };
 
       await this.outgoingPaymentRepository.store(outgoingPayment);
       await this.paymentEventProducer.publish([
@@ -1120,7 +1125,7 @@ export class PaymentService {
   }
 
   public async handleLocalOutgoingPaymentCreatedEvent(
-    event: OutgoingPaymentCreatedEvent
+    event: LocalOutgoingPaymentCreatedEvent
   ) {
     const { quote, outgoingPayment, incomingPayment } = event.payload;
     const walletAddressFundRequest: WalletAddressDepositLiquidityRequest = {
@@ -1144,22 +1149,32 @@ export class PaymentService {
       throw new OutgoingPaymentNotFoundError();
     }
 
-    const localOutgoingPaymentFundedEvent: LocalOutgoingPaymentFundedEvent = {
-      type: PaymentEventType.LOCAL_OUTGOING_PAYMENT_FUNDED,
-      data: {
-        outgoingPayment: fundedOutgoingPayment,
-        incomingPayment,
-        senderWalletAddressId: quote.senderWalletAddressId,
-        receiveAmount: quote.receiveAmount,
-        debitAmount: quote.debitAmount,
-      },
-    };
+    // const localOutgoingPaymentFundedEvent: LocalOutgoingPaymentFundedEvent = {
+    //   type: PaymentEventType.LOCAL_OUTGOING_PAYMENT_FUNDED,
+    //   data: {
+    //     outgoingPayment: fundedOutgoingPayment,
+    //     incomingPayment,
+    //     senderWalletAddressId: quote.senderWalletAddressId,
+    //     receiveAmount: quote.receiveAmount,
+    //     debitAmount: quote.debitAmount,
+    //   },
+    // };
+    await this.messageProducer.send(
+      new LocalOutgoingPaymentFundedEvent(
+        {
+          outgoingPayment: fundedOutgoingPayment,
+          incomingPayment,
+          senderWalletAddressId: quote.senderWalletAddressId,
+          receiveAmount: quote.receiveAmount,
+          debitAmount: quote.debitAmount,
+        },
+        randomUUID()
+      )
+    );
 
-    await this.paymentEventProducer.publish([localOutgoingPaymentFundedEvent]);
+    // await this.paymentEventProducer.publish([localOutgoingPaymentFundedEvent]);
   }
 
-  // We can decide whether we want to keep this event or not, or just complete the outgoing payment synchronously in the payment handler,
-  // in order to save one call to the liquidity service (we can fund the wallet address and make the wallet to wallet transfer directly in a single request)
   public async handleLocalOutgoingPaymentFundedEvent(
     event: LocalOutgoingPaymentFundedEvent
   ) {
@@ -1169,7 +1184,7 @@ export class PaymentService {
       debitAmount,
       receiveAmount,
       incomingPayment,
-    } = event.data;
+    } = event.payload;
 
     const exists = await this.outgoingPaymentRepository.exists(
       outgoingPayment.id

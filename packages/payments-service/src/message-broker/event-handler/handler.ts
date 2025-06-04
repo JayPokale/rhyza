@@ -1,6 +1,10 @@
 import { IMessage, IMessageConsumer, IMessageProducer } from "../message";
 import { PaymentService } from "../../payment";
-import { OutgoingPaymentCreatedEvent, Topic } from "../event";
+import {
+  LocalOutgoingPaymentCreatedEvent,
+  LocalOutgoingPaymentFundedEvent,
+  Topic,
+} from "../event";
 import logger from "../../logger";
 import type { ITelemetryService } from "telemetry";
 
@@ -44,10 +48,24 @@ export class RafikiEventHandler {
       );
       try {
         switch (message.msgName) {
-          case OutgoingPaymentCreatedEvent.name:
-            const msg = message as OutgoingPaymentCreatedEvent;
-            this._paymentService.handleLocalOutgoingPaymentCreatedEvent(msg);
+          // TODO: use toDomainIncoming etc. to ensure handlers get
+          // correctly formed data. Use existing from command handler (but move to
+          // payment.ts??)
+
+          case LocalOutgoingPaymentCreatedEvent.name: {
+            const msg = message as LocalOutgoingPaymentCreatedEvent;
+            await this._paymentService.handleLocalOutgoingPaymentCreatedEvent(
+              msg
+            );
             break;
+          }
+          case LocalOutgoingPaymentFundedEvent.name: {
+            const msg = message as LocalOutgoingPaymentFundedEvent;
+            await this._paymentService.handleLocalOutgoingPaymentFundedEvent(
+              msg
+            );
+            break;
+          }
           default: {
             logger.warn(
               `RafikiEventHandler - unknown event - msgName: ${message?.msgName} msgKey: ${message?.msgKey} msgId: ${message?.msgId}`

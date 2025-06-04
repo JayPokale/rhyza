@@ -96,28 +96,24 @@ export class ApiRspErrorEvent extends DomainEventMsg {
   }
 }
 
-export type OutgoingPaymentCreatedPayload = {
+export interface LocalOutgoingPaymentCreatedPayload {
   quote: Quote;
   outgoingPayment: OutgoingPayment;
   incomingPayment: IncomingPayment;
   senderWalletAddressId: string;
   receiveAmount: Amount;
   debitAmount: Amount;
-};
+}
 
-// TOOD: revisit these contextName and aggregateName values - what impact do they have?
-// - ApiRspError* messages share topic but have different context names
-// - Commands (Quote, IncomingPaymnent, etc.) have diferent topics but share context names
-
-export class OutgoingPaymentCreatedEvent extends DomainEventMsg {
+export class LocalOutgoingPaymentCreatedEvent extends DomainEventMsg {
   contextName: string = "outgoing-payment-created";
   aggregateId: string;
   aggregateName: string = "outgoing-payment-created";
   msgKey: string;
   msgTopic: string = Topic.OutgoingPaymentCreated;
-  payload: OutgoingPaymentCreatedPayload;
+  payload: LocalOutgoingPaymentCreatedPayload;
 
-  constructor(payload: OutgoingPaymentCreatedPayload, requestId: string) {
+  constructor(payload: LocalOutgoingPaymentCreatedPayload, requestId: string) {
     super();
     this.msgKey = this.aggregateId = payload.incomingPayment.id;
     this.payload = payload;
@@ -125,29 +121,25 @@ export class OutgoingPaymentCreatedEvent extends DomainEventMsg {
   }
 }
 
-// TODO: implement
-export type OutgoingPaymentFundedPayload = unknown;
+export interface LocalOutgoingPaymentFundedPayload {
+  outgoingPayment: OutgoingPayment;
+  incomingPayment: IncomingPayment;
+  senderWalletAddressId: string;
+  receiveAmount: Amount;
+  debitAmount: Amount;
+}
 
-export class OutgoingPaymentFundedEvent extends DomainEventMsg {
+export class LocalOutgoingPaymentFundedEvent extends DomainEventMsg {
   contextName: string = "outgoing-payment-funded";
   aggregateId: string;
   aggregateName: string = "outgoing-payment-funded";
   msgKey: string;
   msgTopic: string = Topic.OutgoingPaymentCreated;
-  payload: OutgoingPaymentFundedPayload;
+  payload: LocalOutgoingPaymentFundedPayload;
 
-  constructor(payload: OutgoingPaymentFundedPayload, requestId: string) {
+  constructor(payload: LocalOutgoingPaymentFundedPayload, requestId: string) {
     super();
-
-    // TODO: proper type
-    const _payload = payload as any;
-    if (!(payload as any).incomingPayment.id) {
-      throw new Error(
-        "Cannot ceate OutgoingPaymentFundedEvent: no incoming payment id"
-      );
-    }
-
-    this.msgKey = this.aggregateId = _payload.incomingPayment.id;
+    this.msgKey = this.aggregateId = payload.incomingPayment.id;
     this.payload = payload;
     this.requestId = requestId;
   }
