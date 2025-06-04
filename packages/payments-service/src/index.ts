@@ -62,7 +62,6 @@ BigInt.prototype.toJSON = function () {
 
   const startEventHandler = createAppEventHandler(
     paymentService,
-    kafkaEventProducer,
     kafkaEventConsumer,
     telemetryService
   );

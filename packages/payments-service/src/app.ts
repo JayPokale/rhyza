@@ -27,13 +27,11 @@ export function createAppCommandHandler(
 
 export function createAppEventHandler(
   paymentService: PaymentService,
-  msgProducer: IMessageProducer,
   msgConsumer: IMessageConsumer,
   telemetryService: ITelemetryService
 ) {
   const rafikiCommandHandler = new RafikiEventHandler(
     msgConsumer,
-    msgProducer,
     paymentService,
     telemetryService
   );

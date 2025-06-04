@@ -18,17 +18,14 @@ import { deserializeAmount } from "../../shared";
 
 export class RafikiEventHandler {
   private _messageConsumer: IMessageConsumer;
-  private _messageProducer: IMessageProducer;
   private _paymentService: PaymentService;
 
   constructor(
     messageConsumer: IMessageConsumer,
-    messageProducer: IMessageProducer,
     paymentService: PaymentService,
     private _telemetryService: ITelemetryService
   ) {
     this._messageConsumer = messageConsumer;
-    this._messageProducer = messageProducer;
     this._paymentService = paymentService;
   }
 
