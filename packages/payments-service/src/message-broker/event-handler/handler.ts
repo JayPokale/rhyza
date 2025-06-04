@@ -1,4 +1,4 @@
-import { IMessage, IMessageConsumer, IMessageProducer } from "../message";
+import { IMessage, IMessageConsumer } from "../message";
 import {
   deserializeIncomingPayment,
   deserializeOutgoingPayment,
@@ -102,7 +102,6 @@ export class RafikiEventHandler {
           }
         }
       } catch (err) {
-        // TODO: revisit error handling behavior - what else is needed?
         logger.error(
           `RafikiEventHandler - error processing event - ${
             message?.msgName
@@ -114,30 +113,6 @@ export class RafikiEventHandler {
         logger.error(err);
         logger.error("EventHandler -> Payload for error:");
         logger.error(message);
-        // if (err instanceof Error) {
-        //   if (message.requestId) {
-        //     // TODO: Real error. Mirror new ApiRspErrorEvent or is the nature
-        //     // of that different because change error type (not api rsp)
-        //     const errEvent = new ApiRspErrorEvent(
-        //       {
-        //         requestId: message.requestId,
-        //         isCmdErrorResponse: true,
-        //         errorType: err.constructor.name,
-        //         error: err.message,
-        //         stack: err.stack,
-        //         message: err.message,
-        //         name: err.name,
-        //       },
-        //       message.requestId
-        //     );
-        //     logger.error(
-        //       `CommandHandler -> Sending error event: ${JSON.stringify(
-        //         errEvent
-        //       )}`
-        //     );
-        //     await this._messageProducer.send(errEvent);
-        //   }
-        // }
       } finally {
         stopTimerMsgHandler();
         this._telemetryService.incrementCounter(
@@ -154,71 +129,4 @@ export class RafikiEventHandler {
   async stop(): Promise<void> {
     await this._messageConsumer.stop();
   }
-
-  // private toDomainIncoming(
-  //   cmd: LocalOutgoingPaymentCreatedEvent
-  // ): CreateIncomingPaymentRequest {
-  //   return {
-  //     id: cmd.payload.id,
-  //     expiresAt: cmd.payload.expiresAt,
-  //     incomingAmount: cmd.payload.incomingAmount
-  //       ? {
-  //           assetCode: cmd.payload.incomingAmount.assetCode,
-  //           assetScale: cmd.payload.incomingAmount.assetScale,
-  //           value: BigInt(cmd.payload.incomingAmount.value),
-  //         }
-  //       : undefined,
-  //     walletAddressId: cmd.payload.walletAddressId,
-  //   };
-  // }
-
-  // private toDomainQuote(cmd: CreateQuoteCmd): CreateQuoteRequest {
-  //   return {
-  //     id: cmd.payload.id,
-  //     debitAmount: cmd.payload.debitAmount
-  //       ? {
-  //           assetCode: cmd.payload.debitAmount.assetCode,
-  //           assetScale: cmd.payload.debitAmount.assetScale,
-  //           value: BigInt(cmd.payload.debitAmount.value),
-  //         }
-  //       : undefined,
-  //     receiveAmount: cmd.payload.receiveAmount
-  //       ? {
-  //           assetCode: cmd.payload.receiveAmount.assetCode,
-  //           assetScale: cmd.payload.receiveAmount.assetScale,
-  //           value: BigInt(cmd.payload.receiveAmount.value),
-  //         }
-  //       : undefined,
-  //     senderWalletAddressId: cmd.payload.senderWalletAddressId,
-  //     incomingPaymentId: cmd.payload.incomingPaymentId,
-  //   };
-  // }
-
-  // public toDomainOutgoing(
-  //   cmd: CreateOutgoingPaymentCmd
-  // ): CreateOutgoingPaymentFromQuoteRequest &
-  //   CreateOutgoingPaymentFromIncomingPaymentRequest {
-  //   const request = {
-  //     senderWalletAddressId: cmd.payload.senderWalletAddressId,
-  //   } as CreateOutgoingPaymentFromQuoteRequest &
-  //     CreateOutgoingPaymentFromIncomingPaymentRequest;
-
-  //   if (cmd.payload.id) {
-  //     request.id = cmd.payload.id;
-  //   }
-  //   if (cmd.payload.incomingPaymentId) {
-  //     request.incomingPaymentId = cmd.payload.incomingPaymentId;
-  //   }
-  //   if (cmd.payload.quoteId) {
-  //     request.quoteId = cmd.payload.quoteId;
-  //   }
-  //   if (cmd.payload.debitAmount) {
-  //     request.debitAmount = {
-  //       ...cmd.payload.debitAmount,
-  //       value: BigInt(cmd.payload.debitAmount.value),
-  //     };
-  //   }
-
-  //   return request;
-  // }
 }

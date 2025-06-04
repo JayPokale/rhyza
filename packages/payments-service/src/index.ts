@@ -30,9 +30,6 @@ BigInt.prototype.toJSON = function () {
   const kafkaUrl = process.env["KAFKA_URL"] || "kafka:29092";
   logger.info(`Init Kafka on '${kafkaUrl}'`);
 
-  // TODO: revisit decision to use seperate producers & consumers
-  // for event/command handler. Should they use the same ones?
-  // Init Producer/Consumers:
   const commandProducer = new RafikiKafkaJsonProducer({
     kafkaBrokerList: kafkaUrl,
     producerClientId: `rafiki-producer-backend-${crypto.randomUUID()}`,

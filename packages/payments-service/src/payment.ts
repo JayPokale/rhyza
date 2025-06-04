@@ -238,7 +238,12 @@ interface OutgoingPaymentCompletedEvent extends Event {
   };
 }
 
-// TODO: fix name (the 2)
+// TODO: fix name conflict
+// - using this for handler argument
+// - using IMessage for creating/sending event (which IMessageProducer expects)
+// Could use this for the production as well but I feel like that might produce some unecessary
+// indirection/abstraction over the IMessageProducer? And I see IMessageProducer/IMessage used
+// directly here in the mojaloop bounded context: https://github.com/mojaloop/transfers-bc/blob/main/packages/domain-lib/src/aggregate.ts
 export interface LocalOutgoingPaymentFundedEvent2 extends Event {
   type: PaymentEventType.LOCAL_OUTGOING_PAYMENT_FUNDED;
   data: {
@@ -255,7 +260,6 @@ export interface LocalOutgoingPaymentCreatedEvent2 extends Event {
   data: {
     outgoingPayment: OutgoingPayment;
     incomingPayment: IncomingPayment;
-    // quote: Quote;
     senderWalletAddressId: string;
     receiveAmount: Amount;
     debitAmount: Amount;
@@ -944,12 +948,6 @@ export class PaymentService {
       };
 
       await this.outgoingPaymentRepository.store(outgoingPayment);
-
-      // TODO: revist how im interfacing with messageProducer and importing
-      // LocalOutgoingPaymentCreatedEvent. Is there a better way? Something more
-      // driven by payments (but then how to square w/ IMessageProducer)?
-      // Maybe implement new EventPubSub using MessageProducer/Consumer (see src/event.ts)
-      // instead of seperate event handler mirroring the command handler
       await this.messageProducer.send(
         new LocalOutgoingPaymentCreatedEvent(
           {
@@ -1251,17 +1249,6 @@ export class PaymentService {
       throw new OutgoingPaymentNotFoundError();
     }
 
-    // const localOutgoingPaymentFundedEvent: LocalOutgoingPaymentFundedEvent = {
-    //   type: PaymentEventType.LOCAL_OUTGOING_PAYMENT_FUNDED,
-    //   data: {
-    //     outgoingPayment: fundedOutgoingPayment,
-    //     incomingPayment,
-    //     senderWalletAddressId: quote.senderWalletAddressId,
-    //     receiveAmount: quote.receiveAmount,
-    //     debitAmount: quote.debitAmount,
-    //   },
-    // };
-
     await this.messageProducer.send(
       new LocalOutgoingPaymentFundedEvent(
         {
@@ -1274,8 +1261,6 @@ export class PaymentService {
         randomUUID()
       )
     );
-
-    // await this.paymentEventProducer.publish([localOutgoingPaymentFundedEvent]);
   }
 
   public async handleLocalOutgoingPaymentFundedEvent(
