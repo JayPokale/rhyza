@@ -1,6 +1,9 @@
 import { DomainEventMsg } from "../message";
-import { IncomingPayment, OutgoingPayment, Quote } from "../../payment";
-import { Amount } from "../../shared";
+import {
+  IncomingPaymentSerialized,
+  OutgoingPaymentSerialized,
+} from "../../payment";
+import { AmountSerialized } from "../../shared";
 
 /**
  * Enumeration representing various topics used in the system.
@@ -97,12 +100,11 @@ export class ApiRspErrorEvent extends DomainEventMsg {
 }
 
 export interface LocalOutgoingPaymentCreatedPayload {
-  quote: Quote;
-  outgoingPayment: OutgoingPayment;
-  incomingPayment: IncomingPayment;
+  outgoingPayment: OutgoingPaymentSerialized;
+  incomingPayment: IncomingPaymentSerialized;
   senderWalletAddressId: string;
-  receiveAmount: Amount;
-  debitAmount: Amount;
+  receiveAmount: AmountSerialized;
+  debitAmount: AmountSerialized;
 }
 
 export class LocalOutgoingPaymentCreatedEvent extends DomainEventMsg {
@@ -122,11 +124,11 @@ export class LocalOutgoingPaymentCreatedEvent extends DomainEventMsg {
 }
 
 export interface LocalOutgoingPaymentFundedPayload {
-  outgoingPayment: OutgoingPayment;
-  incomingPayment: IncomingPayment;
+  outgoingPayment: OutgoingPaymentSerialized;
+  incomingPayment: IncomingPaymentSerialized;
   senderWalletAddressId: string;
-  receiveAmount: Amount;
-  debitAmount: Amount;
+  receiveAmount: AmountSerialized;
+  debitAmount: AmountSerialized;
 }
 
 export class LocalOutgoingPaymentFundedEvent extends DomainEventMsg {

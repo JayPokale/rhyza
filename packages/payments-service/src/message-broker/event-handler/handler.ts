@@ -1,5 +1,12 @@
 import { IMessage, IMessageConsumer, IMessageProducer } from "../message";
-import { PaymentService } from "../../payment";
+import {
+  deserializeIncomingPayment,
+  deserializeOutgoingPayment,
+  LocalOutgoingPaymentCreatedEvent2,
+  LocalOutgoingPaymentFundedEvent2,
+  PaymentEventType,
+  PaymentService,
+} from "../../payment";
 import {
   LocalOutgoingPaymentCreatedEvent,
   LocalOutgoingPaymentFundedEvent,
@@ -7,6 +14,7 @@ import {
 } from "../event";
 import logger from "../../logger";
 import type { ITelemetryService } from "telemetry";
+import { deserializeAmount } from "../../shared";
 
 export class RafikiEventHandler {
   private _messageConsumer: IMessageConsumer;
@@ -48,21 +56,45 @@ export class RafikiEventHandler {
       );
       try {
         switch (message.msgName) {
-          // TODO: use toDomainIncoming etc. to ensure handlers get
-          // correctly formed data. Use existing from command handler (but move to
-          // payment.ts??)
-
           case LocalOutgoingPaymentCreatedEvent.name: {
             const msg = message as LocalOutgoingPaymentCreatedEvent;
+            const event: LocalOutgoingPaymentCreatedEvent2 = {
+              type: PaymentEventType.LOCAL_OUTGOING_PAYMENT_CREATED,
+              data: {
+                outgoingPayment: deserializeOutgoingPayment(
+                  msg.payload.outgoingPayment
+                ),
+                incomingPayment: deserializeIncomingPayment(
+                  msg.payload.incomingPayment
+                ),
+                senderWalletAddressId: msg.payload.senderWalletAddressId,
+                debitAmount: deserializeAmount(msg.payload.debitAmount),
+                receiveAmount: deserializeAmount(msg.payload.receiveAmount),
+              },
+            };
             await this._paymentService.handleLocalOutgoingPaymentCreatedEvent(
-              msg
+              event
             );
             break;
           }
           case LocalOutgoingPaymentFundedEvent.name: {
             const msg = message as LocalOutgoingPaymentFundedEvent;
+            const event: LocalOutgoingPaymentFundedEvent2 = {
+              type: PaymentEventType.LOCAL_OUTGOING_PAYMENT_FUNDED,
+              data: {
+                outgoingPayment: deserializeOutgoingPayment(
+                  msg.payload.outgoingPayment
+                ),
+                incomingPayment: deserializeIncomingPayment(
+                  msg.payload.incomingPayment
+                ),
+                senderWalletAddressId: msg.payload.senderWalletAddressId,
+                debitAmount: deserializeAmount(msg.payload.debitAmount),
+                receiveAmount: deserializeAmount(msg.payload.receiveAmount),
+              },
+            };
             await this._paymentService.handleLocalOutgoingPaymentFundedEvent(
-              msg
+              event
             );
             break;
           }
@@ -127,7 +159,7 @@ export class RafikiEventHandler {
   }
 
   // private toDomainIncoming(
-  //   cmd: CreateIncomingPaymentCmd
+  //   cmd: LocalOutgoingPaymentCreatedEvent
   // ): CreateIncomingPaymentRequest {
   //   return {
   //     id: cmd.payload.id,

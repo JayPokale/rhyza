@@ -8,7 +8,7 @@ import {
 } from "./liquidity";
 import { IlpPeerServiceAdapter } from "./ilp-peer";
 import { RatesServiceAdapter } from "./rates";
-import { Amount, Asset } from "./shared";
+import { Amount, Asset, serializeAmount } from "./shared";
 import { WalletAddress, WalletAddressServiceAdapter } from "./wallet-address";
 import { Event, EventProducerAdapter } from "./event";
 import { IlpDetails } from "./ilp-connector";
@@ -91,6 +91,61 @@ export interface OutgoingPayment {
   senderWalletAddressId: string;
 }
 
+export interface OutgoingPaymentSerialized {
+  id: string;
+  quoteId?: string;
+  asset: Asset;
+  state: OutgoingPaymentState;
+  sentAmount: string;
+  debitAmount: string;
+  localIncomingPaymentId?: string;
+  remoteIncomingPaymentUrl?: string;
+  senderWalletAddressId: string;
+}
+
+// TODO: use or lose. Maybe move out of payment.ts.
+// Alternative to bespoke serializeOutgoingPayment, serializeQuote, etc.
+// - Pro: simple. can just call this everywhere, although would still need to know
+//   what is being serialize in order to provide correct type argument to keep typesafe.
+// - Con: Less flexible - might get hard to extend.
+//   Less performant since it iterates over ALL properties
+//   as opposed to potentially only top-level properties in bespoke
+//   serializers. Would depend on specific serializer but some can just destructure.
+export function serializeForTransport<D, S>(value: D): S {
+  return JSON.parse(
+    JSON.stringify(value, (_key, val) =>
+      typeof val === "bigint" ? val.toString() : val
+    )
+  );
+}
+
+/**
+ * Restores a serialized OutgoingPayment to its original in-memory representation.
+ */
+export function deserializeOutgoingPayment(
+  serialized: OutgoingPaymentSerialized
+): OutgoingPayment {
+  return {
+    ...serialized,
+    sentAmount: BigInt(serialized.sentAmount),
+    debitAmount: BigInt(serialized.debitAmount),
+  };
+}
+
+/**
+ * Prepares an OutgoingPayment for transport or storage by converting it
+ * to a JSON-serializable form.
+ */
+export function serializeOutgoingPayment(
+  payment: OutgoingPayment
+): OutgoingPaymentSerialized {
+  return {
+    ...payment,
+    sentAmount: payment.sentAmount.toString(),
+    debitAmount: payment.debitAmount.toString(),
+  };
+}
+
 export type OutgoingPaymentWithMicroPayments = OutgoingPayment & {
   microPayments: MicroPayment[];
 };
@@ -138,9 +193,9 @@ export interface IOutgoingPaymentRepository {
 export enum PaymentEventType {
   INCOMING_PAYMENT_CREATED = "INCOMING_PAYMENT_CREATED",
   INCOMING_PAYMENT_COMPLETED = "INCOMING_PAYMENT_COMPLETED",
-  OUTGOING_PAYMENT_CREATED = "OUTGOING_PAYMENT_CREATED",
   OUTGOING_PAYMENT_COMPLETED = "OUTGOING_PAYMENT_COMPLETED",
   REMOTE_OUTGOING_PAYMENT_FUNDED = "REMOTE_OUTGOING_PAYMENT_FUNDED",
+  LOCAL_OUTGOING_PAYMENT_CREATED = "LOCAL_OUTGOING_PAYMENT_CREATED",
   LOCAL_OUTGOING_PAYMENT_FUNDED = "LOCAL_OUTGOING_PAYMENT_FUNDED",
   REMOTE_QUOTE_REQUESTED = "REMOTE_QUOTE_REQUESTED",
   ILP_PAYMENT_PREPARE_PACKET_ACCEPTED = "ILP_PAYMENT_PREPARE_PACKET_ACCEPTED",
@@ -183,20 +238,24 @@ interface OutgoingPaymentCompletedEvent extends Event {
   };
 }
 
-// TODO: does this need to be scoped to local? like funded event
-// interface OutgoingPaymentCreatedEvent extends Event {
-//   type: PaymentEventType.OUTGOING_PAYMENT_CREATED;
-//   data: {
-//     outgoingPayment: OutgoingPayment;
-//   };
-// }
-
-// TODO: refactor create from incoming payment to use new kafka message and delete this when unused
-interface LocalOutgoingPaymentFundedEvent2 extends Event {
+// TODO: fix name (the 2)
+export interface LocalOutgoingPaymentFundedEvent2 extends Event {
   type: PaymentEventType.LOCAL_OUTGOING_PAYMENT_FUNDED;
   data: {
     outgoingPayment: OutgoingPayment;
     incomingPayment: IncomingPayment;
+    senderWalletAddressId: string;
+    receiveAmount: Amount;
+    debitAmount: Amount;
+  };
+}
+
+export interface LocalOutgoingPaymentCreatedEvent2 extends Event {
+  type: PaymentEventType.LOCAL_OUTGOING_PAYMENT_CREATED;
+  data: {
+    outgoingPayment: OutgoingPayment;
+    incomingPayment: IncomingPayment;
+    // quote: Quote;
     senderWalletAddressId: string;
     receiveAmount: Amount;
     debitAmount: Amount;
@@ -263,18 +322,57 @@ export const LocalIncomingPaymentState = {
 } as const;
 export type LocalIncomingPaymentState = keyof typeof LocalIncomingPaymentState;
 
-interface BaseIncomingPayment {
+export interface IncomingPayment {
+  id: string;
+  state: LocalIncomingPaymentState;
+  walletAddressId: string;
+  type: "LOCAL";
   expiresAt: Date;
   asset: Asset;
   incomingAmount?: bigint;
   receivedAmount: bigint;
 }
 
-export interface IncomingPayment extends BaseIncomingPayment {
+export interface IncomingPaymentSerialized {
   id: string;
   state: LocalIncomingPaymentState;
   walletAddressId: string;
   type: "LOCAL";
+  expiresAt: string;
+  asset: Asset;
+  incomingAmount?: string;
+  receivedAmount: string;
+}
+
+/**
+ * Prepares an IncomingPayment for transport or storage by converting it
+ * to a JSON-serializable form.
+ */
+export function serializeIncomingPayment(
+  payment: IncomingPayment
+): IncomingPaymentSerialized {
+  return {
+    ...payment,
+    receivedAmount: payment.receivedAmount.toString(),
+    incomingAmount: payment.incomingAmount?.toString(),
+    expiresAt: payment.expiresAt.toISOString(),
+  };
+}
+
+/**
+ * Restores a serialized IncomingPayment to its original in-memory representation.
+ */
+export function deserializeIncomingPayment(
+  serialized: IncomingPaymentSerialized
+): IncomingPayment {
+  return {
+    ...serialized,
+    receivedAmount: BigInt(serialized.receivedAmount),
+    incomingAmount: serialized.incomingAmount
+      ? BigInt(serialized.incomingAmount)
+      : undefined,
+    expiresAt: new Date(serialized.expiresAt),
+  };
 }
 
 export type IncomingPaymentWithMicroPayments = IncomingPayment & {
@@ -848,19 +946,18 @@ export class PaymentService {
       await this.outgoingPaymentRepository.store(outgoingPayment);
 
       // TODO: revist how im interfacing with messageProducer and importing
-      // OutgoingPaymentCreatedEvent. Is there a better way? Something more
+      // LocalOutgoingPaymentCreatedEvent. Is there a better way? Something more
       // driven by payments (but then how to square w/ IMessageProducer)?
       // Maybe implement new EventPubSub using MessageProducer/Consumer (see src/event.ts)
       // instead of seperate event handler mirroring the command handler
       await this.messageProducer.send(
         new LocalOutgoingPaymentCreatedEvent(
           {
-            outgoingPayment,
-            incomingPayment,
-            quote,
+            outgoingPayment: serializeOutgoingPayment(outgoingPayment),
+            incomingPayment: serializeIncomingPayment(incomingPayment),
             senderWalletAddressId: quote.senderWalletAddressId,
-            receiveAmount: quote.receiveAmount,
-            debitAmount: quote.debitAmount,
+            receiveAmount: serializeAmount(quote.receiveAmount),
+            debitAmount: serializeAmount(quote.debitAmount),
           },
           randomUUID()
         )
@@ -1125,23 +1222,28 @@ export class PaymentService {
   }
 
   public async handleLocalOutgoingPaymentCreatedEvent(
-    event: LocalOutgoingPaymentCreatedEvent
+    event: LocalOutgoingPaymentCreatedEvent2
   ) {
-    const { quote, outgoingPayment, incomingPayment } = event.payload;
+    const {
+      outgoingPayment,
+      incomingPayment,
+      senderWalletAddressId,
+      debitAmount,
+      receiveAmount,
+    } = event.data;
     const walletAddressFundRequest: WalletAddressDepositLiquidityRequest = {
       id: crypto.randomUUID(),
       type: LiquidityRequestType.DEPOSIT_WALLET_ADDRESS,
       data: {
-        walletAddressId: quote.senderWalletAddressId,
-        amount: quote.debitAmount,
+        walletAddressId: senderWalletAddressId,
+        amount: debitAmount,
       },
     };
 
     await this.liquidityService.execute([walletAddressFundRequest]);
 
     await this.outgoingPaymentRepository.markAsFunded(outgoingPayment.id);
-    // TODO: should we fetch in the localOutgoingPaymentFundedEvent instead? or should
-    // we rely 100% on the data in event?
+
     const fundedOutgoingPayment =
       await this.outgoingPaymentRepository.fetchById(outgoingPayment.id);
 
@@ -1159,14 +1261,15 @@ export class PaymentService {
     //     debitAmount: quote.debitAmount,
     //   },
     // };
+
     await this.messageProducer.send(
       new LocalOutgoingPaymentFundedEvent(
         {
-          outgoingPayment: fundedOutgoingPayment,
-          incomingPayment,
-          senderWalletAddressId: quote.senderWalletAddressId,
-          receiveAmount: quote.receiveAmount,
-          debitAmount: quote.debitAmount,
+          outgoingPayment: serializeOutgoingPayment(fundedOutgoingPayment),
+          incomingPayment: serializeIncomingPayment(incomingPayment),
+          senderWalletAddressId: senderWalletAddressId,
+          receiveAmount: serializeAmount(receiveAmount),
+          debitAmount: serializeAmount(debitAmount),
         },
         randomUUID()
       )
@@ -1176,7 +1279,7 @@ export class PaymentService {
   }
 
   public async handleLocalOutgoingPaymentFundedEvent(
-    event: LocalOutgoingPaymentFundedEvent
+    event: LocalOutgoingPaymentFundedEvent2
   ) {
     const {
       outgoingPayment,
@@ -1184,7 +1287,7 @@ export class PaymentService {
       debitAmount,
       receiveAmount,
       incomingPayment,
-    } = event.payload;
+    } = event.data;
 
     const exists = await this.outgoingPaymentRepository.exists(
       outgoingPayment.id
