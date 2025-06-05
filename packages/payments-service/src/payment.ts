@@ -222,34 +222,6 @@ interface OutgoingPaymentCompletedEvent extends Event {
   };
 }
 
-// TODO: fix name conflict
-// - using this for handler argument
-// - using IMessage for creating/sending event (which IMessageProducer expects)
-// Could use this for the production as well but I feel like that might produce some unecessary
-// indirection/abstraction over the IMessageProducer? And I see IMessageProducer/IMessage used
-// directly here in the mojaloop bounded context: https://github.com/mojaloop/transfers-bc/blob/main/packages/domain-lib/src/aggregate.ts
-export interface LocalOutgoingPaymentFundedEvent2 extends Event {
-  type: PaymentEventType.LOCAL_OUTGOING_PAYMENT_FUNDED;
-  data: {
-    outgoingPayment: OutgoingPayment;
-    incomingPayment: IncomingPayment;
-    senderWalletAddressId: string;
-    receiveAmount: Amount;
-    debitAmount: Amount;
-  };
-}
-
-export interface LocalOutgoingPaymentCreatedEvent2 extends Event {
-  type: PaymentEventType.LOCAL_OUTGOING_PAYMENT_CREATED;
-  data: {
-    outgoingPayment: OutgoingPayment;
-    incomingPayment: IncomingPayment;
-    senderWalletAddressId: string;
-    receiveAmount: Amount;
-    debitAmount: Amount;
-  };
-}
-
 export interface RemoteQuoteRequestedEvent extends Event {
   type: PaymentEventType.REMOTE_QUOTE_REQUESTED;
   data: {
@@ -386,6 +358,22 @@ export interface CreateOutgoingPaymentFromIncomingPaymentRequest {
   id?: string;
   incomingPaymentId: string;
   senderWalletAddressId: string;
+  debitAmount: Amount;
+}
+
+export interface HandleLocalOutgoingPaymentCreatedEventRequest {
+  outgoingPayment: OutgoingPayment;
+  incomingPayment: IncomingPayment;
+  senderWalletAddressId: string;
+  receiveAmount: Amount;
+  debitAmount: Amount;
+}
+
+export interface HandleLocalOutgoingPaymentFundedEventRequest {
+  outgoingPayment: OutgoingPayment;
+  incomingPayment: IncomingPayment;
+  senderWalletAddressId: string;
+  receiveAmount: Amount;
   debitAmount: Amount;
 }
 export class PaymentService {
@@ -1190,7 +1178,7 @@ export class PaymentService {
   }
 
   public async handleLocalOutgoingPaymentCreatedEvent(
-    event: LocalOutgoingPaymentCreatedEvent2
+    request: HandleLocalOutgoingPaymentCreatedEventRequest
   ) {
     const {
       outgoingPayment,
@@ -1198,7 +1186,7 @@ export class PaymentService {
       senderWalletAddressId,
       debitAmount,
       receiveAmount,
-    } = event.data;
+    } = request;
     const walletAddressFundRequest: WalletAddressDepositLiquidityRequest = {
       id: crypto.randomUUID(),
       type: LiquidityRequestType.DEPOSIT_WALLET_ADDRESS,
@@ -1234,7 +1222,7 @@ export class PaymentService {
   }
 
   public async handleLocalOutgoingPaymentFundedEvent(
-    event: LocalOutgoingPaymentFundedEvent2
+    request: HandleLocalOutgoingPaymentFundedEventRequest
   ) {
     const {
       outgoingPayment,
@@ -1242,7 +1230,7 @@ export class PaymentService {
       debitAmount,
       receiveAmount,
       incomingPayment,
-    } = event.data;
+    } = request;
 
     const exists = await this.outgoingPaymentRepository.exists(
       outgoingPayment.id

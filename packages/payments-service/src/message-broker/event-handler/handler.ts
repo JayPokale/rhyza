@@ -2,9 +2,8 @@ import { IMessage, IMessageConsumer } from "../message";
 import {
   deserializeIncomingPayment,
   deserializeOutgoingPayment,
-  LocalOutgoingPaymentCreatedEvent2,
-  LocalOutgoingPaymentFundedEvent2,
-  PaymentEventType,
+  HandleLocalOutgoingPaymentCreatedEventRequest,
+  HandleLocalOutgoingPaymentFundedEventRequest,
   PaymentService,
 } from "../../payment";
 import {
@@ -55,43 +54,37 @@ export class RafikiEventHandler {
         switch (message.msgName) {
           case LocalOutgoingPaymentCreatedEvent.name: {
             const msg = message as LocalOutgoingPaymentCreatedEvent;
-            const event: LocalOutgoingPaymentCreatedEvent2 = {
-              type: PaymentEventType.LOCAL_OUTGOING_PAYMENT_CREATED,
-              data: {
-                outgoingPayment: deserializeOutgoingPayment(
-                  msg.payload.outgoingPayment
-                ),
-                incomingPayment: deserializeIncomingPayment(
-                  msg.payload.incomingPayment
-                ),
-                senderWalletAddressId: msg.payload.senderWalletAddressId,
-                debitAmount: deserializeAmount(msg.payload.debitAmount),
-                receiveAmount: deserializeAmount(msg.payload.receiveAmount),
-              },
+            const request: HandleLocalOutgoingPaymentCreatedEventRequest = {
+              outgoingPayment: deserializeOutgoingPayment(
+                msg.payload.outgoingPayment
+              ),
+              incomingPayment: deserializeIncomingPayment(
+                msg.payload.incomingPayment
+              ),
+              senderWalletAddressId: msg.payload.senderWalletAddressId,
+              debitAmount: deserializeAmount(msg.payload.debitAmount),
+              receiveAmount: deserializeAmount(msg.payload.receiveAmount),
             };
             await this._paymentService.handleLocalOutgoingPaymentCreatedEvent(
-              event
+              request
             );
             break;
           }
           case LocalOutgoingPaymentFundedEvent.name: {
             const msg = message as LocalOutgoingPaymentFundedEvent;
-            const event: LocalOutgoingPaymentFundedEvent2 = {
-              type: PaymentEventType.LOCAL_OUTGOING_PAYMENT_FUNDED,
-              data: {
-                outgoingPayment: deserializeOutgoingPayment(
-                  msg.payload.outgoingPayment
-                ),
-                incomingPayment: deserializeIncomingPayment(
-                  msg.payload.incomingPayment
-                ),
-                senderWalletAddressId: msg.payload.senderWalletAddressId,
-                debitAmount: deserializeAmount(msg.payload.debitAmount),
-                receiveAmount: deserializeAmount(msg.payload.receiveAmount),
-              },
+            const request: HandleLocalOutgoingPaymentFundedEventRequest = {
+              outgoingPayment: deserializeOutgoingPayment(
+                msg.payload.outgoingPayment
+              ),
+              incomingPayment: deserializeIncomingPayment(
+                msg.payload.incomingPayment
+              ),
+              senderWalletAddressId: msg.payload.senderWalletAddressId,
+              debitAmount: deserializeAmount(msg.payload.debitAmount),
+              receiveAmount: deserializeAmount(msg.payload.receiveAmount),
             };
             await this._paymentService.handleLocalOutgoingPaymentFundedEvent(
-              event
+              request
             );
             break;
           }
