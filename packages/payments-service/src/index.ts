@@ -30,6 +30,7 @@ BigInt.prototype.toJSON = function () {
   const kafkaUrl = process.env["KAFKA_URL"] || "kafka:29092";
   logger.info(`Init Kafka on '${kafkaUrl}'`);
 
+  // TOOD: dont initialize seperate producer/consumers for event handler/command handler
   const commandProducer = new RafikiKafkaJsonProducer({
     kafkaBrokerList: kafkaUrl,
     producerClientId: `rafiki-producer-backend-${crypto.randomUUID()}`,

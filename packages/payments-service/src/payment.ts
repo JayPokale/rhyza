@@ -103,22 +103,6 @@ export interface OutgoingPaymentSerialized {
   senderWalletAddressId: string;
 }
 
-// TODO: use or lose. Maybe move out of payment.ts.
-// Alternative to bespoke serializeOutgoingPayment, serializeQuote, etc.
-// - Pro: simple. can just call this everywhere, although would still need to know
-//   what is being serialize in order to provide correct type argument to keep typesafe.
-// - Con: Less flexible - might get hard to extend.
-//   Less performant since it iterates over ALL properties
-//   as opposed to potentially only top-level properties in bespoke
-//   serializers. Would depend on specific serializer but some can just destructure.
-export function serializeForTransport<D, S>(value: D): S {
-  return JSON.parse(
-    JSON.stringify(value, (_key, val) =>
-      typeof val === "bigint" ? val.toString() : val
-    )
-  );
-}
-
 /**
  * Restores a serialized OutgoingPayment to its original in-memory representation.
  */
