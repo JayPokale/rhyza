@@ -1079,17 +1079,6 @@ export class PaymentService {
         throw new InvalidAmountError();
       }
 
-      const walletAddressFundRequest: WalletAddressDepositLiquidityRequest = {
-        id: crypto.randomUUID(),
-        type: LiquidityRequestType.DEPOSIT_WALLET_ADDRESS,
-        data: {
-          walletAddressId: walletAddress.id,
-          amount: debitAmount,
-        },
-      };
-
-      await this.liquidityService.execute([walletAddressFundRequest]);
-
       const outgoingPayment: OutgoingPayment = {
         id: outgoingPaymentId,
         senderWalletAddressId: walletAddress.id,
@@ -1100,25 +1089,22 @@ export class PaymentService {
         debitAmount: debitAmount.value,
         sentAmount: 0n,
         localIncomingPaymentId: incomingPayment.id,
-        state: OutgoingPaymentState.FUNDED,
+        state: OutgoingPaymentState.CREATED,
       };
 
-      const localOutgoingPaymentFundedEvent: LocalOutgoingPaymentFundedEvent2 =
-        {
-          type: PaymentEventType.LOCAL_OUTGOING_PAYMENT_FUNDED,
-          data: {
-            outgoingPayment,
-            incomingPayment,
-            senderWalletAddressId: walletAddress.id,
-            receiveAmount,
-            debitAmount,
-          },
-        };
-
       await this.outgoingPaymentRepository.store(outgoingPayment);
-      await this.paymentEventProducer.publish([
-        localOutgoingPaymentFundedEvent,
-      ]);
+      await this.messageProducer.send(
+        new LocalOutgoingPaymentCreatedEvent(
+          {
+            outgoingPayment: serializeOutgoingPayment(outgoingPayment),
+            incomingPayment: serializeIncomingPayment(incomingPayment),
+            senderWalletAddressId: walletAddress.id,
+            receiveAmount: serializeAmount(receiveAmount),
+            debitAmount: serializeAmount(debitAmount),
+          },
+          randomUUID()
+        )
+      );
 
       return outgoingPayment.id;
     } else {
