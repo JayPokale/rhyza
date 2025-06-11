@@ -5,7 +5,7 @@
     "clean": "find . -name 'node_modules' -type d -prune -exec rm -rf '{}' +",
     "docker:up": "docker compose -f ./docker/docker-compose.yaml down --volumes && docker compose -f ./docker/docker-compose.yaml up --build",
     "docker:peer:up": "docker compose -f docker/docker-compose.yaml -f docker/peer/docker-compose.yaml down --volumes && docker compose -f docker/docker-compose.yaml -f docker/peer/docker-compose.yaml up -d --build",
-    "build": "tsc"
+    "build": "pnpm -r build"
   },
   "keywords": [],
   "author": "",
@@ -16,13 +16,11 @@
     "@opentelemetry/instrumentation-http": "^0.57.1",
     "@opentelemetry/sdk-metrics": "^1.30.1",
     "@opentelemetry/sdk-node": "^0.57.1",
-    "fastify": "^5.2.1",
-    "ilp-packet": "3.1.4-alpha.2",
-    "pg": "^8.13.1",
     "pino": "^9.6.0"
   },
   "devDependencies": {
     "@types/node": "^22.13.2",
+    "pino-pretty": "~13.0.0",
     "prettier": "^3.5.3",
     "typescript": "^5.7.3"
   },

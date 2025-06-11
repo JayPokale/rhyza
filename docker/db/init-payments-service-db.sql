@@ -38,8 +38,8 @@ CREATE TABLE IF NOT EXISTS incoming_payments (
   incoming_amount BIGINT,
   received_amount BIGINT NOT NULL,
   state TEXT NOT NULL,
-  wallet_address_id TEXT NOT NULL,
-  FOREIGN KEY (wallet_address_id) REFERENCES wallet_addresses(id)
+  wallet_address_id TEXT NOT NULL
+--   FOREIGN KEY (wallet_address_id) REFERENCES wallet_addresses(id)
 );
 
 CREATE TABLE IF NOT EXISTS quotes (
@@ -53,8 +53,8 @@ CREATE TABLE IF NOT EXISTS quotes (
   sender_wallet_address_id TEXT NOT NULL,
   incoming_payment_id TEXT NOT NULL,
   expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-  exchange_rate NUMERIC NOT NULL,
-  FOREIGN KEY (sender_wallet_address_id) REFERENCES wallet_addresses(id)
+  exchange_rate NUMERIC NOT NULL
+--   FOREIGN KEY (sender_wallet_address_id) REFERENCES wallet_addresses(id)
 );
 
 CREATE TABLE IF NOT EXISTS outgoing_payments (
@@ -67,8 +67,8 @@ CREATE TABLE IF NOT EXISTS outgoing_payments (
   debit_amount BIGINT NOT NULL,
   local_incoming_payment_id TEXT,
   remote_incoming_payment_url TEXT,
-  sender_wallet_address_id TEXT NOT NULL,
-  FOREIGN KEY (sender_wallet_address_id) REFERENCES wallet_addresses(id)
+  sender_wallet_address_id TEXT NOT NULL
+--   FOREIGN KEY (sender_wallet_address_id) REFERENCES wallet_addresses(id)
 );
 
 CREATE TABLE IF NOT EXISTS incoming_micro_payments (
@@ -77,9 +77,9 @@ CREATE TABLE IF NOT EXISTS incoming_micro_payments (
   method TEXT NOT NULL,
   ilp_peer_id TEXT,
   request_id TEXT NOT NULL,
-  amount BIGINT NOT NULL,
-  FOREIGN KEY (incoming_payment_id) REFERENCES incoming_payments(id),
-  FOREIGN KEY (ilp_peer_id) REFERENCES ilp_peers(id)
+  amount BIGINT NOT NULL
+--   FOREIGN KEY (incoming_payment_id) REFERENCES incoming_payments(id),
+--   FOREIGN KEY (ilp_peer_id) REFERENCES ilp_peers(id)
 );
 
 CREATE TABLE IF NOT EXISTS outgoing_micro_payments (
@@ -88,9 +88,9 @@ CREATE TABLE IF NOT EXISTS outgoing_micro_payments (
   method TEXT NOT NULL CHECK (method IN ('LOCAL', 'ILP')),
   ilp_peer_id TEXT,
   request_id TEXT NOT NULL,
-  amount BIGINT NOT NULL,
-  FOREIGN KEY (outgoing_payment_id) REFERENCES outgoing_payments(id),
-  FOREIGN KEY (ilp_peer_id) REFERENCES ilp_peers(id)
+  amount BIGINT NOT NULL
+--   FOREIGN KEY (outgoing_payment_id) REFERENCES outgoing_payments(id),
+--   FOREIGN KEY (ilp_peer_id) REFERENCES ilp_peers(id)
 );
 
 CREATE TABLE IF NOT EXISTS asset_accounts (

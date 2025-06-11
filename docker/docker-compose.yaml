@@ -3,23 +3,50 @@ services:
   api:
     build:
       context: ../
-      dockerfile: ./packages/api/Dockerfile
+      dockerfile: ./packages/api-svc/Dockerfile
     restart: always
     environment:
-      SEED_FILE_LOCATION: /workspace/seed.json
       OPEN_TELEMETRY_COLLECTOR_URL: http://otel-collector:4317
       REDIS_URL: redis://redis:6379
       KAFKA_URL: kafka:19092
+      LOG_LEVEL: info
     depends_on:
-      - backend
-      - pg-container
+       pg-container:
+          condition: service_healthy
+       init-kafka:
+          condition: service_completed_successfully
     networks:
       - rafiki-poc
+
+  liquidity-service:
+     build:
+        context: ../
+        dockerfile: ./packages/liquidity-svc/Dockerfile
+     restart: always
+     security_opt:
+        - seccomp:unconfined
+     environment:
+        API_PORT: 3000
+        OPEN_TELEMETRY_COLLECTOR_URL: http://otel-collector:4317
+        DATABASE_URL: postgres://postgres:password@pg-container:5432/liquidity-service
+        TB_CLUSTER_REPLICA_ADDRESSES: 10.5.1.51:4342
+        LOG_LEVEL: info
+     depends_on:
+        pg-container:
+           condition: service_healthy
+     healthcheck:
+        test: nc -z 0.0.0.0 3000 || exit -1
+        start_period: 40s
+        interval: 10s
+        timeout: 10s
+        retries: 10
+     networks:
+        - rafiki-poc
 
   backend:
     build:
       context: ../
-      dockerfile: ./packages/payments-service/Dockerfile
+      dockerfile: ./packages/payments-command-handler-svc/Dockerfile
     restart: always
     environment:
       SEED_FILE_LOCATION: /workspace/seed.json
@@ -28,34 +55,17 @@ services:
       REDIS_URL: redis://redis:6379
       KAFKA_URL: kafka:19092
       LIQUIDITY_SERVICE_URL: http://liquidity-service:3000
+      LOG_LEVEL: info
     depends_on:
       init-kafka:
         condition: service_completed_successfully
       liquidity-service:
         condition: service_healthy
+      pg-container:
+         condition: service_healthy
     networks:
       - rafiki-poc
 
-  liquidity-service:
-    build:
-      context: ../
-      dockerfile: ./packages/liquidity-service/Dockerfile
-    restart: always
-    environment:
-      OPEN_TELEMETRY_COLLECTOR_URL: http://otel-collector:4317
-      DATABASE_URL: postgres://postgres:password@pg-container:5432/liquidity-service
-      TB_REPLICA_ADDRESSES: 10.5.1.51:4342
-    depends_on:
-      init-kafka:
-        condition: service_completed_successfully
-    healthcheck:
-      test: nc -z 0.0.0.0 3000 || exit -1
-      start_period: 30s
-      interval: 10s
-      timeout: 10s
-      retries: 10
-    networks:
-      - rafiki-poc
 
   pg-container:
     image: postgres
@@ -86,9 +96,9 @@ services:
       KAFKA_BROKER_ID: 1
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
-      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:19092
-      KAFKA_LISTENERS: INTERNAL://:19092,CONTROLLER://:19093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:19092,EXTERNAL://kafka:9092
+      KAFKA_LISTENERS: INTERNAL://:19092,CONTROLLER://:19093,EXTERNAL://:9092
       KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:19093
@@ -102,6 +112,8 @@ services:
       interval: 10s
       timeout: 10s
       retries: 10
+    ports:
+      - "9092:9092"
     networks:
       - rafiki-poc
 
@@ -131,10 +143,10 @@ services:
       echo -e '\nCreating kafka topics:'
       ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --topic audits
       ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --topic logs
-      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 3 --topic incoming-payment-commands
-      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 3 --topic quote-commands
-      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 3 --topic outgoing-payment-commands
-      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 2 --topic api-response-events
+      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 12 --topic incoming-payment-commands
+      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 12 --topic quote-commands
+      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 12 --topic outgoing-payment-commands
+      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 12 --topic api-response-events
       echo -e '\nSuccessfully created the following topics:'
       ./kafka-topics.sh --bootstrap-server kafka:19092 --list
       "
@@ -153,6 +165,9 @@ services:
     command: "--config=/etc/otel-collector-config.yaml"
     volumes:
       - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+       - "4317:4317"
+       - "4318:4318"
     networks:
       - rafiki-poc
 
@@ -212,6 +227,8 @@ services:
     privileged: true
     volumes:
       - tigerbeetle-data:/var/lib/tigerbeetle
+    ports:
+      - "4342:4342"
     networks:
       rafiki-poc:
         ipv4_address: 10.5.1.51
@@ -226,8 +243,8 @@ services:
         DATA_FILE_EXISTS="$$?"
         set -e
         echo $$DATA_FILE_EXISTS
-        if [ "$$DATA_FILE_EXISTS" != 0 ]; then 
-          ./tigerbeetle format --cluster=0 --replica=0 --replica-count=1 $$DATA_FILE; 
+        if [ "$$DATA_FILE_EXISTS" != 0 ]; then
+          ./tigerbeetle format --cluster=0 --replica=0 --replica-count=1 $$DATA_FILE;
         fi
         hostname -i
         ls /var/lib/tigerbeetle

@@ -1,0 +1,41 @@
+{
+  "name": "implementations-lib",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "test": "node --import tsx --test test/*.test.ts",
+    "build": "tsc --build"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@opentelemetry/exporter-metrics-otlp-grpc": "^0.202.0",
+    "@opentelemetry/exporter-trace-otlp-grpc": "^0.202.0",
+    "@opentelemetry/instrumentation": "^0.202.0",
+    "@opentelemetry/instrumentation-pg": "^0.54.0",
+    "@opentelemetry/instrumentation-fastify": "^0.47.0",
+    "@opentelemetry/instrumentation-http": "^0.202.0",
+    "@opentelemetry/resources": "^2.0.1",
+    "@opentelemetry/sdk-metrics": "^2.0.1",
+    "@opentelemetry/node": "^0.24.0",
+    "@opentelemetry/sdk-node": "^0.202.0",
+    "@opentelemetry/sdk-trace-node": "^2.0.1",
+    "@opentelemetry/semantic-conventions": "^1.34.0",
+    "@opentelemetry/api": "^1.9.0",
+    "fastify": "^5.3.3",
+    "@fastify/otel": "^0.9.1",
+    "ilp-packet": "3.1.4-alpha.2",
+    "ioredis": "^5.6.0",
+    "node-rdkafka": "~3.3.0",
+    "pg": "^8.13.1",
+    "pino": "^9.6.0",
+    "payments-domain-lib": "workspace:*",
+    "common-types-lib": "workspace:*",
+    "liquidity-types-lib": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.11",
+    "tsx": "^4.19.3"
+  }
+}

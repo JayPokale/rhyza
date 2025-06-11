@@ -58,7 +58,7 @@ docker-compose logs -f backend
 
 Shut down and clear images and volumes:
 ```shell
-docker-compose down --volumes --rmi all 
+docker-compose down --volumes --rmi all
 ```
 
 ### Docker
@@ -91,12 +91,12 @@ The scope of the PoC is a single payment flow:
 ```mermaid
 ---
 config:
-  theme: base
+  theme:
 ---
 sequenceDiagram
     autonumber
     participant ASE as ASE
-    
+
     box <br>Rafiki Admin API
     participant GQL as Admin API
     end
@@ -109,7 +109,7 @@ sequenceDiagram
     rect rgba(0, 0, 0, .05)
     note right of ASE: Create incoming payment
     ASE->>GQL: Create incoming payment
-    GQL->>PS: Create incoming payment 
+    GQL->>PS: Create incoming payment
     PS->>PS: Persist incoming payment
     PS->>GQL: Return incoming payment
     GQL->>ASE: Return incoming payment
@@ -117,8 +117,8 @@ sequenceDiagram
 
     rect rgba(0, 0, 0, .05)
     note right of ASE: Create quote
-    ASE->>GQL: Create quote 
-    GQL->>PS: Create quote 
+    ASE->>GQL: Create quote
+    GQL->>PS: Create quote
     PS->>PS: Fetch incoming payment
     PS->>PS: Get rates (from Rate Service)
     PS->>PS: Create quote (and persist)
@@ -170,7 +170,7 @@ config:
 sequenceDiagram
     autonumber
     participant SASE as Sending ASE
-    
+
     box Sending <br>Rafiki Admin API
     participant SGQL as Sending Admin API
     end
@@ -201,7 +201,7 @@ sequenceDiagram
     rect rgba(0, 0, 0, .05)
     note right of SASE: Create incoming payment
     SASE->>SGQL: Create incoming payment
-    SGQL->>SPS: Create incoming payment 
+    SGQL->>SPS: Create incoming payment
     SPS->>ROP: Create incoming payment
     ROP->>RPS: Create incoming payment
     RPS->>RPS: Persist incoming payment
@@ -212,8 +212,8 @@ sequenceDiagram
 
     rect rgba(0, 0, 0, .05)
     note right of SASE: Create quote
-    SASE->>SGQL: Create quote 
-    SGQL->>SPS: Create quote 
+    SASE->>SGQL: Create quote
+    SGQL->>SPS: Create quote
     SPS->>SPS: Try to fetch remote incoming payment (assume found)
     SPS->>SILP: Start quote (rate probe)
     SILP->>RILP: Send rate probe packet
