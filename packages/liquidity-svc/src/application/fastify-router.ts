@@ -53,14 +53,23 @@ export class LiquidityFastifyRouter {
     }
 
     private async _handleCreateTransfers(request: FastifyRequest, reply: FastifyReply):Promise<void> {
-        const requestBody = (request.body as LiquidityRequest[]).map((req) => {
+        const origLiqRequests = request.body as LiquidityRequest[];
+        this._logger.debug(`_handleCreateTransfers received ${origLiqRequests.length} requests in batch`);
+
+        const liqRequests = origLiqRequests.map((req) => {
             req.amount.value = BigInt(req.amount.value);
             return req;
         });
 
-        await this._liquidityService.execute(requestBody);
+        try{
+            await this._liquidityService.execute(liqRequests);
+            reply.code(200).send();
+            this._logger.debug(`_handleCreateTransfers complete`);
+        }catch (e) {
+            this._logger.error(e);
+            reply.code(500).send();
+        }
 
-        reply.code(200).send();
     }
 
     private async _handleCreateAssetAccount(request: FastifyRequest, reply: FastifyReply):Promise<void> {

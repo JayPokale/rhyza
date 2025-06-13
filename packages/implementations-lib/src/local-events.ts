@@ -11,6 +11,7 @@ export class LocalEventEmitterPubSub implements ILocalEventProducerAdapter, ILoc
     }
 
     public async publish(events: LocalEvent[]): Promise<void> {
+        // setImmediate to defer the consumption and avoid this to be sync
         setImmediate(()=>{
             for (const event of events) {
                 this.eventEmitter.emit(event.type, event);

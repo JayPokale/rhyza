@@ -92,7 +92,7 @@ export class WalletAddressPsqlRepository implements IWalletAddressRepository {
                 [idsNotFoundInCache.join(",")]
             );
 
-            if (res.rows.length === 0) return [];
+            if (res.rows.length === 0) return Promise.resolve([]);
 
             const walletAddresses: WalletAddress[] = res.rows.map((row)=>{
                 return {

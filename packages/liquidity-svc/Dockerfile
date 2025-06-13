@@ -57,4 +57,5 @@ COPY --from=build /workspace/packages/implementations-lib/dist /workspace/packag
 COPY --from=prod-deps /workspace/packages/liquidity-svc/node_modules /workspace/packages/liquidity-svc/node_modules
 COPY --from=build /workspace/packages/liquidity-svc/dist /workspace/packages/liquidity-svc/dist
 
+ENV NODE_ENV=production
 CMD ["node", "packages/liquidity-svc/dist/index.js"]

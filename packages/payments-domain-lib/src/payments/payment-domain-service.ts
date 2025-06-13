@@ -1,10 +1,10 @@
 "use strict";
 
 import {
-    Amount, ApiRspIncomingPaymentEvent, ApiRspQuoteEvent,
+    Amount, ApiRspIncomingPaymentEvent, ApiRspOutgoingPaymentEvent, ApiRspQuoteEvent,
     Attributes,
-     CreateIncomingPaymentCmd, CreateOutgoingPaymentCmd, CreateQuoteCmd,
-     ILocalEventProducerAdapter, ILogger,
+    CreateIncomingPaymentCmd, CreateOutgoingPaymentCmd, CreateQuoteCmd,
+    ILocalEventProducerAdapter, ILogger,
     IMessage,
     ITelemetryService, LocalEvent,
     WalletAddress
@@ -56,6 +56,7 @@ import {
     RemoteQuoteRequestedEvent
 } from "./payment-events";
 import {
+    LiquidityRequest,
     PeerToWalletAddressLiquidityRequest,
     WalletAddressDepositLiquidityRequest, WalletAddressToPeerLiquidityRequest,
     WalletToWalletAddressLiquidityRequest
@@ -115,22 +116,41 @@ export class PaymentDomainService {
     }
 
     private _outputEvents: IMessage[] = [];
-    private _tmpWalletAddress: WalletAddress[] = [];
-    private _tmpIncomingPayments: IncomingPayment[] = [];
-    private _tmpQuotes: Quote[] = [];
-    private _tmpOutgoingPayments: OutgoingPayment[] = [];
-    private _tmpIncomingMicroPayments: MicroPayment[] = [];
-    private _tmpOutgoingMicroPayments: MicroPayment[] = [];
+
+    private _preFetchedWalletAddress: WalletAddress[] = [];
+    private _preFetchedIncomingPayments: IncomingPayment[] = [];
+    private _preFetchedQuotes: Quote[] = [];
+    private _preFetchedOutgoingPayments: OutgoingPayment[] = [];
+
+    private _newIncomingPayments: IncomingPayment[] = [];
+    private _newQuotes: Quote[] = [];
+    private _newOutgoingPayments: OutgoingPayment[] = [];
+
+    private _newIncomingMicroPayments: { incomingPaymentId:string, microPayment:MicroPayment}[] = [];
+    private _newOutgoingMicroPayments: { outgoingPaymentId:string, microPayment:MicroPayment}[] = [];
+
+    private _newIncomingPaymentUpdates: { incomingPaymentId:string, newReceivedAmount:bigint, newState?:LocalIncomingPaymentState}[] = [];
+
+    private _newLiquidityRequests: LiquidityRequest[] = [];
 
     async _msgHandlerBatch(cmds: IMessage[]): Promise<IMessage[]> {
+        const stopTimer = this._startTimer("DomainMsgHandlerBatch");
+
+        this._logger.debug("- _msgHandlerBatch() started");
         // cleanup before starting
         this._outputEvents = [];
-        this._tmpWalletAddress = [];
-        this._tmpIncomingPayments = [];
-        this._tmpQuotes = [];
-        this._tmpOutgoingPayments = [];
-        this._tmpIncomingMicroPayments = [];
-        this._tmpOutgoingMicroPayments = [];
+        this._newLiquidityRequests = [];
+        this._preFetchedWalletAddress = [];
+        this._preFetchedIncomingPayments = [];
+        this._preFetchedQuotes = [];
+        this._preFetchedOutgoingPayments = [];
+
+        this._newIncomingPayments = [];
+        this._newQuotes = [];
+        this._newOutgoingPayments = [];
+        this._newIncomingMicroPayments = [];
+        this._newOutgoingMicroPayments = [];
+        this._newIncomingPaymentUpdates = [];
 
         // first phase, get everything from repos
         const stopPrefetchPhaseTimer = this._startTimer("PreFetchPhase");
@@ -138,72 +158,125 @@ export class PaymentDomainService {
         stopPrefetchPhaseTimer();
 
         // second phase, process all business rules
+        this._logger.debug("- business rules() started");
         for (const cmd of cmds) {
-            if (cmd.msgName === CreateIncomingPaymentCmd.name) {
-                const id = await this.createIncomingPayment(cmd as CreateIncomingPaymentCmd);
-                this._outputEvents.push(
-                    new ApiRspIncomingPaymentEvent({createdId: id}, cmd.requestId || "") // TODO remove ""
-                );
-            } else if (cmd.msgName === CreateQuoteCmd.name) {
-                const id = await this.createQuote(cmd as CreateQuoteCmd);
-                this._outputEvents.push(
-                    new ApiRspQuoteEvent({createdId: id}, cmd.requestId || "") // TODO remove ""
-                );
-            } else if (cmd.msgName === CreateOutgoingPaymentCmd.name) {
-                const id = await this.createOutgoingPayment(cmd as CreateOutgoingPaymentCmd);
-                this._outputEvents.push(
-                    new ApiRspQuoteEvent({createdId: id}, cmd.requestId || "") // TODO remove ""
-                );
-            } else {
-                this._logger.warn(
-                    `${this.constructor.name} - unknown command - msgName: ${cmd.msgName} msgKey: ${cmd.msgKey} msgId: ${cmd.msgId}`
+            try{
+                if (cmd.msgName === CreateIncomingPaymentCmd.name) {
+                    const id = await this._createIncomingPayment(cmd as CreateIncomingPaymentCmd);
+                    this._outputEvents.push(
+                        new ApiRspIncomingPaymentEvent({createdId: id}, cmd.requestId || "") // TODO remove "" and change to proper domain event IncomingPaymentCreated
+                    );
+                } else if (cmd.msgName === CreateQuoteCmd.name) {
+                    const id = await this._createQuote(cmd as CreateQuoteCmd);
+                    this._outputEvents.push(
+                        new ApiRspQuoteEvent({createdId: id}, cmd.requestId || "") // TODO remove "" and change to proper domain event QuoteCreated
+                    );
+                } else if (cmd.msgName === CreateOutgoingPaymentCmd.name) {
+                    const id = await this._createOutgoingPayment(cmd as CreateOutgoingPaymentCmd);
+                    this._outputEvents.push(
+                        new ApiRspOutgoingPaymentEvent({createdId: id}, cmd.requestId || "") // TODO remove "" and change to proper domain event OutgoingPaymentCreated
+                    );
+                } else {
+                    this._logger.warn(
+                        `${this.constructor.name} - unknown command - msgName: ${cmd.msgName} msgKey: ${cmd.msgKey} msgId: ${cmd.msgId}`
+                    );
+                }
+
+            }catch(e){
+                this._logger.error(e,
+                    `${this.constructor.name} - error processing cmd - msgName: ${cmd.msgName} msgKey: ${cmd.msgKey} msgId: ${cmd.msgId}`
                 );
             }
         }
+        this._logger.debug("+ business rules() completed");
 
-        // third phase, flush everything to repos and return messages
+        // third phase, execute liquidity requests
+        if(this._newLiquidityRequests.length > 0) {
+            this._logger.debug("- _liquidityService() started");
+            const stopLiqTimer = this._startTimer("ExecuteLiquidityRequests");
+            try{
+                await this._liquidityService.execute(this._newLiquidityRequests);
+            }catch (e){
+                this._logger.error(e,
+                    `${this.constructor.name} - error executing liquidity requests`
+                );
+            }
 
+            stopLiqTimer();
+            this._logger.debug("+ _liquidityService() completed");
+        }
+
+        // fourth phase, flush everything to repos and return messages
+        const stopFlushTimer = this._startTimer("FlushToDbPhase");
         await this._flush();
+        stopFlushTimer();
 
+        this._logger.debug("+ _msgHandlerBatch() completed");
+
+        stopTimer()
         return this._outputEvents;
     }
 
     private async _preFetchPhase(cmds: IMessage[]){
+        this._logger.debug("--- _preFetchPhase() started");
+
         // first phase, get everything from repos
         const quoteIdsToFetch:string[] = [];
         const incomingPaymentIdsToFetch:string[] = [];
         const outgoingPaymentIdsToFetch:string[] = [];
         const walletIdsToFetch:string[] = [];
 
+        const addWalletId = (id:string)=>{
+            if(!walletIdsToFetch.includes(id)){
+                walletIdsToFetch.push(id);
+            }
+        }
+        const addQuoteId = (id:string)=>{
+            if(!quoteIdsToFetch.includes(id)){
+                quoteIdsToFetch.push(id);
+            }
+        }
+        const addIncomingId = (id:string)=>{
+            if(!incomingPaymentIdsToFetch.includes(id)){
+                incomingPaymentIdsToFetch.push(id);
+            }
+        }
+        const addOutgoingId = (id:string)=>{
+            if(!outgoingPaymentIdsToFetch.includes(id)){
+                outgoingPaymentIdsToFetch.push(id);
+            }
+        }
+
         for (const cmd of cmds) {
             if(cmd.msgName === CreateIncomingPaymentCmd.name){
                 const specCmd = cmd as CreateIncomingPaymentCmd;
+
+                addWalletId(specCmd.payload.walletAddressId);
+
                 if(specCmd.payload.id) {
-                    incomingPaymentIdsToFetch.push(specCmd.payload.id);
+                    addIncomingId(specCmd.payload.id);
                 }
-                walletIdsToFetch.push(specCmd.payload.walletAddressId);
             }else if(cmd.msgName === CreateQuoteCmd.name){
                 const specCmd = cmd as CreateQuoteCmd;
 
+                addWalletId(specCmd.payload.senderWalletAddressId);
+                addIncomingId(specCmd.payload.incomingPaymentId);
                 if(specCmd.payload.id) {
-                    quoteIdsToFetch.push(specCmd.payload.id);
+                    addQuoteId(specCmd.payload.id);
                 }
-                incomingPaymentIdsToFetch.push(specCmd.payload.incomingPaymentId);
-                walletIdsToFetch.push(specCmd.payload.senderWalletAddressId);
             }else if(cmd.msgName === CreateOutgoingPaymentCmd.name) {
                 const specCmd = cmd as CreateOutgoingPaymentCmd;
+
+                addIncomingId(specCmd.payload.incomingPaymentId);
+                addWalletId(specCmd.payload.senderWalletAddressId);
+
                 if(specCmd.payload.id) {
-                    outgoingPaymentIdsToFetch.push(specCmd.payload.id);
+                    addOutgoingId(specCmd.payload.id);
                 }
-                if(specCmd.payload.incomingPaymentId) {
-                    incomingPaymentIdsToFetch.push(specCmd.payload.incomingPaymentId);
-                }
+
                 if(specCmd.payload.quoteId) {
-                    quoteIdsToFetch.push(specCmd.payload.quoteId);
+                    addQuoteId(specCmd.payload.quoteId);
                 }
-
-                walletIdsToFetch.push(specCmd.payload.senderWalletAddressId);
-
             }else{
                 this._logger.warn(
                     `${this.constructor.name} - unknown command - msgName: ${cmd.msgName} msgKey: ${cmd.msgKey} msgId: ${cmd.msgId}`
@@ -211,56 +284,157 @@ export class PaymentDomainService {
             }
         }
 
-        const promises:Promise<void>[] = [];
+        const promises:Promise<any>[] = [];
 
-        const walletFetches = new Promise<void>(async (resolve, reject) => {
-            this._tmpWalletAddress = await this._walletAddressRepository.fetchByIds(walletIdsToFetch)
-        });
-        promises.push(walletFetches);
+        if(walletIdsToFetch.length >0 ){
+            promises.push(this._walletAddressRepository.fetchByIds(walletIdsToFetch));
+        }else{
+            promises.push(Promise.resolve([]));
+        }
 
-        const incomingFetches = new Promise<void>(async (resolve, reject) => {
-            this._tmpIncomingPayments = await this._incomingPaymentRepository.fetchByIds(incomingPaymentIdsToFetch)
-        });
-        promises.push(incomingFetches);
+        if(incomingPaymentIdsToFetch.length >0 ){
+            promises.push(this._incomingPaymentRepository.fetchByIds(incomingPaymentIdsToFetch));
+        }else{
+            promises.push(Promise.resolve([]));
+        }
 
-        const quoteFetches = new Promise<void>(async (resolve, reject) => {
-            this._tmpQuotes = await this._quoteRepository.fetchByIds(quoteIdsToFetch)
-        });
-        promises.push(quoteFetches);
+        if(quoteIdsToFetch.length >0 ){
+            promises.push(this._quoteRepository.fetchByIds(quoteIdsToFetch));
+        }else{
+            promises.push(Promise.resolve([]));
+        }
 
-        const outgoingFetches = new Promise<void>(async (resolve, reject) => {
-            this._tmpQuotes = await this._outgoingPaymentRepository.fetchByIds(outgoingFetches)
-        });
-        promises.push(outgoingFetches);
+        if(outgoingPaymentIdsToFetch.length >0 ){
+            promises.push(this._outgoingPaymentRepository.fetchByIds(outgoingPaymentIdsToFetch));
+        }else{
+            promises.push(Promise.resolve([]));
+        }
 
-        await Promise.all(promises);
+        const [wallets, incoming, quotes, outgoing] = await Promise.all(promises);
+        this._preFetchedWalletAddress = wallets;
+        this._preFetchedIncomingPayments = incoming;
+        this._preFetchedQuotes = quotes;
+        this._preFetchedOutgoingPayments = outgoing;
+        this._logger.debug("+++ _preFetchPhase() completed");
     };
 
+    private async _flush():Promise<void> {
+        this._logger.debug("--- _flush() started");
+        // const promises:Promise<void>[] = [];
 
+        if(this._newIncomingPayments.length) {
+            await this._incomingPaymentRepository.storeMany(this._newIncomingPayments);
+            // promises.push(this._incomingPaymentRepository.storeMany(this._newIncomingPayments));
+        }
 
+        if(this._newOutgoingPayments.length) {
+            await this._outgoingPaymentRepository.storeMany(this._newOutgoingPayments);
+            // promises.push(this._outgoingPaymentRepository.storeMany(this._newOutgoingPayments));
+        }
 
-    private _getWallet(id:string): WalletAddress | null{
-        const found = this._tmpWalletAddress.find(item => (item.id === id));
+        if(this._newQuotes.length) {
+            await this._quoteRepository.storeMany(this._newQuotes);
+            // promises.push(this._quoteRepository.storeMany(this._newQuotes));
+        }
+
+        if(this._newIncomingMicroPayments.length) {
+            await this._incomingPaymentRepository.storeManyNewMicroPayment(this._newIncomingMicroPayments);
+            // promises.push(this._incomingPaymentRepository.storeManyNewMicroPayment(this._newIncomingMicroPayments));
+        }
+
+        if(this._newOutgoingMicroPayments.length) {
+            await this._outgoingPaymentRepository.storeManyNewMicroPayment(this._newOutgoingMicroPayments);
+            // promises.push(this._outgoingPaymentRepository.storeManyNewMicroPayment(this._newOutgoingMicroPayments));
+        }
+
+        if(this._newIncomingPaymentUpdates.length) {
+            await this._incomingPaymentRepository.updateReceivedAmountAndStateMany(this._newIncomingPaymentUpdates);
+            // promises.push(this._incomingPaymentRepository.updateReceivedAmountAndStateMany(this._newIncomingPaymentUpdates));
+        }
+
+        // await Promise.all(promises);
+        this._logger.debug("+++ _flush() completed");
+    }
+
+    private _addLiquidityRequestToTmp(reqs: LiquidityRequest[]):void{
+        this._newLiquidityRequests.push(...reqs);
+    }
+
+    private _getWalletFromTmp(id:string): WalletAddress | null{
+        const found = this._preFetchedWalletAddress.find(item => (item.id === id));
         return found || null;
     }
 
+    private _getQuoteFromTmp(id:string): Quote | null{
+        const found = this._preFetchedQuotes.find(item => (item.id === id));
+        return found || null;
+    }
 
-    public async createIncomingPayment(cmd: CreateIncomingPaymentCmd): Promise<string> {
+    private _addQuoteToTmp(newItem:Quote): void{
+        const foundIndex = this._newQuotes.findIndex(item => (item.id === newItem.id));
+        if(foundIndex == -1){
+            this._newQuotes.push(newItem);
+        }else{
+            this._newQuotes[foundIndex] = newItem;
+        }
+    }
+
+    private _getIncomingPaymentFromTmp(id:string): IncomingPayment | null{
+        const found = this._preFetchedIncomingPayments.find(item => (item.id === id));
+        return found || null;
+    }
+
+    private _addIncomingPaymentToTmp(newItem:IncomingPayment): void{
+        const foundIndex = this._newIncomingPayments.findIndex(item => (item.id === newItem.id));
+        if (foundIndex == -1) {
+            this._newIncomingPayments.push(newItem);
+        } else {
+            this._newIncomingPayments[foundIndex] = newItem;
+        }
+    }
+
+    private _addIncomingUpdateToTmp(incomingPaymentId:string, newReceivedAmount:bigint, newState?:LocalIncomingPaymentState): void{
+        const foundIndex = this._newIncomingPaymentUpdates.findIndex(item => (item.incomingPaymentId === incomingPaymentId));
+
+        const newObj = {incomingPaymentId: incomingPaymentId, newReceivedAmount: newReceivedAmount, newState: newState};
+
+        if (foundIndex == -1) {
+            this._newIncomingPaymentUpdates.push(newObj);
+        } else {
+            this._newIncomingPaymentUpdates[foundIndex] = newObj;
+        }
+    }
+
+    private _getOutgoingPayment(id:string): OutgoingPayment | null{
+        const found = this._preFetchedOutgoingPayments.find(item => (item.id === id));
+        return found || null;
+    }
+
+    private _addOutgoingPaymentToTmp(newItem:OutgoingPayment): void{
+        const foundIndex = this._newOutgoingPayments.findIndex(item => (item.id === newItem.id));
+        if(foundIndex == -1){
+            this._newOutgoingPayments.push(newItem);
+        }else{
+            this._newOutgoingPayments[foundIndex] = newItem;
+        }
+    }
+
+
+    public async _createIncomingPayment(cmd: CreateIncomingPaymentCmd): Promise<string> {
         const stopTimer = this._startTimer("CreateIncomingPaymentCmd");
 
         let id: string;
         if (cmd.payload.id) {
             if (cmd.payload.id.length > 64) {
+                // TODO, send error event
                 throw new InvalidIdLengthError(
                     "Incoming Payment ID is too long (max 64 characters)"
                 );
             }
 
-            const stopTimerRepo = this._startTimer("CreateIncomingPaymentCmd.repoExists");
-            const exists = await this._incomingPaymentRepository.exists(cmd.payload.id);
-            stopTimerRepo();
-
+            const exists = this._getIncomingPaymentFromTmp(cmd.payload.id);
             if (exists) {
+                // TODO, send error event
                 throw new DuplicateIncomingPaymentFoundError();
             }
             id = cmd.payload.id;
@@ -268,7 +442,7 @@ export class PaymentDomainService {
             id = crypto.randomUUID();
         }
 
-        const walletAddress = this._getWallet(cmd.payload.walletAddressId);
+        const walletAddress = this._getWalletFromTmp(cmd.payload.walletAddressId);
 
         if (!walletAddress) {
             stopTimer();
@@ -326,9 +500,7 @@ export class PaymentDomainService {
             },
         };
 
-        const stopTimerStore = this._startTimer("CreateIncomingPaymentCmd.StoreIncomingPayment");
-        await this._incomingPaymentRepository.store(newIncomingPayment);
-        stopTimerStore()
+        this._addIncomingPaymentToTmp(newIncomingPayment);
 
         await this._paymentEventProducer.publish([{
             type: PaymentEventType.INCOMING_PAYMENT_CREATED,
@@ -341,15 +513,15 @@ export class PaymentDomainService {
         return id;
     }
 
-    private async fetchIncomingPayment(
+    private async _fetchIncomingPayment(
         incomingPaymentId: string
     ): Promise<IncomingPayment | RemoteIncomingPayment | undefined> {
-        const stopTimer = this._startTimer("fetchIncomingPayment");
-        const localIncomingPayment = this._incomingPaymentRepository.fetchById(incomingPaymentId);
+        const localIncomingPayment = this._getIncomingPaymentFromTmp(incomingPaymentId);
         if (localIncomingPayment) {
-            stopTimer();
             return localIncomingPayment;
         }
+
+        const stopTimer = this._startTimer("fetchRemotePayment");
 
         const remoteIncomingPayment = await this._remoteIncomingPaymentService.getById(incomingPaymentId);
 
@@ -357,7 +529,7 @@ export class PaymentDomainService {
         return remoteIncomingPayment;
     }
 
-    public async createQuote(cmd: CreateQuoteCmd): Promise<string> {
+    public async _createQuote(cmd: CreateQuoteCmd): Promise<string> {
         const stopTimer = this._startTimer("CreateQuoteCmd");
 
         let id: string;
@@ -368,7 +540,7 @@ export class PaymentDomainService {
                 );
             }
             const stopTimerRepo = this._startTimer("CreateQuoteCmd.repoExists");
-            const exists = await this._quoteRepository.exists(cmd.payload.id);
+            const exists = this._getQuoteFromTmp(cmd.payload.id);
             stopTimerRepo();
 
             if (exists) {
@@ -380,11 +552,10 @@ export class PaymentDomainService {
             id = crypto.randomUUID();
         }
 
-        const walletAddress = this._getWallet(cmd.payload.senderWalletAddressId);
+        const walletAddress = this._getWalletFromTmp(cmd.payload.senderWalletAddressId);
 
-        const [incomingPayment] = await Promise.all([
-            this.fetchIncomingPayment(cmd.payload.incomingPaymentId),
-        ]);
+        // const incomingPayment = await this._fetchIncomingPayment(cmd.payload.incomingPaymentId);
+        const incomingPayment = this._getIncomingPaymentFromTmp(cmd.payload.incomingPaymentId);
 
         if (!walletAddress) {
             stopTimer();
@@ -398,7 +569,7 @@ export class PaymentDomainService {
 
         if (!incomingPayment) {
             stopTimer();
-            throw new IncomingPaymentNotFoundError();
+            throw new IncomingPaymentNotFoundError(`Could not find incomingPayment with id: ${cmd.payload.incomingPaymentId} for quote with id ${id}`);
         }
 
         let createdId: string;
@@ -427,7 +598,8 @@ export class PaymentDomainService {
         if (incomingPayment.type === "LOCAL") {
             createdId = await this.createLocalQuote(request, id, incomingPayment, walletAddress);
         } else {
-            createdId = await this.createRemoteQuote(request, id, incomingPayment, walletAddress);
+            throw new Error("not implemented");
+            // createdId = await this.createRemoteQuote(request, id, incomingPayment, walletAddress);
         }
 
         stopTimer();
@@ -455,7 +627,7 @@ export class PaymentDomainService {
         let exchangeRate: number;
 
         if (request.debitAmount) {
-            const result = await this.calculateReceiveAmountFromDebitAmount({
+            const result = await this._calculateReceiveAmountFromDebitAmount({
                 debitAmount: request.debitAmount,
                 walletAddress,
                 incomingPayment,
@@ -465,7 +637,7 @@ export class PaymentDomainService {
             exchangeRate = result.exchangeRate;
             quoteDebitAmount = request.debitAmount;
         } else if (request.receiveAmount) {
-            const result = await this.calculateDebitAmountFromReceiveAmount({
+            const result = await this._calculateDebitAmountFromReceiveAmount({
                 receiveAmount: request.receiveAmount,
                 walletAddress,
                 incomingPayment,
@@ -475,7 +647,7 @@ export class PaymentDomainService {
             exchangeRate = result.exchangeRate;
             quoteReceiveAmount = request.receiveAmount;
         } else if (incomingPayment.incomingAmount) {
-            const result = await this.calculateDebitAmountFromIncomingPaymentAmount({
+            const result = await this._calculateDebitAmountFromIncomingPaymentAmount({
                 walletAddress,
                 incomingPayment: {
                     ...incomingPayment,
@@ -509,10 +681,7 @@ export class PaymentDomainService {
             ),
         };
 
-
-        const stopRepoTimer = this._startTimer("storeLocalQuote");
-        await this._quoteRepository.store(newQuote);
-        stopRepoTimer();
+        this._addQuoteToTmp(newQuote);
 
         stopTimer();
         return id;
@@ -524,54 +693,53 @@ export class PaymentDomainService {
         incomingPayment: RemoteIncomingPayment,
         walletAddress: WalletAddress
     ): Promise<string> {
-        // TODO: Do we need to check remote incoming payment here?
-
-        const stopTimer = this._startTimer("createRemoteQuote");
-
-        const quoteDefaultExpiryMs = new Date().getTime() + QUOTE_EXPIRY_MS;
-
-        // TODO: handle debit & receive amount
-        const newQuote: Quote = {
-            id,
-            receiveAmount: request.debitAmount!,
-            debitAmount: request.debitAmount!,
-            senderWalletAddressId: walletAddress.id,
-            incomingPaymentId: incomingPayment.id,
-            exchangeRate: 1,
-            expiresAt: new Date(quoteDefaultExpiryMs),
-        };
-
-        const stopRepoTimer = this._startTimer("storeRemoteQuote");
-        await this._quoteRepository.store(newQuote);
-        stopRepoTimer();
-
-        const event: RemoteQuoteRequestedEvent = {
-            type: PaymentEventType.REMOTE_QUOTE_REQUESTED,
-            data: {
-                quote: {
-                    id,
-                    debitAmount: request.debitAmount!,
-                    senderWalletAddressId: walletAddress.id,
-                },
-                incomingPayment,
-            },
-        };
-
-        await this._paymentEventProducer.publish([event]);
-
-        stopTimer();
-        return id;
+        throw new Error("not implemented");
+        // // TODO: Do we need to check remote incoming payment here?
+        //
+        // const stopTimer = this._startTimer("createRemoteQuote");
+        //
+        // const quoteDefaultExpiryMs = new Date().getTime() + QUOTE_EXPIRY_MS;
+        //
+        // // TODO: handle debit & receive amount
+        // const newQuote: Quote = {
+        //     id,
+        //     receiveAmount: request.debitAmount!,
+        //     debitAmount: request.debitAmount!,
+        //     senderWalletAddressId: walletAddress.id,
+        //     incomingPaymentId: incomingPayment.id,
+        //     exchangeRate: 1,
+        //     expiresAt: new Date(quoteDefaultExpiryMs),
+        // };
+        //
+        // this._addQuoteToTmp(newQuote);
+        //
+        // const event: RemoteQuoteRequestedEvent = {
+        //     type: PaymentEventType.REMOTE_QUOTE_REQUESTED,
+        //     data: {
+        //         quote: {
+        //             id,
+        //             debitAmount: request.debitAmount!,
+        //             senderWalletAddressId: walletAddress.id,
+        //         },
+        //         incomingPayment,
+        //     },
+        // };
+        //
+        // await this._paymentEventProducer.publish([event]);
+        //
+        // stopTimer();
+        // return id;
     }
 
-    private async calculateReceiveAmountFromDebitAmount({
+    private async _calculateReceiveAmountFromDebitAmount({
         debitAmount,
         walletAddress,
         incomingPayment,
     }: {
-debitAmount: Amount;
-incomingPayment: IncomingPayment;
-walletAddress: WalletAddress;
-}): Promise<{
+        debitAmount: Amount;
+        incomingPayment: IncomingPayment;
+        walletAddress: WalletAddress;
+    }): Promise<{
         exchangeRate: number;
         receiveAmount: Amount;
     }> {
@@ -626,7 +794,7 @@ walletAddress: WalletAddress;
         };
     }
 
-    private async calculateDebitAmountFromReceiveAmount({
+    private async _calculateDebitAmountFromReceiveAmount({
         receiveAmount,
         walletAddress,
         incomingPayment,
@@ -689,7 +857,7 @@ walletAddress: WalletAddress;
         };
     }
 
-    private async calculateDebitAmountFromIncomingPaymentAmount({
+    private async _calculateDebitAmountFromIncomingPaymentAmount({
         walletAddress,
         incomingPayment,
     }: {
@@ -746,7 +914,7 @@ walletAddress: WalletAddress;
         };
     }
 
-    public async createOutgoingPayment(cmd: CreateOutgoingPaymentCmd) {
+    public async _createOutgoingPayment(cmd: CreateOutgoingPaymentCmd):Promise<string> {
         const stopTimer = this._startTimer("CreateOutgoingPaymentCmd");
         const request = {
             senderWalletAddressId: cmd.payload.senderWalletAddressId,
@@ -771,11 +939,11 @@ walletAddress: WalletAddress;
 
         let createdId:string;
         if ("quoteId" in request) {
-            createdId = await this.createOutgoingPaymentFromQuote(
+            createdId = await this._createOutgoingPaymentFromQuote(
                 request as CreateOutgoingPaymentFromQuoteRequest
             );
         } else if ("incomingPaymentId" in request) {
-            createdId = await this.createOutgoingPaymentFromIncomingPayment(
+            createdId = await this._createOutgoingPaymentFromIncomingPayment(
                 request as CreateOutgoingPaymentFromIncomingPaymentRequest
             );
         } else {
@@ -787,9 +955,9 @@ walletAddress: WalletAddress;
         return createdId;
     }
 
-    private async createOutgoingPaymentFromQuote(
+    private async _createOutgoingPaymentFromQuote(
         request: CreateOutgoingPaymentFromQuoteRequest
-    ) {
+    ):Promise<string> {
         const stopTimer = this._startTimer("CreateOutgoingPaymentFromQuote");
 
         let outgoingPaymentId;
@@ -801,9 +969,7 @@ walletAddress: WalletAddress;
                 );
             }
 
-            const stopTimerRepo = this._startTimer("CreateOutgoingPaymentFromQuote.repoExists");
-            const exists = await this._outgoingPaymentRepository.exists(request.id);
-            stopTimerRepo();
+            const exists = this._getOutgoingPayment(request.id);
 
             if (exists) {
                 stopTimer();
@@ -814,14 +980,7 @@ walletAddress: WalletAddress;
             outgoingPaymentId = crypto.randomUUID();
         }
 
-        const stopTimerRepos = this._startTimer("CreateOutgoingPaymentFromQuote.getWalletAndQuote");
-
-        const walletAddress = this._getWallet(request.senderWalletAddressId);
-
-        const [ quote] = await Promise.all([
-            this._quoteRepository.fetchById(request.quoteId),
-        ]);
-        stopTimerRepos();
+        const walletAddress = this._getWalletFromTmp(request.senderWalletAddressId);
 
         if (!walletAddress) {
             stopTimer();
@@ -833,9 +992,11 @@ walletAddress: WalletAddress;
             throw new WalletAddressInactiveError();
         }
 
+        const quote = this._getQuoteFromTmp(request.quoteId);
+
         if (!quote) {
             stopTimer();
-            throw new QuoteNotFoundError();
+            throw new QuoteNotFoundError(`Could not find quote with id ${request.quoteId} for outgoing payment id: ${outgoingPaymentId}`);
         }
 
         // TODO: Check quote hasn't been used already
@@ -845,15 +1006,17 @@ walletAddress: WalletAddress;
             throw new QuoteExpiredError();
         }
 
-        const stopTimerRepo2 = this._startTimer("CreateOutgoingPaymentFromQuote.fetchIncomingPayment");
-        const incomingPayment = await this.fetchIncomingPayment(
+        // const incomingPayment = await this._fetchIncomingPayment(
+        //     quote.incomingPaymentId
+        // );
+
+        const incomingPayment = this._getIncomingPaymentFromTmp(
             quote.incomingPaymentId
         );
-        stopTimerRepo2();
 
         if (!incomingPayment) {
             stopTimer();
-            throw new IncomingPaymentNotFoundError();
+            throw new IncomingPaymentNotFoundError(`Could not find incomingPayment with id: ${quote.incomingPaymentId} for quote with id ${quote.id}`);
         }
 
         if (incomingPayment.type === "LOCAL") {
@@ -868,6 +1031,7 @@ walletAddress: WalletAddress;
                 quote.senderWalletAddressId,
                 quote.debitAmount
             );
+            this._addLiquidityRequestToTmp([depositWalletAddressLiqReq]);
 
             // TODO: FX handling, if receiving wallet asset is different than sending wallet
             const walletToWalletLiqReq = new WalletToWalletAddressLiquidityRequest(
@@ -876,10 +1040,7 @@ walletAddress: WalletAddress;
                 incomingPayment.walletAddressId,
                 quote.debitAmount,
             );
-
-            const stopTimerLiqSvc = this._startTimer("CreateOutgoingPaymentFromQuote.liq.reqs");
-            await this._liquidityService.execute([depositWalletAddressLiqReq, walletToWalletLiqReq]);
-            stopTimerLiqSvc();
+            this._addLiquidityRequestToTmp([walletToWalletLiqReq]);
 
             // completed outgoing payment
             const outgoingPayment: OutgoingPayment = {
@@ -895,49 +1056,44 @@ walletAddress: WalletAddress;
                 localIncomingPaymentId: incomingPayment.id,
                 state: OutgoingPaymentState.COMPLETED, // TODO: check if the outgoing payment request came from third party, and webhook out to ASE instead of marking as FUNDED directly
             };
+            this._addOutgoingPaymentToTmp(outgoingPayment);
 
             const outgoingMicroPayment:MicroPayment = {
                 requestId: outgoingPayment.id,
                 amount: outgoingPayment.debitAmount,
                 method: "LOCAL",
             }
+            this._newOutgoingMicroPayments.push({
+                outgoingPaymentId: outgoingPayment.id,
+                microPayment: outgoingMicroPayment
+            });
 
             const incomingMicroPayment:MicroPayment = {
-                requestId: outgoingPayment.id,
+                requestId: incomingPayment.id,
                 amount: quote.receiveAmount.value, // TODO: need to send _up to_ to incomingAmount, as the quoted amount might be more
                 method: "LOCAL",
             }
+            this._newIncomingMicroPayments.push({
+                incomingPaymentId: incomingPayment.id,
+                microPayment: incomingMicroPayment
+            });
 
-            const repoPromises: Promise<void>[] = [];
 
-            repoPromises.push(this._outgoingPaymentRepository.store(outgoingPayment));
-
+            incomingPayment.receivedAmount += quote.receiveAmount.value;
 
             if (incomingPayment.incomingAmount && incomingPayment.receivedAmount >= incomingPayment.incomingAmount) {
                 incomingPayment.state = LocalIncomingPaymentState.COMPLETED;
 
-                repoPromises.push(this._incomingPaymentRepository.store(incomingPayment));
+                this._addIncomingUpdateToTmp(incomingPayment.id, incomingPayment.receivedAmount, incomingPayment.state);
+            }else{
+                this._addIncomingUpdateToTmp(incomingPayment.id, incomingPayment.receivedAmount);
+
             }
 
             /*
             * NOTE nothing consumes the INCOMING_PAYMENT_COMPLETED or
             * OUTGOING_PAYMENT_COMPLETED - removed those blocks
             */
-
-            repoPromises.push(
-                this._outgoingPaymentRepository.storeNewMicroPayment(
-                    outgoingPayment.id,
-                    outgoingMicroPayment
-                ),
-                this._incomingPaymentRepository.storeNewMicroPayment(
-                    incomingPayment.id,
-                    incomingMicroPayment
-                )
-            );
-
-            const stopTimer2 = this._startTimer("CreateOutgoingPaymentFromQuote.repoPromisesAll");
-            await Promise.all(repoPromises);
-            stopTimer2();
 
             // await this._paymentEventProducer.publish(events);
             this._telemetryService.incrementCounter("outgoing_payments_completed", 1);
@@ -956,9 +1112,7 @@ walletAddress: WalletAddress;
             quote.debitAmount,
         );
 
-        const stopTimerLiqSvc = this._startTimer("CreateOutgoingPaymentFromQuote.liq.walletAddressFund");
-        await this._liquidityService.execute([walletAddressFundRequest]);
-        stopTimerLiqSvc();
+        this._addLiquidityRequestToTmp([walletAddressFundRequest]);
 
         const outgoingPayment: OutgoingPayment = {
             id: crypto.randomUUID(),
@@ -973,11 +1127,7 @@ walletAddress: WalletAddress;
             remoteIncomingPaymentUrl: incomingPayment.id,
             state: "FUNDED",
         };
-
-        const stopTimerRepoStore = this._startTimer("CreateOutgoingPaymentFromQuote.outgoingPaymentRepository.store");
-        await this._outgoingPaymentRepository.store(outgoingPayment);
-        stopTimerRepoStore();
-
+        this._addOutgoingPaymentToTmp(outgoingPayment);
 
         /*
         * NOTE nothing consumes the REMOTE_OUTGOING_PAYMENT_FUNDED - removed this block
@@ -1004,174 +1154,168 @@ walletAddress: WalletAddress;
         return outgoingPayment.id;
     }
 
-    private async createOutgoingPaymentFromIncomingPayment(
+    private async _createOutgoingPaymentFromIncomingPayment(
         request: CreateOutgoingPaymentFromIncomingPaymentRequest
-    ) {
-        let outgoingPaymentId;
+    ):Promise<string> {
+        throw new Error("not implemented");
+        //
+        // let outgoingPaymentId;
+        //
+        // if (request.id) {
+        //     if (request.id.length > 64) {
+        //         throw new InvalidIdLengthError(
+        //             "Outgoing Payment ID is too long (max 64 characters)"
+        //         );
+        //     }
+        //
+        //     const exists = this._getOutgoingPayment(request.id);
+        //
+        //     if (exists) {
+        //         throw new DuplicateOutgoingPaymentFoundError();
+        //     }
+        //     outgoingPaymentId = request.id;
+        // } else {
+        //     outgoingPaymentId = crypto.randomUUID();
+        // }
+        //
+        // const walletAddress = this._getWalletFromTmp(request.senderWalletAddressId);
+        //
+        // const incomingPayment = this._getIncomingPaymentFromTmp(request.incomingPaymentId);
+        //
+        // if (!walletAddress) {
+        //     throw new WalletAddressNotFoundError();
+        // }
+        //
+        // if (!walletAddress.isActive) {
+        //     throw new WalletAddressInactiveError();
+        // }
+        //
+        // if (!incomingPayment) {
+        //     throw new IncomingPaymentNotFoundError(`Could not find incomingPayment with id: ${request.incomingPaymentId} for outgoingPayment with id ${outgoingPaymentId}`);
+        // }
+        //
+        // if (incomingPayment.type === "LOCAL") {
+        //     if (incomingPayment.state !== LocalIncomingPaymentState.CREATED) {
+        //         throw new IncomingPaymentInvalidStateError();
+        //     }
+        //
+        //     let debitAmount: Amount;
+        //     let receiveAmount: Amount;
+        //
+        //     if (
+        //         request.debitAmount.assetCode !== walletAddress.assetCode ||
+        //         request.debitAmount.assetScale !== walletAddress.assetScale ||
+        //         request.debitAmount.value <= 0n
+        //     ) {
+        //         throw new InvalidAmountError();
+        //     }
+        //
+        //     debitAmount = request.debitAmount;
+        //
+        //     const result = await this._calculateReceiveAmountFromDebitAmount({
+        //         debitAmount,
+        //         walletAddress,
+        //         incomingPayment,
+        //     });
+        //
+        //     receiveAmount = result.receiveAmount;
+        //
+        //     if (
+        //         typeof incomingPayment.incomingAmount === "bigint" &&
+        //         receiveAmount.value < incomingPayment.incomingAmount
+        //     ) {
+        //         throw new InvalidAmountError();
+        //     }
+        //
+        //     const walletAddressFundRequest = new WalletAddressDepositLiquidityRequest(
+        //         crypto.randomUUID(),
+        //         walletAddress.id, debitAmount
+        //     );
+        //
+        //
+        //     this._addLiquidityRequestToTmp([walletAddressFundRequest]);
+        //
+        //     const outgoingPayment: OutgoingPayment = {
+        //         id: outgoingPaymentId,
+        //         senderWalletAddressId: walletAddress.id,
+        //         asset: {
+        //             code: walletAddress.assetCode,
+        //             scale: walletAddress.assetScale,
+        //         },
+        //         debitAmount: debitAmount.value,
+        //         sentAmount: 0n,
+        //         localIncomingPaymentId: incomingPayment.id,
+        //         state: OutgoingPaymentState.FUNDED,
+        //     };
+        //
+        //     const localOutgoingPaymentFundedEvent: LocalOutgoingPaymentFundedEvent = {
+        //         type: PaymentEventType.LOCAL_OUTGOING_PAYMENT_FUNDED,
+        //         data: {
+        //             outgoingPayment,
+        //             incomingPayment,
+        //             senderWalletAddressId: walletAddress.id,
+        //             receiveAmount,
+        //             debitAmount,
+        //         },
+        //     };
+        //
+        //     this._addOutgoingPaymentToTmp(outgoingPayment);
+        //
+        //     await this._paymentEventProducer.publish([
+        //         localOutgoingPaymentFundedEvent,
+        //     ]);
+        //
+        //     return outgoingPayment.id;
+        // }
+        //
+        // /*
+        // * REMOTE branch
+        // * */
+        //
+        //
+        // const walletAddressFundRequest = new WalletAddressDepositLiquidityRequest(
+        //     crypto.randomUUID(),
+        //     request.senderWalletAddressId,
+        //     request.debitAmount
+        // );
+        //
+        // this._addLiquidityRequestToTmp([walletAddressFundRequest]);
+        //
+        // const outgoingPayment: OutgoingPayment = {
+        //     id: crypto.randomUUID(),
+        //     senderWalletAddressId: walletAddress.id,
+        //     asset: {
+        //         code: walletAddress.assetCode,
+        //         scale: walletAddress.assetScale,
+        //     },
+        //     debitAmount: request.debitAmount.value,
+        //     sentAmount: 0n,
+        //     remoteIncomingPaymentUrl: incomingPayment.id,
+        //     state: OutgoingPaymentState.FUNDED,
+        // };
+        // this._addOutgoingPaymentToTmp(outgoingPayment);
+        //
+        // // DISABLED, can't get incomingPayment.ilpDetails
+        // // const remoteOutgoingPaymentFundedEvent: RemoteOutgoingPaymentFundedEvent =
+        // //     {
+        // //         type: PaymentEventType.REMOTE_OUTGOING_PAYMENT_FUNDED,
+        // //         data: {
+        // //             outgoingPaymentId: outgoingPayment.id,
+        // //             debitAmount: request.debitAmount,
+        // //             remoteIncomingPaymentUrl: outgoingPayment.remoteIncomingPaymentUrl!,
+        // //             ilpDetails: incomingPayment.ilpDetails,
+        // //         },
+        // //     };
+        // //
+        // // await this._paymentEventProducer.publish([
+        // //     remoteOutgoingPaymentFundedEvent,
+        // // ]);
+        //
+        // return outgoingPayment.id;
 
-        if (request.id) {
-            if (request.id.length > 64) {
-                throw new InvalidIdLengthError(
-                    "Outgoing Payment ID is too long (max 64 characters)"
-                );
-            }
-
-            const exists = await this._outgoingPaymentRepository.exists(request.id);
-
-            if (exists) {
-                throw new DuplicateOutgoingPaymentFoundError();
-            }
-            outgoingPaymentId = request.id;
-        } else {
-            outgoingPaymentId = crypto.randomUUID();
-        }
-
-        const walletAddress = this._getWallet(request.senderWalletAddressId);
-
-        const [incomingPayment] = await Promise.all([
-            this.fetchIncomingPayment(request.incomingPaymentId),
-        ]);
-
-        if (!walletAddress) {
-            throw new WalletAddressNotFoundError();
-        }
-
-        if (!walletAddress.isActive) {
-            throw new WalletAddressInactiveError();
-        }
-
-        if (!incomingPayment) {
-            throw new IncomingPaymentNotFoundError();
-        }
-
-        if (incomingPayment.type === "LOCAL") {
-            if (incomingPayment.state !== LocalIncomingPaymentState.CREATED) {
-                throw new IncomingPaymentInvalidStateError();
-            }
-
-            let debitAmount: Amount;
-            let receiveAmount: Amount;
-
-            if (
-                request.debitAmount.assetCode !== walletAddress.assetCode ||
-                request.debitAmount.assetScale !== walletAddress.assetScale ||
-                request.debitAmount.value <= 0n
-            ) {
-                throw new InvalidAmountError();
-            }
-
-            debitAmount = request.debitAmount;
-
-            const result = await this.calculateReceiveAmountFromDebitAmount({
-                debitAmount,
-                walletAddress,
-                incomingPayment,
-            });
-
-            receiveAmount = result.receiveAmount;
-
-            if (
-                typeof incomingPayment.incomingAmount === "bigint" &&
-                receiveAmount.value < incomingPayment.incomingAmount
-            ) {
-                throw new InvalidAmountError();
-            }
-
-            const walletAddressFundRequest = new WalletAddressDepositLiquidityRequest(
-                crypto.randomUUID(),
-                walletAddress.id, debitAmount
-            );
-
-            const stopTimerLiqSvc = this._telemetryService.startTimer(
-                "command_handler_msg_handler_ms",
-                {
-                    callName: `PaymentService.createOutgoingPaymentFromQuote.liq`,
-                    description: "TODO",
-                }
-            );
-            await this._liquidityService.execute([walletAddressFundRequest]);
-            stopTimerLiqSvc();
-
-            const outgoingPayment: OutgoingPayment = {
-                id: outgoingPaymentId,
-                senderWalletAddressId: walletAddress.id,
-                asset: {
-                    code: walletAddress.assetCode,
-                    scale: walletAddress.assetScale,
-                },
-                debitAmount: debitAmount.value,
-                sentAmount: 0n,
-                localIncomingPaymentId: incomingPayment.id,
-                state: OutgoingPaymentState.FUNDED,
-            };
-
-            const localOutgoingPaymentFundedEvent: LocalOutgoingPaymentFundedEvent = {
-                type: PaymentEventType.LOCAL_OUTGOING_PAYMENT_FUNDED,
-                data: {
-                    outgoingPayment,
-                    incomingPayment,
-                    senderWalletAddressId: walletAddress.id,
-                    receiveAmount,
-                    debitAmount,
-                },
-            };
-
-            await this._outgoingPaymentRepository.store(outgoingPayment);
-            await this._paymentEventProducer.publish([
-                localOutgoingPaymentFundedEvent,
-            ]);
-
-            return outgoingPayment.id;
-        } else {
-            const walletAddressFundRequest = new WalletAddressDepositLiquidityRequest(
-                crypto.randomUUID(),
-                request.senderWalletAddressId,
-                request.debitAmount
-            );
-
-            const stopTimerLiqSvc = this._telemetryService.startTimer(
-                "command_handler_msg_handler_ms",
-                {
-                    callName: `PaymentService.createOutgoingPaymentFromQuote.liq`,
-                    description: "TODO",
-                }
-            );
-            await this._liquidityService.execute([walletAddressFundRequest]);
-            stopTimerLiqSvc();
-
-            const outgoingPayment: OutgoingPayment = {
-                id: crypto.randomUUID(),
-                senderWalletAddressId: walletAddress.id,
-                asset: {
-                    code: walletAddress.assetCode,
-                    scale: walletAddress.assetScale,
-                },
-                debitAmount: request.debitAmount.value,
-                sentAmount: 0n,
-                remoteIncomingPaymentUrl: incomingPayment.id,
-                state: OutgoingPaymentState.FUNDED,
-            };
-            await this._outgoingPaymentRepository.store(outgoingPayment);
-
-            const remoteOutgoingPaymentFundedEvent: RemoteOutgoingPaymentFundedEvent =
-                {
-                    type: PaymentEventType.REMOTE_OUTGOING_PAYMENT_FUNDED,
-                    data: {
-                        outgoingPaymentId: outgoingPayment.id,
-                        debitAmount: request.debitAmount,
-                        remoteIncomingPaymentUrl: outgoingPayment.remoteIncomingPaymentUrl!,
-                        ilpDetails: incomingPayment.ilpDetails,
-                    },
-                };
-
-            await this._paymentEventProducer.publish([
-                remoteOutgoingPaymentFundedEvent,
-            ]);
-            return outgoingPayment.id;
-        }
     }
 
-    private addMicroPaymentToIncomingPayment(
+    private _addMicroPaymentToIncomingPayment(
         incomingPayment: IncomingPayment,
         microPayment: MicroPayment
     ): IncomingPaymentWithNewMicroPaymentUpdate {
@@ -1197,7 +1341,7 @@ walletAddress: WalletAddress;
         return update;
     }
 
-    private addMicroPaymentToOutgoingPayment(
+    private _addMicroPaymentToOutgoingPayment(
         outgoingPayment: OutgoingPayment,
         microPayment: MicroPayment
     ): OutgoingPaymentWithNewMicroPaymentUpdate {
@@ -1230,310 +1374,122 @@ walletAddress: WalletAddress;
     public async handleLocalOutgoingPaymentFundedEvent(
         event: LocalOutgoingPaymentFundedEvent
     ) {
-        const stopTimer = this._startTimer("handleLocalOutgoingPaymentFundedEvent");
-
-        const {
-            outgoingPayment,
-            senderWalletAddressId,
-            debitAmount,
-            receiveAmount,
-            incomingPayment,
-        } = event.data;
-
-        const exists = await this._outgoingPaymentRepository.exists(
-            outgoingPayment.id
-        );
-
-        if (!exists) {
-            stopTimer();
-            throw new OutgoingPaymentNotFoundError();
-        }
-
-        // TODO: FX handling, if receiving wallet asset is different than sending wallet
-        const transferRequest = new WalletToWalletAddressLiquidityRequest(
-            crypto.randomUUID(),
-            senderWalletAddressId,
-            incomingPayment.walletAddressId,
-            debitAmount,
-        );
-
-        const stopTimerLiqSvc = this._startTimer("createOutgoingPaymentFromQuote.liq");
-        await this._liquidityService.execute([transferRequest]);
-        stopTimerLiqSvc();
-
-        const outgoingPaymentUpdate = this.addMicroPaymentToOutgoingPayment(
-            outgoingPayment,
-            {
-                requestId: outgoingPayment.id,
-                amount: outgoingPayment.debitAmount,
-                method: "LOCAL",
-            }
-        );
-
-        const events: LocalEvent[] = [];
-
-        const outgoingPaymentCompletedEvent: OutgoingPaymentCompletedEvent = {
-            type: PaymentEventType.OUTGOING_PAYMENT_COMPLETED,
-            data: {
-                outgoingPayment,
-            },
-        };
-
-        events.push(outgoingPaymentCompletedEvent);
-
-        const incomingPaymentUpdate = this.addMicroPaymentToIncomingPayment(
-            incomingPayment,
-            {
-                requestId: outgoingPayment.id,
-                amount: receiveAmount.value, // TODO: need to send _up to_ to incomingAmount, as the quoted amount might be more
-                method: "LOCAL",
-            }
-        );
-
-        // MicroPayment might have completed the incoming payment
-        if (incomingPayment.state === LocalIncomingPaymentState.COMPLETED) {
-            const incomingPaymentCompletedEvent: IncomingPaymentCompletedEvent = {
-                type: PaymentEventType.INCOMING_PAYMENT_COMPLETED,
-                data: {
-                    incomingPayment,
-                },
-            };
-            events.push(incomingPaymentCompletedEvent);
-        }
-
-        await Promise.all([
-            this._outgoingPaymentRepository.updateWithNewMicroPayment(
-                outgoingPayment,
-                outgoingPaymentUpdate
-            ),
-            this._incomingPaymentRepository.updateWithNewMicroPayment(
-                incomingPayment,
-                incomingPaymentUpdate
-            ),
-        ]);
-
-        stopTimer();
-        await this._paymentEventProducer.publish(events);
-        this._telemetryService.incrementCounter("outgoing_payments_completed", 1);
+        throw new Error("not implemented");
     }
 
     public async handleIlpPaymentFulfillPacketReceivedEvent(event: IlpPaymentFulfillPacketReceivedEvent) {
-        const stopTimer = this._startTimer("handleIlpPaymentFulfillPacketReceivedEvent");
-
-        const outgoingPayment = await this._outgoingPaymentRepository.fetchById(
-            event.data.outgoingPaymentId
-        );
-
-        if (!outgoingPayment) {
-            stopTimer();
-            throw new OutgoingPaymentNotFoundError();
-        }
-
-        if (outgoingPayment.state !== OutgoingPaymentState.FUNDED) {
-            stopTimer();
-            throw new OutgoingPaymentInvalidStateError();
-        }
-
-        if (event.data.amount.assetCode !== outgoingPayment.asset.code) {
-            throw new Error("FX during packet handling not implemented");
-        }
-        // We lost precision
-        if (event.data.amount.assetScale > outgoingPayment.asset.scale) {
-            stopTimer();
-            throw new OutgoingPaymentInvalidStateError();
-        }
-
-        const transfer = new WalletAddressToPeerLiquidityRequest(
-            event.data.requestId,
-            outgoingPayment.senderWalletAddressId,
-            event.data.peerId,
-            event.data.amount,
-        );
-
-        const stopTimerLiqSvc = this._telemetryService.startTimer(
-            "command_handler_msg_handler_ms",
-            {
-                callName: `PaymentService.createOutgoingPaymentFromQuote.liq`,
-                description: "TODO",
-            }
-        );
-        await this._liquidityService.execute([transfer]);
-        stopTimerLiqSvc();
-
-        const scaledRate = BigInt(
-            10 ** (outgoingPayment.asset.scale - event.data.amount.assetScale)
-        );
-
-        const microPayment: MicroPayment = {
-            requestId: event.data.requestId,
-            ilpPeerId: event.data.peerId,
-            amount: event.data.amount.value * scaledRate,
-            method: "ILP",
-        };
-
-        const update = this.addMicroPaymentToOutgoingPayment(
-            outgoingPayment,
-            microPayment
-        );
-
-        const events: LocalEvent[] = [];
-
-        // TODO: do we need to know whether the incoming payment was completed? Or we just need to know that the connection was done/closed?
-        // or do we just check the status of the micro
-
-        if (
-            // @ts-ignore
-            outgoingPayment.state === OutgoingPaymentState.COMPLETED || // Micropayment could have completed payment
-            event.data.didCompleteIncomingPayment
-        ) {
-            outgoingPayment.state = OutgoingPaymentState.COMPLETED;
-
-            const outgoingPaymentCompletedEvent: OutgoingPaymentCompletedEvent = {
-                type: PaymentEventType.OUTGOING_PAYMENT_COMPLETED,
-                data: {
-                    outgoingPayment,
-                },
-            };
-            events.push(outgoingPaymentCompletedEvent);
-        }
-
-        await this._outgoingPaymentRepository.updateWithNewMicroPayment(
-            outgoingPayment,
-            update
-        );
-
-        stopTimer();
-        await this._paymentEventProducer.publish(events);
-        this._telemetryService.incrementCounter("outgoing_payments_completed", 1);
+        throw new Error("not implemented");
+        // const stopTimer = this._startTimer("handleIlpPaymentFulfillPacketReceivedEvent");
+        //
+        // const outgoingPayment = await this._outgoingPaymentRepository.fetchById(
+        //     event.data.outgoingPaymentId
+        // );
+        //
+        // if (!outgoingPayment) {
+        //     stopTimer();
+        //     throw new OutgoingPaymentNotFoundError();
+        // }
+        //
+        // if (outgoingPayment.state !== OutgoingPaymentState.FUNDED) {
+        //     stopTimer();
+        //     throw new OutgoingPaymentInvalidStateError();
+        // }
+        //
+        // if (event.data.amount.assetCode !== outgoingPayment.asset.code) {
+        //     throw new Error("FX during packet handling not implemented");
+        // }
+        // // We lost precision
+        // if (event.data.amount.assetScale > outgoingPayment.asset.scale) {
+        //     stopTimer();
+        //     throw new OutgoingPaymentInvalidStateError();
+        // }
+        //
+        // const transfer = new WalletAddressToPeerLiquidityRequest(
+        //     event.data.requestId,
+        //     outgoingPayment.senderWalletAddressId,
+        //     event.data.peerId,
+        //     event.data.amount,
+        // );
+        //
+        // const stopTimerLiqSvc = this._telemetryService.startTimer(
+        //     "command_handler_msg_handler_ms",
+        //     {
+        //         callName: `PaymentService.createOutgoingPaymentFromQuote.liq`,
+        //         description: "TODO",
+        //     }
+        // );
+        // await this._liquidityService.execute([transfer]);
+        // stopTimerLiqSvc();
+        //
+        // const scaledRate = BigInt(
+        //     10 ** (outgoingPayment.asset.scale - event.data.amount.assetScale)
+        // );
+        //
+        // const microPayment: MicroPayment = {
+        //     requestId: event.data.requestId,
+        //     ilpPeerId: event.data.peerId,
+        //     amount: event.data.amount.value * scaledRate,
+        //     method: "ILP",
+        // };
+        //
+        // const update = this._addMicroPaymentToOutgoingPayment(
+        //     outgoingPayment,
+        //     microPayment
+        // );
+        //
+        // const events: LocalEvent[] = [];
+        //
+        // // TODO: do we need to know whether the incoming payment was completed? Or we just need to know that the connection was done/closed?
+        // // or do we just check the status of the micro
+        //
+        // if (
+        //     // @ts-ignore
+        //     outgoingPayment.state === OutgoingPaymentState.COMPLETED || // Micropayment could have completed payment
+        //     event.data.didCompleteIncomingPayment
+        // ) {
+        //     outgoingPayment.state = OutgoingPaymentState.COMPLETED;
+        //
+        //     const outgoingPaymentCompletedEvent: OutgoingPaymentCompletedEvent = {
+        //         type: PaymentEventType.OUTGOING_PAYMENT_COMPLETED,
+        //         data: {
+        //             outgoingPayment,
+        //         },
+        //     };
+        //     events.push(outgoingPaymentCompletedEvent);
+        // }
+        //
+        // await this._outgoingPaymentRepository.updateWithNewMicroPayment(
+        //     outgoingPayment,
+        //     update
+        // );
+        //
+        // stopTimer();
+        // await this._paymentEventProducer.publish(events);
+        // this._telemetryService.incrementCounter("outgoing_payments_completed", 1);
     }
 
     public async handleIlpPaymentPreparePacketReceivedEvent(
         event: IlpPaymentPreparePacketReceivedEvent
     ) {
-        const stopTimer = this._startTimer("handleIlpPaymentPreparePacketReceivedEvent");
-
-        const peer = await this._ilpPeerService.getById(event.data.peerId);
-
-        if (!peer) {
-            stopTimer();
-            throw new PeerNotFoundError();
-        }
-
-        const stopTimerRepo = this._startTimer("incomingPaymentRepository.fetchById");
-        const incomingPayment = await this._incomingPaymentRepository.fetchById(
-            event.data.incomingPaymentId
-        );
-        stopTimerRepo();
-
-        if (!incomingPayment) {
-            stopTimer();
-            // TODO: Send a packet reject event
-            throw new IncomingPaymentNotFoundError();
-        }
-
-        if (incomingPayment.state !== LocalIncomingPaymentState.CREATED) {
-            stopTimer();
-            // TODO: Send a packet reject event
-            throw new IncomingPaymentInvalidStateError();
-        }
-
-        if (peer.asset.code !== incomingPayment.asset.code) {
-            throw new Error("FX during packet handling not implemented");
-        }
-        if (peer.asset.scale > incomingPayment.asset.scale) {
-            stopTimer();
-            throw new IncomingPaymentInvalidStateError();
-        }
-        const transfer = new PeerToWalletAddressLiquidityRequest(
-            event.data.requestId,
-            event.data.peerId,
-            incomingPayment.walletAddressId,
-            {
-                assetCode: peer.asset.code,
-                assetScale: peer.asset.scale,
-                value: event.data.amount,
-            }
-        );
-
-        const stopTimerLiqSvc = this._telemetryService.startTimer(
-            "command_handler_msg_handler_ms",
-            {
-                callName: `PaymentService.createOutgoingPaymentFromQuote.liq`,
-                description: "TODO",
-            }
-        );
-        await this._liquidityService.execute([transfer]);
-        stopTimerLiqSvc();
-
-        const scaledRate = BigInt(
-            10 ** (incomingPayment.asset.scale - peer.asset.scale)
-        );
-
-        const microPaymentAmount = event.data.amount * scaledRate;
-
-        const update = this.addMicroPaymentToIncomingPayment(incomingPayment, {
-            requestId: event.data.requestId,
-            ilpPeerId: event.data.peerId,
-            amount: microPaymentAmount,
-            method: "ILP",
-        });
-
-        const stopTimerRepo2 = this._startTimer("incomingPaymentRepository.updateWithNewMicroPayment");
-        await this._incomingPaymentRepository.updateWithNewMicroPayment(incomingPayment, update);
-        stopTimerRepo2();
-
-        const paymentEvents: LocalEvent[] = [];
-
-        const incomingPaymentCompleted =
-            // @ts-ignore
-            incomingPayment.state === LocalIncomingPaymentState.COMPLETED;
-
-        if (incomingPaymentCompleted) {
-            const incomingPaymentCompletedEvent: IncomingPaymentCompletedEvent = {
-                type: PaymentEventType.INCOMING_PAYMENT_COMPLETED,
-                data: {
-                    incomingPayment,
-                },
-            };
-
-            paymentEvents.push(incomingPaymentCompletedEvent);
-        }
-
-        const ilpPaymentPreparePacketAcceptedEvent: IlpPaymentPreparePacketAcceptedEvent =
-            {
-                type: PaymentEventType.ILP_PAYMENT_PREPARE_PACKET_ACCEPTED,
-                data: {
-                    amount: {
-                        assetCode: incomingPayment.asset.code,
-                        assetScale: incomingPayment.asset.scale,
-                        value: microPaymentAmount,
-                    },
-                    incomingPaymentCompleted,
-                    requestId: event.data.requestId,
-                },
-            };
-
-        paymentEvents.push(ilpPaymentPreparePacketAcceptedEvent);
-
-        stopTimer();
-        await this._paymentEventProducer.publish(paymentEvents);
+        throw new Error("not implemented");
     }
 
     public async handleIlpQuotePacketReceived(
         event: IlpQuotePacketReceivedEvent
     ): Promise<void> {
-        const stopTimer = this._startTimer("handleIlpQuotePacketReceived");
-        const exists = await this._quoteRepository.exists(event.data.quoteId);
-
-        if (!exists) {
-            stopTimer();
-            throw new QuoteNotFoundError();
-        }
-
-        await this._quoteRepository.updateAmounts({
-            id: event.data.quoteId,
-            amount: event.data.amount,
-        });
-        stopTimer();
+        throw new Error("not implemented");
+        // const stopTimer = this._startTimer("handleIlpQuotePacketReceived");
+        // const exists = await this._quoteRepository.exists(event.data.quoteId);
+        //
+        // if (!exists) {
+        //     stopTimer();
+        //     throw new QuoteNotFoundError();
+        // }
+        //
+        // await this._quoteRepository.updateAmounts({
+        //     id: event.data.quoteId,
+        //     amount: event.data.amount,
+        // });
+        // stopTimer();
     }
 }

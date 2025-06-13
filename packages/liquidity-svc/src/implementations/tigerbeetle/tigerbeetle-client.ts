@@ -21,7 +21,7 @@ import {
 } from "./tigerbeetle-helpers";
 import {ILogger} from "common-types-lib";
 
-export class TigerbeetleAdapter implements ILedgerService {
+export class TigerbeetleClient implements ILedgerService {
     private readonly _logger: ILogger;
     private readonly _clusterId: number;
     private _replicaAddresses: string[];

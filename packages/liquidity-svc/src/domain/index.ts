@@ -13,7 +13,7 @@ import {
     DuplicateAssetAccountFoundError,
     DuplicatePeerAccountFoundError
 } from "./errors";
-import {Attributes, ITelemetryService} from "common-types-lib";
+import {Attributes, ILogger, ITelemetryService} from "common-types-lib";
 
 
 /**
@@ -56,23 +56,29 @@ export class LiquidityDomainService {
     LEDGER_SCALE_MAGIC_NUMBER = 20n;
 
     private readonly _telemetryService: ITelemetryService;
-    private _assetAccountRepository: IAssetAccountRepository;
-    private _peerAccountRepository: IPeerAccountRepository;
-    private _walletAddressAccountRepository: IWalletAddressAccountRepository;
-    private _ledgerServiceClient: ILedgerService;
+    private readonly _assetAccountRepository: IAssetAccountRepository;
+    private readonly _peerAccountRepository: IPeerAccountRepository;
+    private readonly _walletAddressAccountRepository: IWalletAddressAccountRepository;
+    private readonly _ledgerServiceClient: ILedgerService;
+    private readonly _maxBatchSize: number;
+    private readonly _logger:ILogger;
 
     constructor(
         assetAccountRepository: IAssetAccountRepository,
         peerAccountRepository: IPeerAccountRepository,
         walletAddressAccountRepository: IWalletAddressAccountRepository,
         ledgerServiceClient: ILedgerService,
-        telemetryService: ITelemetryService
+        telemetryService: ITelemetryService,
+        maxBatchSize: number,
+        logger:ILogger,
     ) {
         this._walletAddressAccountRepository = walletAddressAccountRepository;
         this._peerAccountRepository = peerAccountRepository;
         this._assetAccountRepository = assetAccountRepository;
         this._ledgerServiceClient = ledgerServiceClient;
         this._telemetryService = telemetryService;
+        this._maxBatchSize = maxBatchSize;
+        this._logger = logger;
     }
 
     private _startTimer(callname: string): (additionalAttributes?: Attributes) => void {
@@ -82,7 +88,7 @@ export class LiquidityDomainService {
     public async execute(requests: LiquidityRequest[]): Promise<void> {
         const transfersToCreate: LedgerTransfer[] = [];
 
-        this._telemetryService.updateGauge("ExecuteBatchSize", requests.length);
+        this._telemetryService.updateGauge("RequestBatchSize", requests.length);
 
         for (const request of requests) {
             if (request.type === LiquidityRequestType.DEPOSIT_WALLET_ADDRESS) {
@@ -98,10 +104,24 @@ export class LiquidityDomainService {
             }
         }
 
+        //
+        const batches: LedgerTransfer[][] = [];
+        for (let i = 0; i < transfersToCreate.length; i += this._maxBatchSize) {
+            const chunk = transfersToCreate.slice(i, i + this._maxBatchSize);
+            batches.push(chunk);
+        }
 
-        const stopTimer = this._startTimer("ledgerServiceClient.createTransfers");
-        await this._ledgerServiceClient.createTransfers(transfersToCreate);
-        stopTimer();
+        for(const reqBatch of batches) {
+            this._logger.debug(`executing batch of ${reqBatch.length} requests...`);
+
+            this._telemetryService.updateGauge("ExecuteBatchSize", reqBatch.length);
+
+            const stopTimer = this._startTimer("ledgerServiceClient.createTransfers");
+            await this._ledgerServiceClient.createTransfers(reqBatch);
+            stopTimer();
+
+            this._logger.debug(`batch of ${reqBatch.length} requests executed`);
+        }
     }
 
     private async _prepareWalletAddressDepositTransfer(

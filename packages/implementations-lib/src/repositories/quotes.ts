@@ -11,10 +11,10 @@
 
 import type {Pool} from "pg";
 import type {Logger} from "pino";
-import {IQuoteRepository, Quote} from "payments-domain-lib";
+import {IQuoteRepository, OutgoingPayment, OutgoingPaymentState, Quote} from "payments-domain-lib";
 import {ICache} from "common-types-lib";
 
-interface QuoteRecord {
+type QuoteRecord = {
     id: string;
     receive_amount_value: string;
     receive_amount_asset_code: string;
@@ -39,54 +39,111 @@ export class QuotePsqlRepository implements IQuoteRepository {
     ) {
     }
 
-    public async exists(id: string): Promise<boolean> {
-        const found = await this.cache.get(this.CACHE_BY_ID_PREFIX + id);
-        if (found) return true;
+    public async storeMany(quotes: Quote[]): Promise<void> {
+        return new Promise<void>(async (resolve, reject) => {
+            try {
 
-        try {
-            const res = await this.pool.query(
-                `SELECT EXISTS(SELECT 1 FROM ${this.TABLE_NAME} WHERE id = $1)`,
-                [id]
-            );
-            return res.rows[0].exists;
-        } catch (error) {
-            this.logger.error("Error checking if quote exists:", error);
-            throw error;
-        }
+                let query = `
+                    INSERT INTO ${this.TABLE_NAME}
+                    (id, receive_amount_value, receive_amount_asset_code,
+                     receive_amount_asset_scale, debit_amount_value, debit_amount_asset_code,
+                     debit_amount_asset_scale, sender_wallet_address_id, incoming_payment_id,
+                     expires_at, exchange_rate)
+                    VALUES
+                `;
+                const valuesString:string[] = [];
+                quotes.forEach((item: Quote) => {
+                    valuesString.push(`('${item.id}', '${item.receiveAmount.value.toString()}',
+                    '${item.receiveAmount.assetCode}', '${item.receiveAmount.assetScale}',
+                    '${item.debitAmount.value.toString()}', '${item.debitAmount.assetCode}',
+                    ${item.debitAmount.assetScale}, '${item.senderWalletAddressId}', '${item.incomingPaymentId}',
+                    '${item.expiresAt.toISOString()}', '${item.exchangeRate.toString()}')`);
+                });
+
+                query += " " + valuesString.join(",");
+
+                await this.pool.query(query);
+
+                for(const item of quotes) {
+                    await this.cache.set( this.CACHE_BY_ID_PREFIX + item.id, item );
+                }
+
+                return resolve();
+            } catch (error) {
+                this.logger.error("Error storing incoming payment:", error);
+                reject(error);
+            }
+        });
     }
 
-    public async store(quote: Quote): Promise<void> {
+    public async fetchByIds(ids: string[]): Promise<Quote[]>{
+        const retList: Quote[] = [];
+        const idsNotFoundInCache: string[] = [];
+
+        for(const id of ids) {
+            const found = await this.cache.get(this.CACHE_BY_ID_PREFIX + id);
+            if(found){
+                retList.push(found);
+            }else{
+                idsNotFoundInCache.push(id)
+            }
+        }
+
+        if(retList.length === ids.length) {
+            return retList;
+        }
+
         try {
-            const query = `
-                INSERT INTO ${this.TABLE_NAME} (id, receive_amount_value, receive_amount_asset_code,
-                                                receive_amount_asset_scale, debit_amount_value, debit_amount_asset_code,
-                                                debit_amount_asset_scale, sender_wallet_address_id, incoming_payment_id,
-                                                expires_at, exchange_rate)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-            `;
+            const query = `SELECT id,
+                                  receive_amount_value,
+                                  receive_amount_asset_code,
+                                  receive_amount_asset_scale,
+                                  debit_amount_value,
+                                  debit_amount_asset_code,
+                                  debit_amount_asset_scale,
+                                  sender_wallet_address_id,
+                                  incoming_payment_id,
+                                  expires_at,
+                                  exchange_rate FROM ${this.TABLE_NAME} WHERE id = ANY($1)`;
+            const res = await this.pool.query(query, [idsNotFoundInCache]);
 
-            const values = [
-                quote.id,
-                quote.receiveAmount.value.toString(),
-                quote.receiveAmount.assetCode,
-                quote.receiveAmount.assetScale,
-                quote.debitAmount.value.toString(),
-                quote.debitAmount.assetCode,
-                quote.debitAmount.assetScale,
-                quote.senderWalletAddressId,
-                quote.incomingPaymentId,
-                quote.expiresAt.toISOString(),
-                quote.exchangeRate.toString(),
-            ];
+            if(res.rows.length >0) {
+                for (const dbObj of res.rows as QuoteRecord[]) {
+                    const obj:Quote = {
+                        id: dbObj.id,
+                        receiveAmount: {
+                            value: BigInt(dbObj.receive_amount_value),
+                            assetCode: dbObj.receive_amount_asset_code,
+                            assetScale: dbObj.receive_amount_asset_scale,
+                        },
+                        debitAmount: {
+                            value: BigInt(dbObj.debit_amount_value),
+                            assetCode: dbObj.debit_amount_asset_code,
+                            assetScale: dbObj.debit_amount_asset_scale,
+                        },
+                        senderWalletAddressId: dbObj.sender_wallet_address_id,
+                        incomingPaymentId: dbObj.incoming_payment_id,
+                        expiresAt: new Date(dbObj.expires_at),
+                        exchangeRate: Number(dbObj.exchange_rate),
+                    }
 
-            await this.pool.query(query, values);
-            await this.cache.set(this.CACHE_BY_ID_PREFIX + quote.id, quote);
+                    // add to return list
+                    retList.push(obj);
+
+                    // update cache
+                    await this.cache.set( this.CACHE_BY_ID_PREFIX + obj.id,  obj);
+                }
+            }
+
+            return retList;
         } catch (error) {
-            this.logger.error("Error storing quote:", error);
+            this.logger.error("Error fetching outgoing payment by ids:", error);
             throw error;
         }
+
     }
 
+    /*
     public async fetchById(id: string): Promise<Quote | undefined> {
         const cached = await this.cache.get(this.CACHE_BY_ID_PREFIX + id);
         if (cached) return cached;
@@ -139,6 +196,54 @@ export class QuotePsqlRepository implements IQuoteRepository {
         }
     }
 
+    public async exists(id: string): Promise<boolean> {
+        const found = await this.cache.get(this.CACHE_BY_ID_PREFIX + id);
+        if (found) return true;
+
+        try {
+            const res = await this.pool.query(
+                `SELECT EXISTS(SELECT 1 FROM ${this.TABLE_NAME} WHERE id = $1)`,
+                [id]
+            );
+            return res.rows[0].exists;
+        } catch (error) {
+            this.logger.error("Error checking if quote exists:", error);
+            throw error;
+        }
+    }
+
+    public async store(quote: Quote): Promise<void> {
+        try {
+            const query = `
+                INSERT INTO ${this.TABLE_NAME} (id, receive_amount_value, receive_amount_asset_code,
+                                                receive_amount_asset_scale, debit_amount_value, debit_amount_asset_code,
+                                                debit_amount_asset_scale, sender_wallet_address_id, incoming_payment_id,
+                                                expires_at, exchange_rate)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            `;
+
+            const values = [
+                quote.id,
+                quote.receiveAmount.value.toString(),
+                quote.receiveAmount.assetCode,
+                quote.receiveAmount.assetScale,
+                quote.debitAmount.value.toString(),
+                quote.debitAmount.assetCode,
+                quote.debitAmount.assetScale,
+                quote.senderWalletAddressId,
+                quote.incomingPaymentId,
+                quote.expiresAt.toISOString(),
+                quote.exchangeRate.toString(),
+            ];
+
+            await this.pool.query(query, values);
+            await this.cache.set(this.CACHE_BY_ID_PREFIX + quote.id, quote);
+        } catch (error) {
+            this.logger.error("Error storing quote:", error);
+            throw error;
+        }
+    }
+
     public async updateAmounts(request: {
         id: string;
         amount: bigint;
@@ -167,6 +272,7 @@ export class QuotePsqlRepository implements IQuoteRepository {
             throw error;
         }
     }
+    */
 }
 
 export class QuoteInMemoryRepository implements IQuoteRepository {
@@ -176,8 +282,18 @@ export class QuoteInMemoryRepository implements IQuoteRepository {
         this.map.set(quote.id, quote);
     }
 
+    public async storeMany(quotes: Quote[]): Promise<void> {
+        for(const item of quotes) {
+            this.map.set(item.id, item);
+        }
+    }
+
     public async fetchById(id: string): Promise<Quote | undefined> {
         return this.map.get(id);
+    }
+
+    public async fetchByIds(ids: string[]): Promise<Quote[]>{
+        return Array.from(this.map.values()).filter(item => ids.includes(item.id));
     }
 
     public async exists(id: string): Promise<boolean> {

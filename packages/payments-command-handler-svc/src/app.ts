@@ -72,6 +72,7 @@ const SERVICE_START_TIMEOUT_MS = (process.env["SERVICE_START_TIMEOUT_MS"] && par
 const OPEN_TELEMETRY_COLLECTOR_URL = process.env["OPEN_TELEMETRY_COLLECTOR_URL"] || "http://otel-collector:4317";
 const LIQUIDITY_SERVICE_URL = process.env["LIQUIDITY_SERVICE_URL"] || "http://localhost:3001";
 const REDIS_URL = process.env["REDIS_URL"] || "127.0.0.1:6379";
+const CACHE_DURATION_MS = (process.env["CACHE_DURATION_MS"] && parseInt(process.env["CACHE_DURATION_MS"])) || 1*60*1000; // 1 min;
 
 // Message Consumer/Publisher
 const KAFKA_URL = process.env["KAFKA_URL"] || "localhost:9092";
@@ -89,7 +90,7 @@ const kafkaProducerCommonOptions:RafikiKafkaJsonProducerOptions = {
 const kafkaConsumerCommonOptions:RafikiKafkaJsonConsumerOptions ={
     kafkaBrokerList: KAFKA_URL,
     kafkaGroupId: "rafiki-cmd-handler",
-    batchSize: 200,
+    batchSize: 500,
     batchTimeoutMs: 25
 };
 if(KAFKA_AUTH_ENABLED){
@@ -102,7 +103,7 @@ if(KAFKA_AUTH_ENABLED){
 }
 
 
-const ONE_HOUR_IN_MS = 3_600_000;
+
 
 export class PaymentsServiceApp {
     private static startupTimer: NodeJS.Timeout;
@@ -188,7 +189,7 @@ export class PaymentsServiceApp {
 
         if(!walletAddressCacheClient) {
             const redisClient = new Redis(REDIS_URL);
-            walletAddressCacheClient = new RedisCache<WalletAddress>(redisClient, ONE_HOUR_IN_MS, logger);
+            walletAddressCacheClient = new RedisCache<WalletAddress>(redisClient, CACHE_DURATION_MS, logger);
         }
         this.walletAddressCacheClient = walletAddressCacheClient;
 
@@ -213,8 +214,8 @@ export class PaymentsServiceApp {
 
         if(!ilpPeerPsqlRepository){
             ilpPeerPsqlRepository = new IlpPeerPsqlRepository(
-                new InMemoryCache<IlpPeer>(ONE_HOUR_IN_MS),
-                new InMemoryCache<string>(ONE_HOUR_IN_MS),
+                new InMemoryCache<IlpPeer>(CACHE_DURATION_MS),
+                new InMemoryCache<string>(CACHE_DURATION_MS),
                 PostgresPool,
                 logger
             );
@@ -228,7 +229,7 @@ export class PaymentsServiceApp {
 
         if(!remoteIncomingPaymentRepository){
             remoteIncomingPaymentRepository = new RemoteIncomingPaymentPsqlRepository(
-                new InMemoryCache<RemoteIncomingPayment>(ONE_HOUR_IN_MS),
+                new InMemoryCache<RemoteIncomingPayment>(CACHE_DURATION_MS),
                 PostgresPool,
                 logger
             );
@@ -237,7 +238,7 @@ export class PaymentsServiceApp {
 
         if(!incomingPaymentRepository){
             incomingPaymentRepository = new IncomingPaymentPsqlRepository(
-                new InMemoryCache<IncomingPayment>(ONE_HOUR_IN_MS),
+                new InMemoryCache<IncomingPayment>(CACHE_DURATION_MS),
                 PostgresPool,
                 logger
             );
@@ -246,7 +247,7 @@ export class PaymentsServiceApp {
 
         if(!outgoingPaymentRepository){
             outgoingPaymentRepository = new OutgoingPaymentPsqlRepository(
-                new InMemoryCache<OutgoingPayment>(ONE_HOUR_IN_MS),
+                new InMemoryCache<OutgoingPayment>(CACHE_DURATION_MS),
                 PostgresPool,
                 logger
             )
@@ -255,7 +256,7 @@ export class PaymentsServiceApp {
 
         if(!quoteRepository){
             quoteRepository = new QuotePsqlRepository(
-                new InMemoryCache<Quote>(ONE_HOUR_IN_MS),
+                new InMemoryCache<Quote>(CACHE_DURATION_MS),
                 PostgresPool,
                 logger
             );
@@ -299,7 +300,7 @@ export class PaymentsServiceApp {
         );
 
         this.paymentService = new PaymentDomainService(
-            this.walletAddressService,
+            this.walletAddressRepository,
             this.ilpPeerService,
             this.ratesServiceClient,
             this.liquidityServiceClient,

@@ -18,7 +18,7 @@ import process from "process";
 import Fastify, {
     FastifyInstance, FastifyReply, FastifyRequest,
 } from "fastify";
-import {TigerbeetleAdapter} from "../implementations/tigerbeetle/tigerbeetle-adapter";
+import {TigerbeetleClient} from "../implementations/tigerbeetle/tigerbeetle-client";
 import {
     IAssetAccountRepository,
     ILedgerService,
@@ -42,6 +42,8 @@ const API_PORT = (process.env["API_PORT"] && parseInt(process.env["API_PORT"])) 
 
 const TB_CLUSTER_ID = (process.env["TB_CLUSTER_ID"]!=undefined && parseInt(process.env["TB_CLUSTER_ID"])) || 0;
 const TB_CLUSTER_REPLICA_ADDRESSES = process.env["TB_CLUSTER_REPLICA_ADDRESSES"] || "localhost:13000";
+
+const MAX_BATCH_SIZE = (process.env["MAX_BATCH_SIZE"]!=undefined && parseInt(process.env["MAX_BATCH_SIZE"])) || 600;
 
 export class LiquidityRestServiceApp {
     private static startupTimer: NodeJS.Timeout;
@@ -94,7 +96,7 @@ export class LiquidityRestServiceApp {
 
         // initialise the ledger client if not provided
         if(!ledgerServiceClient){
-            ledgerServiceClient = new TigerbeetleAdapter(TB_CLUSTER_ID, TB_CLUSTER_REPLICA_ADDRESSES, logger);
+            ledgerServiceClient = new TigerbeetleClient(TB_CLUSTER_ID, TB_CLUSTER_REPLICA_ADDRESSES, logger);
             await ledgerServiceClient.init();
         }
         this.ledgerServiceClient = ledgerServiceClient;
@@ -106,7 +108,9 @@ export class LiquidityRestServiceApp {
             this.peerAccountRepository,
             this.walletAddressAccountRepository,
             this.ledgerServiceClient,
-            this.telemetryService
+            this.telemetryService,
+            MAX_BATCH_SIZE,
+            logger
         );
 
         // fastify stuff
@@ -139,13 +143,13 @@ export class LiquidityRestServiceApp {
             this.app.get("/health", (req:FastifyRequest, reply:FastifyReply)=>{
                 return reply.send({});
             });
-
-            if(OpenTelemetryServiceClient.getInstance()) {
+// TODO re-enable
+            /*if(OpenTelemetryServiceClient.getInstance()) {
                 const telemetryClient= OpenTelemetryServiceClient.getInstance() as  OpenTelemetryServiceClient;
                 if(telemetryClient.fastifyOtelInstrumentation) {
                     this.app.register(telemetryClient.fastifyOtelInstrumentation.plugin());
                 }
-            }
+            }*/
 
             const router = new LiquidityFastifyRouter(
                 logger,

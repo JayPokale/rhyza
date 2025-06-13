@@ -12,3 +12,5 @@ test
 img
 
 **/*.tsbuildinfo
+
+benchmark.js

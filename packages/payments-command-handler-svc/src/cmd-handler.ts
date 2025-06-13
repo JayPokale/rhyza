@@ -60,17 +60,21 @@ export class PaymentsCommandHandler {
 
 
     private async _msgHandlerBatch(messages: IMessage[]): Promise<void> {
-        this._logger.debug(`Event(${os.hostname()}): ${messages.length} EventReceived in batch handler`);
+        this._logger.debug(`\nEvent(${os.hostname()}): ${messages.length} EventReceived in batch handler`);
+        const timerStop = this._startTimer("CmdHandlerBatch");
 
         this._telemetryService.updateGauge("ConsumerBatchSize", messages.length);
 
         const toPublishEvents: IMessage[] = await this._paymentService._msgHandlerBatch(messages);
 
         if (toPublishEvents.length > 0) {
-            const timerStop = this._startTimer("PublishEvents");
+            const timerStopPub = this._startTimer("PublishEvents");
             await this._messageProducer.send(toPublishEvents);
-            timerStop()
+            timerStopPub()
         }
+
+        timerStop();
+        return;
     }
 
     async stop(): Promise<void> {

@@ -10,6 +10,7 @@ services:
       REDIS_URL: redis://redis:6379
       KAFKA_URL: kafka:19092
       LOG_LEVEL: info
+      UV_THREADPOOL_SIZE: 128
     depends_on:
        pg-container:
           condition: service_healthy
@@ -31,6 +32,7 @@ services:
         DATABASE_URL: postgres://postgres:password@pg-container:5432/liquidity-service
         TB_CLUSTER_REPLICA_ADDRESSES: 10.5.1.51:4342
         LOG_LEVEL: info
+        MAX_BATCH_SIZE: 200
      depends_on:
         pg-container:
            condition: service_healthy
@@ -56,6 +58,8 @@ services:
       KAFKA_URL: kafka:19092
       LIQUIDITY_SERVICE_URL: http://liquidity-service:3000
       LOG_LEVEL: info
+      UV_THREADPOOL_SIZE: 64
+      CACHE_DURATION_MS: 3600000
     depends_on:
       init-kafka:
         condition: service_completed_successfully
@@ -143,9 +147,7 @@ services:
       echo -e '\nCreating kafka topics:'
       ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --topic audits
       ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --topic logs
-      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 12 --topic incoming-payment-commands
-      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 12 --topic quote-commands
-      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 12 --topic outgoing-payment-commands
+      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 12 --topic payment-commands
       ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 12 --topic api-response-events
       echo -e '\nSuccessfully created the following topics:'
       ./kafka-topics.sh --bootstrap-server kafka:19092 --list

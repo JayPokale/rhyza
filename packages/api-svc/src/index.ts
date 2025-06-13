@@ -1,11 +1,12 @@
 "use strict";
 //require("./telemetry.js"); // Load telemetry before running the rest of the app
-import {OpenTelemetryServiceClient } from "implementations-lib";
-
-
 import {
-    InMemoryCache, LiquidityServiceClient, LocalEventEmitterPubSub,
-    logger, PostgresPool,
+    InMemoryCache,
+    LiquidityServiceClient,
+    LocalEventEmitterPubSub,
+    logger,
+    OpenTelemetryServiceClient,
+    PostgresPool,
     RafikiKafkaJsonConsumer,
     RafikiKafkaJsonConsumerOptions,
     RafikiKafkaJsonProducer,
@@ -24,6 +25,7 @@ import {fastify} from "fastify";
 import {OpenPaymentsApiService} from "./openpayments-service";
 import {IlpApiService} from "./ilp-service";
 import process from "process";
+import {RafikiKafkaRawProducerPartitioners} from "implementations-lib/dist/kafka/raw/rdkafka_raw_producer";
 
 // ENV VARS for configuration
 const ILP_CONFIG_OWN_ADDRESS = process.env["ILP_CONFIG_OWN_ADDRESS"] || "test.peer-a";
@@ -42,14 +44,14 @@ const INSTANCE_ID = crypto.randomUUID();
     // Kafka
     const kafkaProducerCommonOptions: RafikiKafkaJsonProducerOptions = {
         kafkaBrokerList: KAFKA_URL,
-        producerClientId: `rafiki-api-producer-${INSTANCE_ID}`,
+        producerClientId: `rafiki-api-producer-${INSTANCE_ID}`
     };
     const kafkaConsumerCommonOptions: RafikiKafkaJsonConsumerOptions = {
         kafkaBrokerList: KAFKA_URL,
         // Event received by all api instances, but ignored where not applicable:
         kafkaGroupId: `rafiki-api-consumer-${INSTANCE_ID}`,
-        batchSize: 200,
-        batchTimeoutMs: 10
+        batchSize: 500,
+        batchTimeoutMs: 25
     };
     logger.info(`Init Kafka on '${KAFKA_URL}'`);
 

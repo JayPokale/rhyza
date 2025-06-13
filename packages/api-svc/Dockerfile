@@ -56,5 +56,5 @@ COPY --from=build /workspace/packages/implementations-lib/dist /workspace/packag
 COPY --from=prod-deps /workspace/packages/api-svc/node_modules /workspace/packages/api-svc/node_modules
 COPY --from=build /workspace/packages/api-svc/dist /workspace/packages/api-svc/dist
 
-
+ENV NODE_ENV=production
 CMD ["node", "packages/api-svc/dist/index.js"]
