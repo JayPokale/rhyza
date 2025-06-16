@@ -320,39 +320,33 @@ export class PaymentDomainService {
 
     private async _flush():Promise<void> {
         this._logger.debug("--- _flush() started");
-        // const promises:Promise<void>[] = [];
+        const promises:Promise<void>[] = [];
 
         if(this._newIncomingPayments.length) {
-            await this._incomingPaymentRepository.storeMany(this._newIncomingPayments);
-            // promises.push(this._incomingPaymentRepository.storeMany(this._newIncomingPayments));
+            promises.push(this._incomingPaymentRepository.storeMany(this._newIncomingPayments));
         }
 
         if(this._newOutgoingPayments.length) {
-            await this._outgoingPaymentRepository.storeMany(this._newOutgoingPayments);
-            // promises.push(this._outgoingPaymentRepository.storeMany(this._newOutgoingPayments));
+            promises.push(this._outgoingPaymentRepository.storeMany(this._newOutgoingPayments));
         }
 
         if(this._newQuotes.length) {
-            await this._quoteRepository.storeMany(this._newQuotes);
-            // promises.push(this._quoteRepository.storeMany(this._newQuotes));
+            promises.push(this._quoteRepository.storeMany(this._newQuotes));
         }
 
         if(this._newIncomingMicroPayments.length) {
-            await this._incomingPaymentRepository.storeManyNewMicroPayment(this._newIncomingMicroPayments);
-            // promises.push(this._incomingPaymentRepository.storeManyNewMicroPayment(this._newIncomingMicroPayments));
+            promises.push(this._incomingPaymentRepository.storeManyNewMicroPayment(this._newIncomingMicroPayments));
         }
 
         if(this._newOutgoingMicroPayments.length) {
-            await this._outgoingPaymentRepository.storeManyNewMicroPayment(this._newOutgoingMicroPayments);
-            // promises.push(this._outgoingPaymentRepository.storeManyNewMicroPayment(this._newOutgoingMicroPayments));
+            promises.push(this._outgoingPaymentRepository.storeManyNewMicroPayment(this._newOutgoingMicroPayments));
         }
 
         if(this._newIncomingPaymentUpdates.length) {
-            await this._incomingPaymentRepository.updateReceivedAmountAndStateMany(this._newIncomingPaymentUpdates);
-            // promises.push(this._incomingPaymentRepository.updateReceivedAmountAndStateMany(this._newIncomingPaymentUpdates));
+            promises.push(this._incomingPaymentRepository.updateReceivedAmountAndStateMany(this._newIncomingPaymentUpdates));
         }
 
-        // await Promise.all(promises);
+        await Promise.all(promises);
         this._logger.debug("+++ _flush() completed");
     }
 

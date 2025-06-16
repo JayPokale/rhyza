@@ -91,7 +91,7 @@ const kafkaConsumerCommonOptions:RafikiKafkaJsonConsumerOptions ={
     kafkaBrokerList: KAFKA_URL,
     kafkaGroupId: "rafiki-cmd-handler",
     batchSize: 500,
-    batchTimeoutMs: 25
+    batchTimeoutMs: 50
 };
 if(KAFKA_AUTH_ENABLED){
     kafkaProducerCommonOptions.authentication = kafkaConsumerCommonOptions.authentication = {

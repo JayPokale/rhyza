@@ -136,7 +136,8 @@ services:
   init-kafka:
     image: apache/kafka:4.0.0
     depends_on:
-      - kafka
+      kafka:
+         condition: service_started
     entrypoint: ["/bin/sh", "-c"]
     working_dir: /opt/kafka/bin/
     command: |
@@ -147,8 +148,8 @@ services:
       echo -e '\nCreating kafka topics:'
       ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --topic audits
       ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --topic logs
-      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 12 --topic payment-commands
-      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 12 --topic api-response-events
+      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 24 --topic payment-commands
+      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 24 --topic api-response-events
       echo -e '\nSuccessfully created the following topics:'
       ./kafka-topics.sh --bootstrap-server kafka:19092 --list
       "

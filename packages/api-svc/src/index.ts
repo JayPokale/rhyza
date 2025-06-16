@@ -51,7 +51,7 @@ const INSTANCE_ID = crypto.randomUUID();
         // Event received by all api instances, but ignored where not applicable:
         kafkaGroupId: `rafiki-api-consumer-${INSTANCE_ID}`,
         batchSize: 500,
-        batchTimeoutMs: 25
+        batchTimeoutMs: 50
     };
     logger.info(`Init Kafka on '${KAFKA_URL}'`);
 
