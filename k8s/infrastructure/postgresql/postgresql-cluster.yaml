@@ -1,0 +1,46 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: postgresql-cluster
+  namespace: postgresql
+spec:
+  enablePDB: false
+  instances: 3
+  imageName: "ghcr.io/cloudnative-pg/postgresql:13.6"
+  storage:
+     storageClass: local-path
+     #    storageClass: standard
+     size: 10Gi
+  monitoring:
+     enablePodMonitor: true
+  enableSuperuserAccess: true
+   #  superuserSecret:
+   #    name: postgres-secret
+
+#  bootstrap:
+#     initdb:
+#       database: app
+#       owner: app
+#       postInitSQLRefs:
+#         configMapRefs:
+#         - name: payments-db-init-script
+#           key: sql
+#         - name: liquidity-db-init-script
+#           key: sql
+
+ #  bootstrap:
+#    initdb:
+#      database: database
+#      owner: postgres
+#      secret:
+#        name: postgres-secret
+##
+##  resources:
+##    requests:
+##      cpu: "100m"
+##      memory: "200Mi"
+##    limits:
+##      cpu: "100m"
+##      memory: "200Mi"
+
+#

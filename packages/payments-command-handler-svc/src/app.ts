@@ -187,15 +187,16 @@ export class PaymentsServiceApp {
         this.msgConsumer = msgConsumer;
 
 
-        if(!walletAddressCacheClient) {
-            const redisClient = new Redis(REDIS_URL);
-            walletAddressCacheClient = new RedisCache<WalletAddress>(redisClient, CACHE_DURATION_MS, logger);
-        }
-        this.walletAddressCacheClient = walletAddressCacheClient;
+        // if(!walletAddressCacheClient) {
+        //     const redisClient = new Redis(REDIS_URL);
+        //     walletAddressCacheClient = new RedisCache<WalletAddress>(redisClient, CACHE_DURATION_MS, logger);
+        // }
+        // this.walletAddressCacheClient = walletAddressCacheClient;
 
         if(!walletAddressRepository){
             walletAddressRepository = new WalletAddressPsqlRepository(
-                this.walletAddressCacheClient,
+                //this.walletAddressCacheClient,
+                new InMemoryCache<WalletAddress>(CACHE_DURATION_MS),
                 PostgresPool,
                 logger
             );
@@ -389,6 +390,7 @@ export class PaymentsServiceApp {
             if(exists) continue;
 
             await this.assetService.createAsset(asset.scale, asset.code);
+            logger.info(`SEEDING - created asset with code: ${asset.code} and scale: ${asset.scale}`);
         }
 
         for (const walletAddress of seed.walletAddresses) {
@@ -396,12 +398,14 @@ export class PaymentsServiceApp {
             if(exists) continue;
 
             await this.walletAddressService.createWalletAddress(walletAddress);
+            logger.info(`SEEDING - created wallet address with id: ${walletAddress.id}`);
         }
 
         for (const peer of seed.peers) {
             const exists = await this.ilpPeerService.getByDestinationAddress(peer.address);
             if(exists) continue;
             await this.ilpPeerService.create(peer);
+            logger.info(`SEEDING - created peer with address: ${peer.address}`);
         }
 
         // moved to the IlpConnector ctor

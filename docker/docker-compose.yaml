@@ -251,7 +251,7 @@ services:
         fi
         hostname -i
         ls /var/lib/tigerbeetle
-        ./tigerbeetle start --addresses=0.0.0.0:4342 --development $$DATA_FILE
+        ./tigerbeetle start --addresses=0.0.0.0:4342 $$DATA_FILE
 
 networks:
   rafiki-poc:

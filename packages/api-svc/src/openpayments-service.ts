@@ -337,6 +337,7 @@ export class OpenPaymentsApiService {
             logger.error(err);
             logger.error("API -> Payload for error:");
             logger.error(message);
+            await reply.fastifyReply.code(500).send();
         } finally {
             if (reply) reply.timer();
         }

@@ -13,4 +13,4 @@ trim_trailing_whitespace = true
 
 # YAML Files
 [*.{yml,yaml}]
-indent_size = 3
+indent_size = 2

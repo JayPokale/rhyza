@@ -38,6 +38,8 @@ RUN pnpm --filter payments-command-handler-svc build
 FROM base
 COPY --from=prod-deps /workspace/node_modules /workspace/node_modules
 
+COPY ./seed.json /workspace/seed.json
+
 # common-types-lib
 COPY --from=prod-deps /workspace/packages/common-types-lib/node_modules /workspace/packages/common-types-lib/node_modules
 COPY --from=build /workspace/packages/common-types-lib/dist /workspace/packages/common-types-lib/dist

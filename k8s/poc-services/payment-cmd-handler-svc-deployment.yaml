@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-cmd-handler-svc
+  namespace: poc
+  labels:
+    app: payment-cmd-handler-svc
+    app.kubernetes.io/name: payment-cmd-handler-svc
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: payment-cmd-handler-svc
+      app.kubernetes.io/name: payment-cmd-handler-svc
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: payment-cmd-handler-svc
+        app.kubernetes.io/name: payment-cmd-handler-svc
+    spec:
+      containers:
+        - env:
+            - name: OPEN_TELEMETRY_COLLECTOR_URL
+              value: http://otel-collector.monitoring.svc.cluster.local:4317
+            - name: DATABASE_URL
+              value: "postgresql://postgres:LO5pgc8iMUt5xZjiCNlwqMfwemZW2u2JeP9Jvb3kxKC2tQZ9LqHmUZUAvCzWOw7U@postgresql-cluster-rw.postgresql:5432/payments"
+            - name: LOG_LEVEL
+              value: info
+            - name: SEED_FILE_LOCATION
+              value: "/workspace/seed.json"
+            - name: KAFKA_URL
+              value: kafka-kafka-bootstrap.kafka.svc.cluster.local:9092
+            - name: MAX_BATCH_SIZE
+              value: "200"
+          image: k8scluster-registry.internal:5000/rafiki-poc-payment-cmd-handler-svc:0.0.1
+          livenessProbe:
+            exec:
+              command:
+                - nc -z localhost 3000 || exit -1
+            failureThreshold: 10
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 10
+          name: payment-cmd-handler-svc
+
+      restartPolicy: Always
+

@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: tigerbeetle-single
+  name: tigerbeetle-single
+  namespace: tigerbeetle
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tigerbeetle-single
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: tigerbeetle-single
+    spec:
+      restartPolicy: Always
+      containers:
+      - name: tigerbeetle-single
+        image: ghcr.io/tigerbeetle/tigerbeetle:0.16.32
+        ports:
+        - containerPort: 13000
+          name: dataplane
+          protocol: TCP
+        command:
+          - /tigerbeetle
+          - start
+          - --addresses=0.0.0.0:13000
+          - /var/lib/tigerbeetle/cluster_0_replica_0.tigerbeetle
+        volumeMounts:
+          - name: tigerbeetle-single-data-vol
+            mountPath: /var/lib/tigerbeetle
+#        resources:
+
+      initContainers:
+      - name: init-tigerbeetle-single
+        image: ghcr.io/tigerbeetle/tigerbeetle:0.16.32
+        command:
+          - /bin/sh
+          - -c
+          - |
+            set -ex
+            DATA_FILE=/var/lib/tigerbeetle/cluster_0_replica_0.tigerbeetle
+            set +e
+            ls $$DATA_FILE
+            DATA_FILE_EXISTS="$$?"
+            set -e
+            echo $$DATA_FILE_EXISTS
+            if [ "$$DATA_FILE_EXISTS" != 0 ]; then
+            ./tigerbeetle format --cluster=0 --replica=0 --replica-count=1 $$DATA_FILE;
+            fi
+        volumeMounts:
+          - name: tigerbeetle-single-data-vol
+            mountPath: /var/lib/tigerbeetle
+      volumes:
+      - name: tigerbeetle-single-data-vol
+        persistentVolumeClaim:
+          claimName: tigerbeetle-single-data
