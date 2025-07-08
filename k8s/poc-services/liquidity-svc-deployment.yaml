@@ -7,7 +7,7 @@ metadata:
     app: liquidity-svc
     app.kubernetes.io/name: liquidity-svc
 spec:
-  replicas: 1
+#  replicas: 1
   selector:
     matchLabels:
       app: liquidity-svc

@@ -1,6 +1,9 @@
 ## Install prerequisites
 
 ```bash
+# create namespaces
+kubectl apply -f namespaces.yaml
+
 # Install CertManager
 kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.18.2/cert-manager.yaml
 
@@ -13,6 +16,9 @@ kubectl create -f 'https://strimzi.io/install/latest?namespace=kafka' -n kafka
 # You can install the latest operator manifest for this minor release as follows:
 kubectl apply --server-side -f https://raw.githubusercontent.com/cloudnative-pg/cloudnative-pg/release-1.25/releases/cnpg-1.25.2.yaml
 
+# install nginx ingress controller operator
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.8.1/deploy/static/provider/cloud/deploy.yaml
+
 # Build docker images
 sh ./build.sh
 ```
@@ -20,8 +26,6 @@ sh ./build.sh
 
 ## Running infrastructure
 ```bash
-kubectl apply -f namespaces.yaml
-
 kubectl apply -f monitoring/opentelemetry.yaml
 
 
@@ -58,7 +62,7 @@ CREATE TABLE IF NOT EXISTS wallet_address_accounts (
   liquidity_account_id UUID NOT NULL
 );
 
-\c liquidity
+\c payments
 
 CREATE TABLE IF NOT EXISTS assets (
   id UUID PRIMARY KEY NOT NULL,

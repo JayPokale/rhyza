@@ -7,7 +7,7 @@ metadata:
     app: api-svc
     app.kubernetes.io/name: api-svc
 spec:
-  replicas: 1
+#  replicas:
   selector:
     matchLabels:
       app: api-svc
