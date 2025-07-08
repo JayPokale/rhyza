@@ -18,7 +18,7 @@
     "editable": true,
     "fiscalYearStartMonth": 0,
     "graphTooltip": 0,
-    "id": 2,
+    "id": 1,
     "links": [],
     "panels": [
         {
@@ -74,9 +74,7 @@
                 "orientation": "auto",
                 "percentChangeColorMode": "standard",
                 "reduceOptions": {
-                    "calcs": [
-                        "lastNotNull"
-                    ],
+                    "calcs": ["lastNotNull"],
                     "fields": "",
                     "values": false
                 },
@@ -84,7 +82,7 @@
                 "textMode": "auto",
                 "wideLayout": true
             },
-            "pluginVersion": "11.6.0",
+            "pluginVersion": "12.0.2",
             "targets": [
                 {
                     "editorMode": "code",
@@ -137,9 +135,7 @@
                 "orientation": "auto",
                 "percentChangeColorMode": "standard",
                 "reduceOptions": {
-                    "calcs": [
-                        "lastNotNull"
-                    ],
+                    "calcs": ["lastNotNull"],
                     "fields": "",
                     "values": false
                 },
@@ -147,7 +143,7 @@
                 "textMode": "auto",
                 "wideLayout": true
             },
-            "pluginVersion": "11.6.0",
+            "pluginVersion": "12.0.2",
             "targets": [
                 {
                     "editorMode": "code",
@@ -200,9 +196,7 @@
                 "orientation": "auto",
                 "percentChangeColorMode": "standard",
                 "reduceOptions": {
-                    "calcs": [
-                        "lastNotNull"
-                    ],
+                    "calcs": ["lastNotNull"],
                     "fields": "",
                     "values": false
                 },
@@ -210,7 +204,7 @@
                 "textMode": "auto",
                 "wideLayout": true
             },
-            "pluginVersion": "11.6.0",
+            "pluginVersion": "12.0.2",
             "targets": [
                 {
                     "editorMode": "code",
@@ -263,9 +257,7 @@
                 "orientation": "auto",
                 "percentChangeColorMode": "standard",
                 "reduceOptions": {
-                    "calcs": [
-                        "lastNotNull"
-                    ],
+                    "calcs": ["lastNotNull"],
                     "fields": "",
                     "values": false
                 },
@@ -273,7 +265,7 @@
                 "textMode": "auto",
                 "wideLayout": true
             },
-            "pluginVersion": "11.6.0",
+            "pluginVersion": "12.0.2",
             "targets": [
                 {
                     "disableTextWrap": false,
@@ -330,9 +322,7 @@
                 "orientation": "auto",
                 "percentChangeColorMode": "standard",
                 "reduceOptions": {
-                    "calcs": [
-                        "lastNotNull"
-                    ],
+                    "calcs": ["lastNotNull"],
                     "fields": "",
                     "values": false
                 },
@@ -340,7 +330,7 @@
                 "textMode": "auto",
                 "wideLayout": true
             },
-            "pluginVersion": "11.6.0",
+            "pluginVersion": "12.0.2",
             "targets": [
                 {
                     "editorMode": "code",
@@ -431,9 +421,7 @@
                             "id": "byNames",
                             "options": {
                                 "mode": "exclude",
-                                "names": [
-                                    "Value"
-                                ],
+                                "names": ["Value"],
                                 "prefix": "All except:",
                                 "readOnly": true
                             }
@@ -461,12 +449,7 @@
             "interval": "1s",
             "options": {
                 "legend": {
-                    "calcs": [
-                        "lastNotNull",
-                        "min",
-                        "mean",
-                        "max"
-                    ],
+                    "calcs": ["lastNotNull", "min", "mean", "max"],
                     "displayMode": "table",
                     "placement": "right",
                     "showLegend": true,
@@ -480,7 +463,7 @@
                     "sort": "none"
                 }
             },
-            "pluginVersion": "11.6.0",
+            "pluginVersion": "12.0.2",
             "targets": [
                 {
                     "datasource": {
@@ -633,12 +616,7 @@
             "id": 5,
             "options": {
                 "legend": {
-                    "calcs": [
-                        "lastNotNull",
-                        "min",
-                        "mean",
-                        "max"
-                    ],
+                    "calcs": ["lastNotNull", "min", "mean", "max"],
                     "displayMode": "table",
                     "placement": "right",
                     "showLegend": true,
@@ -652,7 +630,7 @@
                     "sort": "none"
                 }
             },
-            "pluginVersion": "11.6.0",
+            "pluginVersion": "12.0.2",
             "targets": [
                 {
                     "editorMode": "code",
@@ -718,9 +696,7 @@
                 "orientation": "auto",
                 "percentChangeColorMode": "standard",
                 "reduceOptions": {
-                    "calcs": [
-                        "lastNotNull"
-                    ],
+                    "calcs": ["lastNotNull"],
                     "fields": "",
                     "values": false
                 },
@@ -728,7 +704,7 @@
                 "textMode": "auto",
                 "wideLayout": true
             },
-            "pluginVersion": "11.6.0",
+            "pluginVersion": "12.0.2",
             "targets": [
                 {
                     "disableTextWrap": false,
@@ -785,9 +761,7 @@
                 "orientation": "auto",
                 "percentChangeColorMode": "standard",
                 "reduceOptions": {
-                    "calcs": [
-                        "lastNotNull"
-                    ],
+                    "calcs": ["lastNotNull"],
                     "fields": "",
                     "values": false
                 },
@@ -795,7 +769,7 @@
                 "textMode": "auto",
                 "wideLayout": true
             },
-            "pluginVersion": "11.6.0",
+            "pluginVersion": "12.0.2",
             "targets": [
                 {
                     "editorMode": "code",
@@ -903,12 +877,7 @@
             "id": 6,
             "options": {
                 "legend": {
-                    "calcs": [
-                        "lastNotNull",
-                        "min",
-                        "mean",
-                        "max"
-                    ],
+                    "calcs": ["lastNotNull", "min", "mean", "max"],
                     "displayMode": "table",
                     "placement": "right",
                     "showLegend": true,
@@ -922,7 +891,7 @@
                     "sort": "none"
                 }
             },
-            "pluginVersion": "11.6.0",
+            "pluginVersion": "12.0.2",
             "targets": [
                 {
                     "datasource": {
@@ -970,7 +939,7 @@
                 "h": 1,
                 "w": 24,
                 "x": 0,
-                "y": 33
+                "y": 36
             },
             "id": 17,
             "panels": [],
@@ -1007,7 +976,7 @@
                 "h": 3,
                 "w": 4,
                 "x": 12,
-                "y": 34
+                "y": 33
             },
             "id": 19,
             "options": {
@@ -1017,9 +986,7 @@
                 "orientation": "auto",
                 "percentChangeColorMode": "standard",
                 "reduceOptions": {
-                    "calcs": [
-                        "lastNotNull"
-                    ],
+                    "calcs": ["lastNotNull"],
                     "fields": "",
                     "values": false
                 },
@@ -1027,7 +994,7 @@
                 "textMode": "auto",
                 "wideLayout": true
             },
-            "pluginVersion": "11.6.0",
+            "pluginVersion": "12.0.2",
             "targets": [
                 {
                     "disableTextWrap": false,
@@ -1074,7 +1041,7 @@
                 "h": 3,
                 "w": 4,
                 "x": 16,
-                "y": 34
+                "y": 33
             },
             "id": 26,
             "options": {
@@ -1084,9 +1051,7 @@
                 "orientation": "auto",
                 "percentChangeColorMode": "standard",
                 "reduceOptions": {
-                    "calcs": [
-                        "lastNotNull"
-                    ],
+                    "calcs": ["lastNotNull"],
                     "fields": "",
                     "values": false
                 },
@@ -1094,7 +1059,7 @@
                 "textMode": "auto",
                 "wideLayout": true
             },
-            "pluginVersion": "11.6.0",
+            "pluginVersion": "12.0.2",
             "targets": [
                 {
                     "disableTextWrap": false,
@@ -1141,7 +1106,7 @@
                 "h": 2,
                 "w": 4,
                 "x": 20,
-                "y": 34
+                "y": 33
             },
             "id": 24,
             "options": {
@@ -1151,9 +1116,7 @@
                 "orientation": "auto",
                 "percentChangeColorMode": "standard",
                 "reduceOptions": {
-                    "calcs": [
-                        "lastNotNull"
-                    ],
+                    "calcs": ["lastNotNull"],
                     "fields": "",
                     "values": false
                 },
@@ -1161,7 +1124,7 @@
                 "textMode": "auto",
                 "wideLayout": true
             },
-            "pluginVersion": "11.6.0",
+            "pluginVersion": "12.0.2",
             "targets": [
                 {
                     "datasource": {
@@ -1289,12 +1252,7 @@
             "id": 18,
             "options": {
                 "legend": {
-                    "calcs": [
-                        "lastNotNull",
-                        "min",
-                        "mean",
-                        "max"
-                    ],
+                    "calcs": ["lastNotNull", "min", "mean", "max"],
                     "displayMode": "table",
                     "placement": "right",
                     "showLegend": true,
@@ -1306,7 +1264,7 @@
                     "sort": "none"
                 }
             },
-            "pluginVersion": "11.6.0",
+            "pluginVersion": "12.0.2",
             "targets": [
                 {
                     "editorMode": "code",
@@ -1392,7 +1350,7 @@
                         "h": 11,
                         "w": 24,
                         "x": 0,
-                        "y": 148
+                        "y": 61
                     },
                     "id": 3,
                     "options": {
@@ -1400,9 +1358,7 @@
                         "footer": {
                             "countRows": false,
                             "fields": "",
-                            "reducer": [
-                                "sum"
-                            ],
+                            "reducer": ["sum"],
                             "show": false
                         },
                         "showHeader": true,
@@ -1413,7 +1369,7 @@
                             }
                         ]
                     },
-                    "pluginVersion": "11.6.0",
+                    "pluginVersion": "12.0.2",
                     "targets": [
                         {
                             "datasource": {
@@ -1455,10 +1411,102 @@
             ],
             "title": "Tracing",
             "type": "row"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisBorderShow": false,
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "barWidthFactor": 0.6,
+                        "drawStyle": "line",
+                        "fillOpacity": 0,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "insertNulls": false,
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "auto",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green"
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 24,
+                "x": 0,
+                "y": 46
+            },
+            "id": 27,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "hideZeros": false,
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "pluginVersion": "12.0.2",
+            "targets": [
+                {
+                    "editorMode": "code",
+                    "expr": "rate(outgoing_payments_completed_total[1m])",
+                    "legendFormat": "Outgoing Payments Completed",
+                    "range": true,
+                    "refId": "A"
+                }
+            ],
+            "title": "TPS",
+            "type": "timeseries"
         }
     ],
     "preload": false,
-    "refresh": "",
+    "refresh": "5s",
     "schemaVersion": 41,
     "tags": [],
     "templating": {
@@ -1472,5 +1520,5 @@
     "timezone": "browser",
     "title": "Rafiki POC2",
     "uid": "aeg4uh40kdl34b",
-    "version": 51
+    "version": 2
 }
