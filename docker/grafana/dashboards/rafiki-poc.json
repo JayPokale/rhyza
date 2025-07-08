@@ -934,19 +934,6 @@
             "type": "timeseries"
         },
         {
-            "collapsed": false,
-            "gridPos": {
-                "h": 1,
-                "w": 24,
-                "x": 0,
-                "y": 36
-            },
-            "id": 17,
-            "panels": [],
-            "title": "Liquidity Svc",
-            "type": "row"
-        },
-        {
             "datasource": {
                 "type": "prometheus",
                 "uid": "PBFA97CFB590B2093"
@@ -1141,6 +1128,19 @@
             ],
             "title": "Liq Svc Instances",
             "type": "stat"
+        },
+        {
+            "collapsed": false,
+            "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 36
+            },
+            "id": 17,
+            "panels": [],
+            "title": "Liquidity Svc",
+            "type": "row"
         },
         {
             "datasource": {
@@ -1495,7 +1495,7 @@
             "targets": [
                 {
                     "editorMode": "code",
-                    "expr": "rate(outgoing_payments_completed_total[1m])",
+                    "expr": "rate(outgoing_payments_completed_total[30s])",
                     "legendFormat": "Outgoing Payments Completed",
                     "range": true,
                     "refId": "A"
@@ -1520,5 +1520,5 @@
     "timezone": "browser",
     "title": "Rafiki POC2",
     "uid": "aeg4uh40kdl34b",
-    "version": 2
+    "version": 4
 }
