@@ -1495,7 +1495,7 @@
             "targets": [
                 {
                     "editorMode": "code",
-                    "expr": "rate(outgoing_payments_completed_total[30s])",
+                    "expr": "sum(rate(outgoing_payments_completed_total[30s]))",
                     "legendFormat": "Outgoing Payments Completed",
                     "range": true,
                     "refId": "A"
@@ -1520,5 +1520,5 @@
     "timezone": "browser",
     "title": "Rafiki POC2",
     "uid": "aeg4uh40kdl34b",
-    "version": 4
+    "version": 5
 }
