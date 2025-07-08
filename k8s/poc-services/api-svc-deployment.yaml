@@ -7,7 +7,7 @@ metadata:
     app: api-svc
     app.kubernetes.io/name: api-svc
 spec:
-#  replicas:
+  #  replicas:
   selector:
     matchLabels:
       app: api-svc
@@ -31,16 +31,15 @@ spec:
             - name: LOG_LEVEL
               value: info
           image: k8scluster-registry.internal:5000/rafiki-poc-api-svc:0.0.1
-          livenessProbe:
-            exec:
-              command:
-                - nc -z localhost 3000 || exit -1
-            failureThreshold: 10
-            initialDelaySeconds: 30
-            periodSeconds: 10
-            timeoutSeconds: 10
+          # livenessProbe:
+          #   exec:
+          #     command:
+          #       - nc -z localhost 3000 || exit -1
+          #   failureThreshold: 10
+          #   initialDelaySeconds: 30
+          #   periodSeconds: 10
+          #   timeoutSeconds: 10
           name: api-svc
           ports:
             - containerPort: 3000
       restartPolicy: Always
-

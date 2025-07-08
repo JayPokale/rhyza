@@ -7,7 +7,7 @@ metadata:
     app: payment-cmd-handler-svc
     app.kubernetes.io/name: payment-cmd-handler-svc
 spec:
-#  replicas: 1
+  #  replicas: 1
   selector:
     matchLabels:
       app: payment-cmd-handler-svc
@@ -25,7 +25,7 @@ spec:
             - name: OPEN_TELEMETRY_COLLECTOR_URL
               value: http://otel-collector.monitoring.svc.cluster.local:4317
             - name: DATABASE_URL
-              value: postgresql://postgres:JV3nLfdCNiyjTzdLgO39h55sGElxBfhVd7mcmenNO5UhThLFWyBqJx9yvllik54h@postgresql-cluster-rw.postgresql:5432/payments
+              value: postgresql://postgres:GBv6YU9w7X5GubEpfDo7E2WDyLfuuRVeUobwQc2iLsMZQ8gF8lfXgnmsmoix3UzW@postgresql-cluster-rw.postgresql:5432/payments
             - name: LOG_LEVEL
               value: info
             - name: SEED_FILE_LOCATION
@@ -35,15 +35,14 @@ spec:
             - name: MAX_BATCH_SIZE
               value: "200"
           image: k8scluster-registry.internal:5000/rafiki-poc-payment-cmd-handler-svc:0.0.1
-          livenessProbe:
-            exec:
-              command:
-                - nc -z localhost 3000 || exit -1
-            failureThreshold: 10
-            initialDelaySeconds: 30
-            periodSeconds: 10
-            timeoutSeconds: 10
+          # livenessProbe:
+          #   exec:
+          #     command:
+          #       - nc -z localhost 3000 || exit -1
+          #   failureThreshold: 10
+          #   initialDelaySeconds: 30
+          #   periodSeconds: 10
+          #   timeoutSeconds: 10
           name: payment-cmd-handler-svc
 
       restartPolicy: Always
-
