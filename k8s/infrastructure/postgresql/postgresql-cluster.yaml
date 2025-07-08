@@ -11,6 +11,9 @@ spec:
      storageClass: local-path
      #    storageClass: standard
      size: 10Gi
+  postgresql:
+    parameters:
+      max_connections: "500"
   monitoring:
      enablePodMonitor: true
   enableSuperuserAccess: true
