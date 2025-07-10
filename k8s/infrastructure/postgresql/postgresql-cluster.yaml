@@ -4,11 +4,24 @@ metadata:
   name: postgresql-cluster
   namespace: postgresql
 spec:
+#  affinity:
+#    nodeSelector:
+#      cloud.google.com/gke-nodepool: infra1
   enablePDB: false
   instances: 3
   imageName: "ghcr.io/cloudnative-pg/postgresql:13.6"
   storage:
-     storageClass: local-path
+#    pvcTemplate:
+#      accessModes:
+#        - ReadWriteOnce
+#      resources:
+#        requests:
+#          storage: 10Gi
+#      storageClassName: local-storage
+
+#     storageClass: premium-rwo
+     storageClass: local-storage
+     type: ephemeral
      #    storageClass: standard
      size: 10Gi
   postgresql:
@@ -17,6 +30,7 @@ spec:
   monitoring:
      enablePodMonitor: true
   enableSuperuserAccess: true
+
    #  superuserSecret:
    #    name: postgres-secret
 

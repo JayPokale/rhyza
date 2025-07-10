@@ -15,7 +15,7 @@ import {
     ApiRspIncomingPaymentEvent, ApiRspOutgoingPaymentEvent, ApiRspQuoteEvent,
     Attributes,
     CreateIncomingPaymentCmd,
-    CreateOutgoingPaymentCmd,
+    CreateOutgoingPaymentCmd, CreateOutgoingPaymentCmdPayload,
     CreateQuoteCmd, EventTopics,
     ILogger, IMessage, IMessageConsumer,
     IMessageProducer,
@@ -222,7 +222,7 @@ export class OpenPaymentsApiService {
 
         const requestBody = request.body as any;
 
-        const payload = {
+        const payload:CreateOutgoingPaymentCmdPayload = {
             id: requestBody.id,
             senderWalletAddressId: requestBody.senderWalletAddressId,
             // outgoing payment can be created from EITHER quote OR incoming payment,
@@ -260,27 +260,27 @@ export class OpenPaymentsApiService {
 
         this._telemetryService.updateGauge("ConsumerBatchSize", messages.length);
 
+        const timerEndFn = this._startTimer("msgBatchProcess")
         for(const msg of messages) {
             await this._msgHandler(msg);
         }
+        timerEndFn();
     }
 
     private async _msgHandler(message: IMessage): Promise<void> {
         //logger.debug({message}, `Event(${os.hostname()}): EventReceived`);
+        const timerEndFn = this._startTimer("msgProcess")
 
         const reply = this._responseMap.get(message.requestId as string);
         if (!reply) {
-            logger.debug(
-                `Event(${os.hostname()}): No pending response found for requestId: ${
-                    message.requestId
-                }. Ignoring.`
-            );
+            // ignore
+            timerEndFn();
             return;
         }
 
         if(message.msgTimestamp){
             const msgDelay = Date.now() - message.msgTimestamp;
-            this._telemetryService.recordHistogram("outgoing_payment_create_api_replies", msgDelay, {callName: "msgDelay"});
+            this._telemetryService.recordHistogram(TELEMETRY_API_HISTOGRAM_NAME, msgDelay, {callName: "msgDelay"});
         }
 
         try {
@@ -324,7 +324,6 @@ export class OpenPaymentsApiService {
                     );
                 }
             }
-            this._responseMap.delete(message.requestId as string);
         } catch (err) {
             logger.error(
                 `RafikiApiResponseEventHandler - processing event - ${
@@ -338,9 +337,11 @@ export class OpenPaymentsApiService {
             logger.error("API -> Payload for error:");
             logger.error(message);
             await reply.fastifyReply.code(500).send();
-        } finally {
-            if (reply) reply.timer();
         }
 
+        this._responseMap.delete(message.requestId as string);
+        if (reply) reply.timer();
+
+        timerEndFn();
     }
 }

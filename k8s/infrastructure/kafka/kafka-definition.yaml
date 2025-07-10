@@ -15,9 +15,27 @@ spec:
     volumes:
       - id: 0
         type: persistent-claim
-        size: 8Gi
+#        type: ephemeral
+        size: 50Gi
         deleteClaim: false
         kraftMetadata: shared
+#        class: premium-rwo # remove for non-GCP clusters
+        class: local-storage # remove for non-GCP clusters
+#        path: /
+
+#  template:
+#    pod:
+#      affinity:
+#        nodeAffinity:
+#          requiredDuringSchedulingIgnoredDuringExecution:
+#            nodeSelectorTerms:
+#              - matchExpressions:
+#                  - key: cloud.google.com/gke-nodepool
+#                    operator: In
+#                    values:
+#                      - infra1
+
+
 ---
 
 apiVersion: kafka.strimzi.io/v1beta2
@@ -30,6 +48,7 @@ metadata:
     strimzi.io/kraft: enabled
 spec:
   kafka:
+
     version: 4.0.0
     metadataVersion: 4.0-IV3
     listeners:

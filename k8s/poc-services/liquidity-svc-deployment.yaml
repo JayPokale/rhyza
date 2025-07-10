@@ -7,7 +7,7 @@ metadata:
     app: liquidity-svc
     app.kubernetes.io/name: liquidity-svc
 spec:
-  #  replicas: 1
+#  replicas: 1
   selector:
     matchLabels:
       app: liquidity-svc
@@ -20,6 +20,8 @@ spec:
         app: liquidity-svc
         app.kubernetes.io/name: liquidity-svc
     spec:
+#      nodeSelector:
+#        cloud.google.com/gke-nodepool: apps-pool
       containers:
         - env:
             - name: OPEN_TELEMETRY_COLLECTOR_URL
@@ -29,10 +31,11 @@ spec:
             - name: TB_CLUSTER_REPLICA_ADDRESSES
               value: tigerbeetle-single-svc.tigerbeetle.svc.cluster.local:13000
             - name: DATABASE_URL
-              value: postgresql://postgres:GBv6YU9w7X5GubEpfDo7E2WDyLfuuRVeUobwQc2iLsMZQ8gF8lfXgnmsmoix3UzW@postgresql-cluster-rw.postgresql:5432/liquidity
+              value: postgresql://postgres:Qy2lygdFKha9xdtLkxW3VfIlpds6V2kYguLrTqH4bPpQlKoI68y5spac9fBqcbtX@postgresql-cluster-rw.postgresql:5432/liquidity
             - name: MAX_BATCH_SIZE
               value: "200"
           image: k8scluster-registry.internal:5000/rafiki-poc-liquidity-svc:0.0.1
+#          image: europe-west1-docker.pkg.dev/rafiki-poc/rafiki-poc/liquidity-svc:0.0.1
           # livenessProbe:
           #   exec:
           #     command:
@@ -41,7 +44,9 @@ spec:
           #   initialDelaySeconds: 30
           #   periodSeconds: 10
           #   timeoutSeconds: 10
+          imagePullPolicy: Always
           name: liquidity-svc
           ports:
             - containerPort: 3000
       restartPolicy: Always
+

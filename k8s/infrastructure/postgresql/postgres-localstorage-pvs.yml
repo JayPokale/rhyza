@@ -1,0 +1,74 @@
+#apiVersion: v1
+#kind: PersistentVolume
+#metadata:
+#  name: local-psql-volume-01
+#  namespace: postgresql
+#  labels:
+#    type: local
+#spec:
+#  persistentVolumeReclaimPolicy: Retain
+#  storageClassName: local-storage
+#  capacity:
+#    storage: 50Gi
+#  accessModes:
+#    - ReadWriteOnce
+#  local:
+#    path: "/mnt/stateful_partition/kube-ephemeral-ssd/"
+#  nodeAffinity:
+#    required:
+#      nodeSelectorTerms:
+#        - matchExpressions:
+#            - key: kubernetes.io/hostname
+#              operator: In
+#              values:
+#                - gke-rafiki-poc-cluster-infra1-ba9795c7-20ln
+#---
+#apiVersion: v1
+#kind: PersistentVolume
+#metadata:
+#  name: local-psql-volume-02
+#  namespace: postgresql
+#  labels:
+#    type: local
+#spec:
+#  persistentVolumeReclaimPolicy: Retain
+#  storageClassName: local-storage
+#  capacity:
+#    storage: 50Gi
+#  accessModes:
+#    - ReadWriteOnce
+#  local:
+#    path: "/mnt/stateful_partition/kube-ephemeral-ssd/"
+#  nodeAffinity:
+#    required:
+#      nodeSelectorTerms:
+#        - matchExpressions:
+#            - key: kubernetes.io/hostname
+#              operator: In
+#              values:
+#                - gke-rafiki-poc-cluster-infra1-ba9795c7-fm45
+#---
+#apiVersion: v1
+#kind: PersistentVolume
+#metadata:
+#  name: local-psql-volume-03
+#  namespace: postgresql
+#  labels:
+#    type: local
+#spec:
+#  persistentVolumeReclaimPolicy: Retain
+#  storageClassName: local-storage
+#  capacity:
+#    storage: 50Gi
+#  accessModes:
+#    - ReadWriteOnce
+#  local:
+#    path: "/mnt/stateful_partition/kube-ephemeral-ssd/"
+#  nodeAffinity:
+#    required:
+#      nodeSelectorTerms:
+#        - matchExpressions:
+#            - key: kubernetes.io/hostname
+#              operator: In
+#              values:
+#                - gke-rafiki-poc-cluster-infra1-ba9795c7-g24r

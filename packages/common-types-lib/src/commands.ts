@@ -97,6 +97,9 @@ export class CreateOutgoingPaymentCmd extends CommandMsg {
     constructor(payload: CreateOutgoingPaymentCmdPayload, requestId: string) {
         super();
         this.msgKey = this.aggregateId = payload.incomingPaymentId;
+        // TODO tests
+        // this.msgKey = crypto.randomUUID();
+
         this.payload = payload;
         this.requestId = requestId;
     }

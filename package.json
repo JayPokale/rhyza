@@ -1,6 +1,6 @@
 {
   "name": "rafiki-poc",
-  "packageManager": "pnpm@10.0.0",
+  "packageManager": "pnpm@10.13.1",
   "scripts": {
     "clean": "find . -name 'node_modules' -type d -prune -exec rm -rf '{}' +",
     "docker:up": "docker compose -f ./docker/docker-compose.yaml down --volumes && docker compose -f ./docker/docker-compose.yaml up --build",

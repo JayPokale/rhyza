@@ -74,7 +74,9 @@
                 "orientation": "auto",
                 "percentChangeColorMode": "standard",
                 "reduceOptions": {
-                    "calcs": ["lastNotNull"],
+                    "calcs": [
+                        "lastNotNull"
+                    ],
                     "fields": "",
                     "values": false
                 },
@@ -135,7 +137,9 @@
                 "orientation": "auto",
                 "percentChangeColorMode": "standard",
                 "reduceOptions": {
-                    "calcs": ["lastNotNull"],
+                    "calcs": [
+                        "lastNotNull"
+                    ],
                     "fields": "",
                     "values": false
                 },
@@ -196,7 +200,9 @@
                 "orientation": "auto",
                 "percentChangeColorMode": "standard",
                 "reduceOptions": {
-                    "calcs": ["lastNotNull"],
+                    "calcs": [
+                        "lastNotNull"
+                    ],
                     "fields": "",
                     "values": false
                 },
@@ -257,7 +263,9 @@
                 "orientation": "auto",
                 "percentChangeColorMode": "standard",
                 "reduceOptions": {
-                    "calcs": ["lastNotNull"],
+                    "calcs": [
+                        "lastNotNull"
+                    ],
                     "fields": "",
                     "values": false
                 },
@@ -279,7 +287,7 @@
                     "useBackend": false
                 }
             ],
-            "title": "ApiConsumer BatchSize",
+            "title": "ApiConsumer BatchSize (total)",
             "type": "stat"
         },
         {
@@ -322,7 +330,9 @@
                 "orientation": "auto",
                 "percentChangeColorMode": "standard",
                 "reduceOptions": {
-                    "calcs": ["lastNotNull"],
+                    "calcs": [
+                        "lastNotNull"
+                    ],
                     "fields": "",
                     "values": false
                 },
@@ -421,7 +431,9 @@
                             "id": "byNames",
                             "options": {
                                 "mode": "exclude",
-                                "names": ["Value"],
+                                "names": [
+                                    "Value"
+                                ],
                                 "prefix": "All except:",
                                 "readOnly": true
                             }
@@ -449,7 +461,12 @@
             "interval": "1s",
             "options": {
                 "legend": {
-                    "calcs": ["lastNotNull", "min", "mean", "max"],
+                    "calcs": [
+                        "lastNotNull",
+                        "min",
+                        "mean",
+                        "max"
+                    ],
                     "displayMode": "table",
                     "placement": "right",
                     "showLegend": true,
@@ -616,7 +633,12 @@
             "id": 5,
             "options": {
                 "legend": {
-                    "calcs": ["lastNotNull", "min", "mean", "max"],
+                    "calcs": [
+                        "lastNotNull",
+                        "min",
+                        "mean",
+                        "max"
+                    ],
                     "displayMode": "table",
                     "placement": "right",
                     "showLegend": true,
@@ -634,10 +656,22 @@
             "targets": [
                 {
                     "editorMode": "code",
-                    "expr": "avg by (callName) (rate(api_requests_sum[$__rate_interval])/rate(api_requests_count[$__rate_interval]) >=0)\n\n",
+                    "expr": "avg by (callName) (rate(api_requests_sum[$__rate_interval])/rate(api_requests_count[$__rate_interval]) >=0)",
                     "legendFormat": "{{callName}}",
                     "range": true,
                     "refId": "A"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "PBFA97CFB590B2093"
+                    },
+                    "editorMode": "code",
+                    "expr": "avg by (callName) (rate(outgoing_payment_create_api_replies_sum[$__rate_interval])/rate(outgoing_payment_create_api_replies_count[$__rate_interval]) >=0)",
+                    "hide": false,
+                    "legendFormat": "{{callName}}",
+                    "range": true,
+                    "refId": "B"
                 }
             ],
             "title": "API Processing Duration",
@@ -696,7 +730,9 @@
                 "orientation": "auto",
                 "percentChangeColorMode": "standard",
                 "reduceOptions": {
-                    "calcs": ["lastNotNull"],
+                    "calcs": [
+                        "lastNotNull"
+                    ],
                     "fields": "",
                     "values": false
                 },
@@ -709,7 +745,7 @@
                 {
                     "disableTextWrap": false,
                     "editorMode": "code",
-                    "expr": "avg(ConsumerBatchSize{service_name=\"command-handler-svc\"})",
+                    "expr": "sum(ConsumerBatchSize{service_name=\"command-handler-svc\"})",
                     "fullMetaSearch": false,
                     "includeNullMetadata": true,
                     "legendFormat": "__auto",
@@ -718,7 +754,7 @@
                     "useBackend": false
                 }
             ],
-            "title": "CmdHandler BatchSize",
+            "title": "CmdHandler BatchSize (total)",
             "type": "stat"
         },
         {
@@ -761,7 +797,9 @@
                 "orientation": "auto",
                 "percentChangeColorMode": "standard",
                 "reduceOptions": {
-                    "calcs": ["lastNotNull"],
+                    "calcs": [
+                        "lastNotNull"
+                    ],
                     "fields": "",
                     "values": false
                 },
@@ -877,7 +915,12 @@
             "id": 6,
             "options": {
                 "legend": {
-                    "calcs": ["lastNotNull", "min", "mean", "max"],
+                    "calcs": [
+                        "lastNotNull",
+                        "min",
+                        "mean",
+                        "max"
+                    ],
                     "displayMode": "table",
                     "placement": "right",
                     "showLegend": true,
@@ -928,10 +971,166 @@
                     "legendFormat": "ConsumeBatchSize",
                     "range": true,
                     "refId": "C"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "PBFA97CFB590B2093"
+                    },
+                    "editorMode": "code",
+                    "expr": "sum(rate(outgoing_payments_completed_total[$__rate_interval]))",
+                    "hide": true,
+                    "legendFormat": "OutgoingCompleted",
+                    "range": true,
+                    "refId": "D"
                 }
             ],
             "title": "Command Handler Duration",
             "type": "timeseries"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+            },
+            "description": "Processing durations for the command handler.",
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisBorderShow": false,
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "barWidthFactor": 0.6,
+                        "drawStyle": "line",
+                        "fillOpacity": 0,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "insertNulls": false,
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "auto",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green"
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    }
+                },
+                "overrides": [
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "msgDelay"
+                        },
+                        "properties": [
+                            {
+                                "id": "custom.axisPlacement",
+                                "value": "right"
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "OutgoingCompleted"
+                        },
+                        "properties": [
+                            {
+                                "id": "custom.axisPlacement",
+                                "value": "right"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 24,
+                "x": 0,
+                "y": 33
+            },
+            "id": 27,
+            "options": {
+                "legend": {
+                    "calcs": [
+                        "lastNotNull",
+                        "min",
+                        "mean",
+                        "max"
+                    ],
+                    "displayMode": "table",
+                    "placement": "right",
+                    "showLegend": true,
+                    "sortBy": "Last *",
+                    "sortDesc": true,
+                    "width": 600
+                },
+                "tooltip": {
+                    "hideZeros": false,
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "pluginVersion": "12.0.2",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "PBFA97CFB590B2093"
+                    },
+                    "editorMode": "code",
+                    "expr": "sum(rate(outgoing_payments_completed_total[$__rate_interval]))",
+                    "hide": false,
+                    "legendFormat": "OutgoingCompleted",
+                    "range": true,
+                    "refId": "D"
+                }
+            ],
+            "title": "Command Handler Duration",
+            "type": "timeseries"
+        },
+        {
+            "collapsed": false,
+            "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 37
+            },
+            "id": 17,
+            "panels": [],
+            "title": "Liquidity Svc",
+            "type": "row"
         },
         {
             "datasource": {
@@ -963,7 +1162,7 @@
                 "h": 3,
                 "w": 4,
                 "x": 12,
-                "y": 33
+                "y": 38
             },
             "id": 19,
             "options": {
@@ -973,7 +1172,9 @@
                 "orientation": "auto",
                 "percentChangeColorMode": "standard",
                 "reduceOptions": {
-                    "calcs": ["lastNotNull"],
+                    "calcs": [
+                        "lastNotNull"
+                    ],
                     "fields": "",
                     "values": false
                 },
@@ -1028,7 +1229,7 @@
                 "h": 3,
                 "w": 4,
                 "x": 16,
-                "y": 33
+                "y": 38
             },
             "id": 26,
             "options": {
@@ -1038,7 +1239,9 @@
                 "orientation": "auto",
                 "percentChangeColorMode": "standard",
                 "reduceOptions": {
-                    "calcs": ["lastNotNull"],
+                    "calcs": [
+                        "lastNotNull"
+                    ],
                     "fields": "",
                     "values": false
                 },
@@ -1093,7 +1296,7 @@
                 "h": 2,
                 "w": 4,
                 "x": 20,
-                "y": 33
+                "y": 38
             },
             "id": 24,
             "options": {
@@ -1103,7 +1306,9 @@
                 "orientation": "auto",
                 "percentChangeColorMode": "standard",
                 "reduceOptions": {
-                    "calcs": ["lastNotNull"],
+                    "calcs": [
+                        "lastNotNull"
+                    ],
                     "fields": "",
                     "values": false
                 },
@@ -1128,19 +1333,6 @@
             ],
             "title": "Liq Svc Instances",
             "type": "stat"
-        },
-        {
-            "collapsed": false,
-            "gridPos": {
-                "h": 1,
-                "w": 24,
-                "x": 0,
-                "y": 36
-            },
-            "id": 17,
-            "panels": [],
-            "title": "Liquidity Svc",
-            "type": "row"
         },
         {
             "datasource": {
@@ -1247,12 +1439,17 @@
                 "h": 8,
                 "w": 24,
                 "x": 0,
-                "y": 37
+                "y": 41
             },
             "id": 18,
             "options": {
                 "legend": {
-                    "calcs": ["lastNotNull", "min", "mean", "max"],
+                    "calcs": [
+                        "lastNotNull",
+                        "min",
+                        "mean",
+                        "max"
+                    ],
                     "displayMode": "table",
                     "placement": "right",
                     "showLegend": true,
@@ -1309,7 +1506,7 @@
                 "h": 1,
                 "w": 24,
                 "x": 0,
-                "y": 45
+                "y": 49
             },
             "id": 16,
             "panels": [
@@ -1350,7 +1547,7 @@
                         "h": 11,
                         "w": 24,
                         "x": 0,
-                        "y": 61
+                        "y": 148
                     },
                     "id": 3,
                     "options": {
@@ -1358,7 +1555,9 @@
                         "footer": {
                             "countRows": false,
                             "fields": "",
-                            "reducer": ["sum"],
+                            "reducer": [
+                                "sum"
+                            ],
                             "show": false
                         },
                         "showHeader": true,
@@ -1369,7 +1568,7 @@
                             }
                         ]
                     },
-                    "pluginVersion": "12.0.2",
+                    "pluginVersion": "11.6.0",
                     "targets": [
                         {
                             "datasource": {
@@ -1411,98 +1610,6 @@
             ],
             "title": "Tracing",
             "type": "row"
-        },
-        {
-            "datasource": {
-                "type": "prometheus",
-                "uid": "PBFA97CFB590B2093"
-            },
-            "fieldConfig": {
-                "defaults": {
-                    "color": {
-                        "mode": "palette-classic"
-                    },
-                    "custom": {
-                        "axisBorderShow": false,
-                        "axisCenteredZero": false,
-                        "axisColorMode": "text",
-                        "axisLabel": "",
-                        "axisPlacement": "auto",
-                        "barAlignment": 0,
-                        "barWidthFactor": 0.6,
-                        "drawStyle": "line",
-                        "fillOpacity": 0,
-                        "gradientMode": "none",
-                        "hideFrom": {
-                            "legend": false,
-                            "tooltip": false,
-                            "viz": false
-                        },
-                        "insertNulls": false,
-                        "lineInterpolation": "linear",
-                        "lineWidth": 1,
-                        "pointSize": 5,
-                        "scaleDistribution": {
-                            "type": "linear"
-                        },
-                        "showPoints": "auto",
-                        "spanNulls": false,
-                        "stacking": {
-                            "group": "A",
-                            "mode": "none"
-                        },
-                        "thresholdsStyle": {
-                            "mode": "off"
-                        }
-                    },
-                    "mappings": [],
-                    "thresholds": {
-                        "mode": "absolute",
-                        "steps": [
-                            {
-                                "color": "green"
-                            },
-                            {
-                                "color": "red",
-                                "value": 80
-                            }
-                        ]
-                    }
-                },
-                "overrides": []
-            },
-            "gridPos": {
-                "h": 8,
-                "w": 24,
-                "x": 0,
-                "y": 46
-            },
-            "id": 27,
-            "options": {
-                "legend": {
-                    "calcs": [],
-                    "displayMode": "list",
-                    "placement": "bottom",
-                    "showLegend": true
-                },
-                "tooltip": {
-                    "hideZeros": false,
-                    "mode": "single",
-                    "sort": "none"
-                }
-            },
-            "pluginVersion": "12.0.2",
-            "targets": [
-                {
-                    "editorMode": "code",
-                    "expr": "sum(rate(outgoing_payments_completed_total[30s]))",
-                    "legendFormat": "Outgoing Payments Completed",
-                    "range": true,
-                    "refId": "A"
-                }
-            ],
-            "title": "TPS",
-            "type": "timeseries"
         }
     ],
     "preload": false,
@@ -1513,12 +1620,12 @@
         "list": []
     },
     "time": {
-        "from": "now-15m",
+        "from": "now-30m",
         "to": "now"
     },
     "timepicker": {},
     "timezone": "browser",
     "title": "Rafiki POC2",
     "uid": "aeg4uh40kdl34b",
-    "version": 5
+    "version": 11
 }

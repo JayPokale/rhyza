@@ -82,6 +82,10 @@ const KAFKA_AUTH_MECHANISM = process.env["KAFKA_AUTH_MECHANISM"] || "plain";
 const KAFKA_AUTH_USERNAME = process.env["KAFKA_AUTH_USERNAME"] || "user";
 const KAFKA_AUTH_PASSWORD = process.env["KAFKA_AUTH_PASSWORD"] || "password";
 
+const CONSUMER_BATCH_SIZE = (process.env["CONSUMER_BATCH_SIZE"] && parseInt(process.env["CONSUMER_BATCH_SIZE"])) || 250;
+const CONSUMER_BATCH_TIMEOUT_MS = (process.env["CONSUMER_BATCH_TIMEOUT_MS"] && parseInt(process.env["CONSUMER_BATCH_TIMEOUT_MS"])) || 5;
+
+
 // kafka common options
 const kafkaProducerCommonOptions:RafikiKafkaJsonProducerOptions = {
     kafkaBrokerList: KAFKA_URL,
@@ -90,8 +94,8 @@ const kafkaProducerCommonOptions:RafikiKafkaJsonProducerOptions = {
 const kafkaConsumerCommonOptions:RafikiKafkaJsonConsumerOptions ={
     kafkaBrokerList: KAFKA_URL,
     kafkaGroupId: "rafiki-cmd-handler",
-    batchSize: 500,
-    batchTimeoutMs: 50
+    batchSize: CONSUMER_BATCH_SIZE,
+    batchTimeoutMs: CONSUMER_BATCH_TIMEOUT_MS
 };
 if(KAFKA_AUTH_ENABLED){
     kafkaProducerCommonOptions.authentication = kafkaConsumerCommonOptions.authentication = {

@@ -160,6 +160,11 @@ export class PaymentDomainService {
         // second phase, process all business rules
         this._logger.debug("- business rules() started");
         for (const cmd of cmds) {
+            if(cmd.msgTimestamp){
+                const msgDelay = Date.now() - cmd.msgTimestamp;
+                this._telemetryService.recordHistogram(TELEMETRY_API_HISTOGRAM_NAME, msgDelay, {callName: "msgDelay"});
+            }
+
             try{
                 if (cmd.msgName === CreateIncomingPaymentCmd.name) {
                     const id = await this._createIncomingPayment(cmd as CreateIncomingPaymentCmd);

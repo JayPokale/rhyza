@@ -32,7 +32,7 @@ kubectl apply -f monitoring/opentelemetry.yaml
 # Install infrastructure components
 kubectl apply -f infrastructure/kafka
 kubectl apply -f infrastructure/postgresql
-kubectl apply -f infrastructure/tigerbeetl
+kubectl apply -f infrastructure/tigerbeetle
 ```
 
 ## Database tables
@@ -156,27 +156,26 @@ CREATE TABLE IF NOT EXISTS outgoing_micro_payments (
 --   FOREIGN KEY (ilp_peer_id) REFERENCES ilp_peers(id)
 );
 
-CREATE TABLE IF NOT EXISTS asset_accounts (
-  id UUID PRIMARY KEY NOT NULL,
-  asset_code TEXT NOT NULL,
-  asset_scale INT NOT NULL,
-  settlement_account_id UUID NOT NULL,
-  liquidity_account_id UUID NOT NULL
-);
+```
 
-CREATE TABLE IF NOT EXISTS peer_accounts (
-  id UUID PRIMARY KEY NOT NULL,
-  asset_code TEXT NOT NULL,
-  asset_scale INT NOT NULL,
-  liquidity_account_id UUID NOT NULL
-);
+Truncate tables
+```
+\c payments
 
-CREATE TABLE IF NOT EXISTS wallet_address_accounts (
-  id UUID PRIMARY KEY NOT NULL,
-  asset_code TEXT NOT NULL,
-  asset_scale INT NOT NULL,
-  liquidity_account_id UUID NOT NULL
-);
+
+TRUNCATE TABLE assets;
+TRUNCATE TABLE ilp_peers;
+TRUNCATE TABLE incoming_micro_payments;
+TRUNCATE TABLE incoming_payments;
+TRUNCATE TABLE outgoing_micro_payments;
+TRUNCATE TABLE outgoing_payments;
+TRUNCATE TABLE quotes;
+TRUNCATE TABLE remote_incoming_payments;
+TRUNCATE TABLE wallet_addresses;
+
+\c liquidity
+
+TRUNCATE asset_accounts; TRUNCATE peer_accounts; TRUNCATE wallet_address_accounts;
 ```
 
 ## Running services
