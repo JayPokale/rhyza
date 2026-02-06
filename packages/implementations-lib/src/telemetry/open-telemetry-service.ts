@@ -127,6 +127,7 @@ export class OpenTelemetryService implements TelemetryService {
     sdk.start();
 
     this.instance.fastifyOtelInstrumentation = new FastifyOtelInstrumentation({
+      // @ts-expect-error TODO fix fastify otel instrumentation
       servername: `${appName}_${instanceId}`
     });
 

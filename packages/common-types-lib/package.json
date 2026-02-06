@@ -10,7 +10,6 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "@types/pg": "^8.11.11",
     "tsx": "^4.19.3"
   }
 }

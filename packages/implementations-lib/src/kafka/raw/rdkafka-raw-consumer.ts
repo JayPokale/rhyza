@@ -6,7 +6,7 @@ import { LibrdKafkaError, Metadata } from 'node-rdkafka';
 import {
   RawAuthenticationOptions,
   RawMessage,
-  IRawMessageConsumer
+  RawMessageConsumer
 } from './raw-types';
 import * as crypto from 'crypto';
 import { logger } from '../../logger';
@@ -67,7 +67,7 @@ type RafikiKafkaRawConsumerEventListener<K extends string> =
 
 export class RafikiKafkaRawConsumer
   extends EventEmitter
-  implements IRawMessageConsumer
+  implements RawMessageConsumer
 {
   private _options: RafikiKafkaRawConsumerOptions;
   private _globalConfig: RDKafka.ConsumerGlobalConfig = {};

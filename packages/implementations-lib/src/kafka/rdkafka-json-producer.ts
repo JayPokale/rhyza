@@ -2,7 +2,7 @@ import { MessageProducer, Message } from 'common-types-lib';
 import {
   RafikiKafkaRawProducer,
   RafikiKafkaRawProducerOptions
-} from './raw/rdkafka_raw_producer';
+} from './raw/rdkafka-raw-producer';
 import { RawMessage } from './raw/raw-types';
 
 import { logger } from '../logger';

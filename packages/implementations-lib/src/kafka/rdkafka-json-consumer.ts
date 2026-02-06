@@ -4,7 +4,7 @@ import {
   RafikiKafkaRawConsumer,
   RafikiKafkaRawConsumerOutputType,
   RafikiKafkaRawConsumerOptions
-} from './raw/rdkafka_raw_consumer';
+} from './raw/rdkafka-raw-consumer';
 import { RawAuthenticationOptions, RawMessage } from './raw/raw-types';
 
 type RafikiKafkaJsonConsumerEvents = 'rebalance';

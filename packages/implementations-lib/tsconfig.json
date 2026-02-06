@@ -9,7 +9,6 @@
   },
   "include": ["src/**/*"],
   "references": [
-    { "path": "../payments-domain-lib" },
     { "path": "../common-types-lib" }
   ]
 }

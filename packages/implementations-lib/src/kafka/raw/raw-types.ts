@@ -13,7 +13,7 @@ export interface RawMessage {
   offset: number | null;
 }
 
-export interface IRawMessageConsumer {
+export interface RawMessageConsumer {
   setCallbackFn: (
     handlerCallback: (message: RawMessage) => Promise<void>
   ) => void;
