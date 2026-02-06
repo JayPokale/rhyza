@@ -14,4 +14,3 @@ img
 **/*.tsbuildinfo
 
 benchmark.js
-k8s/

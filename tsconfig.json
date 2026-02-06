@@ -10,12 +10,8 @@
   },
   "references": [
     { "path": "./packages/common-types-lib" },
-    { "path": "./packages/liquidity-types-lib" },
     { "path": "./packages/payments-domain-lib" },
-    { "path": "./packages/implementations-lib" },
-    { "path": "./packages/liquidity-svc" },
-    { "path": "./packages/api-svc" }
-    //    { "path": "./packages/payments-command-handler-svc" }
+    { "path": "./packages/implementations-lib" }
   ],
   "files": [],
   "include": []

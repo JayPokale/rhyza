@@ -1,38 +1,24 @@
-/*****
- Copyright © 2025 & The People's Clearing House
- ----------------------------------------------
- Contributors
+import { Logger, TelemetryService } from 'common-types-lib';
+import process from 'process';
+import { NodeTracerProvider } from '@opentelemetry/node';
 
- * Interledger Foundation / Cyberbones
- - Pedro Sousa Barreto <pedrosousabarreto@gmail.com>
- ******/
+import { Resource, resourceFromAttributes } from '@opentelemetry/resources';
 
-'use strict'
-
-import { ILogger, ITelemetryService } from 'common-types-lib'
-import process from 'process'
-import { NodeTracerProvider } from '@opentelemetry/node'
-
-import { Resource, resourceFromAttributes } from '@opentelemetry/resources'
-
-import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-grpc'
-import {
-  MeterProvider,
-  PeriodicExportingMetricReader
-} from '@opentelemetry/sdk-metrics'
-import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-grpc'
-import { api, NodeSDK } from '@opentelemetry/sdk-node'
-import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-node'
-import { registerInstrumentations } from '@opentelemetry/instrumentation'
-import { HttpInstrumentation } from '@opentelemetry/instrumentation-http'
-import { PgInstrumentation } from '@opentelemetry/instrumentation-pg'
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-grpc';
+import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
+import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-grpc';
+import { NodeSDK } from '@opentelemetry/sdk-node';
+import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-node';
+import { registerInstrumentations } from '@opentelemetry/instrumentation';
+import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
+import { PgInstrumentation } from '@opentelemetry/instrumentation-pg';
 import {
   ATTR_SERVICE_INSTANCE_ID,
   ATTR_SERVICE_NAME,
   ATTR_SERVICE_NAMESPACE,
   ATTR_SERVICE_VERSION
-} from '@opentelemetry/semantic-conventions/incubating'
-import { FastifyOtelInstrumentation } from '@fastify/otel'
+} from '@opentelemetry/semantic-conventions/incubating';
+import { FastifyOtelInstrumentation } from '@fastify/otel';
 import {
   Attributes,
   Counter,
@@ -40,52 +26,51 @@ import {
   Histogram,
   MetricOptions,
   metrics
-} from '@opentelemetry/api'
+} from '@opentelemetry/api';
 
-// ENV VAR with DEFAULTS
 const OPEN_TELEMETRY_COLLECTOR_URL =
-  process.env['OPEN_TELEMETRY_COLLECTOR_URL'] || 'http://127.0.0.1:4317'
+  process.env['OPEN_TELEMETRY_COLLECTOR_URL'] || 'http://127.0.0.1:4317';
 
-export class OpenTelemetryServiceClient implements ITelemetryService {
-  private _logger: ILogger
-  private _bcName: string
-  private _appName: string
-  private _appVersion: string
-  private _instanceId: string
-  private _counters: Map<string, Counter>
+export class OpenTelemetryServiceClient implements TelemetryService {
+  private logger: Logger;
+  private bcName: string;
+  private appName: string;
+  private appVersion: string;
+  private instanceId: string;
+  private counters: Map<string, Counter>;
 
-  private _histograms: Map<string, Histogram>
-  private _gauges: Map<string, Gauge>
+  private histograms: Map<string, Histogram>;
+  private gauges: Map<string, Gauge>;
 
-  private _fastifyOtelInstrumentation?: FastifyOtelInstrumentation
+  fastifyOtelInstrumentation?: FastifyOtelInstrumentation;
   // private _provider: NodeTracerProvider;
 
-  private static _instance: OpenTelemetryServiceClient
+  private static instance: OpenTelemetryServiceClient;
 
   private constructor(
     bcName: string,
     appName: string,
     appVersion: string,
     instanceId: string,
-    logger: ILogger,
+    logger: Logger,
     collectorUrl?: string
   ) {
-    this._bcName = bcName
-    this._appName = appName
-    this._appVersion = appVersion
-    this._instanceId = instanceId
-    this._logger = logger
-    this._counters = new Map()
-    this._histograms = new Map()
-    this._gauges = new Map()
+    this.bcName = bcName;
+    this.appName = appName;
+    this.appVersion = appVersion;
+    this.instanceId = instanceId;
+    this.logger = logger;
+    this.counters = new Map();
+    this.histograms = new Map();
+    this.gauges = new Map();
   }
 
-  static getInstance(): ITelemetryService {
-    if (this._instance) return this._instance
+  static getInstance(): TelemetryService {
+    if (this.instance) return this.instance;
 
     throw new Error(
       'Called OpenTelemetryServiceClient.getInstance() before OpenTelemetryClient.Start()'
-    )
+    );
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -94,17 +79,17 @@ export class OpenTelemetryServiceClient implements ITelemetryService {
     appName: string,
     appVersion: string,
     instanceId: string,
-    logger: ILogger,
+    logger: Logger,
     collectorUrl?: string
   ) {
-    if (this._instance) {
+    if (this.instance) {
       throw new Error(
         'Called OpenTelemetryClient.start() a second time - already started'
-      )
+      );
     }
 
     if (!collectorUrl) {
-      collectorUrl = OPEN_TELEMETRY_COLLECTOR_URL
+      collectorUrl = OPEN_TELEMETRY_COLLECTOR_URL;
     }
 
     const commonResource: Resource = resourceFromAttributes({
@@ -112,107 +97,83 @@ export class OpenTelemetryServiceClient implements ITelemetryService {
       [ATTR_SERVICE_NAME]: appName,
       [ATTR_SERVICE_VERSION]: appVersion,
       [ATTR_SERVICE_INSTANCE_ID]: instanceId
-    })
+    });
 
-    this._instance = new OpenTelemetryServiceClient(
+    this.instance = new OpenTelemetryServiceClient(
       bcName,
       appName,
       appVersion,
       instanceId,
       logger
-    )
-
-    // this._instance._provider = new NodeTracerProvider({
-    //     // @ts-ignore
-    //     resource: commonResource,
-    //     //sampler: sampler
-    //     spanProcessors: [new BatchSpanProcessor(traceExporter)],
-    // });
+    );
 
     const metricExporterReader = new PeriodicExportingMetricReader({
       exporter: new OTLPMetricExporter({
         url: collectorUrl
       }),
       exportIntervalMillis: 1000
-    })
-
-    // const meterProvider = new MeterProvider({
-    //     readers: [metricExporterReader],
-    //     resource: commonResource,
-    // });
-    //
-    // api.metrics.setGlobalMeterProvider(meterProvider);
+    });
 
     const traceExporter = new OTLPTraceExporter({
       url: collectorUrl
-    })
+    });
 
     const sdk = new NodeSDK({
       resource: commonResource,
       traceExporter: traceExporter,
       metricReader: metricExporterReader
-    })
+    });
 
-    sdk.start()
+    sdk.start();
 
-    this._instance._fastifyOtelInstrumentation = new FastifyOtelInstrumentation(
-      {
-        servername: `${appName}_${instanceId}`
-      }
-    )
+    this.instance.fastifyOtelInstrumentation = new FastifyOtelInstrumentation({
+      servername: `${appName}_${instanceId}`
+    });
 
     const tracerProvider = new NodeTracerProvider({
       // @ts-ignore
       resource: commonResource,
       spanProcessors: [new BatchSpanProcessor(traceExporter)]
-    })
+    });
 
-    this._instance._fastifyOtelInstrumentation.setTracerProvider(tracerProvider)
-    // this._instance._fastifyOtelInstrumentation.setMeterProvider(metricExporterReader);
+    this.instance.fastifyOtelInstrumentation.setTracerProvider(tracerProvider);
 
-    tracerProvider.register()
+    tracerProvider.register();
 
     registerInstrumentations({
       instrumentations: [
         // Fastify instrumentation expects HTTP instrumentation
         new HttpInstrumentation(),
         new PgInstrumentation()
-        // this._instance._fastifyOtelInstrumentation
       ]
-    })
+    });
 
-    this._instance._logger.info(
+    this.instance.logger.info(
       `OpenTelemetryClient Started with - collector url: "${collectorUrl}"`
-    )
+    );
   }
 
-  public get fastifyOtelInstrumentation():
-    | FastifyOtelInstrumentation
-    | undefined {
-    return this._fastifyOtelInstrumentation
-  }
-
-  private _getOrCreateCounter(name: string, options?: MetricOptions): Counter {
-    if (!this._counters.has(name)) {
-      this._counters.set(
+  private getOrCreateCounter(name: string, options?: MetricOptions): Counter {
+    if (!this.counters.has(name)) {
+      this.counters.set(
         name,
-        metrics.getMeter(this._appName).createCounter(name, options)
-      )
+        metrics.getMeter(this.appName).createCounter(name, options)
+      );
     }
-    return this._counters.get(name)!
+    return this.counters.get(name)!;
   }
 
-  private _getOrCreateHistogram(
+  private getOrCreateHistogram(
     name: string,
     options?: MetricOptions
   ): Histogram {
-    if (!this._histograms.has(name)) {
-      this._histograms.set(
+    if (!this.histograms.has(name)) {
+      this.histograms.set(
         name,
-        metrics.getMeter(this._appName).createHistogram(name, options)
-      )
+        metrics.getMeter(this.appName).createHistogram(name, options)
+      );
     }
-    return this._histograms.get(name)!
+    return this.histograms.get(name)!;
   }
 
   public incrementCounter(
@@ -220,17 +181,17 @@ export class OpenTelemetryServiceClient implements ITelemetryService {
     amount: number,
     attributes: Attributes = {}
   ): void {
-    this._getOrCreateCounter(name).add(amount, attributes)
+    this.getOrCreateCounter(name).add(amount, attributes);
   }
 
-  private _getOrCreateGauge(name: string, options?: MetricOptions): Gauge {
-    let gauge = this._gauges.get(name)
-    if (gauge) return gauge
+  private getOrCreateGauge(name: string, options?: MetricOptions): Gauge {
+    let gauge = this.gauges.get(name);
+    if (gauge) return gauge;
 
-    gauge = metrics.getMeter(this._appName).createGauge(name, options)
-    this._gauges.set(name, gauge)
+    gauge = metrics.getMeter(this.appName).createGauge(name, options);
+    this.gauges.set(name, gauge);
 
-    return gauge
+    return gauge;
   }
 
   public updateGauge(
@@ -238,7 +199,7 @@ export class OpenTelemetryServiceClient implements ITelemetryService {
     value: number,
     attributes: Attributes = {}
   ): void {
-    this._getOrCreateGauge(name).record(value, attributes)
+    this.getOrCreateGauge(name).record(value, attributes);
   }
 
   public recordHistogram(
@@ -246,19 +207,19 @@ export class OpenTelemetryServiceClient implements ITelemetryService {
     value: number,
     attributes?: Attributes
   ): void {
-    this._getOrCreateHistogram(name).record(value, attributes)
+    this.getOrCreateHistogram(name).record(value, attributes);
   }
 
   public startTimer(
     name: string,
     attributes: Attributes = {}
   ): (additionalAttributes?: Attributes) => void {
-    const start = Date.now()
+    const start = Date.now();
     return (additionalAttributes: Attributes = {}) => {
       this.recordHistogram(name, Date.now() - start, {
         ...attributes,
         ...additionalAttributes
-      })
-    }
+      });
+    };
   }
 }

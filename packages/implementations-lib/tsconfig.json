@@ -10,7 +10,6 @@
   "include": ["src/**/*"],
   "references": [
     { "path": "../payments-domain-lib" },
-    { "path": "../common-types-lib" },
-    { "path": "../liquidity-types-lib" }
+    { "path": "../common-types-lib" }
   ]
 }

@@ -1,19 +1,8 @@
-/*****
- Copyright © 2025 & The People's Clearing House
- ----------------------------------------------
- Contributors
+import type { Redis } from 'ioredis';
+import type { Logger } from 'pino';
+import { Cache } from 'common-types-lib';
 
- * Interledger Foundation / Cyberbones
- - Pedro Sousa Barreto <pedrosousabarreto@gmail.com>
- ******/
-
-'use strict'
-
-import type { Redis } from 'ioredis'
-import type { Logger } from 'pino'
-import { ICache } from 'common-types-lib'
-
-export class RedisCache<T> implements ICache<T> {
+export class RedisCache<T> implements Cache<T> {
   constructor(
     private redisClient: Redis,
     private keyTtlMs: number,
@@ -22,36 +11,36 @@ export class RedisCache<T> implements ICache<T> {
   ) {}
 
   async get(id: string): Promise<T | undefined> {
-    const value = await this.redisClient.get(id)
-    if (!value) return
+    const value = await this.redisClient.get(id);
+    if (!value) return;
 
     try {
       if (this.parseFn) {
-        return this.parseFn(value)
+        return this.parseFn(value);
       } else {
-        return JSON.parse(value) as T
+        return JSON.parse(value) as T;
       }
     } catch (err) {
-      this.logger.error('Error parsing cached value:', err)
-      return
+      this.logger.error('Error parsing cached value:', err);
+      return;
     }
   }
 
   async getKeyExpiry(key: string): Promise<number | undefined> {
-    const expiryTimestamp = await this.redisClient.pexpiretime(key)
+    const expiryTimestamp = await this.redisClient.pexpiretime(key);
 
-    if (!expiryTimestamp || expiryTimestamp <= 0) return undefined
+    if (!expiryTimestamp || expiryTimestamp <= 0) return undefined;
 
-    return expiryTimestamp
+    return expiryTimestamp;
   }
 
   async set(key: string, value: T): Promise<boolean> {
     const stringifiedValue = JSON.stringify(value, (key, val) => {
       if (typeof val === 'bigint') {
-        return val.toString()
+        return val.toString();
       }
-      return val
-    })
+      return val;
+    });
 
     return (
       (await this.redisClient.set(
@@ -60,10 +49,10 @@ export class RedisCache<T> implements ICache<T> {
         'PX',
         this.keyTtlMs
       )) === 'OK'
-    )
+    );
   }
 
   async delete(key: string): Promise<void> {
-    await this.redisClient.del(key)
+    await this.redisClient.del(key);
   }
 }

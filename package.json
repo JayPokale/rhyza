@@ -30,12 +30,5 @@
       "node-rdkafka",
       "protobufjs"
     ]
-  },
-  "prettier": {
-    "semi": false,
-    "singleQuote": true,
-    "jsxSingleQuote": true,
-    "trailingComma": "none",
-    "tabWidth": 2
   }
 }
