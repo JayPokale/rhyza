@@ -31,7 +31,7 @@ import {
 const OPEN_TELEMETRY_COLLECTOR_URL =
   process.env['OPEN_TELEMETRY_COLLECTOR_URL'] || 'http://127.0.0.1:4317';
 
-export class OpenTelemetryServiceClient implements TelemetryService {
+export class OpenTelemetryService implements TelemetryService {
   private logger: Logger;
   private bcName: string;
   private appName: string;
@@ -45,7 +45,7 @@ export class OpenTelemetryServiceClient implements TelemetryService {
   fastifyOtelInstrumentation?: FastifyOtelInstrumentation;
   // private _provider: NodeTracerProvider;
 
-  private static instance: OpenTelemetryServiceClient;
+  private static instance: OpenTelemetryService;
 
   private constructor(
     bcName: string,
@@ -73,7 +73,6 @@ export class OpenTelemetryServiceClient implements TelemetryService {
     );
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static Start(
     bcName: string,
     appName: string,
@@ -99,7 +98,7 @@ export class OpenTelemetryServiceClient implements TelemetryService {
       [ATTR_SERVICE_INSTANCE_ID]: instanceId
     });
 
-    this.instance = new OpenTelemetryServiceClient(
+    this.instance = new OpenTelemetryService(
       bcName,
       appName,
       appVersion,

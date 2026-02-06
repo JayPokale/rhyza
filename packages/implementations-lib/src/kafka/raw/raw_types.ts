@@ -1,35 +1,27 @@
-'use strict';
-
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
-export interface IRawMessageHeader {
+export interface RawMessageHeader {
   [key: string]: string | Buffer;
 }
 
-export interface IRawMessage {
+export interface RawMessage {
   value: Buffer | string | object | null;
   topic: string;
   key: Buffer | string | null;
   timestamp: number | null;
-  headers: IRawMessageHeader[] | null;
-
+  headers: RawMessageHeader[] | null;
   partition: number | null;
   offset: number | null;
 }
 
 export interface IRawMessageConsumer {
   setCallbackFn: (
-    handlerCallback: (message: IRawMessage) => Promise<void>
+    handlerCallback: (message: RawMessage) => Promise<void>
   ) => void;
   setBatchCallbackFn: (
-    batchHandlerCallback: (messages: IRawMessage[]) => Promise<void>
+    batchHandlerCallback: (messages: RawMessage[]) => Promise<void>
   ) => void;
   setTopics: (topics: string[]) => void;
-
   setBatchSize(size: number): void;
-
   destroy: (force: boolean) => Promise<void>;
-
   connect: () => Promise<void>;
   disconnect: (force: boolean) => Promise<void>;
   start: () => Promise<void>;
@@ -37,16 +29,14 @@ export interface IRawMessageConsumer {
   stop: () => Promise<void>;
 }
 
-export declare interface IRawMessageProducer {
+export declare interface RawMessageProducer {
   destroy: () => Promise<void>;
-
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
-
-  send: (message: IRawMessage | IRawMessage[] | any) => Promise<void>;
+  send: (message: RawMessage | RawMessage[] | any) => Promise<void>;
 }
 
-export declare interface IRawAuthenticationOptions {
+export declare interface RawAuthenticationOptions {
   protocol: 'plaintext' | 'ssl' | 'sasl_plaintext' | 'sasl_ssl';
   mechanism: 'PLAIN' | 'GSSAPI' | 'SCRAM-SHA-256' | 'SCRAM-SHA-512';
   username: string;

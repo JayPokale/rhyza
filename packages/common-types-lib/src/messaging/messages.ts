@@ -1,7 +1,3 @@
-'use strict';
-
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 import * as Crypto from 'crypto';
 
 export const MessageTypes = {
@@ -18,7 +14,7 @@ export const MessageInboundProtocol = {
 } as const;
 export type MessageInboundProtocol = keyof typeof MessageInboundProtocol;
 
-export interface IMessage {
+export interface Message {
   msgType: MessageTypes;
   msgName: string; // name of the event or command
   msgId: string; // unique per message
@@ -27,21 +23,19 @@ export interface IMessage {
   msgKey: string | null; // usually the id of the aggregate (used for partitioning)
   msgPartition: number | null;
   msgOffset: number | null;
-
   payload: any;
-
   inboundProtocolType: MessageInboundProtocol; // inbound/initial request protocol
   inboundProtocolOpaqueState: any; // protocol opaque state  - all messages produced as response to this should copy it if present
   tracingInfo?: any; // optional tracing information, should be propagated between calls
   requestId?: string;
 }
 
-export interface IDomainMessage extends IMessage {
+export interface DomainMessage extends Message {
   contextName: string; // name of the source/target BC (source if event, target if command)
   aggregateId: string; // id of the source/target aggregate (source if event, target if command)
 }
 
-export abstract class DomainMsg implements IDomainMessage {
+export abstract class DomainMsg implements DomainMessage {
   msgId: string = Crypto.randomUUID();
   msgTimestamp: number = Date.now();
   msgPartition: number | null = null;

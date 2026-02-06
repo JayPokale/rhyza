@@ -1,11 +1,11 @@
-import { IMessageConsumer, IMessage } from 'common-types-lib';
+import { MessageConsumer, Message } from 'common-types-lib';
 import { EventEmitter } from 'events';
 import {
   RafikiKafkaRawConsumer,
   RafikiKafkaRawConsumerOutputType,
   RafikiKafkaRawConsumerOptions
 } from './raw/rdkafka_raw_consumer';
-import { IRawAuthenticationOptions, IRawMessage } from './raw/raw_types';
+import { RawAuthenticationOptions, RawMessage } from './raw/raw_types';
 
 type RafikiKafkaJsonConsumerEvents = 'rebalance';
 type RafikiKafkaJsonConsumerEventListenerMap = {
@@ -27,20 +27,19 @@ export class RafikiKafkaJsonConsumerOptions {
   sessionTimeoutMs?: number; //Client group session and failure detection timeout, default is 45 secs
   batchSize?: number;
   batchTimeoutMs?: number;
-  authentication?: IRawAuthenticationOptions;
+  authentication?: RawAuthenticationOptions;
 }
 
 export class RafikiKafkaJsonConsumer
   extends EventEmitter
-  implements IMessageConsumer
+  implements MessageConsumer
 {
   private readonly _kafkaRawConsumer: RafikiKafkaRawConsumer;
-  private _handlerCallback: ((message: IMessage) => Promise<void>) | null =
-    null;
+  private _handlerCallback: ((message: Message) => Promise<void>) | null = null;
   private _batchHandlerCallback:
-    | ((messages: IMessage[]) => Promise<void>)
+    | ((messages: Message[]) => Promise<void>)
     | null = null;
-  private _filterFn: ((message: IMessage) => boolean) | null = null;
+  private _filterFn: ((message: Message) => boolean) | null = null;
   private _options: RafikiKafkaJsonConsumerOptions;
 
   constructor(options: RafikiKafkaJsonConsumerOptions) {
@@ -93,8 +92,8 @@ export class RafikiKafkaJsonConsumer
     return super.once(event, listener);
   }
 
-  private _convertMsg(message: IRawMessage): IMessage {
-    const valueObj = message.value as IMessage;
+  private _convertMsg(message: RawMessage): Message {
+    const valueObj = message.value as Message;
     valueObj.msgPartition = message.partition;
     valueObj.msgOffset = message.offset;
     valueObj.msgTopic = message.topic;
@@ -103,7 +102,7 @@ export class RafikiKafkaJsonConsumer
     return valueObj;
   }
 
-  private async _internalHandler(rawMessage: IRawMessage): Promise<void> {
+  private async _internalHandler(rawMessage: RawMessage): Promise<void> {
     if (!this._handlerCallback) return;
 
     // convert raw message to IMessage
@@ -118,12 +117,12 @@ export class RafikiKafkaJsonConsumer
   }
 
   private async _internalBatchHandler(
-    rawMessages: IRawMessage[]
+    rawMessages: RawMessage[]
   ): Promise<void> {
     if (!this._batchHandlerCallback) return;
 
     // convert raw message to IMessage and filter
-    const msgs: IMessage[] = [];
+    const msgs: Message[] = [];
     rawMessages.forEach((rawMsg) => {
       const msg = this._convertMsg(rawMsg);
       if (this._filterFn !== null && !this._filterFn(msg)) {
@@ -136,7 +135,7 @@ export class RafikiKafkaJsonConsumer
     await this._batchHandlerCallback(msgs);
   }
 
-  setCallbackFn(handlerCallback: (message: IMessage) => Promise<void>): void {
+  setCallbackFn(handlerCallback: (message: Message) => Promise<void>): void {
     this._batchHandlerCallback = null;
     this._handlerCallback = handlerCallback;
 
@@ -144,7 +143,7 @@ export class RafikiKafkaJsonConsumer
   }
 
   setBatchCallbackFn(
-    batchHandlerCallback: (messages: IMessage[]) => Promise<void>
+    batchHandlerCallback: (messages: Message[]) => Promise<void>
   ): void {
     this._handlerCallback = null;
     this._batchHandlerCallback = batchHandlerCallback;
@@ -154,7 +153,7 @@ export class RafikiKafkaJsonConsumer
     );
   }
 
-  setFilteringFn(filterFn: (message: IMessage) => boolean): void {
+  setFilteringFn(filterFn: (message: Message) => boolean): void {
     this._filterFn = filterFn;
   }
 

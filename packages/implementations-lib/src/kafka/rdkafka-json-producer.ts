@@ -1,15 +1,15 @@
-import { IMessageProducer, IMessage } from 'common-types-lib';
+import { MessageProducer, Message } from 'common-types-lib';
 import {
   RafikiKafkaRawProducer,
   RafikiKafkaRawProducerOptions
 } from './raw/rdkafka_raw_producer';
-import { IRawMessage } from './raw/raw_types';
+import { RawMessage } from './raw/raw_types';
 
 import { logger } from '../logger';
 
 export type RafikiKafkaJsonProducerOptions = RafikiKafkaRawProducerOptions;
 
-export class RafikiKafkaJsonProducer implements IMessageProducer {
+export class RafikiKafkaJsonProducer implements MessageProducer {
   private readonly _rawKafkaProducer: RafikiKafkaRawProducer;
 
   constructor(options: RafikiKafkaJsonProducerOptions) {
@@ -17,10 +17,10 @@ export class RafikiKafkaJsonProducer implements IMessageProducer {
     logger.info('RafikiKafkaJsonProducer - instance created');
   }
 
-  private _convert(message: IMessage | IMessage[]): IRawMessage[] {
-    const outpuMsgs: IRawMessage[] = [];
+  private _convert(message: Message | Message[]): RawMessage[] {
+    const outpuMsgs: RawMessage[] = [];
 
-    const inputMsgs: IMessage[] = Array.isArray(message)
+    const inputMsgs: Message[] = Array.isArray(message)
       ? [...message]
       : [message];
 
@@ -41,10 +41,10 @@ export class RafikiKafkaJsonProducer implements IMessageProducer {
     return outpuMsgs;
   }
 
-  async send(message: IMessage | IMessage[]): Promise<void> {
+  async send(message: Message | Message[]): Promise<void> {
     // TODO fill in missing fields with defaults (id, timestamp, etc)
 
-    const rawMsg: IRawMessage[] = this._convert(message);
+    const rawMsg: RawMessage[] = this._convert(message);
     return this._rawKafkaProducer.send(rawMsg);
   }
 

@@ -4,10 +4,10 @@ import { EventEmitter } from 'events';
 import * as RDKafka from 'node-rdkafka';
 import { NumberNullUndefined } from 'node-rdkafka';
 import {
-  IRawAuthenticationOptions,
-  IRawMessage,
-  IRawMessageHeader,
-  IRawMessageProducer
+  RawAuthenticationOptions,
+  RawMessage,
+  RawMessageHeader,
+  RawMessageProducer
 } from './raw_types';
 
 import { logger } from '../../logger';
@@ -37,7 +37,7 @@ export class RafikiKafkaRawProducerOptions {
   compressionLevel?: number;
   partitioner?: RafikiKafkaRawProducerPartitioners;
   queueBufferingMaxMs?: number;
-  authentication?: IRawAuthenticationOptions;
+  authentication?: RawAuthenticationOptions;
   // /* return -1 if partitioning failed */
   // partitionerFn?: (key:string, partitionCount:number, opaque?:any)=>number // if used will ignore the "partitioner" setting above
 }
@@ -49,7 +49,7 @@ export class RafikiKafkaRawProducerOptions {
 
 export class RafikiKafkaRawProducer
   extends EventEmitter
-  implements IRawMessageProducer
+  implements RawMessageProducer
 {
   private readonly _client!: RDKafka.HighLevelProducer;
   private _globalConfig: RDKafka.ProducerGlobalConfig = {};
@@ -242,13 +242,13 @@ export class RafikiKafkaRawProducer
     }
   }
 
-  private _toRDKafkaProduceParams(msg: IRawMessage): {
+  private _toRDKafkaProduceParams(msg: RawMessage): {
     topic: string;
     partition: NumberNullUndefined;
     message: Buffer;
     key: Buffer;
     timestamp: NumberNullUndefined;
-    headers: IRawMessageHeader[];
+    headers: RawMessageHeader[];
   } {
     const topic: string = msg.topic;
     const partition = msg.partition; // ?? -1 // use default from rdkafka
@@ -284,7 +284,7 @@ export class RafikiKafkaRawProducer
       }
     }
 
-    const headers: IRawMessageHeader[] = [];
+    const headers: RawMessageHeader[] = [];
     msg.headers?.forEach((header) => {
       // NOTE: kafka headers are key/value pairs, only one pair will ever exist per header rec
       for (const key in header) {
@@ -303,19 +303,19 @@ export class RafikiKafkaRawProducer
     };
   }
 
-  async send(message: IRawMessage | IRawMessage[] | any): Promise<void> {
+  async send(message: RawMessage | RawMessage[] | any): Promise<void> {
     if (!message || (message instanceof Array && message.length <= 0))
       return Promise.resolve();
 
     return new Promise((resolve, reject) => {
-      const messages: IRawMessage[] = Array.isArray(message)
+      const messages: RawMessage[] = Array.isArray(message)
         ? message
-        : ([message] as IRawMessage[]);
+        : ([message] as RawMessage[]);
 
       let rejected = false;
       let acksRemaining: number = messages.length;
 
-      messages.forEach((msg: IRawMessage) => {
+      messages.forEach((msg: RawMessage) => {
         try {
           const produceParams = this._toRDKafkaProduceParams(msg);
           this._client.produce(

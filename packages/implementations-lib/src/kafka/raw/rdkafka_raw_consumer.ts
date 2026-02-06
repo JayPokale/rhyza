@@ -5,8 +5,8 @@ import { TopicPartition } from 'node-rdkafka';
 import * as RDKafka from 'node-rdkafka';
 import { LibrdKafkaError, Metadata } from 'node-rdkafka';
 import {
-  IRawAuthenticationOptions,
-  IRawMessage,
+  RawAuthenticationOptions,
+  RawMessage,
   IRawMessageConsumer
 } from './raw_types';
 import * as crypto from 'crypto';
@@ -37,7 +37,7 @@ export class RafikiKafkaRawConsumerOptions {
   batchSize?: number;
   batchTimeoutMs?: number;
   fetchErrorBackoffMms?: number;
-  authentication?: IRawAuthenticationOptions;
+  authentication?: RawAuthenticationOptions;
 }
 
 type RafikiKafkaRawConsumerEvents =
@@ -75,10 +75,10 @@ export class RafikiKafkaRawConsumer
   private _topicConfig: RDKafka.ConsumerTopicConfig = {};
   private _topics: string[] = [];
   private readonly _client: RDKafka.KafkaConsumer;
-  private _handlerCallback: ((message: IRawMessage) => Promise<void>) | null =
+  private _handlerCallback: ((message: RawMessage) => Promise<void>) | null =
     null;
   private _batchHandlerCallback:
-    | ((messages: IRawMessage[]) => Promise<void>)
+    | ((messages: RawMessage[]) => Promise<void>)
     | null = null;
   private _batchSize = defaultOptions.batchSize;
 
@@ -434,8 +434,8 @@ export class RafikiKafkaRawConsumer
     );
   }
 
-  private _toIMessage(kafkaMsg: RDKafka.Message): IRawMessage {
-    const msg: IRawMessage = {
+  private _toIMessage(kafkaMsg: RDKafka.Message): RawMessage {
+    const msg: RawMessage = {
       topic: kafkaMsg.topic,
       partition: kafkaMsg.partition,
       offset: kafkaMsg.offset,
@@ -528,15 +528,13 @@ export class RafikiKafkaRawConsumer
     this._batchSize = size;
   }
 
-  setCallbackFn(
-    handlerCallback: (message: IRawMessage) => Promise<void>
-  ): void {
+  setCallbackFn(handlerCallback: (message: RawMessage) => Promise<void>): void {
     this._batchHandlerCallback = null;
     this._handlerCallback = handlerCallback;
   }
 
   setBatchCallbackFn(
-    batchHandlerCallback: (messages: IRawMessage[]) => Promise<void>
+    batchHandlerCallback: (messages: RawMessage[]) => Promise<void>
   ): void {
     this._batchHandlerCallback = batchHandlerCallback;
   }

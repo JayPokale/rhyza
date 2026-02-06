@@ -2,9 +2,7 @@ FROM node:24-alpine AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable
-# Pin pnpm version until fixed:
-# https://github.com/pnpm/pnpm/issues/9029
-RUN corepack prepare pnpm@10.0.0 --activate
+RUN corepack prepare pnpm@10.28.2 --activate
 
 WORKDIR /workspace
 
@@ -28,9 +26,8 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store BUILD_LIBRDKAFKA=0 pnpm instal
 
 # build dependencies
 RUN pnpm --filter common-types-lib build
-RUN pnpm --filter liquidity-types-lib build
-RUN pnpm --filter payments-domain-lib build
 RUN pnpm --filter implementations-lib build
+RUN pnpm --filter payments-domain-lib build
 
 # build main app
 RUN pnpm --filter payments-command-handler-svc build
@@ -38,25 +35,20 @@ RUN pnpm --filter payments-command-handler-svc build
 FROM base
 COPY --from=prod-deps /workspace/node_modules /workspace/node_modules
 
-COPY ./seed.json /workspace/seed.json
-
 # common-types-lib
 COPY --from=prod-deps /workspace/packages/common-types-lib/node_modules /workspace/packages/common-types-lib/node_modules
 COPY --from=build /workspace/packages/common-types-lib/dist /workspace/packages/common-types-lib/dist
-# liquidity-types-lib
-COPY --from=prod-deps /workspace/packages/liquidity-types-lib/node_modules /workspace/packages/liquidity-types-lib/node_modules
-COPY --from=build /workspace/packages/liquidity-types-lib/dist /workspace/packages/liquidity-types-lib/dist
-# payments-domain-lib
-COPY --from=prod-deps /workspace/packages/payments-domain-lib/node_modules /workspace/packages/payments-domain-lib/node_modules
-COPY --from=build /workspace/packages/payments-domain-lib/dist /workspace/packages/payments-domain-lib/dist
+
 # implementations-lib
 COPY --from=prod-deps /workspace/packages/implementations-lib/node_modules /workspace/packages/implementations-lib/node_modules
 COPY --from=build /workspace/packages/implementations-lib/dist /workspace/packages/implementations-lib/dist
 
+# payments-domain-lib
+COPY --from=prod-deps /workspace/packages/payments-domain-lib/node_modules /workspace/packages/payments-domain-lib/node_modules
+COPY --from=build /workspace/packages/payments-domain-lib/dist /workspace/packages/payments-domain-lib/dist
+
 # main app / payments-command-handler-svc
 COPY --from=prod-deps /workspace/packages/payments-command-handler-svc/node_modules /workspace/packages/payments-command-handler-svc/node_modules
 COPY --from=build /workspace/packages/payments-command-handler-svc/dist /workspace/packages/payments-command-handler-svc/dist
-
-
 
 CMD ["node", "packages/payments-command-handler-svc/dist/index.js"]
