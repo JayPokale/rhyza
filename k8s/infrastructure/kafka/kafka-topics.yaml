@@ -1,28 +1,28 @@
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
 metadata:
-   name: audits
-   namespace: kafka
-   labels:
-      strimzi.io/cluster: kafka
+  name: audits
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: kafka
 spec:
-   partitions: 1
-   replicas: 1
-   config:
-      retention.ms: 604800000
+  partitions: 1
+  replicas: 1
+  config:
+    retention.ms: 604800000
 ---
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
 metadata:
-   name: logs
-   namespace: kafka
-   labels:
-      strimzi.io/cluster: kafka
+  name: logs
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: kafka
 spec:
-   partitions: 1
-   replicas: 1
-   config:
-      retention.ms: 86400000
+  partitions: 1
+  replicas: 1
+  config:
+    retention.ms: 86400000
 ---
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
@@ -41,13 +41,13 @@ spec:
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
 metadata:
-   name: api-response-events
-   namespace: kafka
-   labels:
-      strimzi.io/cluster: kafka
+  name: api-response-events
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: kafka
 spec:
-   topicName: api-response-events
-   partitions: 12
-   replicas: 3
-   config:
-      retention.ms: 604800000
+  topicName: api-response-events
+  partitions: 12
+  replicas: 3
+  config:
+    retention.ms: 604800000

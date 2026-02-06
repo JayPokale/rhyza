@@ -1,7 +1,6 @@
+'use strict'
 
-"use strict";
-
-import {IMessage} from "./messages";
+import { IMessage } from './messages'
 
 export declare interface IMessageProducer {
   destroy: () => Promise<void>

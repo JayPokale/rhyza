@@ -13,17 +13,16 @@ spec:
       labels:
         app.kubernetes.io/name: redpanda-deployment
     spec:
-
       containers:
-      - name: redpanda-container
-        image: redpandadata/console
-        ports:
-        - name: client
-          containerPort: 8080
-        env:
-        - name: KAFKA_BROKERS
-          value: kafka-kafka-bootstrap:9092
-        - name: KAFKA_TLS_ENABLED
-          value: "false"
-        - name: KAFKA_SASL_ENABLED
-          value: "false"
+        - name: redpanda-container
+          image: redpandadata/console
+          ports:
+            - name: client
+              containerPort: 8080
+          env:
+            - name: KAFKA_BROKERS
+              value: kafka-kafka-bootstrap:9092
+            - name: KAFKA_TLS_ENABLED
+              value: 'false'
+            - name: KAFKA_SASL_ENABLED
+              value: 'false'

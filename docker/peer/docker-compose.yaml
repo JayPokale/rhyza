@@ -14,7 +14,7 @@ services:
         condition: service_healthy
     networks:
       - rafiki-poc
-      
+
   pg-container-peer:
     image: postgres
     restart: always
@@ -28,7 +28,7 @@ services:
       - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
       - postgres-data-peer:/var/lib/postgresql/data/
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "postgres", "-d", "database"]
+      test: ['CMD', 'pg_isready', '-U', 'postgres', '-d', 'database']
       interval: 10s
       retries: 5
       start_period: 30s

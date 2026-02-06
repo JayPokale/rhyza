@@ -20,7 +20,7 @@ spec:
           image: grafana/grafana:latest
           env:
             - name: GF_AUTH_ANONYMOUS_ENABLED
-              value: "true"
+              value: 'true'
             - name: GF_AUTH_ANONYMOUS_ORG_ROLE
               value: Admin
           ports:
@@ -29,9 +29,9 @@ spec:
             - name: grafana-datasources-vol
               mountPath: /etc/grafana/provisioning/datasources
               readOnly: false
-#            - mountPath: /etc/grafana/provisioning/dashboards
-#              name: grafana-dashboards
-#              readOnly: false
+      #            - mountPath: /etc/grafana/provisioning/dashboards
+      #              name: grafana-dashboards
+      #              readOnly: false
       volumes:
         - name: grafana-datasources-vol
           configMap:

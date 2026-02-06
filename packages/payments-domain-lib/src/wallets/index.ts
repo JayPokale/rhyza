@@ -7,7 +7,7 @@
  - Pedro Sousa Barreto <pedrosousabarreto@gmail.com>
  ******/
 
-"use strict";
+'use strict'
 
-export * from "./wallet-address-types";
-export * from "./wallet-address-service";
+export * from './wallet-address-types'
+export * from './wallet-address-service'

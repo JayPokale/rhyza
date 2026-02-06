@@ -7,7 +7,7 @@
  - Pedro Sousa Barreto <pedrosousabarreto@gmail.com>
  ******/
 
-"use strict";
+'use strict'
 
 // should go to liquidity-types-lib / do we need this in the client???
 

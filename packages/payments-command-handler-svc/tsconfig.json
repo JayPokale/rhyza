@@ -1,12 +1,16 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-//    "composite": true,
-//    "declarationMap": true,
-//    "sourceMap": true,
+    //    "composite": true,
+    //    "declarationMap": true,
+    //    "sourceMap": true,
     "rootDir": "./src",
     "outDir": "./dist"
   },
   "include": ["src/**/*"],
-  "references": [{ "path": "../implementations-lib" }, { "path": "../common-types-lib" }, { "path": "../liquidity-types-lib" }]
+  "references": [
+    { "path": "../implementations-lib" },
+    { "path": "../common-types-lib" },
+    { "path": "../liquidity-types-lib" }
+  ]
 }

@@ -33,11 +33,9 @@ metadata:
   namespace: tigerbeetle
 spec:
   accessModes:
-  - ReadWriteOnce
+    - ReadWriteOnce
   resources:
     requests:
       storage: 50Gi
-#  storageClassName: premium-rwo
+  #  storageClassName: premium-rwo
   storageClassName: local-storage
-
-

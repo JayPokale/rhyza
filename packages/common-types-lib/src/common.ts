@@ -7,27 +7,24 @@
  - Pedro Sousa Barreto <pedrosousabarreto@gmail.com>
  ******/
 
-"use strict";
+'use strict'
 
 export type Asset = {
-    //id: string;
-    scale: number;
-    code: string;
+  //id: string;
+  scale: number
+  code: string
 }
 
 export type Amount = {
-    assetCode: string;
-    assetScale: number;
-    value: bigint;
+  assetCode: string
+  assetScale: number
+  value: bigint
 }
-
 
 export type WalletAddress = {
-    id: string;
-    url: string;
-    isActive: boolean;
-    assetCode: string;
-    assetScale: number;
+  id: string
+  url: string
+  isActive: boolean
+  assetCode: string
+  assetScale: number
 }
-
-

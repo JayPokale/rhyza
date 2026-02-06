@@ -1,170 +1,207 @@
-"use strict";
+'use strict'
 //require("./telemetry.js"); // Load telemetry before running the rest of the app
 import {
-    InMemoryCache,
-    LiquidityServiceClient,
-    LocalEventEmitterPubSub,
-    logger,
-    OpenTelemetryServiceClient,
-    PostgresPool,
-    RafikiKafkaJsonConsumer,
-    RafikiKafkaJsonConsumerOptions,
-    RafikiKafkaJsonProducer,
-    RafikiKafkaJsonProducerOptions
-} from "implementations-lib";
-import {IlpPeerPsqlRepository} from "implementations-lib/dist/repositories/ilp-peers";
+  InMemoryCache,
+  LiquidityServiceClient,
+  LocalEventEmitterPubSub,
+  logger,
+  OpenTelemetryServiceClient,
+  PostgresPool,
+  RafikiKafkaJsonConsumer,
+  RafikiKafkaJsonConsumerOptions,
+  RafikiKafkaJsonProducer,
+  RafikiKafkaJsonProducerOptions
+} from 'implementations-lib'
+import { IlpPeerPsqlRepository } from 'implementations-lib/dist/repositories/ilp-peers'
 import {
-    IlpConnector,
-    IlpPeer,
-    IlpPeerService,
-    RemoteIncomingPayment,
-    RemoteIncomingPaymentService
-} from "payments-domain-lib";
-import {RemoteIncomingPaymentPsqlRepository} from "implementations-lib/dist/repositories/remote-incoming-payments";
-import {fastify} from "fastify";
-import {OpenPaymentsApiService} from "./openpayments-service";
-import {IlpApiService} from "./ilp-service";
-import process from "process";
-import {RafikiKafkaRawProducerPartitioners} from "implementations-lib/dist/kafka/raw/rdkafka_raw_producer";
+  IlpConnector,
+  IlpPeer,
+  IlpPeerService,
+  RemoteIncomingPayment,
+  RemoteIncomingPaymentService
+} from 'payments-domain-lib'
+import { RemoteIncomingPaymentPsqlRepository } from 'implementations-lib/dist/repositories/remote-incoming-payments'
+import { fastify } from 'fastify'
+import { OpenPaymentsApiService } from './openpayments-service'
+import { IlpApiService } from './ilp-service'
+import process from 'process'
+import { RafikiKafkaRawProducerPartitioners } from 'implementations-lib/dist/kafka/raw/rdkafka_raw_producer'
 
 // ENV VARS for configuration
-const ILP_CONFIG_OWN_ADDRESS = process.env["ILP_CONFIG_OWN_ADDRESS"] || "test.peer-a";
+const ILP_CONFIG_OWN_ADDRESS =
+  process.env['ILP_CONFIG_OWN_ADDRESS'] || 'test.peer-a'
 
-const ONE_HOUR_IN_MS = 3_600_000;
+const ONE_HOUR_IN_MS = 3_600_000
 
-const KAFKA_URL = process.env["KAFKA_URL"] || "localhost:9092";
-const KAFKA_AUTH_ENABLED = process.env["KAFKA_AUTH_ENABLED"] && process.env["KAFKA_AUTH_ENABLED"].toUpperCase()==="TRUE" || false;
-const KAFKA_AUTH_PROTOCOL = process.env["KAFKA_AUTH_PROTOCOL"] || "sasl_plaintext";
-const KAFKA_AUTH_MECHANISM = process.env["KAFKA_AUTH_MECHANISM"] || "plain";
-const KAFKA_AUTH_USERNAME = process.env["KAFKA_AUTH_USERNAME"] || "user";
-const KAFKA_AUTH_PASSWORD = process.env["KAFKA_AUTH_PASSWORD"] || "password";
+const KAFKA_URL = process.env['KAFKA_URL'] || 'localhost:9092'
+const KAFKA_AUTH_ENABLED =
+  (process.env['KAFKA_AUTH_ENABLED'] &&
+    process.env['KAFKA_AUTH_ENABLED'].toUpperCase() === 'TRUE') ||
+  false
+const KAFKA_AUTH_PROTOCOL =
+  process.env['KAFKA_AUTH_PROTOCOL'] || 'sasl_plaintext'
+const KAFKA_AUTH_MECHANISM = process.env['KAFKA_AUTH_MECHANISM'] || 'plain'
+const KAFKA_AUTH_USERNAME = process.env['KAFKA_AUTH_USERNAME'] || 'user'
+const KAFKA_AUTH_PASSWORD = process.env['KAFKA_AUTH_PASSWORD'] || 'password'
 
-const LIQUIDITY_SERVICE_URL = process.env["LIQUIDITY_SERVICE_URL"] as string;
-const OPEN_TELEMETRY_COLLECTOR_URL = process.env["OPEN_TELEMETRY_COLLECTOR_URL"] || "http://otel-collector:4317";
+const LIQUIDITY_SERVICE_URL = process.env['LIQUIDITY_SERVICE_URL'] as string
+const OPEN_TELEMETRY_COLLECTOR_URL =
+  process.env['OPEN_TELEMETRY_COLLECTOR_URL'] || 'http://otel-collector:4317'
 
-const API_PORT = (process.env["API_PORT"] && parseInt(process.env["API_PORT"])) || 3000;
+const API_PORT =
+  (process.env['API_PORT'] && parseInt(process.env['API_PORT'])) || 3000
 
-const INSTANCE_ID = crypto.randomUUID();
+const INSTANCE_ID = crypto.randomUUID()
 
-const CONSUMER_BATCH_SIZE = (process.env["CONSUMER_BATCH_SIZE"] && parseInt(process.env["CONSUMER_BATCH_SIZE"])) || 250;
-const CONSUMER_BATCH_TIMEOUT_MS = (process.env["CONSUMER_BATCH_TIMEOUT_MS"] && parseInt(process.env["CONSUMER_BATCH_TIMEOUT_MS"])) || 5;
-
-
+const CONSUMER_BATCH_SIZE =
+  (process.env['CONSUMER_BATCH_SIZE'] &&
+    parseInt(process.env['CONSUMER_BATCH_SIZE'])) ||
+  250
+const CONSUMER_BATCH_TIMEOUT_MS =
+  (process.env['CONSUMER_BATCH_TIMEOUT_MS'] &&
+    parseInt(process.env['CONSUMER_BATCH_TIMEOUT_MS'])) ||
+  5
 
 // kafka common options
-const kafkaProducerCommonOptions:RafikiKafkaJsonProducerOptions = {
-    kafkaBrokerList: KAFKA_URL,
-    producerClientId: `rafiki-api-producer-${INSTANCE_ID}`
-};
-const kafkaConsumerCommonOptions:RafikiKafkaJsonConsumerOptions ={
-    kafkaBrokerList: KAFKA_URL,
-    kafkaGroupId: `rafiki-api-consumer-${INSTANCE_ID}`,
-    batchSize: CONSUMER_BATCH_SIZE,
-    batchTimeoutMs: CONSUMER_BATCH_TIMEOUT_MS
-};
-if(KAFKA_AUTH_ENABLED){
-    kafkaProducerCommonOptions.authentication = kafkaConsumerCommonOptions.authentication = {
-        protocol: KAFKA_AUTH_PROTOCOL as "plaintext" | "ssl" | "sasl_plaintext" | "sasl_ssl",
-        mechanism: KAFKA_AUTH_MECHANISM as "PLAIN" | "GSSAPI" | "SCRAM-SHA-256" | "SCRAM-SHA-512",
-        username: KAFKA_AUTH_USERNAME,
-        password: KAFKA_AUTH_PASSWORD
-    };
+const kafkaProducerCommonOptions: RafikiKafkaJsonProducerOptions = {
+  kafkaBrokerList: KAFKA_URL,
+  producerClientId: `rafiki-api-producer-${INSTANCE_ID}`
+}
+const kafkaConsumerCommonOptions: RafikiKafkaJsonConsumerOptions = {
+  kafkaBrokerList: KAFKA_URL,
+  kafkaGroupId: `rafiki-api-consumer-${INSTANCE_ID}`,
+  batchSize: CONSUMER_BATCH_SIZE,
+  batchTimeoutMs: CONSUMER_BATCH_TIMEOUT_MS
+}
+if (KAFKA_AUTH_ENABLED) {
+  kafkaProducerCommonOptions.authentication =
+    kafkaConsumerCommonOptions.authentication = {
+      protocol: KAFKA_AUTH_PROTOCOL as
+        | 'plaintext'
+        | 'ssl'
+        | 'sasl_plaintext'
+        | 'sasl_ssl',
+      mechanism: KAFKA_AUTH_MECHANISM as
+        | 'PLAIN'
+        | 'GSSAPI'
+        | 'SCRAM-SHA-256'
+        | 'SCRAM-SHA-512',
+      username: KAFKA_AUTH_USERNAME,
+      password: KAFKA_AUTH_PASSWORD
+    }
 }
 
-(async () => {
-    logger.info(`Init Kafka on '${KAFKA_URL}'`);
+;(async () => {
+  logger.info(`Init Kafka on '${KAFKA_URL}'`)
 
-    OpenTelemetryServiceClient.Start("rafiki-poc", "api-svc","0.0.1", INSTANCE_ID, logger, OPEN_TELEMETRY_COLLECTOR_URL);
+  OpenTelemetryServiceClient.Start(
+    'rafiki-poc',
+    'api-svc',
+    '0.0.1',
+    INSTANCE_ID,
+    logger,
+    OPEN_TELEMETRY_COLLECTOR_URL
+  )
 
-    // Init Producer/Consumer:
-    const msgProducer = new RafikiKafkaJsonProducer(kafkaProducerCommonOptions);
-    await msgProducer.connect();
-    const msgConsumer = new RafikiKafkaJsonConsumer(kafkaConsumerCommonOptions);
+  // Init Producer/Consumer:
+  const msgProducer = new RafikiKafkaJsonProducer(kafkaProducerCommonOptions)
+  await msgProducer.connect()
+  const msgConsumer = new RafikiKafkaJsonConsumer(kafkaConsumerCommonOptions)
 
+  // event emiter - TODO change to kafka
+  const eventEmitterPubSub = new LocalEventEmitterPubSub()
+  // const eventConsumer = eventEmitterPubSub;
+  const eventProducer = eventEmitterPubSub
 
-    // event emiter - TODO change to kafka
-    const eventEmitterPubSub = new LocalEventEmitterPubSub();
-    // const eventConsumer = eventEmitterPubSub;
-    const eventProducer = eventEmitterPubSub;
+  const remoteIncomingPaymentRepository =
+    new RemoteIncomingPaymentPsqlRepository(
+      new InMemoryCache<RemoteIncomingPayment>(ONE_HOUR_IN_MS),
+      PostgresPool,
+      logger
+    )
 
+  const remoteIncomingPaymentService = new RemoteIncomingPaymentService(
+    remoteIncomingPaymentRepository,
+    logger
+  )
 
-    const remoteIncomingPaymentRepository = new RemoteIncomingPaymentPsqlRepository(
-        new InMemoryCache<RemoteIncomingPayment>(ONE_HOUR_IN_MS),
-        PostgresPool,
-        logger
-    );
+  const ilpPeerRepository = new IlpPeerPsqlRepository(
+    new InMemoryCache<IlpPeer>(ONE_HOUR_IN_MS),
+    new InMemoryCache<string>(ONE_HOUR_IN_MS),
+    PostgresPool,
+    logger
+  )
 
-    const remoteIncomingPaymentService = new RemoteIncomingPaymentService(
-        remoteIncomingPaymentRepository,
-        logger
-    );
+  const liquidityService = new LiquidityServiceClient(
+    LIQUIDITY_SERVICE_URL,
+    logger
+  )
 
-    const ilpPeerRepository = new IlpPeerPsqlRepository(
-        new InMemoryCache<IlpPeer>(ONE_HOUR_IN_MS),
-        new InMemoryCache<string>(ONE_HOUR_IN_MS),
-        PostgresPool,
-        logger
-    );
+  const ilpPeerService = new IlpPeerService(ilpPeerRepository, liquidityService)
 
-    const liquidityService = new LiquidityServiceClient(
-        LIQUIDITY_SERVICE_URL,
-        logger
-    );
+  const ilpConnector = new IlpConnector(
+    ILP_CONFIG_OWN_ADDRESS,
+    ilpPeerService,
+    eventProducer
+  )
 
-    const ilpPeerService = new IlpPeerService(ilpPeerRepository, liquidityService);
+  // setup fastify
+  const app = fastify()
 
-    const ilpConnector = new IlpConnector(ILP_CONFIG_OWN_ADDRESS,ilpPeerService, eventProducer);
+  app.addContentTypeParser(
+    'application/octet-stream',
+    { parseAs: 'buffer' },
+    async function (_: any, payload: Buffer) {
+      return payload
+    }
+  )
 
-    // setup fastify
-    const app = fastify();
+  if (OpenTelemetryServiceClient.getInstance()) {
+    const telemetryClient =
+      OpenTelemetryServiceClient.getInstance() as OpenTelemetryServiceClient
+    if (telemetryClient.fastifyOtelInstrumentation) {
+      app.register(telemetryClient.fastifyOtelInstrumentation.plugin())
+    }
+  }
 
-    app.addContentTypeParser( "application/octet-stream",  { parseAs: "buffer"},
-        async function (_: any, payload: Buffer) {
-            return payload;
-        }
-    );
+  // instantiate APIs
+  const openPaymentsApi = new OpenPaymentsApiService(
+    logger,
+    msgProducer,
+    msgConsumer,
+    remoteIncomingPaymentService,
+    OpenTelemetryServiceClient.getInstance()
+  )
 
-    if(OpenTelemetryServiceClient.getInstance()) {
-        const telemetryClient= OpenTelemetryServiceClient.getInstance() as  OpenTelemetryServiceClient;
-        if(telemetryClient.fastifyOtelInstrumentation) {
-            app.register(telemetryClient.fastifyOtelInstrumentation.plugin());
-        }
+  const ilpApi = new IlpApiService(
+    logger,
+    ilpConnector,
+    OpenTelemetryServiceClient.getInstance()
+  )
+
+  app.register(openPaymentsApi.bindRoutes.bind(openPaymentsApi), {
+    prefix: '/'
+  })
+  app.register(ilpApi.bindRoutes.bind(ilpApi), { prefix: '/' })
+
+  await openPaymentsApi.init()
+  logger.info(`🥋🥋🥋 Rafiki API Event Handler started`)
+
+  await ilpApi.init()
+
+  app.listen({ port: API_PORT, host: '0.0.0.0' }, (err, address) => {
+    if (err) {
+      logger.error(err)
+      throw err
     }
 
-    // instantiate APIs
-    const openPaymentsApi = new OpenPaymentsApiService(
-        logger,
-        msgProducer,
-        msgConsumer,
-        remoteIncomingPaymentService,
-        OpenTelemetryServiceClient.getInstance()
-    );
+    logger.info(`🕹🕹🕹 API Listening on port '${API_PORT}'`)
+  })
+})()
 
-    const ilpApi = new IlpApiService(logger, ilpConnector, OpenTelemetryServiceClient.getInstance());
-
-    app.register(openPaymentsApi.bindRoutes.bind(openPaymentsApi), {prefix: "/"});
-    app.register(ilpApi.bindRoutes.bind(ilpApi), {prefix: "/"});
-
-    await openPaymentsApi.init();
-    logger.info(`🥋🥋🥋 Rafiki API Event Handler started`);
-
-    await ilpApi.init();
-
-    app.listen({port:API_PORT, host: "0.0.0.0"}, (err, address) => {
-        if (err) {
-            logger.error(err);
-            throw err;
-        }
-
-        logger.info(`🕹🕹🕹 API Listening on port '${API_PORT}'`);
-    });
-
-})();
-
-
-process.on("SIGINT", () => {
-    logger.info("Received SIGINT. Shutting down gracefully...");
-    // well not really :)
-    // TODO: actually exit gracefully, ie, teardown the consumers, repos, etc
-    process.exit(0);
-});
+process.on('SIGINT', () => {
+  logger.info('Received SIGINT. Shutting down gracefully...')
+  // well not really :)
+  // TODO: actually exit gracefully, ie, teardown the consumers, repos, etc
+  process.exit(0)
+})

@@ -17,13 +17,13 @@ spec:
     spec:
       serviceAccountName: prometheus
       containers:
-      - name: prometheus
-        image: prom/prometheus:latest
-        ports:
-        - containerPort: 9090
-        volumeMounts:
-          - name: config
-            mountPath: /etc/prometheus
+        - name: prometheus
+          image: prom/prometheus:latest
+          ports:
+            - containerPort: 9090
+          volumeMounts:
+            - name: config
+              mountPath: /etc/prometheus
       volumes:
         - name: config
           configMap:

@@ -1,58 +1,58 @@
-import http from "k6/http";
-import { check } from "k6";
+import http from 'k6/http'
+import { check } from 'k6'
 
 export const options = {
   vus: 10,
-  duration: "300s",
+  duration: '300s'
   // iterations: 1,
-};
+}
 
-const BASE_URL = "http://localhost:3000";
+const BASE_URL = 'http://localhost:3000'
 
-const SENDER_WALLET_ADDRESS_ID = "a1469618-077a-447d-b5a3-a9ed11265a64";
+const SENDER_WALLET_ADDRESS_ID = 'a1469618-077a-447d-b5a3-a9ed11265a64'
 const RECEIVER_WALLET_ADDRESS_URL =
-  "http://api-peer:3001/a1469618-077a-447d-b5a3-a9ed11265a65";
+  'http://api-peer:3001/a1469618-077a-447d-b5a3-a9ed11265a65'
 
 function request(url, data) {
   return http.post(url, JSON.stringify(data), {
     headers: {
-      "Content-Type": "application/json",
-    },
-  });
+      'Content-Type': 'application/json'
+    }
+  })
 }
 
 export default function (data) {
   const incomingPaymentRes = request(`${BASE_URL}/remote-incoming-payment`, {
-    walletAddressUrl: RECEIVER_WALLET_ADDRESS_URL,
-  });
+    walletAddressUrl: RECEIVER_WALLET_ADDRESS_URL
+  })
 
   check(incomingPaymentRes, {
-    "remote incoming payment created": (r) => r.status === 201,
-  });
+    'remote incoming payment created': (r) => r.status === 201
+  })
 
-  const incomingPaymentId = JSON.parse(incomingPaymentRes.body).id;
+  const incomingPaymentId = JSON.parse(incomingPaymentRes.body).id
 
   const quoteRes = request(`${BASE_URL}/quote`, {
     debitAmount: {
       assetScale: 2,
-      assetCode: "USD",
-      value: 100,
+      assetCode: 'USD',
+      value: 100
     },
     incomingPaymentId,
-    senderWalletAddressId: SENDER_WALLET_ADDRESS_ID,
-  });
+    senderWalletAddressId: SENDER_WALLET_ADDRESS_ID
+  })
 
   check(quoteRes, {
-    "quote created": (r) => r.status === 201,
-  });
+    'quote created': (r) => r.status === 201
+  })
 
-  const quoteId = JSON.parse(quoteRes.body).id;
+  const quoteId = JSON.parse(quoteRes.body).id
 
   const outgoingPaymentRes = request(`${BASE_URL}/outgoing-payment`, {
     quoteId,
-    senderWalletAddressId: SENDER_WALLET_ADDRESS_ID,
-  });
+    senderWalletAddressId: SENDER_WALLET_ADDRESS_ID
+  })
   check(outgoingPaymentRes, {
-    "outgoing payment created": (r) => r.status === 201,
-  });
+    'outgoing payment created': (r) => r.status === 201
+  })
 }

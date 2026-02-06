@@ -5,9 +5,9 @@ metadata:
   namespace: poc
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
-    cert-manager.io/cluster-issuer: "letsencrypt-dev"
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    acme.cert-manager.io/http01-edit-in-place: "true"
+    cert-manager.io/cluster-issuer: 'letsencrypt-dev'
+    nginx.ingress.kubernetes.io/ssl-redirect: 'true'
+    acme.cert-manager.io/http01-edit-in-place: 'true'
 
 spec:
   ingressClassName: nginx
@@ -22,7 +22,6 @@ spec:
                 name: api-svc
                 port:
                   number: 3000
-
 #  tls:
 #    - hosts:
 #        - api-svc.local

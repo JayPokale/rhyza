@@ -7,7 +7,7 @@ metadata:
     app: api-svc
     app.kubernetes.io/name: api-svc
 spec:
-#  replicas:
+  #  replicas:
   selector:
     matchLabels:
       app: api-svc
@@ -20,8 +20,8 @@ spec:
         app: api-svc
         app.kubernetes.io/name: api-svc
     spec:
-#      nodeSelector:
-#        cloud.google.com/gke-nodepool: apps-pool
+      #      nodeSelector:
+      #        cloud.google.com/gke-nodepool: apps-pool
       containers:
         - env:
             - name: OPEN_TELEMETRY_COLLECTOR_URL
@@ -29,7 +29,7 @@ spec:
             - name: KAFKA_URL
               value: kafka-kafka-bootstrap.kafka.svc.cluster.local:9092
             - name: KAFKA_AUTH_ENABLED
-              value: "false"
+              value: 'false'
             - name: KAFKA_AUTH_PROTOCOL
               value: SASL_PLAINTEXT
             - name: KAFKA_AUTH_MECHANISM
@@ -39,13 +39,13 @@ spec:
             - name: KAFKA_AUTH_PASSWORD
               value: NONE
             - name: UV_THREADPOOL_SIZE
-              value: "128"
+              value: '128'
             - name: LOG_LEVEL
               value: info
             - name: CONSUMER_BATCH_TIMEOUT_MS
-              value: "15"
+              value: '15'
             - name: CONSUMER_BATCH_SIZE
-              value: "1000"
+              value: '1000'
           image: k8scluster-registry.internal:5000/rafiki-poc-api-svc:0.0.1
           # livenessProbe:
           #   exec:
@@ -59,4 +59,3 @@ spec:
           ports:
             - containerPort: 3000
       restartPolicy: Always
-

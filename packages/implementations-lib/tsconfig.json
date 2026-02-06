@@ -8,5 +8,9 @@
     "outDir": "./dist"
   },
   "include": ["src/**/*"],
-  "references": [{ "path": "../payments-domain-lib" }, { "path": "../common-types-lib" }, { "path": "../liquidity-types-lib" }]
+  "references": [
+    { "path": "../payments-domain-lib" },
+    { "path": "../common-types-lib" },
+    { "path": "../liquidity-types-lib" }
+  ]
 }

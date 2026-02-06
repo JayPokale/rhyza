@@ -12,38 +12,38 @@ services:
       LOG_LEVEL: info
       UV_THREADPOOL_SIZE: 128
     depends_on:
-       pg-container:
-          condition: service_healthy
-       init-kafka:
-          condition: service_completed_successfully
+      pg-container:
+        condition: service_healthy
+      init-kafka:
+        condition: service_completed_successfully
     networks:
       - rafiki-poc
 
   liquidity-service:
-     build:
-        context: ../
-        dockerfile: ./packages/liquidity-svc/Dockerfile
-     restart: always
-     security_opt:
-        - seccomp:unconfined
-     environment:
-        API_PORT: 3000
-        OPEN_TELEMETRY_COLLECTOR_URL: http://otel-collector:4317
-        DATABASE_URL: postgres://postgres:password@pg-container:5432/liquidity-service
-        TB_CLUSTER_REPLICA_ADDRESSES: 10.5.1.51:4342
-        LOG_LEVEL: info
-        MAX_BATCH_SIZE: 200
-     depends_on:
-        pg-container:
-           condition: service_healthy
-     healthcheck:
-        test: nc -z 0.0.0.0 3000 || exit -1
-        start_period: 40s
-        interval: 10s
-        timeout: 10s
-        retries: 10
-     networks:
-        - rafiki-poc
+    build:
+      context: ../
+      dockerfile: ./packages/liquidity-svc/Dockerfile
+    restart: always
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      API_PORT: 3000
+      OPEN_TELEMETRY_COLLECTOR_URL: http://otel-collector:4317
+      DATABASE_URL: postgres://postgres:password@pg-container:5432/liquidity-service
+      TB_CLUSTER_REPLICA_ADDRESSES: 10.5.1.51:4342
+      LOG_LEVEL: info
+      MAX_BATCH_SIZE: 200
+    depends_on:
+      pg-container:
+        condition: service_healthy
+    healthcheck:
+      test: nc -z 0.0.0.0 3000 || exit -1
+      start_period: 40s
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    networks:
+      - rafiki-poc
 
   backend:
     build:
@@ -66,10 +66,9 @@ services:
       liquidity-service:
         condition: service_healthy
       pg-container:
-         condition: service_healthy
+        condition: service_healthy
     networks:
       - rafiki-poc
-
 
   pg-container:
     image: postgres
@@ -80,12 +79,12 @@ services:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: database
     ports:
-      - "5432:5432"
+      - '5432:5432'
     volumes:
       - ./db/:/docker-entrypoint-initdb.d/
-      - postgres-data:/var/lib/postgresql/data/
+      - postgres-data:/var/lib/postgresql/
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "postgres", "-d", "database"]
+      test: ['CMD', 'pg_isready', '-U', 'postgres', '-d', 'database']
       interval: 10s
       retries: 5
       start_period: 30s
@@ -117,7 +116,7 @@ services:
       timeout: 10s
       retries: 10
     ports:
-      - "9092:9092"
+      - '9092:9092'
     networks:
       - rafiki-poc
 
@@ -137,8 +136,8 @@ services:
     image: apache/kafka:4.0.0
     depends_on:
       kafka:
-         condition: service_started
-    entrypoint: ["/bin/sh", "-c"]
+        condition: service_started
+    entrypoint: ['/bin/sh', '-c']
     working_dir: /opt/kafka/bin/
     command: |
       "
@@ -159,18 +158,18 @@ services:
   redis:
     image: redis:latest
     ports:
-      - "6379:6379"
+      - '6379:6379'
     networks:
       - rafiki-poc
 
   otel-collector:
     image: otel/opentelemetry-collector:latest
-    command: "--config=/etc/otel-collector-config.yaml"
+    command: '--config=/etc/otel-collector-config.yaml'
     volumes:
       - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
     ports:
-       - "4317:4317"
-       - "4318:4318"
+      - '4317:4317'
+      - '4318:4318'
     networks:
       - rafiki-poc
 
@@ -182,24 +181,24 @@ services:
     volumes:
       - ./prometheus.yaml:/etc/prometheus/prometheus.yaml
     ports:
-      - "9090:9090"
+      - '9090:9090'
     networks:
       - rafiki-poc
 
   tempo:
     image: grafana/tempo:latest
-    command: "-config.file=/etc/tempo.yaml"
+    command: '-config.file=/etc/tempo.yaml'
     networks:
       - rafiki-poc
     ports:
-      - "3200:3200"
+      - '3200:3200'
     volumes:
       - ./tempo.yaml:/etc/tempo.yaml
       - tempo-data:/var/tempo
   grafana:
     image: grafana/grafana:latest
     ports:
-      - "4501:3000"
+      - '4501:3000'
     environment:
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
@@ -215,7 +214,7 @@ services:
   nginx:
     image: nginx:latest
     ports:
-      - "80:80"
+      - '80:80'
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf
     depends_on:
@@ -223,18 +222,20 @@ services:
     networks:
       - rafiki-poc
     sysctls:
-      net.ipv4.ip_local_port_range: "10240 65535"
+      net.ipv4.ip_local_port_range: '10240 65535'
 
   tigerbeetle:
-    image: ghcr.io/tigerbeetle/tigerbeetle:0.16.32
-    privileged: true
+    image: ghcr.io/tigerbeetle/tigerbeetle:0.16.70
+    # privileged: true
     volumes:
       - tigerbeetle-data:/var/lib/tigerbeetle
     ports:
-      - "4342:4342"
+      - '4342:4342'
     networks:
       rafiki-poc:
         ipv4_address: 10.5.1.51
+    security_opt:
+      - 'seccomp=unconfined'
     entrypoint:
       - /bin/sh
       - -c

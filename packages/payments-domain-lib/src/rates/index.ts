@@ -7,7 +7,7 @@
  - Pedro Sousa Barreto <pedrosousabarreto@gmail.com>
  ******/
 
-"use strict";
+'use strict'
 
-export * from "./rates-types";
-export * from "./rates-service";
+export * from './rates-types'
+export * from './rates-service'

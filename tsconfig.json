@@ -4,9 +4,7 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "sourceMap": true,
-    "lib": [
-      "es2023"
-    ],
+    "lib": ["es2023"],
     "target": "es2023",
     "module": "NodeNext"
   },
@@ -16,8 +14,8 @@
     { "path": "./packages/payments-domain-lib" },
     { "path": "./packages/implementations-lib" },
     { "path": "./packages/liquidity-svc" },
-    { "path": "./packages/api-svc" },
-//    { "path": "./packages/payments-command-handler-svc" }
+    { "path": "./packages/api-svc" }
+    //    { "path": "./packages/payments-command-handler-svc" }
   ],
   "files": [],
   "include": []

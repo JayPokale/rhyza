@@ -10,8 +10,8 @@ spec:
         protocols:
           grpc:
             endpoint: 0.0.0.0:4317
-#          http:
-#            endpoint: 0.0.0.0:4318
+    #          http:
+    #            endpoint: 0.0.0.0:4318
     processors:
       memory_limiter:
         check_interval: 1s
@@ -38,10 +38,10 @@ spec:
           level: warn
       pipelines:
         metrics:
-          receivers: [ otlp ]
-          processors: [ batch ]
-          exporters: [ prometheus ]
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [prometheus]
         traces:
-          receivers: [ otlp ]
-          processors: [ batch ]
-          exporters: [ otlp ]
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [otlp]

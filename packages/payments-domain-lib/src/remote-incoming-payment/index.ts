@@ -7,7 +7,7 @@
  - Pedro Sousa Barreto <pedrosousabarreto@gmail.com>
  ******/
 
-"use strict";
+'use strict'
 
-export * from "./remote-incoming-payment-types";
-export * from "./remote-incoming-payment-service";
+export * from './remote-incoming-payment-types'
+export * from './remote-incoming-payment-service'

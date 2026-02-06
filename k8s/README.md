@@ -23,8 +23,8 @@ kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/cont
 sh ./build.sh
 ```
 
-
 ## Running infrastructure
+
 ```bash
 kubectl apply -f monitoring/opentelemetry.yaml
 
@@ -36,7 +36,9 @@ kubectl apply -f infrastructure/tigerbeetle
 ```
 
 ## Database tables
+
 Connect to PostgreSQL and create the tables for the `payments` and `liquidity` databases:
+
 ```bash
 \c liquidity
 
@@ -159,6 +161,7 @@ CREATE TABLE IF NOT EXISTS outgoing_micro_payments (
 ```
 
 Truncate tables
+
 ```
 \c payments
 
@@ -179,6 +182,7 @@ TRUNCATE asset_accounts; TRUNCATE peer_accounts; TRUNCATE wallet_address_account
 ```
 
 ## Running services
+
 ```bash
 kubectl apply -f poc-services
 ```

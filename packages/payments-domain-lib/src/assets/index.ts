@@ -7,8 +7,7 @@
  - Pedro Sousa Barreto <pedrosousabarreto@gmail.com>
  ******/
 
-"use strict";
+'use strict'
 
-export * from "./asset-types";
-export * from "./asset-service";
-
+export * from './asset-types'
+export * from './asset-service'

@@ -7,7 +7,7 @@
  - Pedro Sousa Barreto <pedrosousabarreto@gmail.com>
  ******/
 
-"use strict";
+'use strict'
 
-export * from "./ilp-peer";
-export * from "./ilp-peer-types";
+export * from './ilp-peer'
+export * from './ilp-peer-types'

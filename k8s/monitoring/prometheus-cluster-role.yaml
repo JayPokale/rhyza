@@ -3,15 +3,15 @@ kind: ClusterRole
 metadata:
   name: discoverer
 rules:
-  - apiGroups: [""]
+  - apiGroups: ['']
     resources:
       - nodes
       - services
       - endpoints
       - pods
-    verbs: ["get", "list", "watch"]
+    verbs: ['get', 'list', 'watch']
   - apiGroups:
       - extensions
     resources:
       - ingresses
-    verbs: ["get", "list", "watch"]
+    verbs: ['get', 'list', 'watch']

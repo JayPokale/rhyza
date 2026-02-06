@@ -7,12 +7,14 @@ It is intended for experimental purposes only.
 ## Usage
 
 Prepare correct Node.
+
 ```shell
 nvm install
 nvm use
 ```
 
 Build and start POC.
+
 ```shell
 corepack enable
 # Install & Build:
@@ -23,11 +25,13 @@ pnpm dev
 ```
 
 Full build and install:
+
 ```shell
 pnpm i && pnpm -r build
 ```
 
 Once ready, run test.
+
 ```shell
 pnpm test
 ```
@@ -35,11 +39,15 @@ pnpm test
 ## Docker-Compose
 
 #### Build:
+
 Start the containers up with 3 command handlers and 2 api instances.
+
 ```shell
 docker compose up -d --build --scale=backend=3 --scale=api=2
 ```
+
 Then you can run the benchmark as follows:
+
 ```shell
 k6 run benchmark.js
 ```
@@ -50,13 +58,14 @@ http://localhost:4501/d/aeg4uh40kdl34d/rafiki-poc?orgId=1&from=now-5m&to=now&tim
 You can monitor Kafka processing on the Redpanda dashboard at:
 http://localhost:8080
 
-
 Inspect the logs:
+
 ```shell
 docker-compose logs -f backend
 ```
 
 Shut down and clear images and volumes:
+
 ```shell
 docker-compose down --volumes --rmi all
 ```
@@ -73,7 +82,6 @@ docker-compose down --volumes --rmi all
 - Accounting decoupling & improvements
   - Getting payment state, such as the amount sent or received for a payment, doesn't require trips to the accounting database. We now use a concept of "micro-payments" to store that information. Within the the ILP context, one packet = one micro-payment.
   - Avoiding creating "accounting" accounts for individual payments. For example, local payments (within the same Rafiki instance) result in transfers between wallet address accounts (instead of single-use payment liquidity accounts).
-
 
 ## Payments flow
 
@@ -148,7 +156,6 @@ sequenceDiagram
 
     end
 ```
-
 
 ### Remote Payments
 
@@ -265,6 +272,3 @@ sequenceDiagram
 
     end
 ```
-
-
-

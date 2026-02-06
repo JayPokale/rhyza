@@ -7,160 +7,162 @@
  - Pedro Sousa Barreto <pedrosousabarreto@gmail.com>
  ******/
 
-"use strict";
+'use strict'
 
-import type {Pool} from "pg";
-import type {Logger} from "pino";
+import type { Pool } from 'pg'
+import type { Logger } from 'pino'
 import {
-    IncomingPayment,
-    IOutgoingPaymentRepository, LocalIncomingPaymentState,
-    MicroPayment,
-    OutgoingPayment,
-    OutgoingPaymentState,
-    OutgoingPaymentWithMicroPayments,
-    OutgoingPaymentWithNewMicroPaymentUpdate
-} from "payments-domain-lib";
-import {ICache} from "common-types-lib";
+  IncomingPayment,
+  IOutgoingPaymentRepository,
+  LocalIncomingPaymentState,
+  MicroPayment,
+  OutgoingPayment,
+  OutgoingPaymentState,
+  OutgoingPaymentWithMicroPayments,
+  OutgoingPaymentWithNewMicroPaymentUpdate
+} from 'payments-domain-lib'
+import { ICache } from 'common-types-lib'
 
 type OutgoingPaymentRecord = {
-    id: string;
-    quote_id: string;
-    asset_code: string;
-    asset_scale: number;
-    state: string;
-    sent_amount: string;
-    debit_amount: string;
-    local_incoming_payment_id: string | null;
-    remote_incoming_payment_url: string | null;
-    sender_wallet_address_id: string;
+  id: string
+  quote_id: string
+  asset_code: string
+  asset_scale: number
+  state: string
+  sent_amount: string
+  debit_amount: string
+  local_incoming_payment_id: string | null
+  remote_incoming_payment_url: string | null
+  sender_wallet_address_id: string
 }
 
-export class OutgoingPaymentPsqlRepository implements IOutgoingPaymentRepository {
-    private TABLE_NAME = "outgoing_payments";
-    private MICRO_PAYMENT_TABLE_NAME = "outgoing_micro_payments";
-    private CACHE_BY_ID_PREFIX = "outgoing_payment_by_id:";
+export class OutgoingPaymentPsqlRepository
+  implements IOutgoingPaymentRepository
+{
+  private TABLE_NAME = 'outgoing_payments'
+  private MICRO_PAYMENT_TABLE_NAME = 'outgoing_micro_payments'
+  private CACHE_BY_ID_PREFIX = 'outgoing_payment_by_id:'
 
-    constructor(
-        private cache: ICache<OutgoingPayment>,
-        private pool: Pool,
-        private logger: Logger
-    ) {
+  constructor(
+    private cache: ICache<OutgoingPayment>,
+    private pool: Pool,
+    private logger: Logger
+  ) {}
+
+  public async fetchByIds(ids: string[]): Promise<OutgoingPayment[]> {
+    const retList: OutgoingPayment[] = []
+    const idsNotFoundInCache: string[] = []
+
+    for (const id of ids) {
+      const found = await this.cache.get(this.CACHE_BY_ID_PREFIX + id)
+      if (found) {
+        retList.push(found)
+      } else {
+        idsNotFoundInCache.push(id)
+      }
     }
 
-    public async fetchByIds(ids: string[]): Promise<OutgoingPayment[]>{
-        const retList: OutgoingPayment[] = [];
-        const idsNotFoundInCache: string[] = [];
-
-        for(const id of ids) {
-            const found = await this.cache.get(this.CACHE_BY_ID_PREFIX + id);
-            if(found){
-                retList.push(found);
-            }else{
-                idsNotFoundInCache.push(id)
-            }
-        }
-
-        if(retList.length === ids.length) {
-            return retList;
-        }
-
-        try {
-            const query = `SELECT id, quote_id, asset_code, asset_scale, state, sent_amount, debit_amount, local_incoming_payment_id, remote_incoming_payment_url, sender_wallet_address_id FROM ${this.TABLE_NAME} WHERE id = ANY($1)`;
-            const res = await this.pool.query(query, [idsNotFoundInCache]);
-
-            if(res.rows.length >0) {
-                for (const dbObj of res.rows as OutgoingPaymentRecord[]) {
-                    const obj:OutgoingPayment = {
-                        id: dbObj.id,
-                        quoteId: dbObj.quote_id,
-                        asset: {
-                            code: dbObj.asset_code,
-                            scale: dbObj.asset_scale,
-                        },
-                        state: dbObj.state as OutgoingPaymentState,
-                        sentAmount: BigInt(dbObj.sent_amount),
-                        debitAmount: BigInt(dbObj.debit_amount),
-                        localIncomingPaymentId: dbObj.local_incoming_payment_id ?? undefined,
-                        remoteIncomingPaymentUrl: dbObj.remote_incoming_payment_url ?? undefined,
-                        senderWalletAddressId: dbObj.sender_wallet_address_id,
-                    }
-
-                    // add to return list
-                    retList.push(obj);
-
-                    // update cache
-                    await this.cache.set( this.CACHE_BY_ID_PREFIX + obj.id,  obj);
-                }
-            }
-
-            return retList;
-        } catch (error) {
-            this.logger.error("Error fetching outgoing payment by ids:", error);
-            throw error;
-        }
+    if (retList.length === ids.length) {
+      return retList
     }
 
-    public async storeMany(outgoingPayments: OutgoingPayment[]): Promise<void> {
-        return new Promise<void>(async (resolve, reject) => {
-            try {
+    try {
+      const query = `SELECT id, quote_id, asset_code, asset_scale, state, sent_amount, debit_amount, local_incoming_payment_id, remote_incoming_payment_url, sender_wallet_address_id FROM ${this.TABLE_NAME} WHERE id = ANY($1)`
+      const res = await this.pool.query(query, [idsNotFoundInCache])
 
-                let query = `
+      if (res.rows.length > 0) {
+        for (const dbObj of res.rows as OutgoingPaymentRecord[]) {
+          const obj: OutgoingPayment = {
+            id: dbObj.id,
+            quoteId: dbObj.quote_id,
+            asset: {
+              code: dbObj.asset_code,
+              scale: dbObj.asset_scale
+            },
+            state: dbObj.state as OutgoingPaymentState,
+            sentAmount: BigInt(dbObj.sent_amount),
+            debitAmount: BigInt(dbObj.debit_amount),
+            localIncomingPaymentId:
+              dbObj.local_incoming_payment_id ?? undefined,
+            remoteIncomingPaymentUrl:
+              dbObj.remote_incoming_payment_url ?? undefined,
+            senderWalletAddressId: dbObj.sender_wallet_address_id
+          }
+
+          // add to return list
+          retList.push(obj)
+
+          // update cache
+          await this.cache.set(this.CACHE_BY_ID_PREFIX + obj.id, obj)
+        }
+      }
+
+      return retList
+    } catch (error) {
+      this.logger.error('Error fetching outgoing payment by ids:', error)
+      throw error
+    }
+  }
+
+  public async storeMany(outgoingPayments: OutgoingPayment[]): Promise<void> {
+    return new Promise<void>(async (resolve, reject) => {
+      try {
+        let query = `
                     INSERT INTO ${this.TABLE_NAME}
                     (id, quote_id, asset_code, asset_scale, state, sent_amount, debit_amount,
                      local_incoming_payment_id, remote_incoming_payment_url,
                      sender_wallet_address_id)
                     VALUES
-                `;
-                const valuesString:string[] = [];
-                outgoingPayments.forEach((item: OutgoingPayment) => {
-                    valuesString.push(`('${item.id}', '${item.quoteId}',
+                `
+        const valuesString: string[] = []
+        outgoingPayments.forEach((item: OutgoingPayment) => {
+          valuesString.push(`('${item.id}', '${item.quoteId}',
                     '${item.asset.code}', ${item.asset.scale}, '${item.state}',
                     '${item.sentAmount.toString()}', '${item.debitAmount.toString()}', '${item.localIncomingPaymentId}',
-                    '${item.remoteIncomingPaymentUrl}', '${item.senderWalletAddressId}')`);
-                });
+                    '${item.remoteIncomingPaymentUrl}', '${item.senderWalletAddressId}')`)
+        })
 
-                query += " " + valuesString.join(",");
+        query += ' ' + valuesString.join(',')
 
-                await this.pool.query(query);
+        await this.pool.query(query)
 
-                for(const item of outgoingPayments) {
-                    await this.cache.set( this.CACHE_BY_ID_PREFIX + item.id, item );
-                }
+        for (const item of outgoingPayments) {
+          await this.cache.set(this.CACHE_BY_ID_PREFIX + item.id, item)
+        }
 
-                return resolve();
-            } catch (error) {
-                this.logger.error("Error storing incoming payment:", error);
-                reject(error);
-            }
-        });
-    }
+        return resolve()
+      } catch (error) {
+        this.logger.error('Error storing incoming payment:', error)
+        reject(error)
+      }
+    })
+  }
 
-    public async storeManyNewMicroPayment(micropayments: { outgoingPaymentId:string, microPayment:MicroPayment}[]): Promise<void>{
-        try {
-            let query = `
+  public async storeManyNewMicroPayment(
+    micropayments: { outgoingPaymentId: string; microPayment: MicroPayment }[]
+  ): Promise<void> {
+    try {
+      let query = `
                 INSERT INTO ${this.MICRO_PAYMENT_TABLE_NAME}
                 (id, outgoing_payment_id, method, ilp_peer_id, request_id, amount)
                 VALUES
-            `;
-            const valuesString:string[] = [];
-            micropayments.forEach((item) => {
-                valuesString.push(`('${crypto.randomUUID()}', '${item.outgoingPaymentId}', '${item.microPayment.method}',
-                ${item.microPayment.ilpPeerId ? "'"+item.microPayment.ilpPeerId+"'" : null}, '${item.microPayment.requestId}', ${item.microPayment.amount})`);
-            });
+            `
+      const valuesString: string[] = []
+      micropayments.forEach((item) => {
+        valuesString.push(`('${crypto.randomUUID()}', '${item.outgoingPaymentId}', '${item.microPayment.method}',
+                ${item.microPayment.ilpPeerId ? "'" + item.microPayment.ilpPeerId + "'" : null}, '${item.microPayment.requestId}', ${item.microPayment.amount})`)
+      })
 
-            query += " " + valuesString.join(",") + ";";
+      query += ' ' + valuesString.join(',') + ';'
 
-            await this.pool.query(query);
-        } catch (error) {
-            this.logger.error(
-                "Error inserting micro-payment:",
-                error
-            );
-            throw error;
-        }
+      await this.pool.query(query)
+    } catch (error) {
+      this.logger.error('Error inserting micro-payment:', error)
+      throw error
     }
+  }
 
-    /*
+  /*
     public async updateWithNewMicroPayment(
         outgoingPayment: OutgoingPayment,
         update: OutgoingPaymentWithNewMicroPaymentUpdate
@@ -362,76 +364,81 @@ export class OutgoingPaymentPsqlRepository implements IOutgoingPaymentRepository
     */
 }
 
-export class OutgoingPaymentInMemoryRepository implements IOutgoingPaymentRepository {
-    private map: Map<string, OutgoingPayment> = new Map();
-    private microPaymentMap: Map<string, MicroPayment[]> = new Map();
+export class OutgoingPaymentInMemoryRepository
+  implements IOutgoingPaymentRepository
+{
+  private map: Map<string, OutgoingPayment> = new Map()
+  private microPaymentMap: Map<string, MicroPayment[]> = new Map()
 
-    public async store(payment: OutgoingPayment): Promise<void> {
-        this.map.set(payment.id, payment);
+  public async store(payment: OutgoingPayment): Promise<void> {
+    this.map.set(payment.id, payment)
+  }
+
+  public async storeMany(payments: OutgoingPayment[]): Promise<void> {
+    for (const item of payments) {
+      this.map.set(item.id, item)
+    }
+  }
+
+  public async fetchById(id: string): Promise<OutgoingPayment | undefined> {
+    return this.map.get(id)
+  }
+
+  public async fetchByIds(ids: string[]): Promise<OutgoingPayment[]> {
+    return Array.from(this.map.values()).filter((item) => ids.includes(item.id))
+  }
+
+  public async exists(id: string): Promise<boolean> {
+    return this.map.has(id)
+  }
+
+  public async storeNewMicroPayment(
+    outgoingPaymentId: string,
+    microPayment: MicroPayment
+  ): Promise<void> {
+    const outgoingPaymentMicroPayments =
+      this.microPaymentMap.get(outgoingPaymentId)
+
+    if (!outgoingPaymentMicroPayments) {
+      this.microPaymentMap.set(outgoingPaymentId, [microPayment])
+    } else {
+      outgoingPaymentMicroPayments.push(microPayment)
+    }
+  }
+
+  public async storeManyNewMicroPayment(
+    micropayments: { outgoingPaymentId: string; microPayment: MicroPayment }[]
+  ): Promise<void> {
+    for (const item of micropayments) {
+      await this.storeNewMicroPayment(item.outgoingPaymentId, item.microPayment)
+    }
+  }
+
+  public async updateWithNewMicroPayment(
+    outgoingPayment: OutgoingPayment,
+    update: OutgoingPaymentWithNewMicroPaymentUpdate
+  ): Promise<void> {
+    const { state, sentAmount, microPayment } = update
+    const { id } = outgoingPayment
+    const payment = this.map.get(id)
+    if (!payment) {
+      throw new Error(`Outgoing payment with id ${id} not found`)
     }
 
-    public async storeMany(payments: OutgoingPayment[]): Promise<void> {
-        for(const item of payments) {
-            this.map.set(item.id, item);
-        }
+    if (state) {
+      payment.state = state
     }
+    payment.sentAmount = sentAmount
 
-    public async fetchById(id: string): Promise<OutgoingPayment | undefined> {
-        return this.map.get(id);
+    await this.storeNewMicroPayment(id, microPayment)
+  }
+
+  public async delete(id: string): Promise<void> {
+    if (this.map.has(id)) {
+      this.map.delete(id)
     }
-
-    public async fetchByIds(ids: string[]): Promise<OutgoingPayment[]>{
-        return Array.from(this.map.values()).filter(item => ids.includes(item.id));
+    if (this.microPaymentMap.has(id)) {
+      this.microPaymentMap.delete(id)
     }
-
-    public async exists(id: string): Promise<boolean> {
-        return this.map.has(id);
-    }
-
-    public async storeNewMicroPayment(
-        outgoingPaymentId:string,
-        microPayment:MicroPayment
-    ): Promise<void>{
-        const outgoingPaymentMicroPayments = this.microPaymentMap.get(outgoingPaymentId);
-
-        if(!outgoingPaymentMicroPayments){
-            this.microPaymentMap.set(outgoingPaymentId, [microPayment]);
-        }else{
-            outgoingPaymentMicroPayments.push(microPayment);
-        }
-    }
-
-    public async storeManyNewMicroPayment(micropayments: { outgoingPaymentId:string, microPayment:MicroPayment}[]): Promise<void>{
-        for(const item of micropayments){
-            await this.storeNewMicroPayment(item.outgoingPaymentId, item.microPayment);
-        }
-    }
-
-    public async updateWithNewMicroPayment(
-        outgoingPayment: OutgoingPayment,
-        update: OutgoingPaymentWithNewMicroPaymentUpdate
-    ): Promise<void> {
-        const {state, sentAmount, microPayment} = update;
-        const {id} = outgoingPayment;
-        const payment = this.map.get(id);
-        if (!payment) {
-            throw new Error(`Outgoing payment with id ${id} not found`);
-        }
-
-        if (state) {
-            payment.state = state;
-        }
-        payment.sentAmount = sentAmount;
-
-        await this.storeNewMicroPayment(id, microPayment);
-    }
-
-    public async delete(id: string): Promise<void> {
-        if (this.map.has(id)) {
-            this.map.delete(id);
-        }
-        if (this.microPaymentMap.has(id)) {
-            this.microPaymentMap.delete(id);
-        }
-    }
+  }
 }

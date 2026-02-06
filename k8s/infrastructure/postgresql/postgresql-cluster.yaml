@@ -4,36 +4,36 @@ metadata:
   name: postgresql-cluster
   namespace: postgresql
 spec:
-#  affinity:
-#    nodeSelector:
-#      cloud.google.com/gke-nodepool: infra1
+  #  affinity:
+  #    nodeSelector:
+  #      cloud.google.com/gke-nodepool: infra1
   enablePDB: false
   instances: 3
-  imageName: "ghcr.io/cloudnative-pg/postgresql:13.6"
+  imageName: 'ghcr.io/cloudnative-pg/postgresql:13.6'
   storage:
-#    pvcTemplate:
-#      accessModes:
-#        - ReadWriteOnce
-#      resources:
-#        requests:
-#          storage: 10Gi
-#      storageClassName: local-storage
+    #    pvcTemplate:
+    #      accessModes:
+    #        - ReadWriteOnce
+    #      resources:
+    #        requests:
+    #          storage: 10Gi
+    #      storageClassName: local-storage
 
-#     storageClass: premium-rwo
-     storageClass: local-storage
-     type: ephemeral
-     #    storageClass: standard
-     size: 10Gi
+    #     storageClass: premium-rwo
+    storageClass: local-storage
+    type: ephemeral
+    #    storageClass: standard
+    size: 10Gi
   postgresql:
     parameters:
-      max_connections: "500"
+      max_connections: '500'
   monitoring:
-     enablePodMonitor: true
-  enableSuperuserAccess: true
+    enablePodMonitor: true
+  enableSuperuserAccess:
+    true
 
-   #  superuserSecret:
-   #    name: postgres-secret
-
+    #  superuserSecret:
+    #    name: postgres-secret
 #  bootstrap:
 #     initdb:
 #       database: app
@@ -45,7 +45,7 @@ spec:
 #         - name: liquidity-db-init-script
 #           key: sql
 
- #  bootstrap:
+#  bootstrap:
 #    initdb:
 #      database: database
 #      owner: postgres

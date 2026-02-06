@@ -6,5 +6,9 @@
     "sourceMap": true
   },
   "include": ["src/**/*"],
-  "references": [{ "path": "../common-types-lib" }, { "path": "../liquidity-types-lib" }, { "path": "../implementations-lib" }]
+  "references": [
+    { "path": "../common-types-lib" },
+    { "path": "../liquidity-types-lib" },
+    { "path": "../implementations-lib" }
+  ]
 }

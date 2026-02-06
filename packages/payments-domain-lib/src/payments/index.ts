@@ -7,9 +7,9 @@
  - Pedro Sousa Barreto <pedrosousabarreto@gmail.com>
  ******/
 
-"use strict";
+'use strict'
 
-export * from "./payment-types";
-export * from "./payment-events";
-export * from "./payment-ports";
-export * from "./payment-domain-service";
+export * from './payment-types'
+export * from './payment-events'
+export * from './payment-ports'
+export * from './payment-domain-service'

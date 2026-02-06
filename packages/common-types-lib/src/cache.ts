@@ -7,19 +7,19 @@
  - Pedro Sousa Barreto <pedrosousabarreto@gmail.com>
  ******/
 
-"use strict";
+'use strict'
 
 export interface ICache<T> {
-    get(key: string): Promise<T | undefined>;
+  get(key: string): Promise<T | undefined>
 
-    getKeyExpiry(key: string): Promise<number | undefined>;
+  getKeyExpiry(key: string): Promise<number | undefined>
 
-    set(key: string, value: T): Promise<boolean>;
+  set(key: string, value: T): Promise<boolean>
 
-    delete(key: string): Promise<void>;
+  delete(key: string): Promise<void>
 }
 
 export interface ICached<T> {
-    expiry: number;
-    data: T;
+  expiry: number
+  data: T
 }

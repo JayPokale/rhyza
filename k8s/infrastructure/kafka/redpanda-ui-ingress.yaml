@@ -6,13 +6,13 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-  - host: redpanda.rafiki-poc.internal
-    http:
-      paths:
-      - backend:
-          service:
-            name: redpanda-svc
-            port:
-              number: 8080
-        path: /
-        pathType: Prefix
+    - host: redpanda.rafiki-poc.internal
+      http:
+        paths:
+          - backend:
+              service:
+                name: redpanda-svc
+                port:
+                  number: 8080
+            path: /
+            pathType: Prefix
