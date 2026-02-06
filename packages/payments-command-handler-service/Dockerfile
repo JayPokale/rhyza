@@ -30,25 +30,18 @@ RUN pnpm --filter implementations-lib build
 RUN pnpm --filter payments-domain-lib build
 
 # build main app
-RUN pnpm --filter payments-command-handler-svc build
+RUN pnpm --filter payments-command-handler-service build
 
 FROM base
+WORKDIR /workspace
+
 COPY --from=prod-deps /workspace/node_modules /workspace/node_modules
 
-# common-types-lib
-COPY --from=prod-deps /workspace/packages/common-types-lib/node_modules /workspace/packages/common-types-lib/node_modules
 COPY --from=build /workspace/packages/common-types-lib/dist /workspace/packages/common-types-lib/dist
-
-# implementations-lib
-COPY --from=prod-deps /workspace/packages/implementations-lib/node_modules /workspace/packages/implementations-lib/node_modules
 COPY --from=build /workspace/packages/implementations-lib/dist /workspace/packages/implementations-lib/dist
-
-# payments-domain-lib
-COPY --from=prod-deps /workspace/packages/payments-domain-lib/node_modules /workspace/packages/payments-domain-lib/node_modules
 COPY --from=build /workspace/packages/payments-domain-lib/dist /workspace/packages/payments-domain-lib/dist
 
-# main app / payments-command-handler-svc
-COPY --from=prod-deps /workspace/packages/payments-command-handler-svc/node_modules /workspace/packages/payments-command-handler-svc/node_modules
-COPY --from=build /workspace/packages/payments-command-handler-svc/dist /workspace/packages/payments-command-handler-svc/dist
+COPY --from=build /workspace/packages/payments-command-handler-service/dist /workspace/packages/payments-command-handler-service/dist
+COPY --from=build /workspace/packages/payments-command-handler-service/package.json /workspace/packages/payments-command-handler-service/package.json
 
-CMD ["node", "packages/payments-command-handler-svc/dist/index.js"]
+CMD ["node", "packages/payments-command-handler-service/dist/index.js"]

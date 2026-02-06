@@ -3,6 +3,7 @@
   "packageManager": "pnpm@10.28.2",
   "scripts": {
     "clean": "find . -name 'node_modules' -type d -prune -exec rm -rf '{}' +",
+    "docker": "docker compose -f ./docker/docker-compose.yaml",
     "docker:up": "docker compose -f ./docker/docker-compose.yaml down --volumes && docker compose -f ./docker/docker-compose.yaml up --build -d",
     "build": "pnpm -r build",
     "format": "prettier --write .",
