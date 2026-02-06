@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Logger, TelemetryService } from 'common-types-lib';
 import process from 'process';
 import { NodeTracerProvider } from '@opentelemetry/node';
@@ -130,7 +131,8 @@ export class OpenTelemetryService implements TelemetryService {
     });
 
     const tracerProvider = new NodeTracerProvider({
-      // @ts-ignore
+      // TODO: fix lint
+      // @ts-expect-error type mismatch between opentelemetry libraries
       resource: commonResource,
       spanProcessors: [new BatchSpanProcessor(traceExporter)]
     });

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import * as Crypto from 'crypto';
 
 export const MessageTypes = {
@@ -41,7 +42,7 @@ export abstract class DomainMsg implements DomainMessage {
   msgPartition: number | null = null;
   msgOffset: number | null = null;
 
-  msgName: string = (this as any).constructor.name;
+  msgName: string = this.constructor.name;
 
   abstract msgType: MessageTypes;
   abstract msgKey: string;

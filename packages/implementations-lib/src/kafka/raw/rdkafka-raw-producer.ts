@@ -1,5 +1,4 @@
-'use strict';
-
+/* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any */
 import { EventEmitter } from 'events';
 import * as RDKafka from 'node-rdkafka';
 import { NumberNullUndefined } from 'node-rdkafka';
@@ -8,7 +7,7 @@ import {
   RawMessage,
   RawMessageHeader,
   RawMessageProducer
-} from './raw_types';
+} from './raw-types';
 
 import { logger } from '../../logger';
 
@@ -170,14 +169,12 @@ export class RafikiKafkaRawProducer
     );
   }
 
-  /* istanbul ignore next */
   private _onError(error: RDKafka.LibrdKafkaError): void {
     logger.error(
       `RafikiRawKafkaProducer - event.error - ${JSON.stringify(error, null, 2)}`
     );
   }
 
-  /* istanbul ignore next */
   private _onThrottle(eventData: any) {
     logger.warn(
       `RafikiRawKafkaProducer - event.throttle - ${JSON.stringify(
@@ -188,7 +185,6 @@ export class RafikiKafkaRawProducer
     );
   }
 
-  /* istanbul ignore next */
   private _onLog(eventData: any): void {
     logger.debug(
       `RafikiRawKafkaProducer - event.log - ${JSON.stringify(
@@ -199,7 +195,6 @@ export class RafikiKafkaRawProducer
     );
   }
 
-  /* istanbul ignore next */
   private _onStats(eventData: any): void {
     logger.debug(`RafikiRawKafkaProducer - event.stats - ${eventData.message}`);
   }
@@ -261,7 +256,6 @@ export class RafikiKafkaRawProducer
       try {
         message = Buffer.from(JSON.stringify(msg.value), 'utf-8');
       } catch (err) {
-        /* istanbul ignore next */
         logger.error(
           err,
           'RafikiRawKafkaProducer - error parsing message value - JSON.stringify() error'
@@ -276,7 +270,6 @@ export class RafikiKafkaRawProducer
       try {
         key = Buffer.from(JSON.stringify(msg.key), 'utf-8');
       } catch (err) {
-        /* istanbul ignore next */
         logger.error(
           'RafikiRawKafkaProducer - error parsing key value - JSON.stringify() error',
           err
@@ -347,9 +340,8 @@ export class RafikiKafkaRawProducer
             }
           );
         } catch (err) {
-          /* istanbul ignore next */
           logger.error('RafikiRawKafkaProducer - send ...error !', err);
-          /* istanbul ignore next */
+
           reject(err);
         }
       });

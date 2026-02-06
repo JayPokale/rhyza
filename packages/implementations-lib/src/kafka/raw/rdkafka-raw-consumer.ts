@@ -1,5 +1,4 @@
-'use strict';
-
+/* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any */
 import { EventEmitter } from 'events';
 import { TopicPartition } from 'node-rdkafka';
 import * as RDKafka from 'node-rdkafka';
@@ -8,7 +7,7 @@ import {
   RawAuthenticationOptions,
   RawMessage,
   IRawMessageConsumer
-} from './raw_types';
+} from './raw-types';
 import * as crypto from 'crypto';
 import { logger } from '../../logger';
 

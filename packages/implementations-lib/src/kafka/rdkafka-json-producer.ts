@@ -3,7 +3,7 @@ import {
   RafikiKafkaRawProducer,
   RafikiKafkaRawProducerOptions
 } from './raw/rdkafka_raw_producer';
-import { RawMessage } from './raw/raw_types';
+import { RawMessage } from './raw/raw-types';
 
 import { logger } from '../logger';
 

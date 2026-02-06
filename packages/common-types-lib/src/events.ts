@@ -15,7 +15,7 @@ export enum EventTopics {
 }
 
 export interface ApiRspEventPayload {
-  createdId: any;
+  createdId: string;
 }
 
 export class ApiRspIncomingPaymentEvent extends DomainEventMsg {

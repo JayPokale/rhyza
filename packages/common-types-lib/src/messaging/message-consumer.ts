@@ -1,5 +1,3 @@
-'use strict';
-
 import { Message } from './messages';
 
 export interface MessageConsumer {
