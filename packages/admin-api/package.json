@@ -4,7 +4,8 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "build": "tsp compile ."
+    "build": "tsp compile .",
+    "watch": "tsp compile . --watch"
   },
   "dependencies": {
     "@typespec/compiler": "latest",
