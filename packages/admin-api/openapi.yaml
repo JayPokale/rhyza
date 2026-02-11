@@ -1,0 +1,507 @@
+openapi: 3.1.0
+info:
+  title: Rafiki Admin API
+  version: 0.0.0
+tags: []
+paths:
+  /assets:
+    get:
+      operationId: Assets_list
+      description: Paginate over assets
+      parameters:
+        - $ref: '#/components/parameters/PaginationParameters.cursor'
+        - $ref: '#/components/parameters/PaginationParameters.first'
+        - $ref: '#/components/parameters/PaginationParameters.last'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - pagination
+                  - result
+                properties:
+                  pagination:
+                    $ref: '#/components/schemas/PageInfo'
+                  result:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Asset'
+    post:
+      operationId: Assets_createAsset
+      parameters: []
+      responses:
+        '201':
+          description: The request has succeeded and a new resource has been created as a result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Asset'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Asset'
+  /assets/{code}:
+    patch:
+      operationId: Assets_updateAsset
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssetUpdate'
+  /assets/{code}/liquidity/deposit:
+    post:
+      operationId: Assets_depositLiquidity
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '202':
+          description: The request has been accepted for processing, but processing has not yet completed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LiquidityRequest'
+  /assets/{code}/liquidity/withdraw:
+    post:
+      operationId: Assets_withdrawLiquidity
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '202':
+          description: The request has been accepted for processing, but processing has not yet completed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LiquidityRequest'
+  /peers:
+    get:
+      operationId: Peers_list
+      description: Paginate over peers
+      parameters:
+        - $ref: '#/components/parameters/PaginationParameters.cursor'
+        - $ref: '#/components/parameters/PaginationParameters.first'
+        - $ref: '#/components/parameters/PaginationParameters.last'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - pagination
+                  - result
+                properties:
+                  pagination:
+                    $ref: '#/components/schemas/PageInfo'
+                  result:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Peer'
+    post:
+      operationId: Peers_createPeer
+      parameters: []
+      responses:
+        '201':
+          description: The request has succeeded and a new resource has been created as a result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Peer'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PeerCreate'
+  /peers/{id}:
+    get:
+      operationId: Peers_getPeer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Peer'
+    patch:
+      operationId: Peers_updatePeer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PeerUpdate'
+  /peers/{id}/liquidity/deposit:
+    post:
+      operationId: Peers_depositLiquidity
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '202':
+          description: The request has been accepted for processing, but processing has not yet completed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LiquidityRequest'
+  /peers/{id}/liquidity/withdraw:
+    post:
+      operationId: Peers_withdrawLiquidity
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '202':
+          description: The request has been accepted for processing, but processing has not yet completed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LiquidityRequest'
+  /wallet-addresses:
+    get:
+      operationId: WalletAddresses_list
+      description: Paginate over wallet addresses
+      parameters:
+        - $ref: '#/components/parameters/PaginationParameters.cursor'
+        - $ref: '#/components/parameters/PaginationParameters.first'
+        - $ref: '#/components/parameters/PaginationParameters.last'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - pagination
+                  - result
+                properties:
+                  pagination:
+                    $ref: '#/components/schemas/PageInfo'
+                  result:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WalletAddress'
+    post:
+      operationId: WalletAddresses_createWalletAddress
+      parameters: []
+      responses:
+        '201':
+          description: The request has succeeded and a new resource has been created as a result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletAddress'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WalletAddressCreate'
+  /wallet-addresses/{address}:
+    get:
+      operationId: WalletAddresses_getWalletAddress
+      parameters:
+        - name: address
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletAddress'
+    patch:
+      operationId: WalletAddresses_updateWalletAddress
+      parameters:
+        - name: address
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WalletAddressUpdate'
+  /wallet-addresses/{address}/keys:
+    get:
+      operationId: Keys_listKeys
+      parameters:
+        - name: address
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WalletAddressKey'
+    post:
+      operationId: Keys_createKey
+      parameters:
+        - name: address
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: The request has succeeded and a new resource has been created as a result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletAddressKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WalletAddressKey'
+components:
+  parameters:
+    PaginationParameters.cursor:
+      name: cursor
+      in: query
+      required: false
+      description: The cursor key to list from.
+      schema:
+        type: string
+      explode: false
+    PaginationParameters.first:
+      name: first
+      in: query
+      required: false
+      description: The number of items to return after the cursor.
+      schema:
+        type: number
+      explode: false
+    PaginationParameters.last:
+      name: last
+      in: query
+      required: false
+      description: The number of items to return before the cursor.
+      schema:
+        type: number
+      explode: false
+  schemas:
+    Asset:
+      type: object
+      required:
+        - code
+        - scale
+      properties:
+        code:
+          type: string
+        scale:
+          type: number
+        liquidityLowThreshold:
+          type: integer
+        liquidityHighThreshold:
+          type: integer
+        initialLiquidity:
+          type: integer
+    AssetUpdate:
+      type: object
+      properties:
+        liquidityLowThreshold:
+          type: integer
+        liquidityHighThreshold:
+          type: integer
+    IlpPeerSettings:
+      type: object
+      required:
+        - ilpAddress
+        - connectorUrl
+      properties:
+        ilpAddress:
+          type: string
+        connectorUrl:
+          type: string
+    LiquidityRequest:
+      type: object
+      required:
+        - amount
+        - scale
+      properties:
+        amount:
+          type: number
+          description: Amount of liqudity to deposit.
+        scale:
+          type: string
+          description: Decimal precision of the amount.
+    PageInfo:
+      type: object
+      required:
+        - hasPreviousPage
+        - hasNextPage
+      properties:
+        startCursor:
+          type: string
+        endCursor:
+          type: string
+        hasPreviousPage:
+          type: boolean
+        hasNextPage:
+          type: boolean
+    Peer:
+      type: object
+      required:
+        - id
+        - name
+        - assetCode
+        - address
+        - liquidity
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        assetCode:
+          type: string
+        initialLiquidity:
+          type: integer
+        liquidityLowThreshold:
+          type: integer
+        liquidityHighThreshold:
+          type: integer
+        address:
+          type: string
+        liquidity:
+          type: integer
+    PeerCreate:
+      type: object
+      required:
+        - name
+        - assetCode
+      properties:
+        name:
+          type: string
+        assetCode:
+          type: string
+        initialLiquidity:
+          type: integer
+        liquidityLowThreshold:
+          type: integer
+        liquidityHighThreshold:
+          type: integer
+    PeerUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        liquidityLowThreshold:
+          type: integer
+        liquidityHighThreshold:
+          type: integer
+    WalletAddress:
+      type: object
+      required:
+        - address
+        - assetScale
+        - assetCode
+        - publicName
+      properties:
+        address:
+          type: string
+        assetScale:
+          type: number
+        assetCode:
+          type: string
+        publicName:
+          type: string
+        isActive:
+          type: boolean
+    WalletAddressCreate:
+      type: object
+      required:
+        - assetCode
+        - publicName
+      properties:
+        assetCode:
+          type: string
+        publicName:
+          type: string
+        isActive:
+          type: boolean
+    WalletAddressKey:
+      type: object
+      required:
+        - id
+        - jwk
+      properties:
+        id:
+          type: string
+        jwk:
+          type: string
+    WalletAddressUpdate:
+      type: object
+      properties:
+        publicName:
+          type: string
+        isActive:
+          type: boolean
