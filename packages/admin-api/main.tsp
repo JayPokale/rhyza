@@ -42,11 +42,14 @@ model AssetUpdate {
   liquidityHighThreshold?: integer;
 }
 
-model LiquidityRequest {
-  @doc("Amount of liqudity to deposit.")
+model AmountWithScale {
   amount: numeric;
   @doc("Decimal precision of the amount.")
   scale: string;
+}
+
+model LiquidityRequest {
+  ...AmountWithScale;
 }
 
 @route("/assets")
@@ -159,6 +162,52 @@ namespace WalletAddresses {
       @body newKey: WalletAddressKey;
     };
   }
+}
+
+enum IncomingPaymentState {
+  CREATED,
+  EXPIRED,
+  COMPLETED,
+}
+
+model IncomingPaymentCreate {
+  @doc("Client-provided ID. Auto-generated if omitted.")
+  id?: string;
+  @doc("ID of the wallet address that will receive the payment.")
+  walletAddressId: string;
+  @doc("Max amount to receive.")
+  incomingAmount?: AmountWithScale;
+  @doc("Date and time that the incoming payment will expire.")
+  expiresAt?: utcDateTime;
+  metadata?: Record<unknown>;
+}
+
+model IncomingPayment {
+  @key id: string;
+  walletAddressId: string;
+  state: IncomingPaymentState;
+  assetCode: string;
+  assetScale: numeric;
+  incomingAmount?: numeric;
+  receivedAmount: numeric;
+  expiresAt?: utcDateTime;
+  metadata?: Record<unknown>;
+  createdAt: utcDateTime;
+}
+
+@route("/incoming-payments")
+namespace IncomingPayments {
+  @post
+  op createIncomingPayment(@body body: IncomingPaymentCreate): {
+    @statusCode statusCode: 201;
+    @body incomingPayment: IncomingPayment;
+  };
+
+  @get
+  op getIncomingPayment(@path id: string): {
+    @statusCode statusCode: 200;
+    @body incomingPayment: IncomingPayment;
+  };
 }
 
 model IlpPeerSettings {

@@ -99,6 +99,39 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/LiquidityRequest'
+  /incoming-payments:
+    post:
+      operationId: IncomingPayments_createIncomingPayment
+      parameters: []
+      responses:
+        '201':
+          description: The request has succeeded and a new resource has been created as a result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncomingPayment'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IncomingPaymentCreate'
+  /incoming-payments/{id}:
+    get:
+      operationId: IncomingPayments_getIncomingPayment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncomingPayment'
   /peers:
     get:
       operationId: Peers_list
@@ -349,6 +382,17 @@ components:
         type: number
       explode: false
   schemas:
+    AmountWithScale:
+      type: object
+      required:
+        - amount
+        - scale
+      properties:
+        amount:
+          type: number
+        scale:
+          type: string
+          description: Decimal precision of the amount.
     Asset:
       type: object
       required:
@@ -382,6 +426,68 @@ components:
           type: string
         connectorUrl:
           type: string
+    IncomingPayment:
+      type: object
+      required:
+        - id
+        - walletAddressId
+        - state
+        - assetCode
+        - assetScale
+        - receivedAmount
+        - createdAt
+      properties:
+        id:
+          type: string
+        walletAddressId:
+          type: string
+        state:
+          $ref: '#/components/schemas/IncomingPaymentState'
+        assetCode:
+          type: string
+        assetScale:
+          type: number
+        incomingAmount:
+          type: number
+        receivedAmount:
+          type: number
+        expiresAt:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+          unevaluatedProperties: {}
+        createdAt:
+          type: string
+          format: date-time
+    IncomingPaymentCreate:
+      type: object
+      required:
+        - walletAddressId
+      properties:
+        id:
+          type: string
+          description: Client-provided ID. Auto-generated if omitted.
+        walletAddressId:
+          type: string
+          description: ID of the wallet address that will receive the payment.
+        incomingAmount:
+          allOf:
+            - $ref: '#/components/schemas/AmountWithScale'
+          description: Max amount to receive.
+        expiresAt:
+          type: string
+          format: date-time
+          description: Date and time that the incoming payment will expire.
+        metadata:
+          type: object
+          unevaluatedProperties: {}
+    IncomingPaymentState:
+      type: string
+      enum:
+        - CREATED
+        - EXPIRED
+        - COMPLETED
     LiquidityRequest:
       type: object
       required:
@@ -390,7 +496,6 @@ components:
       properties:
         amount:
           type: number
-          description: Amount of liqudity to deposit.
         scale:
           type: string
           description: Decimal precision of the amount.
