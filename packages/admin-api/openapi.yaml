@@ -242,6 +242,45 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/LiquidityRequest'
+  /quotes:
+    post:
+      operationId: Quotes_createQuote
+      parameters: []
+      responses:
+        '201':
+          description: The request has succeeded and a new resource has been created as a result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Quote'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuoteError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuoteCreate'
+  /quotes/{id}:
+    get:
+      operationId: Quotes_getQuote
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Quote'
   /wallet-addresses:
     get:
       operationId: WalletAddresses_list
@@ -435,7 +474,6 @@ components:
         - assetCode
         - assetScale
         - receivedAmount
-        - createdAt
       properties:
         id:
           type: string
@@ -457,9 +495,6 @@ components:
         metadata:
           type: object
           unevaluatedProperties: {}
-        createdAt:
-          type: string
-          format: date-time
     IncomingPaymentCreate:
       type: object
       required:
@@ -563,6 +598,67 @@ components:
           type: integer
         liquidityHighThreshold:
           type: integer
+    Quote:
+      type: object
+      required:
+        - id
+        - senderWalletAddressId
+        - incomingPaymentId
+        - debitAmount
+        - receiveAmount
+        - exchangeRate
+        - expiresAt
+      properties:
+        id:
+          type: string
+        senderWalletAddressId:
+          type: string
+        incomingPaymentId:
+          type: string
+        debitAmount:
+          $ref: '#/components/schemas/AmountWithScale'
+        receiveAmount:
+          $ref: '#/components/schemas/AmountWithScale'
+        exchangeRate:
+          type: number
+        expiresAt:
+          type: string
+          format: date-time
+    QuoteCreate:
+      type: object
+      required:
+        - senderWalletAddressId
+        - incomingPaymentId
+      properties:
+        id:
+          type: string
+          description: Client-provided ID. Auto-generated if omitted.
+        senderWalletAddressId:
+          type: string
+          description: ID of the wallet address that will send the payment.
+        incomingPaymentId:
+          type: string
+          description: ID of the incoming payment to quote against.
+        debitAmount:
+          allOf:
+            - $ref: '#/components/schemas/AmountWithScale'
+          description: Fixed send amount. Mutually exclusive with receiveAmount.
+        receiveAmount:
+          allOf:
+            - $ref: '#/components/schemas/AmountWithScale'
+          description: Fixed receive amount. Mutually exclusive with debitAmount.
+      description: Create a quote for a payment. Provide either debitAmount or receiveAmount, but not both. If neither is provided, the incoming payment's incomingAmount is used. If the incoming payment has no incomingAmount and neither is provided, the request will fail with an InvalidQuoteAmountError.
+    QuoteError:
+      type: object
+      required:
+        - errorType
+        - message
+      properties:
+        errorType:
+          type: string
+          description: Error type identifier, e.g. InvalidQuoteAmountError.
+        message:
+          type: string
     WalletAddress:
       type: object
       required:

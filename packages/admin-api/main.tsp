@@ -192,7 +192,6 @@ model IncomingPayment {
   receivedAmount: numeric;
   expiresAt?: utcDateTime;
   metadata?: Record<unknown>;
-  createdAt: utcDateTime;
 }
 
 @route("/incoming-payments")
@@ -207,6 +206,53 @@ namespace IncomingPayments {
   op getIncomingPayment(@path id: string): {
     @statusCode statusCode: 200;
     @body incomingPayment: IncomingPayment;
+  };
+}
+
+@doc("Create a quote for a payment. Provide either debitAmount or receiveAmount, but not both. If neither is provided, the incoming payment's incomingAmount is used. If the incoming payment has no incomingAmount and neither is provided, the request will fail with an InvalidQuoteAmountError.")
+model QuoteCreate {
+  @doc("Client-provided ID. Auto-generated if omitted.")
+  id?: string;
+  @doc("ID of the wallet address that will send the payment.")
+  senderWalletAddressId: string;
+  @doc("ID of the incoming payment to quote against.")
+  incomingPaymentId: string;
+  @doc("Fixed send amount. Mutually exclusive with receiveAmount.")
+  debitAmount?: AmountWithScale;
+  @doc("Fixed receive amount. Mutually exclusive with debitAmount.")
+  receiveAmount?: AmountWithScale;
+}
+
+model Quote {
+  @key id: string;
+  senderWalletAddressId: string;
+  incomingPaymentId: string;
+  debitAmount: AmountWithScale;
+  receiveAmount: AmountWithScale;
+  exchangeRate: numeric;
+  expiresAt: utcDateTime;
+}
+
+@error
+model QuoteError {
+  @statusCode statusCode: 400;
+  @doc("Error type identifier, e.g. InvalidQuoteAmountError.")
+  errorType: string;
+  message: string;
+}
+
+@route("/quotes")
+namespace Quotes {
+  @post
+  op createQuote(@body body: QuoteCreate): {
+    @statusCode statusCode: 201;
+    @body quote: Quote;
+  } | QuoteError;
+
+  @get
+  op getQuote(@path id: string): {
+    @statusCode statusCode: 200;
+    @body quote: Quote;
   };
 }
 
