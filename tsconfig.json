@@ -2,6 +2,8 @@
   "compilerOptions": {
     "strict": true,
     "esModuleInterop": true,
+    "declarationMap": true,
+    "declaration": true,
     "skipLibCheck": true,
     "sourceMap": true,
     "lib": ["es2023"],
@@ -11,7 +13,7 @@
   "references": [
     { "path": "./packages/common-types-lib" },
     { "path": "./packages/payments-domain-lib" },
-    { "path": "./packages/implementations-lib" }
+
   ],
   "files": [],
   "include": []

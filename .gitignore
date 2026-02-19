@@ -41,3 +41,4 @@ tmp
 !test/**/.env
 
 dist
+/packages/pal-public-types-lib/src/proto_generated/

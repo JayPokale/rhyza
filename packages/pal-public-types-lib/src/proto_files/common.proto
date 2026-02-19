@@ -1,0 +1,17 @@
+/*****
+ Copyright © 2026 & Interledger Foundation
+ ----------------------------------------------
+ Contributors
+
+ * Cyberbones Digital Solutions
+ - Pedro Sousa Barreto <pedrosousabarreto@gmail.com>
+ ******/
+
+syntax = "proto3";
+package rafiki.pal.svc;
+/*
+
+message Empty{
+
+}
+*/
