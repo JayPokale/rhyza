@@ -3,7 +3,7 @@
 ```mermaid
 sequenceDiagram
 	autonumber
-	
+
     participant OPC as Open Payments Client
     participant OPRS as Open Payments Resource Server
 
@@ -20,7 +20,7 @@ sequenceDiagram
     participant PCH as Payment Command Handler
     participant PET as Payment Events Topic
     end
-    
+
     OPC ->> OPRS: Open Payments request with signature <br> signed by private key(e.g. create incoming payment)
     OPRS ->> AC: Request to validate access token
     AC ->> AAPI: Request to validate access token
@@ -37,7 +37,7 @@ sequenceDiagram
     PCH -> PCH: Create/store incoming payment
     PCH -->> PET: Incoming payment created event
     PAPI -->> PET: Read incoming payment created event
-    PAPI ->> OPRS: Return incoming payment 
+    PAPI ->> OPRS: Return incoming payment
     OPRS ->> OPC: Return incoming payment
 
     %% else Access token is invalid

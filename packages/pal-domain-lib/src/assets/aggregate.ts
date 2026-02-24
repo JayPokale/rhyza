@@ -7,11 +7,11 @@
  - Pedro Sousa Barreto <pedrosousabarreto@gmail.com>
  ******/
 
-"use strict";
+'use strict';
 
-import {CannotCreateDuplicateAssetError} from "./errors";
-import {IAssetAggregate, IPalAsset, IPalAssetRepository} from "./interfaces";
-import {PalAsset} from "./entity";
+import { CannotCreateDuplicateAssetError } from './errors';
+import { IAssetAggregate, IPalAssetRepository } from './interfaces';
+import { PalAsset } from './entity';
 
 export class AssetAggregate implements IAssetAggregate {
   private _repo: IPalAssetRepository;
@@ -20,10 +20,18 @@ export class AssetAggregate implements IAssetAggregate {
     this._repo = repo;
   }
 
-  async createAsset(code:string, scale:number, liquidityLowThreshold:bigint|null = null, liquidityHighThreshold:bigint|null = null): Promise<void>{
+  async createAsset(
+    code: string,
+    scale: number,
+    liquidityLowThreshold: bigint | null = null,
+    liquidityHighThreshold: bigint | null = null
+  ): Promise<void> {
     const existing = await this._repo.fetch(code);
 
-    if (existing) throw new CannotCreateDuplicateAssetError("Asset with code: " + code + " already exists");
+    if (existing)
+      throw new CannotCreateDuplicateAssetError(
+        'Asset with code: ' + code + ' already exists'
+      );
 
     // TODO: validate inputs
 
@@ -34,15 +42,14 @@ export class AssetAggregate implements IAssetAggregate {
       liquidityHighThreshold
     );
 
-    await this._repo.store(newAsset.toJSON());
+    await this._repo.store(newAsset.toObject());
   }
-
 
   async getAsset(code: string): Promise<PalAsset | null> {
     const found = await this._repo.fetch(code);
 
     if (!found) return null;
 
-    return PalAsset.fromJSON(found);
+    return PalAsset.fromObject(found);
   }
 }

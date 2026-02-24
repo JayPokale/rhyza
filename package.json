@@ -7,7 +7,8 @@
     "docker:up": "docker compose -f ./docker/docker-compose.yaml down --volumes && docker compose -f ./docker/docker-compose.yaml up --build -d",
     "build": "pnpm -r build",
     "format": "prettier --write .",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test": "pnpm -r test"
   },
   "keywords": [],
   "author": "",

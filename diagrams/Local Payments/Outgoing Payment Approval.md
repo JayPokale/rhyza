@@ -1,19 +1,20 @@
 # Making Local Payments
+
 ```mermaid
 sequenceDiagram
 	autonumber
 
     participant AGW as Admin Gateway
-	
+
     box Payments BC
-    
+
 	participant PC as Payments Client
 	participant PAPI as Payments API
 	participant PEH as Payment Event Handler
     participant PCH as Payment Command Handler
     participant PET as Payment Events Topic
     end
-    
+
     box PAL (Peers, Accounts, Liquidity) BC
     participant PALC as PAL Client
     end

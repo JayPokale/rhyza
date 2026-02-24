@@ -18,17 +18,17 @@ sequenceDiagram
     %% participant PALCH as Accounts & Liquidity Command Handler
     %% participant PALET as Accounts & Liquidity Events Topic
     %% end
-	
+
     box Payments BC
 	participant PEH as Payment Event Handler
     participant PCH as Payment Command Handler
     participant PET as Payment Events Topic
     end
-    
+
 
 
     ILPAPI-->>ILPAPI: Receive prepare (quote) packet
-    ILPAPI -->> ILP: Process quote packet command 
+    ILPAPI -->> ILP: Process quote packet command
     %% Or we decode in the ILPAPI
     ILP-->>ILP: Decode prepare packet: get incoming payment id,<br>determine incoming peer (from auth)
     ILP-->>ILPET: Quote received event

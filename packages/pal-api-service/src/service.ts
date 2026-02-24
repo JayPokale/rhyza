@@ -7,17 +7,20 @@
  - Pedro Sousa Barreto <pedrosousabarreto@gmail.com>
  ******/
 
-"use strict";
+'use strict';
 
-import {AssetAggregate, WalletAddressAggregate} from "pal-domain-lib";
-import {PalServiceServer} from "./grpc/grpc-service";
-import process from "process";
-import {MongoDbAssetRepo, MongoDbWalletRepoRepo} from "pal-implementations-lib";
+import { AssetAggregate, WalletAddressAggregate } from 'pal-domain-lib';
+import { PalServiceServer } from './grpc/grpc-service';
+import process from 'process';
+import {
+  MongoDbAssetRepo,
+  MongoDbWalletRepoRepo
+} from 'pal-implementations-lib';
 
-const MONGO_URL = process.env["MONGO_URL"] || "mongodb://localhost:27017/";
+const MONGO_URL = process.env['MONGO_URL'] || 'mongodb://localhost:27017/';
 
 export class PalApiService {
-  private static grpcService:PalServiceServer;
+  private static grpcService: PalServiceServer;
 
   static async start(): Promise<void> {
     const assetRepo = new MongoDbAssetRepo(MONGO_URL);
@@ -28,7 +31,12 @@ export class PalApiService {
     const assetAggregate = new AssetAggregate(assetRepo);
     const walletAggregate = new WalletAddressAggregate(walletRepo);
 
-    this.grpcService = new PalServiceServer("1", "0.0.0.0:50051", assetAggregate, walletAggregate);
+    this.grpcService = new PalServiceServer(
+      '1',
+      '0.0.0.0:50051',
+      assetAggregate,
+      walletAggregate
+    );
 
     await this.grpcService.start();
   }
@@ -37,4 +45,3 @@ export class PalApiService {
     await this.grpcService.stop();
   }
 }
-

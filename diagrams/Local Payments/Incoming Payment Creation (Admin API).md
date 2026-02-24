@@ -1,8 +1,9 @@
 # Incoming Payment Creation (Admin API)
+
 ```mermaid
 sequenceDiagram
 	autonumber
-	
+
     participant AGW as Admin Gateway
 
     box Payments BC
@@ -17,7 +18,7 @@ sequenceDiagram
     participant PALAPI as PAL API
     participant PALC as PAL Client
     end
-    
+
 
     AGW ->> PC: Create incoming payment
     PC -->> PAPI: Create incoming payment

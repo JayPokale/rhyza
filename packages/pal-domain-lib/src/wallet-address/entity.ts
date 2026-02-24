@@ -7,21 +7,25 @@
  - Pedro Sousa Barreto <pedrosousabarreto@gmail.com>
  ******/
 
-"use strict";
+'use strict';
 
-import { IPalWalletAddress } from "./interfaces";
-import {IPalAsset} from "../assets/interfaces";
-import * as crypto from "node:crypto";
+import { IPalWalletAddress } from './interfaces';
 
 export class PalWalletAddress implements IPalWalletAddress {
-  private _address: string;
-  private _publicName: string;
-  private _assetCode: string;
-  private _assetScale: number;
-  private _isActive: boolean;
+  private readonly _address: string;
+  private readonly _publicName: string;
+  private readonly _assetCode: string;
+  private readonly _assetScale: number;
+  private readonly _isActive: boolean;
 
-  constructor(publicName: string, assetCode: string, assetScale: number, isActive?: boolean) {
-    this._address = crypto.randomUUID();
+  constructor(
+    address: string,
+    publicName: string,
+    assetCode: string,
+    assetScale: number,
+    isActive?: boolean
+  ) {
+    this._address = address;
     this._publicName = publicName;
     this._assetCode = assetCode;
     this._assetScale = assetScale;
@@ -29,14 +33,17 @@ export class PalWalletAddress implements IPalWalletAddress {
     this._isActive = isActive == true || isActive == undefined;
   }
 
-  static fromJSON(json: IPalWalletAddress): PalWalletAddress {
-    const wallet = new PalWalletAddress(json.publicName, json.assetCode, json.assetScale, json.isActive);
-    wallet._address = json.address;
-
-    return wallet;
+  static fromObject(json: IPalWalletAddress): PalWalletAddress {
+    return new PalWalletAddress(
+      json.address,
+      json.publicName,
+      json.assetCode,
+      json.assetScale,
+      json.isActive
+    );
   }
 
-  toJSON(): IPalWalletAddress {
+  toObject(): IPalWalletAddress {
     return {
       address: this._address,
       publicName: this._publicName,

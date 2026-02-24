@@ -52,9 +52,10 @@ Wallet Address messages
 */
 
 message CreateWalletAddressRequest{
-  string assetCode = 1;
-  string publicName = 2;
-  optional bool isActive = 3;
+  string address = 1;
+  string assetCode = 2;
+  string publicName = 3;
+  optional bool isActive = 4;
 }
 message CreateWalletAddressResponse{
   string address = 1;

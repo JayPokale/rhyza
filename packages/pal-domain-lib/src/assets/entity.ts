@@ -7,34 +7,44 @@
  - Pedro Sousa Barreto <pedrosousabarreto@gmail.com>
  ******/
 
-"use strict";
+'use strict';
 
-import { IPalAsset } from "./interfaces";
+import { IPalAsset } from './interfaces';
 
-export class PalAsset implements IPalAsset{
+export class PalAsset implements IPalAsset {
   private _code: string;
   private _scale: number;
   private _liquidityLowThreshold: bigint | null;
   private _liquidityHighThreshold: bigint | null;
 
-  constructor(code: string, scale: number, liquidityLowThreshold: bigint | null = null, liquidityHighThreshold: bigint | null = null) {
+  constructor(
+    code: string,
+    scale: number,
+    liquidityLowThreshold: bigint | null = null,
+    liquidityHighThreshold: bigint | null = null
+  ) {
     this._code = code;
     this._scale = scale;
     this._liquidityLowThreshold = liquidityLowThreshold;
     this._liquidityHighThreshold = liquidityHighThreshold;
   }
 
-  static fromJSON(json: IPalAsset): PalAsset {
-    return new PalAsset(json.code, json.scale, json.liquidityLowThreshold, json.liquidityHighThreshold);
+  static fromObject(json: IPalAsset): PalAsset {
+    return new PalAsset(
+      json.code,
+      json.scale,
+      json.liquidityLowThreshold,
+      json.liquidityHighThreshold
+    );
   }
 
-  toJSON(): IPalAsset {
+  toObject(): IPalAsset {
     return {
       code: this._code,
       scale: this._scale,
       liquidityLowThreshold: this._liquidityLowThreshold,
       liquidityHighThreshold: this._liquidityHighThreshold
-    }
+    };
   }
 
   get code(): string {
@@ -52,5 +62,4 @@ export class PalAsset implements IPalAsset{
   get liquidityHighThreshold(): bigint | null {
     return this._liquidityHighThreshold;
   }
-
 }

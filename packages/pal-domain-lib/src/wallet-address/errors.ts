@@ -7,6 +7,6 @@
  - Pedro Sousa Barreto <pedrosousabarreto@gmail.com>
  ******/
 
-"use strict";
+'use strict';
 
 export class CannotCreateDuplicateWalletAddressError extends Error {}

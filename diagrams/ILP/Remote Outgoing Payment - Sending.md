@@ -1,10 +1,9 @@
 # Remote Outgoing Payment - Sending
 
-
 ```mermaid
 sequenceDiagram
 	autonumber
-    
+
     participant AGW as Admin Gateway
 
     box Payments BC
@@ -14,7 +13,7 @@ sequenceDiagram
     participant PCH as Payment Command Handler
     participant PET as Payment Events Topic
     end
-    
+
     box PAL (Peers, Accounts, Liquidity) BC
     participant PALC as PAL Client
     participant PALEH as PAL Event Handler
@@ -48,7 +47,7 @@ sequenceDiagram
     ILPEH -->> ILP: Start payment command
     ILP ->> ILP: Fetch peer connector details
     ILP ->> ILP: Store packet & its expiry (put it on a worker and handle expiries separately)
-     
+
     ILP ->> ILPC: Send prepare packet
     ILPC -->> ILPC: Send prepare packet to peer
     alt Fulfill packet received

@@ -3,9 +3,9 @@
 ```mermaid
 sequenceDiagram
 	autonumber
-	
+
     box Payments BC
-    
+
 	participant PEH as Payment Event Handler
     participant PCH as Payment Command Handler
     participant PET as Payment Events Topic
@@ -31,10 +31,10 @@ sequenceDiagram
     ILPEH -->> ILP: Start quote command
     ILP ->> ILP: Fetch peer connector details
     ILP ->> ILP: Store packet & its expiry (put it on a worker and handle expiries separately)
-     
+
     ILP ->> ILPC: Send unfulfillable prepare packet (quoting packet)
     ILPC -->> ILPC: Send prepare packet to peer (via ILP client)
-    
+
     alt Quote packet received
     ILPAPI ->> ILPAPI: Receive reject packet
     ILPAPI -->> ILP: Process quote response (reject packet) command

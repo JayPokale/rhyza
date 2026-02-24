@@ -7,7 +7,7 @@
  - Pedro Sousa Barreto <pedrosousabarreto@gmail.com>
  ******/
 
-"use strict";
+'use strict';
 
-export * from "./local-types";
-export * from "./client";
+export * from './local-types';
+export * from './client';

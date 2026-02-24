@@ -19,7 +19,7 @@ sequenceDiagram
     participant PALCH as PAL Command Handler
     participant PALET as PAL Events Topic
     end
-	
+
     box Payments BC
 	participant PEH as Payment Event Handler
     participant PCH as Payment Command Handler
@@ -35,10 +35,10 @@ sequenceDiagram
     participant AGW as Admin Gateway
     participant ASE as ASE
 
-    
+
 
     ILPAPI-->>ILPAPI: Receive prepare packet
-    ILPAPI -->> ILP: Process prepare packet command 
+    ILPAPI -->> ILP: Process prepare packet command
     %% Or we decode in the ILPAPI
     ILP-->>ILP: Decode prepare packet: get incoming payment id,<br>determine incoming peer (from auth), <br> sending ASE (KYC) data
     ILP-->>ILPET: Prepare packet received event
@@ -46,8 +46,8 @@ sequenceDiagram
     PEH -->> ILPET: Read prepare packet received event
     PEH -->> PCH: Process payment (micropayment/partial payment) command
     PCH ->> PCH: Validate incoming payment <br> (completed), fetch peer details (ie asset)
-    PCH ->> PCH: Persist partial payment 
-    PCH -->> PET: Partial incoming payment validated 
+    PCH ->> PCH: Persist partial payment
+    PCH -->> PET: Partial incoming payment validated
     PALEH -->> PET: Read partial incoming payment validated event
     PALEH -->> PALCH: Create pending peer to wallet address transfer command
     PALCH ->>PALCH: Find wallet address for asset<br> Create pending transfer(s) from peer to (asset to) wallet address

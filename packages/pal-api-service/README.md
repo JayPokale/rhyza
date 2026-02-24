@@ -32,4 +32,3 @@ pnpm test
 Check the proto files in [pal-public-types-lib](../pal-public-types-lib) for the gRPC and protobuf api definition,
 OR
 Use the [pal-client-lib](../pal-client-lib) for a ready-made Typescript client.
-

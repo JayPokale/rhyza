@@ -7,6 +7,6 @@
  - Pedro Sousa Barreto <pedrosousabarreto@gmail.com>
  ******/
 
-"use strict";
+'use strict';
 
-export * from "./mongo";
+export * from './mongo';

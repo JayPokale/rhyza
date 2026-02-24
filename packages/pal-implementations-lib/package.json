@@ -12,7 +12,6 @@
   "dependencies": {
     "mongodb": "~7.1.0",
     "pal-domain-lib": "workspace: *"
-
   },
   "devDependencies": {
     "tsx": "^4.19.3",

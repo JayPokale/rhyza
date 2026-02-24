@@ -7,7 +7,7 @@
  - Pedro Sousa Barreto <pedrosousabarreto@gmail.com>
  ******/
 
-"use strict";
+'use strict';
 
-export * from "./mock-asset-repo";
-export * from "./mock-wallet-repo";
+export * from './mock-asset-repo';
+export * from './mock-wallet-repo';

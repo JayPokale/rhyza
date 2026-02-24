@@ -12,8 +12,7 @@
   },
   "references": [
     { "path": "./packages/common-types-lib" },
-    { "path": "./packages/payments-domain-lib" },
-
+    { "path": "./packages/payments-domain-lib" }
   ],
   "files": [],
   "include": []

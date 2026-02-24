@@ -110,20 +110,23 @@ components:
       properties:
         address:
           type: string
-        assetScale:
-          type: number
-        assetCode:
-          type: string
         publicName:
           type: string
+        assetCode:
+          type: string
+        assetScale:
+          type: number
         isActive:
           type: boolean
     WalletAddressCreate:
       type: object
       required:
+        - address
         - assetCode
         - publicName
       properties:
+        address:
+          type: string
         assetCode:
           type: string
         publicName:

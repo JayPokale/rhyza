@@ -7,7 +7,7 @@
  - Pedro Sousa Barreto <pedrosousabarreto@gmail.com>
  ******/
 
-"use strict";
+'use strict';
 
-export * from "./mongodb-asset-repo";
-export * from "./mongodb-wallet-repo";
+export * from './mongodb-asset-repo';
+export * from './mongodb-wallet-repo';

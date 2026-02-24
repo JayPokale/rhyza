@@ -7,9 +7,9 @@
  - Pedro Sousa Barreto <pedrosousabarreto@gmail.com>
  ******/
 
-"use strict";
+'use strict';
 
-export interface IPalWalletAddress{
+export interface IPalWalletAddress {
   address: string;
   publicName: string;
   assetCode: string;
@@ -18,12 +18,18 @@ export interface IPalWalletAddress{
 }
 
 export interface IWalletAddressAggregate {
-  createWalletAddress(publicName: string, assetCode:string, assetScale: number, isActive?: boolean): Promise<string>;
+  createWalletAddress(
+    address: string,
+    publicName: string,
+    assetCode: string,
+    assetScale: number,
+    isActive?: boolean
+  ): Promise<string>;
   getWalletAddress(code: string): Promise<IPalWalletAddress | null>;
 }
 
-export interface IPalWalletAddressRepository{
-  store(asset:IPalWalletAddress):Promise<void>;
-  fetch(address:string):Promise<IPalWalletAddress | null>;
-  fetchByPublicName(publicName:string):Promise<IPalWalletAddress | null>;
+export interface IPalWalletAddressRepository {
+  store(asset: IPalWalletAddress): Promise<void>;
+  fetch(address: string): Promise<IPalWalletAddress | null>;
+  // fetchByPublicName(publicName:string):Promise<IPalWalletAddress | null>;
 }

@@ -7,14 +7,14 @@
  - Pedro Sousa Barreto <pedrosousabarreto@gmail.com>
  ******/
 
-"use strict";
+'use strict';
 
-import {Collection, Db, MongoClient, MongoError, UpdateResult} from "mongodb";
-import {IPalAsset, IPalAssetRepository} from "pal-domain-lib";
-import * as console from "node:console";
+import {Collection, CollectionInfo, Db, MongoClient} from 'mongodb';
+import { IPalAsset, IPalAssetRepository } from 'pal-domain-lib';
+import * as console from 'node:console';
 
-const DB_NAME = "pal";
-const COLLECTION_NAME: string = "assets";
+const DB_NAME = 'pal';
+const COLLECTION_NAME: string = 'assets';
 const TIMEOUT_MS: number = 5_000;
 
 export class MongoDbAssetRepo implements IPalAssetRepository {
@@ -26,9 +26,9 @@ export class MongoDbAssetRepo implements IPalAssetRepository {
     this._connectionString = connectionString;
   }
 
-  private _checkInitialisedOrThrow(): boolean{
-    if(!this._client || !this._collection){
-      throw new Error("MongoClient not initialised");
+  private _checkInitialisedOrThrow(): boolean {
+    if (!this._client || !this._collection) {
+      throw new Error('MongoClient not initialised');
     }
     return true;
   }
@@ -43,7 +43,7 @@ export class MongoDbAssetRepo implements IPalAssetRepository {
       const db: Db = this._client.db(DB_NAME);
 
       // Check if the collection already exists.
-      const collections: any[] = await db.listCollections().toArray();
+      const collections: (Pick<CollectionInfo, "name" | "type"> | CollectionInfo)[] = await db.listCollections().toArray();
       const collectionExists: boolean = collections.some((collection) => {
         return collection.name === COLLECTION_NAME;
       });
@@ -51,21 +51,22 @@ export class MongoDbAssetRepo implements IPalAssetRepository {
       // load or create the collection (and add its indexes) - should check version and perform migrations
       if (collectionExists) {
         this._collection = db.collection<IPalAsset>(COLLECTION_NAME);
-      }else{
-        this._collection = await db.createCollection<IPalAsset>(COLLECTION_NAME);
-        await this._collection.createIndex({"code": 1}, {unique: true});
+      } else {
+        this._collection =
+          await db.createCollection<IPalAsset>(COLLECTION_NAME);
+        await this._collection.createIndex({ code: 1 }, { unique: true });
       }
     } catch (e: unknown) {
-      if(e instanceof Error){
+      if (e instanceof Error) {
         console.error(e);
         throw e;
       }
-      const error = new Error("Unable to connect to the database: 'unknown error'");
+      const error = new Error(
+        "Unable to connect to the database: 'unknown error'"
+      );
       console.error(error);
       throw error;
     }
-
-
 
     console.info(`${this.constructor.name} initialized`);
   }
@@ -81,7 +82,7 @@ export class MongoDbAssetRepo implements IPalAssetRepository {
 
     await this._collection.insertOne(asset).catch((e: unknown) => {
       console.error(e);
-      throw new Error((`Unable to store asset - error: ${(e as Error).message}`));
+      throw new Error(`Unable to store asset - error: ${(e as Error).message}`);
     });
 
     return Promise.resolve();
@@ -90,10 +91,14 @@ export class MongoDbAssetRepo implements IPalAssetRepository {
   async fetch(code: string): Promise<IPalAsset | null> {
     this._checkInitialisedOrThrow();
 
-    const doc = await this._collection.findOne({ code: code }).catch((e: unknown) => {
-      console.error(e);
-      throw new Error((`Unable to get asset by code - error: ${(e as Error).message}`));
-    });
+    const doc = await this._collection
+      .findOne({ code: code })
+      .catch((e: unknown) => {
+        console.error(e);
+        throw new Error(
+          `Unable to get asset by code - error: ${(e as Error).message}`
+        );
+      });
 
     if (!doc) {
       return null;
@@ -106,5 +111,4 @@ export class MongoDbAssetRepo implements IPalAssetRepository {
       liquidityHighThreshold: doc.liquidityHighThreshold || null
     };
   }
-
 }

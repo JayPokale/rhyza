@@ -7,35 +7,39 @@
  - Pedro Sousa Barreto <pedrosousabarreto@gmail.com>
  ******/
 
-"use strict";
+'use strict';
 
 import * as path from 'path';
 import * as grpc from '@grpc/grpc-js';
 import * as protoLoader from '@grpc/proto-loader';
-import {join} from 'path';
-import {ReflectionService} from '@grpc/reflection';
-import {sendUnaryData, ServerDuplexStream, ServerUnaryCall} from '@grpc/grpc-js';
-
-
-import {IAssetAggregate, IPalAsset, IPalWalletAddress, IWalletAddressAggregate} from 'pal-domain-lib';
+import { join } from 'path';
+import { ReflectionService } from '@grpc/reflection';
 import {
-  CreateAssetRequest, CreateAssetResponse,
-  CreateWalletAddressRequest, CreateWalletAddressResponse,
+  sendUnaryData,
+  ServerDuplexStream,
+  ServerUnaryCall
+} from '@grpc/grpc-js';
+
+import { IAssetAggregate, IWalletAddressAggregate } from 'pal-domain-lib';
+import {
+  CreateAssetRequest,
+  CreateAssetResponse,
+  CreateWalletAddressRequest,
+  CreateWalletAddressResponse,
   GetAssetRequest,
   GetAssetResponse,
-  GetNonEmptyAssetResponse, GetNonEmptyWalletAddressResponse,
-  GetWalletAddressRequest, GetWalletAddressResponse,
+  GetNonEmptyAssetResponse,
+  GetNonEmptyWalletAddressResponse,
+  GetWalletAddressRequest,
+  GetWalletAddressResponse,
   HealthCheckRequest,
   HealthCheckResponse,
   HealthService,
   PalGrpcService
-} from "pal-public-types-lib";
-import {Empty} from "google-protobuf/google/protobuf/empty_pb";
-import * as crypto from "node:crypto";
+} from 'pal-public-types-lib';
+import { Empty } from 'google-protobuf/google/protobuf/empty_pb';
 
-
-
-const PUBLIC_TYPES_LIB_PATH = require.resolve("pal-public-types-lib");
+const PUBLIC_TYPES_LIB_PATH = require.resolve('pal-public-types-lib');
 
 export class PalServiceServer {
   private readonly _instanceId: string;
@@ -58,28 +62,33 @@ export class PalServiceServer {
     this._walletAggregate = walletAggregate;
 
     this._server = new grpc.Server({
-      "grpc.max_concurrent_streams": 100,
+      'grpc.max_concurrent_streams': 100,
       // Allow 60 seconds for pending RPCs to complete before forcibly closing connections
-      "grpc.max_connection_age_grace_ms": 60_000,
+      'grpc.max_connection_age_grace_ms': 60_000,
       // Ping the client every 10 seconds to ensure the connection is still active
-      "grpc.keepalive_time_ms": 10_000,
+      'grpc.keepalive_time_ms': 10_000,
       // Wait 5 second for the ping ack before assuming the connection is dead
-      "grpc.keepalive_timeout_ms": 5_000,
+      'grpc.keepalive_timeout_ms': 5_000,
       // send pings even without active streams
-      "grpc.keepalive_permit_without_calls": 1
+      'grpc.keepalive_permit_without_calls': 1
     });
 
     // reflection implementation
-    const protoDirPath = join(path.dirname(PUBLIC_TYPES_LIB_PATH), "/proto_files/");
-    const protoFilePath = join(protoDirPath, "pal-svc.proto");
-    const packageDefinition = protoLoader.loadSync(protoFilePath, {includeDirs: [protoDirPath]});
+    const protoDirPath = join(
+      path.dirname(PUBLIC_TYPES_LIB_PATH),
+      '/proto_files/'
+    );
+    const protoFilePath = join(protoDirPath, 'pal-svc.proto');
+    const packageDefinition = protoLoader.loadSync(protoFilePath, {
+      includeDirs: [protoDirPath]
+    });
     const reflection = new ReflectionService(packageDefinition);
     reflection.addToServer(this._server);
 
     // add the health check service
     this._server.addService(HealthService, {
       check: this._handleUnaryHealthCheck.bind(this),
-      watch: this._handleHealthWatchStream.bind(this),
+      watch: this._handleHealthWatchStream.bind(this)
     });
 
     // all unary calls are handled by the same handler, which distributes requests
@@ -90,7 +99,6 @@ export class PalServiceServer {
       getWalletAddress: this._handleUnary.bind(this)
     });
   }
-
 
   async start(): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -113,7 +121,7 @@ export class PalServiceServer {
 
   async stop(): Promise<void> {
     this._terminating = true;
-    console.info("Stopping the server...");
+    console.info('Stopping the server...');
 
     return new Promise((resolve, reject) => {
       this._server.tryShutdown((error) => {
@@ -123,61 +131,78 @@ export class PalServiceServer {
           return;
         }
 
-        console.info("Shutdown completed successfully");
+        console.info('Shutdown completed successfully');
         resolve();
       });
     });
   }
 
-
   // region health check handlers
-  private async _handleUnaryHealthCheck(call: ServerUnaryCall<HealthCheckRequest, HealthCheckResponse>, callback: sendUnaryData<HealthCheckResponse>): Promise<void> {
+  private async _handleUnaryHealthCheck(
+    call: ServerUnaryCall<HealthCheckRequest, HealthCheckResponse>,
+    callback: sendUnaryData<HealthCheckResponse>
+  ): Promise<void> {
     // TODO must check other services' availability
-    callback(null, new HealthCheckResponse().setStatus(HealthCheckResponse.ServingStatus.SERVING));
+    callback(
+      null,
+      new HealthCheckResponse().setStatus(
+        HealthCheckResponse.ServingStatus.SERVING
+      )
+    );
   }
 
-  private async _handleHealthWatchStream(call: ServerDuplexStream<HealthCheckRequest, HealthCheckResponse>): Promise<void> {
-    call.emit("error", {code: grpc.status.UNIMPLEMENTED, message: "Not yet implemented"});
+  private async _handleHealthWatchStream(
+    call: ServerDuplexStream<HealthCheckRequest, HealthCheckResponse>
+  ): Promise<void> {
+    call.emit('error', {
+      code: grpc.status.UNIMPLEMENTED,
+      message: 'Not yet implemented'
+    });
   }
 
-  private async _handleUnary(call: ServerUnaryCall<any, any>, callback: sendUnaryData<any>): Promise<void> {
-    let specificRequestHandler: (call: ServerUnaryCall<any, any>)=>Promise<any>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private async _handleUnary(call: ServerUnaryCall<any, any>,callback: sendUnaryData<any>): Promise<void> {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let specificRequestHandler: (call: ServerUnaryCall<any, any>) => Promise<any>;
 
     if (call.request instanceof CreateAssetRequest) {
-      specificRequestHandler = this. _handleAssetCreateRequest.bind(this);
+      specificRequestHandler = this._handleAssetCreateRequest.bind(this);
     } else if (call.request instanceof GetAssetRequest) {
       specificRequestHandler = this._handleGetAssetRequest.bind(this);
-
     } else if (call.request instanceof CreateWalletAddressRequest) {
-      specificRequestHandler = this._handleCreateWalletAddressRequest.bind(this);
+      specificRequestHandler =
+        this._handleCreateWalletAddressRequest.bind(this);
     } else if (call.request instanceof GetWalletAddressRequest) {
       specificRequestHandler = this._handleGetWalletAddressRequest.bind(this);
-    } else{
-      callback(new Error(`Invalid request type: ${call.request.constructor.name}`));
+    } else {
+      callback(
+        new Error(`Invalid request type: ${call.request.constructor.name}`)
+      );
       return;
     }
 
-    try{
+    try {
       const resp = await specificRequestHandler(call);
       callback(null, resp);
-    }catch (err) {
+    } catch (err) {
       let returnError: Error;
-      if(err instanceof Error){
+      if (err instanceof Error) {
         returnError = new Error(err.message);
-      }else{
-        returnError = new Error("unknown error");
+      } else {
+        returnError = new Error('unknown error');
       }
 
       callback(returnError);
     }
-
   }
 
   /*
-  * Asset related functions
-  * */
+   * Asset related functions
+   * */
 
-  private async _handleAssetCreateRequest(call: ServerUnaryCall<CreateAssetRequest, CreateAssetResponse>): Promise<CreateAssetResponse> {
+  private async _handleAssetCreateRequest(
+    call: ServerUnaryCall<CreateAssetRequest, CreateAssetResponse>
+  ): Promise<CreateAssetResponse> {
     const lowThreshold = call.request.getLiquiditylowthreshold();
     const highThreshold = call.request.getLiquidityhighthreshold();
 
@@ -192,12 +217,16 @@ export class PalServiceServer {
     resp.setCode(call.request.getCode());
     resp.setScale(call.request.getScale());
 
-    if(lowThreshold !== null)resp.setLiquiditylowthreshold(Number(lowThreshold));
-    if(highThreshold !== null) resp.setLiquidityhighthreshold(Number(highThreshold));
+    if (lowThreshold !== null)
+      resp.setLiquiditylowthreshold(Number(lowThreshold));
+    if (highThreshold !== null)
+      resp.setLiquidityhighthreshold(Number(highThreshold));
     return resp;
   }
 
-  private async _handleGetAssetRequest(call: ServerUnaryCall<GetAssetRequest, GetAssetResponse>): Promise<GetAssetResponse> {
+  private async _handleGetAssetRequest(
+    call: ServerUnaryCall<GetAssetRequest, GetAssetResponse>
+  ): Promise<GetAssetResponse> {
     const asset = await this._assetAggregate.getAsset(call.request.getCode());
     const resp = new GetAssetResponse();
 
@@ -205,11 +234,13 @@ export class PalServiceServer {
       const assetResp = new GetNonEmptyAssetResponse();
       assetResp.setCode(asset.code);
       assetResp.setScale(asset.scale);
-      if(asset.liquidityLowThreshold !== null) {
+      if (asset.liquidityLowThreshold !== null) {
         assetResp.setLiquiditylowthreshold(Number(asset.liquidityLowThreshold));
       }
-      if(asset.liquidityHighThreshold !== null) {
-        assetResp.setLiquidityhighthreshold(Number(asset.liquidityHighThreshold));
+      if (asset.liquidityHighThreshold !== null) {
+        assetResp.setLiquidityhighthreshold(
+          Number(asset.liquidityHighThreshold)
+        );
       }
       resp.setAsset(assetResp);
     }
@@ -218,19 +249,28 @@ export class PalServiceServer {
   }
 
   /*
-  * Wallet Address related functions
-  * */
+   * Wallet Address related functions
+   * */
 
-  private async _handleCreateWalletAddressRequest(call: ServerUnaryCall<CreateWalletAddressRequest, CreateWalletAddressResponse>): Promise<Empty> {
-    const asset = await this._assetAggregate.getAsset(call.request.getAssetcode());
+  private async _handleCreateWalletAddressRequest(
+    call: ServerUnaryCall<
+      CreateWalletAddressRequest,
+      CreateWalletAddressResponse
+    >
+  ): Promise<Empty> {
+    const asset = await this._assetAggregate.getAsset(
+      call.request.getAssetcode()
+    );
 
-    if(!asset){
+    if (!asset) {
       throw new Error(`Asset ${call.request.getAssetcode()} does not exist`);
     }
 
-    const isActive = !call.request.hasIsactive() || call.request.getIsactive() == true;
+    const isActive =
+      !call.request.hasIsactive() || call.request.getIsactive() == true;
 
     const address = await this._walletAggregate.createWalletAddress(
+      call.request.getAddress(),
       call.request.getPublicname(),
       asset.code,
       asset.scale,
@@ -246,8 +286,12 @@ export class PalServiceServer {
     return resp;
   }
 
-  private async _handleGetWalletAddressRequest(call: ServerUnaryCall<GetWalletAddressRequest, GetWalletAddressResponse>): Promise<GetWalletAddressResponse> {
-    const wallet = await this._walletAggregate.getWalletAddress(call.request.getAddress());
+  private async _handleGetWalletAddressRequest(
+    call: ServerUnaryCall<GetWalletAddressRequest, GetWalletAddressResponse>
+  ): Promise<GetWalletAddressResponse> {
+    const wallet = await this._walletAggregate.getWalletAddress(
+      call.request.getAddress()
+    );
     const resp = new GetWalletAddressResponse();
 
     if (wallet) {
