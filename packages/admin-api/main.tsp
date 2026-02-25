@@ -178,7 +178,7 @@ model IncomingPaymentCreate {
   @doc("Max amount to receive.")
   incomingAmount?: AmountWithScale;
   @doc("Date and time that the incoming payment will expire.")
-  expiresAt?: utcDateTime;
+  expiresAt: utcDateTime;
   metadata?: Record<unknown>;
 }
 
