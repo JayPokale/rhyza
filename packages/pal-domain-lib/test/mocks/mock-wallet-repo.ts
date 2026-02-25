@@ -26,11 +26,4 @@ export class MockWalletRepo implements IPalWalletAddressRepository {
     return Promise.resolve(this._data.get(address) ?? null);
   }
 
-  /*
-  fetchByPublicName(publicName:string):Promise<IPalWalletAddress | null> {
-    const found = [...this._data.values()].find(wallet => wallet.publicName === publicName);
-
-    return Promise.resolve(found ?? null);
-  }
-  */
 }

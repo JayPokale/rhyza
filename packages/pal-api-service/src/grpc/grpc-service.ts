@@ -170,8 +170,7 @@ export class PalServiceServer {
     } else if (call.request instanceof GetAssetRequest) {
       specificRequestHandler = this._handleGetAssetRequest.bind(this);
     } else if (call.request instanceof CreateWalletAddressRequest) {
-      specificRequestHandler =
-        this._handleCreateWalletAddressRequest.bind(this);
+      specificRequestHandler = this._handleCreateWalletAddressRequest.bind(this);
     } else if (call.request instanceof GetWalletAddressRequest) {
       specificRequestHandler = this._handleGetWalletAddressRequest.bind(this);
     } else {

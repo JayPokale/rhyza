@@ -80,35 +80,34 @@ export class MongoDbAssetRepo implements IPalAssetRepository {
   async store(asset: IPalAsset): Promise<void> {
     this._checkInitialisedOrThrow();
 
-    await this._collection.insertOne(asset).catch((e: unknown) => {
-      console.error(e);
-      throw new Error(`Unable to store asset - error: ${(e as Error).message}`);
-    });
-
-    return Promise.resolve();
+    try{
+        await this._collection.insertOne(asset);
+        return;
+    }catch (e) {
+        console.error(e);
+        throw new Error(`Unable to store asset - error: ${(e as Error).message}`);
+    }
   }
 
   async fetch(code: string): Promise<IPalAsset | null> {
     this._checkInitialisedOrThrow();
 
-    const doc = await this._collection
-      .findOne({ code: code })
-      .catch((e: unknown) => {
+    try{
+        const doc = await this._collection.findOne({ code: code });
+        if (!doc) {
+            return null;
+        }
+        return {
+            code: doc.code,
+            scale: doc.scale,
+            liquidityLowThreshold: doc.liquidityLowThreshold || null,
+            liquidityHighThreshold: doc.liquidityHighThreshold || null
+        };
+    }catch (e) {
         console.error(e);
         throw new Error(
-          `Unable to get asset by code - error: ${(e as Error).message}`
+            `Unable to get asset by code - error: ${(e as Error).message}`
         );
-      });
-
-    if (!doc) {
-      return null;
     }
-
-    return {
-      code: doc.code,
-      scale: doc.scale,
-      liquidityLowThreshold: doc.liquidityLowThreshold || null,
-      liquidityHighThreshold: doc.liquidityHighThreshold || null
-    };
   }
 }

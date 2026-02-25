@@ -12,34 +12,31 @@ services:
       LOG_LEVEL: info
       UV_THREADPOOL_SIZE: 128
     depends_on:
-      pg-container:
+      mongodb:
         condition: service_healthy
       init-kafka:
         condition: service_completed_successfully
     networks:
       - rafiki-poc
 
-  pg-container:
-    image: postgres
-    command: -c 'max_connections=200'
-    restart: always
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: database
-    ports:
-      - '5432:5432'
+  mongodb:
+    image: mongo
+    restart: unless-stopped
     volumes:
-      - ./db/:/docker-entrypoint-initdb.d/
-      - postgres-data:/var/lib/postgresql/
+      - mongodb-data:/data/db
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=mongoPass
+    ports:
+      - 27017:27017
     healthcheck:
-      test: ['CMD', 'pg_isready', '-U', 'postgres', '-d', 'database']
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
       interval: 10s
-      retries: 5
-      start_period: 30s
       timeout: 10s
+      retries: 5
     networks:
       - rafiki-poc
+
 
   kafka:
     image: apache/kafka:4.0.0
@@ -47,7 +44,7 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_NODE_ID: 1
-      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_PROCESS_ROLES: broker,controllerYY
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT
       KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:19092,EXTERNAL://kafka:9092
       KAFKA_LISTENERS: INTERNAL://:19092,CONTROLLER://:19093,EXTERNAL://:9092
@@ -171,36 +168,6 @@ services:
     sysctls:
       net.ipv4.ip_local_port_range: '10240 65535'
 
-  tigerbeetle:
-    image: ghcr.io/tigerbeetle/tigerbeetle:0.16.70
-    # privileged: true
-    volumes:
-      - tigerbeetle-data:/var/lib/tigerbeetle
-    ports:
-      - '4342:4342'
-    networks:
-      rafiki-poc:
-        ipv4_address: 10.5.1.51
-    security_opt:
-      - 'seccomp=unconfined'
-    entrypoint:
-      - /bin/sh
-      - -c
-      - |
-        set -ex
-        DATA_FILE=/var/lib/tigerbeetle/cluster_0_replica_0.tigerbeetle
-        set +e
-        ls $$DATA_FILE
-        DATA_FILE_EXISTS="$$?"
-        set -e
-        echo $$DATA_FILE_EXISTS
-        if [ "$$DATA_FILE_EXISTS" != 0 ]; then
-          ./tigerbeetle format --cluster=0 --replica=0 --replica-count=1 $$DATA_FILE;
-        fi
-        hostname -i
-        ls /var/lib/tigerbeetle
-        ./tigerbeetle start --addresses=0.0.0.0:4342 $$DATA_FILE
-
 networks:
   rafiki-poc:
     driver: bridge
@@ -213,3 +180,4 @@ volumes:
   postgres-data:
   grafana-data:
   tempo-data:
+  mongodb-data:

@@ -14,7 +14,7 @@ import { IPalWalletAddress, IPalWalletAddressRepository } from 'pal-domain-lib';
 import * as console from 'node:console';
 
 const DB_NAME = 'pal';
-const COLLECTION_NAME: string = 'wallets';
+const COLLECTION_NAME: string = 'walletAddresses';
 const TIMEOUT_MS: number = 5_000;
 
 export class MongoDbWalletRepoRepo implements IPalWalletAddressRepository {
@@ -80,61 +80,39 @@ export class MongoDbWalletRepoRepo implements IPalWalletAddressRepository {
   async store(asset: IPalWalletAddress): Promise<void> {
     this._checkInitialisedOrThrow();
 
-    await this._collection.insertOne(asset).catch((e: unknown) => {
-      console.error(e);
-      throw new Error(
-        `Unable to store wallet address - error: ${(e as Error).message}`
-      );
-    });
-
-    return Promise.resolve();
+    try{
+        await this._collection.insertOne(asset);
+        return;
+    }catch (e) {
+        console.error(e);
+        throw new Error(
+            `Unable to store wallet address - error: ${(e as Error).message}`
+        );
+    }
   }
 
   async fetch(address: string): Promise<IPalWalletAddress | null> {
     this._checkInitialisedOrThrow();
 
-    const doc = await this._collection
-      .findOne({ address: address })
-      .catch((e: unknown) => {
+    try{
+        const doc = await this._collection.findOne({ address: address });
+        if (!doc) {
+            return null;
+        }
+
+        return {
+            address: doc.address,
+            publicName: doc.publicName,
+            isActive: doc.isActive,
+            assetCode: doc.assetCode,
+            assetScale: doc.assetScale
+        };
+    }catch (e) {
         console.error(e);
         throw new Error(
-          `Unable to get wallet by address - error: ${(e as Error).message}`
+            `Unable to get wallet by address - error: ${(e as Error).message}`
         );
-      });
-
-    if (!doc) {
-      return null;
     }
 
-    return {
-      address: doc.address,
-      publicName: doc.publicName,
-      isActive: doc.isActive,
-      assetCode: doc.assetCode,
-      assetScale: doc.assetScale
-    };
   }
-
-  /*
-  async fetchByPublicName(publicName: string): Promise<IPalWalletAddress | null> {
-    this._checkInitialisedOrThrow();
-
-    const doc = await this._collection.findOne({publicName: publicName}).catch((e: unknown) => {
-      console.error(e);
-      throw new Error((`Unable to get wallet by publicName - error: ${(e as Error).message}`));
-    });
-
-    if (!doc) {
-      return null;
-    }
-
-    return {
-      address: doc.address,
-      publicName: doc.publicName,
-      isActive: doc.isActive,
-      assetCode: doc.assetCode,
-      assetScale: doc.assetScale
-    };
-  }
-  */
 }
