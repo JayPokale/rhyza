@@ -256,6 +256,80 @@ namespace Quotes {
   };
 }
 
+enum OutgoingPaymentState {
+  @doc("Created, awaiting ASE approval.")
+  PENDING,
+  @doc("Approved and liquidity reserved. Payment executing.")
+  FUNDED,
+  @doc("All funds sent successfully.")
+  COMPLETED,
+  @doc("Rejected by ASE before funding.")
+  REJECTED,
+}
+
+@doc("Create an outgoing payment from a quote. Provide quoteId. Or create directly from an incoming payment by providing incomingPaymentId and debitAmount instead.")
+model OutgoingPaymentCreate {
+  @doc("Client-provided ID. Auto-generated if omitted.")
+  id?: string;
+  @doc("ID of the wallet address that will send the payment.")
+  senderWalletAddressId: string;
+  @doc("ID of the quote to execute. Mutually exclusive with incomingPaymentId/debitAmount.")
+  quoteId?: string;
+  @doc("ID of the incoming payment to pay directly. Requires debitAmount. Mutually exclusive with quoteId.")
+  incomingPaymentId?: string;
+  @doc("Amount to debit. Required when using incomingPaymentId.")
+  debitAmount?: AmountWithScale;
+  metadata?: Record<unknown>;
+}
+
+model OutgoingPayment {
+  @key id: string;
+  senderWalletAddressId: string;
+  quoteId?: string;
+  incomingPaymentId: string;
+  state: OutgoingPaymentState;
+  assetCode: string;
+  assetScale: numeric;
+  debitAmount: numeric;
+  sentAmount: numeric;
+  metadata?: Record<unknown>;
+}
+
+model OutgoingPaymentApprove {
+}
+
+model OutgoingPaymentReject {
+  @doc("Reason for rejecting the payment.")
+  reason?: string;
+}
+
+@route("/outgoing-payments")
+namespace OutgoingPayments {
+  @post
+  op createOutgoingPayment(@body body: OutgoingPaymentCreate): {
+    @statusCode statusCode: 201;
+    @body outgoingPayment: OutgoingPayment;
+  };
+
+  @get
+  op getOutgoingPayment(@path id: string): {
+    @statusCode statusCode: 200;
+    @body outgoingPayment: OutgoingPayment;
+  };
+
+  @route("/{id}/approve")
+  @post
+  op approveOutgoingPayment(@path id: string, @body body: OutgoingPaymentApprove): {
+    @statusCode statusCode: 204;
+  };
+
+  @route("/{id}/reject")
+  @post
+  op rejectOutgoingPayment(@path id: string, @body body: OutgoingPaymentReject): {
+    @statusCode statusCode: 204;
+  };
+}
+
 model IlpPeerSettings {
   ilpAddress: string;
   connectorUrl: string;

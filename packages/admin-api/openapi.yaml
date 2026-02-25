@@ -132,6 +132,75 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/IncomingPayment'
+  /outgoing-payments:
+    post:
+      operationId: OutgoingPayments_createOutgoingPayment
+      parameters: []
+      responses:
+        '201':
+          description: The request has succeeded and a new resource has been created as a result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OutgoingPayment'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OutgoingPaymentCreate'
+  /outgoing-payments/{id}:
+    get:
+      operationId: OutgoingPayments_getOutgoingPayment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OutgoingPayment'
+  /outgoing-payments/{id}/approve:
+    post:
+      operationId: OutgoingPayments_approveOutgoingPayment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OutgoingPaymentApprove'
+  /outgoing-payments/{id}/reject:
+    post:
+      operationId: OutgoingPayments_rejectOutgoingPayment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OutgoingPaymentReject'
   /peers:
     get:
       operationId: Peers_list
@@ -534,6 +603,79 @@ components:
         scale:
           type: string
           description: Decimal precision of the amount.
+    OutgoingPayment:
+      type: object
+      required:
+        - id
+        - senderWalletAddressId
+        - incomingPaymentId
+        - state
+        - assetCode
+        - assetScale
+        - debitAmount
+        - sentAmount
+      properties:
+        id:
+          type: string
+        senderWalletAddressId:
+          type: string
+        quoteId:
+          type: string
+        incomingPaymentId:
+          type: string
+        state:
+          $ref: '#/components/schemas/OutgoingPaymentState'
+        assetCode:
+          type: string
+        assetScale:
+          type: number
+        debitAmount:
+          type: number
+        sentAmount:
+          type: number
+        metadata:
+          type: object
+          unevaluatedProperties: {}
+    OutgoingPaymentApprove:
+      type: object
+    OutgoingPaymentCreate:
+      type: object
+      required:
+        - senderWalletAddressId
+      properties:
+        id:
+          type: string
+          description: Client-provided ID. Auto-generated if omitted.
+        senderWalletAddressId:
+          type: string
+          description: ID of the wallet address that will send the payment.
+        quoteId:
+          type: string
+          description: ID of the quote to execute. Mutually exclusive with incomingPaymentId/debitAmount.
+        incomingPaymentId:
+          type: string
+          description: ID of the incoming payment to pay directly. Requires debitAmount. Mutually exclusive with quoteId.
+        debitAmount:
+          allOf:
+            - $ref: '#/components/schemas/AmountWithScale'
+          description: Amount to debit. Required when using incomingPaymentId.
+        metadata:
+          type: object
+          unevaluatedProperties: {}
+      description: Create an outgoing payment from a quote. Provide quoteId. Or create directly from an incoming payment by providing incomingPaymentId and debitAmount instead.
+    OutgoingPaymentReject:
+      type: object
+      properties:
+        reason:
+          type: string
+          description: Reason for rejecting the payment.
+    OutgoingPaymentState:
+      type: string
+      enum:
+        - PENDING
+        - FUNDED
+        - COMPLETED
+        - REJECTED
     PageInfo:
       type: object
       required:
