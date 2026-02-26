@@ -320,13 +320,13 @@ namespace OutgoingPayments {
   @route("/{id}/approve")
   @post
   op approveOutgoingPayment(@path id: string, @body body: OutgoingPaymentApprove): {
-    @statusCode statusCode: 204;
+    @statusCode statusCode: 202;
   };
 
   @route("/{id}/reject")
   @post
   op rejectOutgoingPayment(@path id: string, @body body: OutgoingPaymentReject): {
-    @statusCode statusCode: 204;
+    @statusCode statusCode: 202;
   };
 }
 
