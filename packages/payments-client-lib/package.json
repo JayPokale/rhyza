@@ -10,7 +10,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "payments-public-types-lib": "workspace: *",
+    "payments-public-types-lib": "workspace:*",
     "@grpc/grpc-js": "~1.14.3"
   },
   "devDependencies": {

@@ -21,6 +21,8 @@ import {
   HealthService,
   PaymentsGrpcService
 } from 'payments-public-types-lib';
+import { MessageProducer } from 'common-types-lib';
+import { CreateIncomingPaymentCmd } from 'payments-domain-lib';
 
 const PUBLIC_TYPES_LIB_PATH = require.resolve('payments-public-types-lib');
 
@@ -36,6 +38,7 @@ export class PaymentsServiceServer {
   private readonly _instanceId: string;
   private readonly _serverUrl: string;
   private readonly _server: grpc.Server;
+  private readonly _msgProducer: MessageProducer;
   private readonly _responseTimeoutMs: number;
   // Holds pending gRPC callbacks keyed by command ID (UUID).
   // Kafka consumer resolves/rejects these when response events arrive.
@@ -47,11 +50,13 @@ export class PaymentsServiceServer {
   constructor(
     instanceId: string,
     serverUrl: string,
+    msgProducer: MessageProducer,
     responseTimeoutMs: number = DEFAULT_RESPONSE_TIMEOUT_MS
   ) {
     this._responseTimeoutMs = responseTimeoutMs;
     this._serverUrl = serverUrl;
     this._instanceId = instanceId;
+    this._msgProducer = msgProducer;
 
     this._server = new grpc.Server({
       'grpc.max_concurrent_streams': 100,
@@ -162,7 +167,17 @@ export class PaymentsServiceServer {
         return;
       }
       this._storePendingResponse(commandId, call, callback);
-      // TODO: publish command to Kafka
+      const cmd = new CreateIncomingPaymentCmd(
+        {
+          id: commandId,
+          walletAddressId: call.request.getWalletAddressId(),
+          incomingAmount: call.request.getIncomingAmount(),
+          expiresAt: call.request.getExpiresAt(),
+          metadata: call.request.getMetadata()
+        },
+        commandId
+      );
+      await this._msgProducer.send(cmd);
     } else if (call.request instanceof GetIncomingPaymentRequest) {
       const commandId = call.request.getId();
       if (!PaymentsServiceServer.UUID_REGEX.test(commandId)) {
@@ -173,7 +188,7 @@ export class PaymentsServiceServer {
         return;
       }
       this._storePendingResponse(commandId, call, callback);
-      // TODO: publish command to Kafka
+      // TODO: publish GetIncomingPayment command to Kafka
     } else {
       callback(
         new Error(`Invalid request type: ${call.request.constructor.name}`)
