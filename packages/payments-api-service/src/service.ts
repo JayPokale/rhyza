@@ -1,5 +1,3 @@
-'use strict';
-
 import { PaymentsServiceServer } from './grpc/grpc-service';
 import {
   RafikiKafkaJsonProducer,

@@ -1,5 +1,3 @@
-'use strict';
-
 import { CommandMsg } from 'common-types-lib';
 
 export enum CommandTopics {

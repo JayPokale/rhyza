@@ -1,5 +1,3 @@
-'use strict';
-
 import { PaymentsApiService } from './service';
 import process from 'process';
 
