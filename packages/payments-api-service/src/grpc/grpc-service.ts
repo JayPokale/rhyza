@@ -21,7 +21,15 @@ import {
   HealthService,
   PaymentsGrpcService
 } from 'payments-public-types-lib';
-import { MessageProducer } from 'common-types-lib';
+import {
+  Message,
+  MessageConsumer,
+  MessageProducer,
+  ApiRspErrorEvent,
+  ApiRspErrorPayload,
+  ApiRspEventPayload,
+  ApiRspIncomingPaymentEvent
+} from 'common-types-lib';
 import { CreateIncomingPaymentCmd } from 'payments-domain-lib';
 
 const PUBLIC_TYPES_LIB_PATH = require.resolve('payments-public-types-lib');
@@ -39,6 +47,7 @@ export class PaymentsServiceServer {
   private readonly _serverUrl: string;
   private readonly _server: grpc.Server;
   private readonly _msgProducer: MessageProducer;
+  private readonly _msgConsumer: MessageConsumer;
   private readonly _responseTimeoutMs: number;
   // Holds pending gRPC callbacks keyed by command ID (UUID).
   // Kafka consumer resolves/rejects these when response events arrive.
@@ -51,12 +60,16 @@ export class PaymentsServiceServer {
     instanceId: string,
     serverUrl: string,
     msgProducer: MessageProducer,
+    msgConsumer: MessageConsumer,
     responseTimeoutMs: number = DEFAULT_RESPONSE_TIMEOUT_MS
   ) {
     this._responseTimeoutMs = responseTimeoutMs;
     this._serverUrl = serverUrl;
     this._instanceId = instanceId;
     this._msgProducer = msgProducer;
+    this._msgConsumer = msgConsumer;
+
+    this._msgConsumer.setCallbackFn(this._handleResponseEvent.bind(this));
 
     this._server = new grpc.Server({
       'grpc.max_concurrent_streams': 100,
@@ -232,24 +245,53 @@ export class PaymentsServiceServer {
     this._responseMap.set(commandId, { callback, timer });
   }
 
-  /**
-   * Resolve a pending response by command ID. Called by the Kafka response
-   * event handler. Returns false if no pending response was found (e.g.
-   * already timed out or belongs to a different API instance).
-   */
+  private async _handleResponseEvent(message: Message): Promise<void> {
+    const requestId = message.msgKey;
+    if (!requestId) return;
+
+    // Not ours — different API instance holds the pending callback
+    const pending = this._responseMap.get(requestId);
+    if (!pending) return;
+
+    switch (message.msgName) {
+      case ApiRspIncomingPaymentEvent.name: {
+        const payload = message.payload as ApiRspEventPayload;
+        const response = new CreateIncomingPaymentResponse().setId(
+          payload.createdId
+        );
+        this._resolvePendingResponse(pending, requestId, null, response);
+        break;
+      }
+      case ApiRspErrorEvent.name: {
+        const errorPayload = message.payload as ApiRspErrorPayload;
+        this._resolvePendingResponse(pending, requestId, {
+          code: grpc.status.INTERNAL,
+          message: errorPayload.message || 'Command processing failed',
+          details: errorPayload.error,
+          name: errorPayload.name || 'CommandError',
+          metadata: new grpc.Metadata()
+        });
+        break;
+      }
+      default: {
+        console.warn(
+          `Unknown response event — msgName: ${message.msgName}, requestId: ${requestId}`
+        );
+        break;
+      }
+    }
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  resolvePendingResponse(
+  private _resolvePendingResponse(
+    pending: PendingResponse,
     commandId: string,
     error: grpc.ServiceError | null,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     response?: any
-  ): boolean {
-    const pending = this._responseMap.get(commandId);
-    if (!pending) return false;
-
+  ): void {
     clearTimeout(pending.timer);
     this._responseMap.delete(commandId);
     pending.callback(error, response);
-    return true;
   }
 }

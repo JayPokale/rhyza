@@ -3,8 +3,9 @@
 import { PaymentsServiceServer } from './grpc/grpc-service';
 import {
   RafikiKafkaJsonProducer,
-  RafikiKafkaJsonProducerOptions
+  RafikiKafkaJsonConsumer
 } from 'implementations-lib';
+import { EventTopics } from 'common-types-lib';
 import process from 'process';
 
 const KAFKA_URL = process.env['KAFKA_URL'] || 'localhost:9092';
@@ -12,19 +13,28 @@ const KAFKA_URL = process.env['KAFKA_URL'] || 'localhost:9092';
 export class PaymentsApiService {
   private static grpcService: PaymentsServiceServer;
   private static msgProducer: RafikiKafkaJsonProducer;
+  private static msgConsumer: RafikiKafkaJsonConsumer;
 
   static async start(): Promise<void> {
-    const producerOptions: RafikiKafkaJsonProducerOptions = {
+    this.msgProducer = new RafikiKafkaJsonProducer({
       kafkaBrokerList: KAFKA_URL,
       producerClientId: `payments-api-service-${crypto.randomUUID()}`
-    };
-    this.msgProducer = new RafikiKafkaJsonProducer(producerOptions);
+    });
     await this.msgProducer.connect();
+
+    this.msgConsumer = new RafikiKafkaJsonConsumer({
+      kafkaBrokerList: KAFKA_URL,
+      kafkaGroupId: `payments-api-service`
+    });
+    this.msgConsumer.setTopics([EventTopics.ApiResponseEvents]);
+    await this.msgConsumer.connect();
+    await this.msgConsumer.startAndWaitForRebalance();
 
     this.grpcService = new PaymentsServiceServer(
       '1',
       '0.0.0.0:50052',
-      this.msgProducer
+      this.msgProducer,
+      this.msgConsumer
     );
 
     await this.grpcService.start();
@@ -32,6 +42,8 @@ export class PaymentsApiService {
 
   static async stop(): Promise<void> {
     await this.grpcService.stop();
+    await this.msgConsumer.stop();
     await this.msgProducer.disconnect();
+    await this.msgConsumer.disconnect();
   }
 }
