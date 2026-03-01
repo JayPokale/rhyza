@@ -25,10 +25,15 @@ export interface WalletAddress {
 
 // TODO: is this the right name? Would IWalletAddressPort be wrong because its
 // from another domain/bounded context? Options include:
-// - IWalletAddressProvider
-// - IWalletAddressGateway
 // - IWalletAddressRepository
 // - IWalletAddressClient
+// - IWalletAddressProvider
+// - IWalletAddressGateway
 export interface IWalletAddressPort {
   fetchByIds(ids: string[]): Promise<WalletAddress[]>;
+}
+
+export interface IIncomingPaymentRepository {
+  storeMany(payments: IIncomingPayment[]): Promise<void>;
+  fetchByIds(ids: string[]): Promise<IIncomingPayment[]>;
 }
