@@ -15,6 +15,10 @@ export enum EventTopics {
   'PaymentEvents' = 'payment-events'
 }
 
+export enum CommandTopics {
+  'PaymentCommands' = 'payment-commands'
+}
+
 export interface ApiRspEventPayload {
   createdId: string;
 }

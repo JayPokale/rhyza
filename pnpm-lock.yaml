@@ -273,9 +273,15 @@ importers:
       implementations-lib:
         specifier: workspace:*
         version: link:../implementations-lib
-      mongodb:
-        specifier: ~7.1.0
-        version: 7.1.0
+      pal-client-lib:
+        specifier: workspace:*
+        version: link:../pal-client-lib
+      payments-domain-lib:
+        specifier: workspace:*
+        version: link:../payments-domain-lib
+      payments-implementations-lib:
+        specifier: workspace:*
+        version: link:../payments-implementations-lib
     devDependencies:
       '@types/pg':
         specifier: ^8.11.11

@@ -1,8 +1,4 @@
-import { CommandMsg } from 'common-types-lib';
-
-export enum CommandTopics {
-  'PaymentCommands' = 'payment-commands'
-}
+import { CommandMsg, CommandTopics } from 'common-types-lib';
 
 const BOUNDED_CONTEXT_NAME = 'payment';
 const INCOMING_AGG_NAME = 'incoming-payments';

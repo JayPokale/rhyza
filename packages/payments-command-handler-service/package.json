@@ -12,7 +12,9 @@
   "dependencies": {
     "common-types-lib": "workspace:*",
     "implementations-lib": "workspace:*",
-    "mongodb": "~7.1.0"
+    "payments-domain-lib": "workspace:*",
+    "payments-implementations-lib": "workspace:*",
+    "pal-client-lib": "workspace:*"
   },
   "devDependencies": {
     "@types/pg": "^8.11.11",
