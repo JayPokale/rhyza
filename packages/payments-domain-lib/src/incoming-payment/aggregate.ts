@@ -84,7 +84,7 @@ export class IncomingPaymentAggregate {
           outputEvents.push(
             new IncomingPaymentCreateFailedEvent(
               {
-                errorName: (e as Error).name,
+                errorName: (e as Error).constructor.name,
                 message: (e as Error).message
               },
               typedCmd.requestId
