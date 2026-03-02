@@ -11,7 +11,8 @@ import { DomainEventMsg } from './messaging';
  * - ApiResponseEvents: Represents topics related to API response events.
  */
 export enum EventTopics {
-  'ApiResponseEvents' = 'api-response-events'
+  'ApiResponseEvents' = 'api-response-events',
+  'PaymentEvents' = 'payment-events'
 }
 
 export interface ApiRspEventPayload {

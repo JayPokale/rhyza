@@ -24,7 +24,7 @@ export class PaymentsApiService {
       kafkaBrokerList: KAFKA_URL,
       kafkaGroupId: `payments-api-service`
     });
-    this.msgConsumer.setTopics([EventTopics.ApiResponseEvents]);
+    this.msgConsumer.setTopics([EventTopics.PaymentEvents]);
     await this.msgConsumer.connect();
     await this.msgConsumer.startAndWaitForRebalance();
 

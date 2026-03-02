@@ -13,6 +13,10 @@ import {
   WalletAddressInactiveError,
   InvalidIncomingPaymentExpiryError
 } from './errors';
+import {
+  IncomingPaymentCreatedEvent,
+  IncomingPaymentCreateFailedEvent
+} from './events';
 
 const DEFAULT_EXPIRY_MS = 1000 * 60 * 10; // 10 minutes
 const MAX_EXPIRY_MS = 1000 * 60 * 60 * 24 * 30; // 30 days
@@ -61,17 +65,31 @@ export class IncomingPaymentAggregate {
     // Process each command
     for (const cmd of cmds) {
       if (cmd.msgName === CreateIncomingPaymentCmd.name) {
+        const typedCmd = cmd as CreateIncomingPaymentCmd;
         try {
           const payment = this._createIncomingPayment(
-            cmd as CreateIncomingPaymentCmd,
+            typedCmd,
             walletMap,
             seenIds
           );
           newPayments.push(payment);
-          seenIds.add((cmd as CreateIncomingPaymentCmd).payload.id);
-          // TODO: emit IncomingPaymentCreatedEvent
+          seenIds.add(typedCmd.payload.id);
+          outputEvents.push(
+            new IncomingPaymentCreatedEvent(
+              { id: typedCmd.payload.id },
+              typedCmd.requestId
+            )
+          );
         } catch (e) {
-          // TODO: emit failed event with error details
+          outputEvents.push(
+            new IncomingPaymentCreateFailedEvent(
+              {
+                errorName: (e as Error).name,
+                message: (e as Error).message
+              },
+              typedCmd.requestId
+            )
+          );
           continue;
         }
       }

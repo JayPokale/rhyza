@@ -19,16 +19,14 @@ import {
   HealthService,
   PaymentsGrpcService
 } from 'payments-public-types-lib';
+import { Message, MessageConsumer, MessageProducer } from 'common-types-lib';
 import {
-  Message,
-  MessageConsumer,
-  MessageProducer,
-  ApiRspErrorEvent,
-  ApiRspErrorPayload,
-  ApiRspEventPayload,
-  ApiRspIncomingPaymentEvent
-} from 'common-types-lib';
-import { CreateIncomingPaymentCmd } from 'payments-domain-lib';
+  CreateIncomingPaymentCmd,
+  IncomingPaymentCreatedEvent,
+  IncomingPaymentCreatedPayload,
+  IncomingPaymentCreateFailedEvent,
+  IncomingPaymentCreateFailedPayload
+} from 'payments-domain-lib';
 
 const PUBLIC_TYPES_LIB_PATH = require.resolve('payments-public-types-lib');
 
@@ -244,7 +242,7 @@ export class PaymentsServiceServer {
   }
 
   private async _handleResponseEvent(message: Message): Promise<void> {
-    const requestId = message.msgKey;
+    const requestId = message.requestId;
     if (!requestId) return;
 
     // Not ours — different API instance holds the pending callback
@@ -252,21 +250,20 @@ export class PaymentsServiceServer {
     if (!pending) return;
 
     switch (message.msgName) {
-      case ApiRspIncomingPaymentEvent.name: {
-        const payload = message.payload as ApiRspEventPayload;
-        const response = new CreateIncomingPaymentResponse().setId(
-          payload.createdId
-        );
+      case IncomingPaymentCreatedEvent.name: {
+        const payload = message.payload as IncomingPaymentCreatedPayload;
+        const response = new CreateIncomingPaymentResponse().setId(payload.id);
         this._resolvePendingResponse(pending, requestId, null, response);
         break;
       }
-      case ApiRspErrorEvent.name: {
-        const errorPayload = message.payload as ApiRspErrorPayload;
+      case IncomingPaymentCreateFailedEvent.name: {
+        const errorPayload =
+          message.payload as IncomingPaymentCreateFailedPayload;
         this._resolvePendingResponse(pending, requestId, {
           code: grpc.status.INTERNAL,
           message: errorPayload.message || 'Command processing failed',
-          details: errorPayload.error,
-          name: errorPayload.name || 'CommandError',
+          details: errorPayload.message,
+          name: errorPayload.errorName || 'CommandError',
           metadata: new grpc.Metadata()
         });
         break;
