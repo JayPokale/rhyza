@@ -38,7 +38,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Asset'
+                type: object
+                properties:
+                  code:
+                    type: string
+                required:
+                  - code
       requestBody:
         required: true
         content:
@@ -109,7 +114,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/IncomingPayment'
+                type: object
+                properties:
+                  id:
+                    type: string
+                required:
+                  - id
       requestBody:
         required: true
         content:
@@ -142,7 +152,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/OutgoingPayment'
+                type: object
+                properties:
+                  id:
+                    type: string
+                required:
+                  - id
       requestBody:
         required: true
         content:
@@ -235,7 +250,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Peer'
+                type: object
+                properties:
+                  id:
+                    type: string
+                required:
+                  - id
       requestBody:
         required: true
         content:
@@ -321,7 +341,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Quote'
+                type: object
+                properties:
+                  id:
+                    type: string
+                required:
+                  - id
         '400':
           description: The server could not understand the request due to invalid syntax.
           content:
@@ -384,7 +409,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/WalletAddress'
+                type: object
+                properties:
+                  address:
+                    type: string
+                required:
+                  - address
       requestBody:
         required: true
         content:
@@ -456,7 +486,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/WalletAddressKey'
+                type: object
+                properties:
+                  id:
+                    type: string
+                required:
+                  - id
       requestBody:
         required: true
         content:
@@ -490,17 +525,19 @@ components:
         type: number
       explode: false
   schemas:
-    AmountWithScale:
+    Amount:
       type: object
       required:
-        - amount
-        - scale
+        - value
+        - assetCode
+        - assetScale
       properties:
-        amount:
+        value:
           type: number
-        scale:
+        assetCode:
           type: string
-          description: Decimal precision of the amount.
+        assetScale:
+          type: number
     Asset:
       type: object
       required:
@@ -540,8 +577,6 @@ components:
         - id
         - walletAddressId
         - state
-        - assetCode
-        - assetScale
         - receivedAmount
       properties:
         id:
@@ -550,12 +585,8 @@ components:
           type: string
         state:
           $ref: '#/components/schemas/IncomingPaymentState'
-        assetCode:
-          type: string
-        assetScale:
-          type: number
         incomingAmount:
-          type: number
+          $ref: '#/components/schemas/Amount'
         receivedAmount:
           type: number
         expiresAt:
@@ -578,7 +609,7 @@ components:
           description: ID of the wallet address that will receive the payment.
         incomingAmount:
           allOf:
-            - $ref: '#/components/schemas/AmountWithScale'
+            - $ref: '#/components/schemas/Amount'
           description: Max amount to receive.
         expiresAt:
           type: string
@@ -601,6 +632,7 @@ components:
       properties:
         amount:
           type: number
+          description: Amount of liqudity to deposit.
         scale:
           type: string
           description: Decimal precision of the amount.
@@ -658,7 +690,7 @@ components:
           description: ID of the incoming payment to pay directly. Requires debitAmount. Mutually exclusive with quoteId.
         debitAmount:
           allOf:
-            - $ref: '#/components/schemas/AmountWithScale'
+            - $ref: '#/components/schemas/Amount'
           description: Amount to debit. Required when using incomingPaymentId.
         metadata:
           type: object
@@ -759,9 +791,9 @@ components:
         incomingPaymentId:
           type: string
         debitAmount:
-          $ref: '#/components/schemas/AmountWithScale'
+          $ref: '#/components/schemas/Amount'
         receiveAmount:
-          $ref: '#/components/schemas/AmountWithScale'
+          $ref: '#/components/schemas/Amount'
         exchangeRate:
           type: number
         expiresAt:
@@ -784,11 +816,11 @@ components:
           description: ID of the incoming payment to quote against.
         debitAmount:
           allOf:
-            - $ref: '#/components/schemas/AmountWithScale'
+            - $ref: '#/components/schemas/Amount'
           description: Fixed send amount. Mutually exclusive with receiveAmount.
         receiveAmount:
           allOf:
-            - $ref: '#/components/schemas/AmountWithScale'
+            - $ref: '#/components/schemas/Amount'
           description: Fixed receive amount. Mutually exclusive with debitAmount.
       description: Create a quote for a payment. Provide either debitAmount or receiveAmount, but not both. If neither is provided, the incoming payment's incomingAmount is used. If the incoming payment has no incomingAmount and neither is provided, the request will fail with an InvalidQuoteAmountError.
     QuoteError:

@@ -42,14 +42,11 @@ model AssetUpdate {
   liquidityHighThreshold?: integer;
 }
 
-model AmountWithScale {
+model LiquidityRequest {
+  @doc("Amount of liqudity to deposit.")
   amount: numeric;
   @doc("Decimal precision of the amount.")
   scale: string;
-}
-
-model LiquidityRequest {
-  ...AmountWithScale;
 }
 
 @route("/assets")
@@ -66,7 +63,7 @@ namespace Assets {
   @post
   op createAsset(@body asset: Asset): {
     @statusCode statusCode: 201;
-    @body newAsset: Asset;
+    @body body: { code: string };
   };
 
   @patch(#{implicitOptionality: false})
@@ -140,7 +137,7 @@ namespace WalletAddresses {
   @post
   op createWalletAddress(@body walletAddressCreate: WalletAddressCreate): {
     @statusCode statusCode: 201;
-    @body newWalletAddress: WalletAddress;
+    @body body: { address: string };
   };
 
   @patch(#{implicitOptionality: false})
@@ -159,7 +156,7 @@ namespace WalletAddresses {
     @post
     op createKey(@path address: string, @body key: WalletAddressKey): {
       @statusCode statusCode: 201;
-      @body newKey: WalletAddressKey;
+      @body body: { id: string };
     };
   }
 }
@@ -170,13 +167,19 @@ enum IncomingPaymentState {
   COMPLETED,
 }
 
+model Amount {
+  value: numeric;
+  assetCode: string;
+  assetScale: numeric;
+}
+
 model IncomingPaymentCreate {
   @doc("Client-provided ID. Auto-generated if omitted.")
   id?: string;
   @doc("ID of the wallet address that will receive the payment.")
   walletAddressId: string;
   @doc("Max amount to receive.")
-  incomingAmount?: AmountWithScale;
+  incomingAmount?: Amount;
   @doc("Date and time that the incoming payment will expire.")
   expiresAt: utcDateTime;
   metadata?: Record<unknown>;
@@ -186,9 +189,7 @@ model IncomingPayment {
   @key id: string;
   walletAddressId: string;
   state: IncomingPaymentState;
-  assetCode: string;
-  assetScale: numeric;
-  incomingAmount?: numeric;
+  incomingAmount?: Amount;
   receivedAmount: numeric;
   expiresAt?: utcDateTime;
   metadata?: Record<unknown>;
@@ -199,7 +200,7 @@ namespace IncomingPayments {
   @post
   op createIncomingPayment(@body body: IncomingPaymentCreate): {
     @statusCode statusCode: 201;
-    @body incomingPayment: IncomingPayment;
+    @body body: { id: string };
   };
 
   @get
@@ -218,17 +219,17 @@ model QuoteCreate {
   @doc("ID of the incoming payment to quote against.")
   incomingPaymentId: string;
   @doc("Fixed send amount. Mutually exclusive with receiveAmount.")
-  debitAmount?: AmountWithScale;
+  debitAmount?: Amount;
   @doc("Fixed receive amount. Mutually exclusive with debitAmount.")
-  receiveAmount?: AmountWithScale;
+  receiveAmount?: Amount;
 }
 
 model Quote {
   @key id: string;
   senderWalletAddressId: string;
   incomingPaymentId: string;
-  debitAmount: AmountWithScale;
-  receiveAmount: AmountWithScale;
+  debitAmount: Amount;
+  receiveAmount: Amount;
   exchangeRate: numeric;
   expiresAt: utcDateTime;
 }
@@ -246,7 +247,7 @@ namespace Quotes {
   @post
   op createQuote(@body body: QuoteCreate): {
     @statusCode statusCode: 201;
-    @body quote: Quote;
+    @body body: { id: string };
   } | QuoteError;
 
   @get
@@ -278,7 +279,7 @@ model OutgoingPaymentCreate {
   @doc("ID of the incoming payment to pay directly. Requires debitAmount. Mutually exclusive with quoteId.")
   incomingPaymentId?: string;
   @doc("Amount to debit. Required when using incomingPaymentId.")
-  debitAmount?: AmountWithScale;
+  debitAmount?: Amount;
   metadata?: Record<unknown>;
 }
 
@@ -308,7 +309,7 @@ namespace OutgoingPayments {
   @post
   op createOutgoingPayment(@body body: OutgoingPaymentCreate): {
     @statusCode statusCode: 201;
-    @body outgoingPayment: OutgoingPayment;
+    @body body: { id: string };
   };
 
   @get
@@ -381,7 +382,7 @@ namespace Peers {
   @post
   op createPeer(@body peer: PeerCreate): {
     @statusCode statusCode: 201;
-    @body newPeer: Peer;
+    @body body: { id: string };
   };
 
   @patch(#{implicitOptionality: false})
