@@ -21,11 +21,7 @@ export const options = {
   }
 };
 
-const RECEIVER_WALLET_ADDRESS_ID = 'a1469618-077a-447d-b5a3-a9ed11265a63';
-const SENDER_WALLET_ADDRESS_ID = 'a1469618-077a-447d-b5a3-a9ed11265a64';
-
-// const BASE_URL = "http://localhost:3000";
-const BASE_URL = 'http://localhost:80';
+const ADMIN_API_URL = 'http://localhost:3001';
 
 function request(url, data) {
   return http.post(url, JSON.stringify(data), {
@@ -35,41 +31,85 @@ function request(url, data) {
   });
 }
 
+export function setup() {
+  const assetRes = request(`${ADMIN_API_URL}/assets`, {
+    code: 'USD',
+    scale: 2
+  });
+  // 409 already exists OK for reruns
+  check(assetRes, {
+    'asset created or exists': (r) => r.status === 201 || r.status === 409
+  });
+
+  const receiverRes = request(`${ADMIN_API_URL}/wallet-addresses`, {
+    address: 'receiver',
+    publicName: 'Receiver',
+    assetCode: 'USD'
+  });
+  check(receiverRes, {
+    'receiver wallet created or exists': (r) =>
+      r.status === 201 || r.status === 409
+  });
+  const receiver = JSON.parse(receiverRes.body);
+
+  const senderRes = request(`${ADMIN_API_URL}/wallet-addresses`, {
+    address: 'sender',
+    publicName: 'Sender',
+    assetCode: 'USD'
+  });
+  check(senderRes, {
+    'sender wallet created or exists': (r) =>
+      r.status === 201 || r.status === 409
+  });
+  const sender = JSON.parse(senderRes.body);
+
+  return {
+    receiverWalletAddressId: receiver.address || 'receiver',
+    senderWalletAddressId: sender.address || 'sender'
+  };
+}
+
 export default function (data) {
   const incomingPaymentId = uuidv4();
-  const incomingPaymentRes = request(`${BASE_URL}/incoming-payment`, {
+  const incomingPaymentRes = request(`${ADMIN_API_URL}/incoming-payments`, {
     id: incomingPaymentId,
-    walletAddressId: RECEIVER_WALLET_ADDRESS_ID
+    walletAddressId: data.receiverWalletAddressId
   });
+
+  console.log(`incoming payment response: ${incomingPaymentRes.body}`);
 
   check(incomingPaymentRes, {
-    'incoming payment created': (r) => r.status === 200
+    'incoming payment created': (r) => r.status === 201,
+    'incoming payment id matches': (r) =>
+      JSON.parse(r.body).id === incomingPaymentId
   });
 
-  const quoteRes = request(`${BASE_URL}/quote`, {
-    debitAmount: {
-      assetScale: 2,
-      assetCode: 'USD',
-      value: 100
-    },
-    incomingPaymentId,
-    senderWalletAddressId: SENDER_WALLET_ADDRESS_ID
-  });
-
-  check(quoteRes, {
-    'quote created': (r) => r.status === 200
-  });
-
-  const quoteId = JSON.parse(quoteRes.body).id;
-
-  const outgoingPaymentRes = request(`${BASE_URL}/outgoing-payment`, {
-    quoteId,
-    incomingPaymentId,
-    senderWalletAddressId: SENDER_WALLET_ADDRESS_ID
-  });
-  check(outgoingPaymentRes, {
-    'outgoing payment created': (r) => r.status === 200
-  });
+  // const incomingPaymentId = JSON.parse(incomingPaymentRes.body).id;
+  //
+  // const quoteRes = request(`${ADMIN_API_URL}/quotes`, {
+  //   debitAmount: {
+  //     assetScale: 2,
+  //     assetCode: 'USD',
+  //     value: 100
+  //   },
+  //   incomingPaymentId,
+  //   senderWalletAddressId: data.senderWalletAddressId
+  // });
+  //
+  // check(quoteRes, {
+  //   'quote created': (r) => r.status === 201
+  // });
+  //
+  // const quoteId = JSON.parse(quoteRes.body).id;
+  //
+  // const outgoingPaymentRes = request(`${ADMIN_API_URL}/outgoing-payments`, {
+  //   quoteId,
+  //   incomingPaymentId,
+  //   senderWalletAddressId: data.senderWalletAddressId
+  // });
+  // check(outgoingPaymentRes, {
+  //   'outgoing payment created': (r) => r.status === 201
+  // });
 
   // sleep(0.01);
 }
