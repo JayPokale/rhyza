@@ -1,21 +1,32 @@
 name: rafiki-poc
 services:
-  payments-command-handler-service:
+  admin-api-service:
     build:
       context: ../
-      dockerfile: ./packages/payments-command-handler-service/Dockerfile
+      dockerfile: ./packages/admin-api-service/Dockerfile
     restart: always
     environment:
-      OPEN_TELEMETRY_COLLECTOR_URL: http://otel-collector:4317
-      REDIS_URL: redis://redis:6379
-      KAFKA_URL: kafka:19092
-      LOG_LEVEL: info
-      UV_THREADPOOL_SIZE: 128
+      PAL_GRPC_URL: pal-api-service:50051
+    ports:
+      - '3001:3001'
+    depends_on:
+      pal-api-service:
+        condition: service_started
+    networks:
+      - rafiki-poc
+
+  pal-api-service:
+    build:
+      context: ../
+      dockerfile: ./packages/pal-api-service/Dockerfile
+    restart: always
+    environment:
+      MONGO_URL: mongodb://root:mongoPass@mongodb:27017/
+    ports:
+      - '50051:50051' # TODO: remove host exposure once admin API exists
     depends_on:
       mongodb:
         condition: service_healthy
-      init-kafka:
-        condition: service_completed_successfully
     networks:
       - rafiki-poc
 
@@ -37,14 +48,13 @@ services:
     networks:
       - rafiki-poc
 
-
   kafka:
     image: apache/kafka:4.0.0
     restart: unless-stopped
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_NODE_ID: 1
-      KAFKA_PROCESS_ROLES: broker,controllerYY
+      KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT
       KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:19092,EXTERNAL://kafka:9092
       KAFKA_LISTENERS: INTERNAL://:19092,CONTROLLER://:19093,EXTERNAL://:9092
@@ -94,7 +104,6 @@ services:
       ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --topic audits
       ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --topic logs
       ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 24 --topic payment-commands
-      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 24 --topic api-response-events
       echo -e '\nSuccessfully created the following topics:'
       ./kafka-topics.sh --bootstrap-server kafka:19092 --list
       "

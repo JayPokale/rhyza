@@ -1,0 +1,40 @@
+'use strict';
+
+import Fastify, { FastifyInstance } from 'fastify';
+import { PalClient } from 'pal-client-lib';
+import { assetRoutes } from './routes/assets.js';
+import { walletAddressRoutes } from './routes/wallet-addresses.js';
+
+const PORT = parseInt(process.env['PORT'] || '3001', 10);
+const HOST = process.env['HOST'] || '0.0.0.0';
+const PAL_GRPC_URL = process.env['PAL_GRPC_URL'] || 'localhost:50051';
+
+export class AdminApiService {
+  private static server: FastifyInstance;
+  private static palClient: PalClient;
+
+  static async start(): Promise<void> {
+    this.palClient = new PalClient(PAL_GRPC_URL);
+    await this.palClient.init();
+    console.log(`Connected to PAL service at ${PAL_GRPC_URL}`);
+
+    // TODO: Wire up OpenAPI spec for route validation.
+    // e.g. fastify-openapi-glue to generate validation from the spec
+    this.server = Fastify({ logger: true });
+
+    this.server.register(assetRoutes, {
+      palClient: this.palClient
+    });
+    this.server.register(walletAddressRoutes, {
+      palClient: this.palClient
+    });
+
+    await this.server.listen({ port: PORT, host: HOST });
+    console.log(`Admin API listening on ${HOST}:${PORT}`);
+  }
+
+  static async stop(): Promise<void> {
+    await this.server?.close();
+    await this.palClient?.disconnect();
+  }
+}
