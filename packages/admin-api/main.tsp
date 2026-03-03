@@ -190,7 +190,7 @@ model IncomingPayment {
   walletAddressId: string;
   state: IncomingPaymentState;
   incomingAmount?: Amount;
-  receivedAmount: numeric;
+  receivedAmount: Amount;
   expiresAt?: utcDateTime;
   metadata?: Record<unknown>;
 }
@@ -289,10 +289,8 @@ model OutgoingPayment {
   quoteId?: string;
   incomingPaymentId: string;
   state: OutgoingPaymentState;
-  assetCode: string;
-  assetScale: numeric;
-  debitAmount: numeric;
-  sentAmount: numeric;
+  debitAmount: Amount;
+  sentAmount: Amount;
   metadata?: Record<unknown>;
 }
 

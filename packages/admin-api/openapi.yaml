@@ -588,7 +588,7 @@ components:
         incomingAmount:
           $ref: '#/components/schemas/Amount'
         receivedAmount:
-          type: number
+          $ref: '#/components/schemas/Amount'
         expiresAt:
           type: string
           format: date-time
@@ -643,8 +643,6 @@ components:
         - senderWalletAddressId
         - incomingPaymentId
         - state
-        - assetCode
-        - assetScale
         - debitAmount
         - sentAmount
       properties:
@@ -658,14 +656,10 @@ components:
           type: string
         state:
           $ref: '#/components/schemas/OutgoingPaymentState'
-        assetCode:
-          type: string
-        assetScale:
-          type: number
         debitAmount:
-          type: number
+          $ref: '#/components/schemas/Amount'
         sentAmount:
-          type: number
+          $ref: '#/components/schemas/Amount'
         metadata:
           type: object
           unevaluatedProperties: {}
