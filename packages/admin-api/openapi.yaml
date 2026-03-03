@@ -38,7 +38,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Asset'
+                type: object
+                properties:
+                  code:
+                    type: string
+                required:
+                  - code
       requestBody:
         required: true
         content:
@@ -99,6 +104,118 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/LiquidityRequest'
+  /incoming-payments:
+    post:
+      operationId: IncomingPayments_createIncomingPayment
+      parameters: []
+      responses:
+        '201':
+          description: The request has succeeded and a new resource has been created as a result.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                required:
+                  - id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IncomingPaymentCreate'
+  /incoming-payments/{id}:
+    get:
+      operationId: IncomingPayments_getIncomingPayment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncomingPayment'
+  /outgoing-payments:
+    post:
+      operationId: OutgoingPayments_createOutgoingPayment
+      parameters: []
+      responses:
+        '201':
+          description: The request has succeeded and a new resource has been created as a result.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                required:
+                  - id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OutgoingPaymentCreate'
+  /outgoing-payments/{id}:
+    get:
+      operationId: OutgoingPayments_getOutgoingPayment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OutgoingPayment'
+  /outgoing-payments/{id}/approve:
+    post:
+      operationId: OutgoingPayments_approveOutgoingPayment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '202':
+          description: The request has been accepted for processing, but processing has not yet completed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OutgoingPaymentApprove'
+  /outgoing-payments/{id}/reject:
+    post:
+      operationId: OutgoingPayments_rejectOutgoingPayment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '202':
+          description: The request has been accepted for processing, but processing has not yet completed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OutgoingPaymentReject'
   /peers:
     get:
       operationId: Peers_list
@@ -133,7 +250,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Peer'
+                type: object
+                properties:
+                  id:
+                    type: string
+                required:
+                  - id
       requestBody:
         required: true
         content:
@@ -209,6 +331,50 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/LiquidityRequest'
+  /quotes:
+    post:
+      operationId: Quotes_createQuote
+      parameters: []
+      responses:
+        '201':
+          description: The request has succeeded and a new resource has been created as a result.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                required:
+                  - id
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuoteError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuoteCreate'
+  /quotes/{id}:
+    get:
+      operationId: Quotes_getQuote
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Quote'
   /wallet-addresses:
     get:
       operationId: WalletAddresses_list
@@ -243,7 +409,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/WalletAddress'
+                type: object
+                properties:
+                  address:
+                    type: string
+                required:
+                  - address
       requestBody:
         required: true
         content:
@@ -315,7 +486,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/WalletAddressKey'
+                type: object
+                properties:
+                  id:
+                    type: string
+                required:
+                  - id
       requestBody:
         required: true
         content:
@@ -349,6 +525,19 @@ components:
         type: number
       explode: false
   schemas:
+    Amount:
+      type: object
+      required:
+        - value
+        - assetCode
+        - assetScale
+      properties:
+        value:
+          type: number
+        assetCode:
+          type: string
+        assetScale:
+          type: number
     Asset:
       type: object
       required:
@@ -382,6 +571,59 @@ components:
           type: string
         connectorUrl:
           type: string
+    IncomingPayment:
+      type: object
+      required:
+        - id
+        - walletAddressId
+        - state
+        - receivedAmount
+      properties:
+        id:
+          type: string
+        walletAddressId:
+          type: string
+        state:
+          $ref: '#/components/schemas/IncomingPaymentState'
+        incomingAmount:
+          $ref: '#/components/schemas/Amount'
+        receivedAmount:
+          $ref: '#/components/schemas/Amount'
+        expiresAt:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+          unevaluatedProperties: {}
+    IncomingPaymentCreate:
+      type: object
+      required:
+        - walletAddressId
+        - expiresAt
+      properties:
+        id:
+          type: string
+          description: Client-provided ID. Auto-generated if omitted.
+        walletAddressId:
+          type: string
+          description: ID of the wallet address that will receive the payment.
+        incomingAmount:
+          allOf:
+            - $ref: '#/components/schemas/Amount'
+          description: Max amount to receive.
+        expiresAt:
+          type: string
+          format: date-time
+          description: Date and time that the incoming payment will expire.
+        metadata:
+          type: object
+          unevaluatedProperties: {}
+    IncomingPaymentState:
+      type: string
+      enum:
+        - CREATED
+        - EXPIRED
+        - COMPLETED
     LiquidityRequest:
       type: object
       required:
@@ -394,6 +636,73 @@ components:
         scale:
           type: string
           description: Decimal precision of the amount.
+    OutgoingPayment:
+      type: object
+      required:
+        - id
+        - senderWalletAddressId
+        - incomingPaymentId
+        - state
+        - debitAmount
+        - sentAmount
+      properties:
+        id:
+          type: string
+        senderWalletAddressId:
+          type: string
+        quoteId:
+          type: string
+        incomingPaymentId:
+          type: string
+        state:
+          $ref: '#/components/schemas/OutgoingPaymentState'
+        debitAmount:
+          $ref: '#/components/schemas/Amount'
+        sentAmount:
+          $ref: '#/components/schemas/Amount'
+        metadata:
+          type: object
+          unevaluatedProperties: {}
+    OutgoingPaymentApprove:
+      type: object
+    OutgoingPaymentCreate:
+      type: object
+      required:
+        - senderWalletAddressId
+      properties:
+        id:
+          type: string
+          description: Client-provided ID. Auto-generated if omitted.
+        senderWalletAddressId:
+          type: string
+          description: ID of the wallet address that will send the payment.
+        quoteId:
+          type: string
+          description: ID of the quote to execute. Mutually exclusive with incomingPaymentId/debitAmount.
+        incomingPaymentId:
+          type: string
+          description: ID of the incoming payment to pay directly. Requires debitAmount. Mutually exclusive with quoteId.
+        debitAmount:
+          allOf:
+            - $ref: '#/components/schemas/Amount'
+          description: Amount to debit. Required when using incomingPaymentId.
+        metadata:
+          type: object
+          unevaluatedProperties: {}
+      description: Create an outgoing payment from a quote. Provide quoteId. Or create directly from an incoming payment by providing incomingPaymentId and debitAmount instead.
+    OutgoingPaymentReject:
+      type: object
+      properties:
+        reason:
+          type: string
+          description: Reason for rejecting the payment.
+    OutgoingPaymentState:
+      type: string
+      enum:
+        - PENDING
+        - FUNDED
+        - COMPLETED
+        - REJECTED
     PageInfo:
       type: object
       required:
@@ -458,6 +767,67 @@ components:
           type: integer
         liquidityHighThreshold:
           type: integer
+    Quote:
+      type: object
+      required:
+        - id
+        - senderWalletAddressId
+        - incomingPaymentId
+        - debitAmount
+        - receiveAmount
+        - exchangeRate
+        - expiresAt
+      properties:
+        id:
+          type: string
+        senderWalletAddressId:
+          type: string
+        incomingPaymentId:
+          type: string
+        debitAmount:
+          $ref: '#/components/schemas/Amount'
+        receiveAmount:
+          $ref: '#/components/schemas/Amount'
+        exchangeRate:
+          type: number
+        expiresAt:
+          type: string
+          format: date-time
+    QuoteCreate:
+      type: object
+      required:
+        - senderWalletAddressId
+        - incomingPaymentId
+      properties:
+        id:
+          type: string
+          description: Client-provided ID. Auto-generated if omitted.
+        senderWalletAddressId:
+          type: string
+          description: ID of the wallet address that will send the payment.
+        incomingPaymentId:
+          type: string
+          description: ID of the incoming payment to quote against.
+        debitAmount:
+          allOf:
+            - $ref: '#/components/schemas/Amount'
+          description: Fixed send amount. Mutually exclusive with receiveAmount.
+        receiveAmount:
+          allOf:
+            - $ref: '#/components/schemas/Amount'
+          description: Fixed receive amount. Mutually exclusive with debitAmount.
+      description: Create a quote for a payment. Provide either debitAmount or receiveAmount, but not both. If neither is provided, the incoming payment's incomingAmount is used. If the incoming payment has no incomingAmount and neither is provided, the request will fail with an InvalidQuoteAmountError.
+    QuoteError:
+      type: object
+      required:
+        - errorType
+        - message
+      properties:
+        errorType:
+          type: string
+          description: Error type identifier, e.g. InvalidQuoteAmountError.
+        message:
+          type: string
     WalletAddress:
       type: object
       required:

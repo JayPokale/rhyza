@@ -63,7 +63,7 @@ namespace Assets {
   @post
   op createAsset(@body asset: Asset): {
     @statusCode statusCode: 201;
-    @body newAsset: Asset;
+    @body body: { code: string };
   };
 
   @patch(#{implicitOptionality: false})
@@ -137,7 +137,7 @@ namespace WalletAddresses {
   @post
   op createWalletAddress(@body walletAddressCreate: WalletAddressCreate): {
     @statusCode statusCode: 201;
-    @body newWalletAddress: WalletAddress;
+    @body body: { address: string };
   };
 
   @patch(#{implicitOptionality: false})
@@ -156,9 +156,177 @@ namespace WalletAddresses {
     @post
     op createKey(@path address: string, @body key: WalletAddressKey): {
       @statusCode statusCode: 201;
-      @body newKey: WalletAddressKey;
+      @body body: { id: string };
     };
   }
+}
+
+enum IncomingPaymentState {
+  CREATED,
+  EXPIRED,
+  COMPLETED,
+}
+
+model Amount {
+  value: numeric;
+  assetCode: string;
+  assetScale: numeric;
+}
+
+model IncomingPaymentCreate {
+  @doc("Client-provided ID. Auto-generated if omitted.")
+  id?: string;
+  @doc("ID of the wallet address that will receive the payment.")
+  walletAddressId: string;
+  @doc("Max amount to receive.")
+  incomingAmount?: Amount;
+  @doc("Date and time that the incoming payment will expire.")
+  expiresAt: utcDateTime;
+  metadata?: Record<unknown>;
+}
+
+model IncomingPayment {
+  @key id: string;
+  walletAddressId: string;
+  state: IncomingPaymentState;
+  incomingAmount?: Amount;
+  receivedAmount: Amount;
+  expiresAt?: utcDateTime;
+  metadata?: Record<unknown>;
+}
+
+@route("/incoming-payments")
+namespace IncomingPayments {
+  @post
+  op createIncomingPayment(@body body: IncomingPaymentCreate): {
+    @statusCode statusCode: 201;
+    @body body: { id: string };
+  };
+
+  @get
+  op getIncomingPayment(@path id: string): {
+    @statusCode statusCode: 200;
+    @body incomingPayment: IncomingPayment;
+  };
+}
+
+@doc("Create a quote for a payment. Provide either debitAmount or receiveAmount, but not both. If neither is provided, the incoming payment's incomingAmount is used. If the incoming payment has no incomingAmount and neither is provided, the request will fail with an InvalidQuoteAmountError.")
+model QuoteCreate {
+  @doc("Client-provided ID. Auto-generated if omitted.")
+  id?: string;
+  @doc("ID of the wallet address that will send the payment.")
+  senderWalletAddressId: string;
+  @doc("ID of the incoming payment to quote against.")
+  incomingPaymentId: string;
+  @doc("Fixed send amount. Mutually exclusive with receiveAmount.")
+  debitAmount?: Amount;
+  @doc("Fixed receive amount. Mutually exclusive with debitAmount.")
+  receiveAmount?: Amount;
+}
+
+model Quote {
+  @key id: string;
+  senderWalletAddressId: string;
+  incomingPaymentId: string;
+  debitAmount: Amount;
+  receiveAmount: Amount;
+  exchangeRate: numeric;
+  expiresAt: utcDateTime;
+}
+
+@error
+model QuoteError {
+  @statusCode statusCode: 400;
+  @doc("Error type identifier, e.g. InvalidQuoteAmountError.")
+  errorType: string;
+  message: string;
+}
+
+@route("/quotes")
+namespace Quotes {
+  @post
+  op createQuote(@body body: QuoteCreate): {
+    @statusCode statusCode: 201;
+    @body body: { id: string };
+  } | QuoteError;
+
+  @get
+  op getQuote(@path id: string): {
+    @statusCode statusCode: 200;
+    @body quote: Quote;
+  };
+}
+
+enum OutgoingPaymentState {
+  @doc("Created, awaiting ASE approval.")
+  PENDING,
+  @doc("Approved and liquidity reserved. Payment executing.")
+  FUNDED,
+  @doc("All funds sent successfully.")
+  COMPLETED,
+  @doc("Rejected by ASE before funding.")
+  REJECTED,
+}
+
+@doc("Create an outgoing payment from a quote. Provide quoteId. Or create directly from an incoming payment by providing incomingPaymentId and debitAmount instead.")
+model OutgoingPaymentCreate {
+  @doc("Client-provided ID. Auto-generated if omitted.")
+  id?: string;
+  @doc("ID of the wallet address that will send the payment.")
+  senderWalletAddressId: string;
+  @doc("ID of the quote to execute. Mutually exclusive with incomingPaymentId/debitAmount.")
+  quoteId?: string;
+  @doc("ID of the incoming payment to pay directly. Requires debitAmount. Mutually exclusive with quoteId.")
+  incomingPaymentId?: string;
+  @doc("Amount to debit. Required when using incomingPaymentId.")
+  debitAmount?: Amount;
+  metadata?: Record<unknown>;
+}
+
+model OutgoingPayment {
+  @key id: string;
+  senderWalletAddressId: string;
+  quoteId?: string;
+  incomingPaymentId: string;
+  state: OutgoingPaymentState;
+  debitAmount: Amount;
+  sentAmount: Amount;
+  metadata?: Record<unknown>;
+}
+
+model OutgoingPaymentApprove {
+}
+
+model OutgoingPaymentReject {
+  @doc("Reason for rejecting the payment.")
+  reason?: string;
+}
+
+@route("/outgoing-payments")
+namespace OutgoingPayments {
+  @post
+  op createOutgoingPayment(@body body: OutgoingPaymentCreate): {
+    @statusCode statusCode: 201;
+    @body body: { id: string };
+  };
+
+  @get
+  op getOutgoingPayment(@path id: string): {
+    @statusCode statusCode: 200;
+    @body outgoingPayment: OutgoingPayment;
+  };
+
+  @route("/{id}/approve")
+  @post
+  op approveOutgoingPayment(@path id: string, @body body: OutgoingPaymentApprove): {
+    @statusCode statusCode: 202;
+  };
+
+  @route("/{id}/reject")
+  @post
+  op rejectOutgoingPayment(@path id: string, @body body: OutgoingPaymentReject): {
+    @statusCode statusCode: 202;
+  };
 }
 
 model IlpPeerSettings {
@@ -212,7 +380,7 @@ namespace Peers {
   @post
   op createPeer(@body peer: PeerCreate): {
     @statusCode statusCode: 201;
-    @body newPeer: Peer;
+    @body body: { id: string };
   };
 
   @patch(#{implicitOptionality: false})
