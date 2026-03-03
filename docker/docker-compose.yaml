@@ -22,8 +22,6 @@ services:
     restart: always
     environment:
       MONGO_URL: mongodb://root:mongoPass@mongodb:27017/
-    ports:
-      - '50051:50051' # TODO: remove host exposure once admin API exists
     depends_on:
       mongodb:
         condition: service_healthy
