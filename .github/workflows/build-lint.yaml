@@ -1,4 +1,4 @@
-name: Lint & format checks
+name: Build & lint checks
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
       - main
 
 jobs:
-  checks:
+  build-lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -18,6 +18,9 @@ jobs:
       - name: Install dependencies
         run: | 
           pnpm install --frozen-lockfile
-      - name: Checks
+      - name: Lint checks
         run: |
           pnpm checks
+      - name: Build
+        run: |
+          pnpm build
