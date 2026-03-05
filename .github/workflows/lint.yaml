@@ -1,4 +1,4 @@
-name: Format and lint checks
+name: Lint & format checks
 
 on:
   push:
@@ -15,7 +15,9 @@ jobs:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
       - uses: pnpm/action-setup@v4
+      - name: Install dependencies
+        run: | 
+          pnpm install --frozen-lockfile
       - name: Checks
         run: |
-          pnpm install --frozen-lockfile
           pnpm checks
