@@ -30,7 +30,7 @@ importers:
         specifier: ^8.54.0
         version: 8.54.0(eslint@9.39.2)(typescript@5.9.3)
 
-  packages/admin-api:
+  packages/admin-api-service:
     dependencies:
       fastify:
         specifier: ~5.3.3

@@ -1,5 +1,5 @@
 {
-  "name": "admin-api",
+  "name": "admin-api-service",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
