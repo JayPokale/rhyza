@@ -1,0 +1,21 @@
+name: Format and lint checks
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+      - uses: pnpm/action-setup@v4
+      - name: Checks
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm checks
