@@ -11,17 +11,25 @@
 
 import * as grpc from '@grpc/grpc-js';
 import { ServiceError } from '@grpc/grpc-js';
-import { IPalClientAsset, IPalClientWalletAddress } from './local-types';
+import {
+  IGetWalletAddressResponse,
+  IPalClientAsset,
+  IPalClientWalletAddress
+} from './local-types';
 import {
   CreateAssetRequest,
+  CreateWalletAddressAliasRequest,
   CreateWalletAddressRequest,
   CreateWalletAddressResponse,
   GetAssetRequest,
   GetAssetResponse,
-  GetWalletAddressRequest,
-  GetWalletAddressResponse,
-  PalGrpcClient
+  GetWalletAddressesRequest,
+  GetWalletAddressesResponse,
+  PalGrpcClient,
+  ResolveWalletAddressAliasRequest,
+  ResolveWalletAddressAliasResponse
 } from 'pal-public-types-lib';
+import { Empty } from 'google-protobuf/google/protobuf/empty_pb';
 
 export class PalClient {
   private readonly _serverUrl: string;
@@ -83,17 +91,14 @@ export class PalClient {
     }
 
     return new Promise((resolve, reject) => {
-      this._grpcClient.createAsset(
-        request,
-        (error: ServiceError | null) => {
-          if (error) {
-            console.error(error);
-            return reject(error);
-          }
-
-          return resolve();
+      this._grpcClient.createAsset(request, (error: ServiceError | null) => {
+        if (error) {
+          console.error(error);
+          return reject(error);
         }
-      );
+
+        return resolve();
+      });
     });
   }
 
@@ -174,38 +179,106 @@ export class PalClient {
     });
   }
 
-  async getWalletAddress(
-    address: string
-  ): Promise<IPalClientWalletAddress | null> {
-    const request = new GetWalletAddressRequest();
-    request.setAddress(address);
+  async getWalletAddresses(
+    ids: string[]
+  ): Promise<IGetWalletAddressResponse[]> {
+    const request = new GetWalletAddressesRequest();
+    request.setIdsList(ids);
 
     return new Promise((resolve, reject) => {
-      this._grpcClient.getWalletAddress(
+      this._grpcClient.getWalletAddresses(
         request,
-        (error: ServiceError | null, response: GetWalletAddressResponse) => {
+        (error: ServiceError | null, response: GetWalletAddressesResponse) => {
           if (error) {
             console.error(error);
             return reject(error);
           }
 
-          if (!response.hasWalletaddress()) {
-            return resolve(null);
-          }
-          const respWallet = response.getWalletaddress();
-          if (!respWallet) {
-            return resolve(null);
+          const respWallets = response.getWalletaddressesList();
+          if (!respWallets || respWallets.length == 0) {
+            return resolve([]);
           }
 
-          const respObj: IPalClientWalletAddress = {
-            address: respWallet.getAddress(),
-            publicName: respWallet.getPublicname(),
-            assetCode: respWallet.getAssetcode(),
-            assetScale: respWallet.getAssetscale(),
-            isActive: respWallet.getIsactive()
-          };
+          const respObj = respWallets.map((item) => {
+            return {
+              id: item.getId(),
+              publicName: item.getPublicname(),
+              assetCode: item.getAssetcode(),
+              assetScale: item.getAssetscale(),
+              isActive: item.getIsactive()
+            };
+          });
 
           return resolve(respObj);
+        }
+      );
+    });
+  }
+
+  /*
+   * Wallet Address Alias related functions
+   * */
+
+  async createWalletAddressAlias(
+    prefix: string | null,
+    suffix: string,
+    walletAddressId: string
+  ): Promise<void> {
+    const request = new CreateWalletAddressAliasRequest();
+    if (prefix) request.setPrefix(prefix);
+    request.setSuffix(suffix);
+    request.setWalletaddressid(walletAddressId);
+
+    return new Promise((resolve, reject) => {
+      this._grpcClient.createWalletAddressAlias(
+        request,
+        (error: ServiceError | null) => {
+          if (error) {
+            console.error(error);
+            return reject(error);
+          }
+
+          return resolve();
+        }
+      );
+    });
+  }
+
+  async ResolveWalletAddressAlias(
+    prefix: string | null,
+    suffix: string
+  ): Promise<{
+    prefix: string | null;
+    suffix: string;
+    walletAddressId: string;
+  } | null> {
+    const request = new ResolveWalletAddressAliasRequest();
+    if (prefix) request.setPrefix(prefix);
+    request.setSuffix(suffix);
+
+    return new Promise((resolve, reject) => {
+      this._grpcClient.resolveWalletAddressAlias(
+        request,
+        (
+          error: ServiceError | null,
+          response: ResolveWalletAddressAliasResponse
+        ) => {
+          if (error) {
+            console.error(error);
+            return reject(error);
+          }
+
+          const alias = response.getAlias();
+
+          if (!response.hasAlias() || !alias) {
+            return resolve(null);
+          }
+
+          return resolve({
+            prefix: alias.hasPrefix() ? alias.getPrefix() || null : null,
+            suffix: alias.getSuffix(),
+            walletAddressId: alias.getWalletaddressid()
+          });
         }
       );
     });

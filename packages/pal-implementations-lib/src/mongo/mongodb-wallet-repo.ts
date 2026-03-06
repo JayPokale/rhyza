@@ -9,7 +9,7 @@
 
 'use strict';
 
-import {Collection, CollectionInfo, Db, MongoClient} from 'mongodb';
+import { Collection, CollectionInfo, Db, MongoClient } from 'mongodb';
 import { IPalWalletAddress, IPalWalletAddressRepository } from 'pal-domain-lib';
 import * as console from 'node:console';
 
@@ -43,7 +43,10 @@ export class MongoDbWalletRepoRepo implements IPalWalletAddressRepository {
       const db: Db = this._client.db(DB_NAME);
 
       // Check if the collection already exists.
-      const collections: (Pick<CollectionInfo, "name" | "type"> | CollectionInfo)[] = await db.listCollections().toArray();
+      const collections: (
+        | Pick<CollectionInfo, 'name' | 'type'>
+        | CollectionInfo
+      )[] = await db.listCollections().toArray();
       const collectionExists: boolean = collections.some((collection) => {
         return collection.name === COLLECTION_NAME;
       });
@@ -54,7 +57,7 @@ export class MongoDbWalletRepoRepo implements IPalWalletAddressRepository {
       } else {
         this._collection =
           await db.createCollection<IPalWalletAddress>(COLLECTION_NAME);
-        await this._collection.createIndex({ address: 1 }, { unique: true });
+        await this._collection.createIndex({ id: 1 }, { unique: true });
       }
     } catch (e: unknown) {
       if (e instanceof Error) {
@@ -77,42 +80,44 @@ export class MongoDbWalletRepoRepo implements IPalWalletAddressRepository {
     await this._client.close();
   }
 
-  async store(asset: IPalWalletAddress): Promise<void> {
+  async store(walletAddress: IPalWalletAddress): Promise<void> {
     this._checkInitialisedOrThrow();
 
-    try{
-        await this._collection.insertOne(asset);
-        return;
-    }catch (e) {
-        console.error(e);
-        throw new Error(
-            `Unable to store wallet address - error: ${(e as Error).message}`
-        );
+    try {
+      await this._collection.insertOne(walletAddress);
+      return;
+    } catch (e) {
+      console.error(e);
+      throw new Error(
+        `Unable to store wallet address - error: ${(e as Error).message}`
+      );
     }
   }
 
-  async fetch(address: string): Promise<IPalWalletAddress | null> {
+  async fetch(ids: string[]): Promise<IPalWalletAddress[]> {
     this._checkInitialisedOrThrow();
 
-    try{
-        const doc = await this._collection.findOne({ address: address });
-        if (!doc) {
-            return null;
-        }
+    try {
+      const docs = await this._collection.find({ id: { $in: ids } }).toArray();
 
+      if (!docs || docs.length === 0) {
+        return [];
+      }
+
+      return docs.map((doc) => {
         return {
-            address: doc.address,
-            publicName: doc.publicName,
-            isActive: doc.isActive,
-            assetCode: doc.assetCode,
-            assetScale: doc.assetScale
+          id: doc.id,
+          publicName: doc.publicName,
+          isActive: doc.isActive,
+          assetCode: doc.assetCode,
+          assetScale: doc.assetScale
         };
-    }catch (e) {
-        console.error(e);
-        throw new Error(
-            `Unable to get wallet by address - error: ${(e as Error).message}`
-        );
+      });
+    } catch (e) {
+      console.error(e);
+      throw new Error(
+        `Unable to get wallet by address - error: ${(e as Error).message}`
+      );
     }
-
   }
 }

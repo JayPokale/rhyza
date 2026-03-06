@@ -10,14 +10,10 @@
 'use strict';
 
 import { CannotCreateDuplicateWalletAddressError } from './errors';
-import {
-  IPalWalletAddress,
-  IPalWalletAddressRepository,
-  IWalletAddressAggregate
-} from './interfaces';
+import { IPalWalletAddress, IPalWalletAddressRepository } from './interfaces';
 import { PalWalletAddress } from './entity';
 
-export class WalletAddressAggregate implements IWalletAddressAggregate {
+export class WalletAddressAggregate {
   private _repo: IPalWalletAddressRepository;
 
   constructor(repo: IPalWalletAddressRepository) {
@@ -25,24 +21,24 @@ export class WalletAddressAggregate implements IWalletAddressAggregate {
   }
 
   async createWalletAddress(
-    address: string,
+    id: string,
     publicName: string,
     assetCode: string,
     assetScale: number,
     isActive: boolean = true
   ): Promise<string> {
-    const existing = await this._repo.fetch(address);
+    const existing = await this._repo.fetch([id]);
 
-    if (existing) {
+    if (existing.length > 0) {
       throw new CannotCreateDuplicateWalletAddressError(
-        'Wallet with address: ' + publicName + ' already exists'
+        'Wallet with id: ' + id + ' already exists'
       );
     }
 
     // TODO: validate inputs
 
     const newWallet = new PalWalletAddress(
-      address,
+      id,
       publicName,
       assetCode,
       assetScale,
@@ -51,14 +47,14 @@ export class WalletAddressAggregate implements IWalletAddressAggregate {
 
     await this._repo.store(newWallet.toObject());
 
-    return newWallet.address;
+    return newWallet.id;
   }
 
-  async getWalletAddress(address: string): Promise<IPalWalletAddress | null> {
-    const found = await this._repo.fetch(address);
+  async getWalletAddresses(ids: string[]): Promise<IPalWalletAddress[]> {
+    const found = await this._repo.fetch(ids);
 
-    if (!found) return null;
+    if (!found || found.length == 0) return [];
 
-    return PalWalletAddress.fromObject(found);
+    return found.map(PalWalletAddress.fromObject);
   }
 }

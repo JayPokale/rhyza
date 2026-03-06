@@ -46,6 +46,29 @@ console.log(retrievedAsset);
 // Retrieve a wallet by address - will return null if not found
 const retrievedWallet = await client.getWalletAddress(createdWalletAddress);
 console.log(retrievedWallet);
+
+// Create a wallet address alias with a prefix, a suffix and the internal wallet address id - returns void
+await client.createWalletAddressAlias('domain.com', 'pedrobarreto', '123');
+
+// Create a wallet address alias with no prefix, a suffix and the internal wallet address id - returns void
+await client.createWalletAddressAlias(null, 'pedrobarreto', '123');
+
+// Tries to get the internal wallet address id from the alias definition,
+// ie, an optional prefix and mandatory suffix - returns alias obj or null
+const alias = await client.resolveWalletAddressAlias(
+  'domain.com',
+  'pedrobarreto'
+);
+// Tries to get the internal wallet address id without the optional prefix
+const alias2 = await client.resolveWalletAddressAlias(null, 'pedrobarreto');
+
+/* alias response type is:
+{
+  prefix: string | null,
+  suffix: string,
+  walletAddressId:string
+}
+*/
 ```
 
 ## API Reference
