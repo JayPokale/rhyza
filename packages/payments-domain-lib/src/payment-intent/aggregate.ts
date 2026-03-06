@@ -25,7 +25,7 @@ export class PaymentIntentAggregate {
     entity: IPaymentIntent;
     event: PaymentIntentCreatedEvent;
   } {
-    const { id, walletAddressId, walletAddress, expiresAt, incomingAmount } =
+    const { id, receiverWalletAddressId, receiverWalletAddress, expiresAt, incomingAmount } =
       payload;
 
     if (seenIds.has(id)) {
@@ -34,15 +34,15 @@ export class PaymentIntentAggregate {
       );
     }
 
-    const wallet = walletMap.get(walletAddressId);
+    const wallet = walletMap.get(receiverWalletAddressId);
     if (!wallet) {
       throw new WalletAddressNotFoundError(
-        `Wallet address ${walletAddressId} not found`
+        `Wallet address ${receiverWalletAddressId} not found`
       );
     }
     if (!wallet.isActive) {
       throw new WalletAddressInactiveError(
-        `Wallet address ${walletAddressId} is not active`
+        `Wallet address ${receiverWalletAddressId} is not active`
       );
     }
 
@@ -69,8 +69,8 @@ export class PaymentIntentAggregate {
 
     const entity = new PaymentIntentEntity(
       id,
-      walletAddressId,
-      walletAddress,
+      receiverWalletAddressId,
+      receiverWalletAddress,
       PaymentIntentDestination.LOCAL, // TODO: determine from peer lookup
       wallet.assetCode,
       wallet.assetScale,

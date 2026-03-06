@@ -179,8 +179,8 @@ export class PaymentsServiceServer {
       const cmd = new CreatePaymentIntentCmd(
         {
           id: commandId,
-          walletAddressId: call.request.getWalletAddressId(),
-          walletAddress: call.request.getWalletAddress(),
+          receiverWalletAddressId: call.request.getWalletAddressId(),
+          receiverWalletAddress: call.request.getWalletAddress(),
           incomingAmount: call.request.getIncomingAmount(),
           expiresAt: call.request.getExpiresAt(),
           metadata: call.request.getMetadata()

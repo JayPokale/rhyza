@@ -1,5 +1,6 @@
 export const PaymentIntentState = {
   CREATED: 'CREATED',
+  PARTIALLY_PAID: 'PARTIALLY_PAID',
   EXPIRED: 'EXPIRED',
   COMPLETED: 'COMPLETED'
 } as const;
@@ -13,8 +14,8 @@ export type PaymentIntentDestination = keyof typeof PaymentIntentDestination;
 
 export interface IPaymentIntent {
   id: string;
-  walletAddressId: string;
-  walletAddress: string;
+  receiverWalletAddressId: string;
+  receiverWalletAddress: string;
   state: PaymentIntentState;
   destination: PaymentIntentDestination;
   assetCode: string;

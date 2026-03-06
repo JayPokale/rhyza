@@ -6,8 +6,8 @@ import {
 
 export class PaymentIntentEntity implements IPaymentIntent {
   private _id: string;
-  private _walletAddressId: string;
-  private _walletAddress: string;
+  private _receiverWalletAddressId: string;
+  private _receiverWalletAddress: string;
   private _state: PaymentIntentState;
   private _destination: PaymentIntentDestination;
   private _assetCode: string;
@@ -18,8 +18,8 @@ export class PaymentIntentEntity implements IPaymentIntent {
 
   constructor(
     id: string,
-    walletAddressId: string,
-    walletAddress: string,
+    receiverWalletAddressId: string,
+    receiverWalletAddress: string,
     destination: PaymentIntentDestination,
     assetCode: string,
     assetScale: number,
@@ -29,8 +29,8 @@ export class PaymentIntentEntity implements IPaymentIntent {
     state: PaymentIntentState = PaymentIntentState.CREATED
   ) {
     this._id = id;
-    this._walletAddressId = walletAddressId;
-    this._walletAddress = walletAddress;
+    this._receiverWalletAddressId = receiverWalletAddressId;
+    this._receiverWalletAddress = receiverWalletAddress;
     this._destination = destination;
     this._assetCode = assetCode;
     this._assetScale = assetScale;
@@ -43,8 +43,8 @@ export class PaymentIntentEntity implements IPaymentIntent {
   static fromObject(json: IPaymentIntent): PaymentIntentEntity {
     return new PaymentIntentEntity(
       json.id,
-      json.walletAddressId,
-      json.walletAddress,
+      json.receiverWalletAddressId,
+      json.receiverWalletAddress,
       json.destination,
       json.assetCode,
       json.assetScale,
@@ -58,8 +58,8 @@ export class PaymentIntentEntity implements IPaymentIntent {
   toObject(): IPaymentIntent {
     return {
       id: this._id,
-      walletAddressId: this._walletAddressId,
-      walletAddress: this._walletAddress,
+      receiverWalletAddressId: this._receiverWalletAddressId,
+      receiverWalletAddress: this._receiverWalletAddress,
       state: this._state,
       destination: this._destination,
       assetCode: this._assetCode,
@@ -74,12 +74,12 @@ export class PaymentIntentEntity implements IPaymentIntent {
     return this._id;
   }
 
-  get walletAddressId(): string {
-    return this._walletAddressId;
+  get receiverWalletAddressId(): string {
+    return this._receiverWalletAddressId;
   }
 
-  get walletAddress(): string {
-    return this._walletAddress;
+  get receiverWalletAddress(): string {
+    return this._receiverWalletAddress;
   }
 
   get state(): PaymentIntentState {

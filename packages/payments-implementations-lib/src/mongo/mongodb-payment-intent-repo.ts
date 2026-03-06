@@ -95,8 +95,8 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
 
       return docs.map((doc) => ({
         id: doc.id,
-        walletAddressId: doc.walletAddressId,
-        walletAddress: doc.walletAddress,
+        receiverWalletAddressId: doc.receiverWalletAddressId,
+        receiverWalletAddress: doc.receiverWalletAddress,
         state: doc.state,
         destination: doc.destination,
         assetCode: doc.assetCode,

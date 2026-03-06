@@ -14,8 +14,8 @@ import { MockWalletAddressAdapter } from './mocks/mock-wallet-address-port';
 function makeCmd(
   overrides: Partial<{
     id: string;
-    walletAddressId: string;
-    walletAddress: string;
+    receiverWalletAddressId: string;
+    receiverWalletAddress: string;
     expiresAt: string;
     incomingAmount: number;
   }> = {}
@@ -23,8 +23,8 @@ function makeCmd(
   return new CreatePaymentIntentCmd(
     {
       id: overrides.id ?? crypto.randomUUID(),
-      walletAddressId: overrides.walletAddressId ?? 'wallet-1',
-      walletAddress: overrides.walletAddress ?? 'domain.com/alice',
+      receiverWalletAddressId: overrides.receiverWalletAddressId ?? 'wallet-1',
+      receiverWalletAddress: overrides.receiverWalletAddress ?? 'domain.com/alice',
       expiresAt: overrides.expiresAt,
       incomingAmount: overrides.incomingAmount
     },
@@ -64,8 +64,8 @@ describe('PaymentsDomainService.handleBatch', () => {
     const stored = repo.getAll();
     assert.equal(stored.length, 1);
     assert.equal(stored[0].id, cmd.payload.id);
-    assert.equal(stored[0].walletAddressId, 'wallet-1');
-    assert.equal(stored[0].walletAddress, 'domain.com/alice');
+    assert.equal(stored[0].receiverWalletAddressId, 'wallet-1');
+    assert.equal(stored[0].receiverWalletAddress, 'domain.com/alice');
     assert.equal(stored[0].assetCode, 'USD');
     assert.equal(stored[0].assetScale, 2);
     assert.equal(stored[0].state, 'CREATED');
@@ -102,7 +102,7 @@ describe('PaymentsDomainService.handleBatch', () => {
   });
 
   it('rejects when wallet address not found', async () => {
-    const cmd = makeCmd({ walletAddressId: 'nonexistent' });
+    const cmd = makeCmd({ receiverWalletAddressId: 'nonexistent' });
     const events = await service.handleBatch([cmd]);
 
     assert.equal(events.length, 1);
@@ -118,7 +118,7 @@ describe('PaymentsDomainService.handleBatch', () => {
       assetCode: 'USD',
       assetScale: 2
     });
-    const cmd = makeCmd({ walletAddressId: 'inactive-wallet' });
+    const cmd = makeCmd({ receiverWalletAddressId: 'inactive-wallet' });
     const events = await service.handleBatch([cmd]);
 
     assert.equal(events.length, 1);

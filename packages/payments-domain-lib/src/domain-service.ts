@@ -34,7 +34,7 @@ export class PaymentsDomainService {
     for (const cmd of cmds) {
       if (cmd.msgName === CreatePaymentIntentCmd.name) {
         const payload = (cmd as CreatePaymentIntentCmd).payload;
-        walletIdSet.add(payload.walletAddressId);
+        walletIdSet.add(payload.receiverWalletAddressId);
         paymentIds.push(payload.id);
       }
     }
