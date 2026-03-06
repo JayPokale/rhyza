@@ -5,10 +5,17 @@ export const PaymentIntentState = {
 } as const;
 export type PaymentIntentState = keyof typeof PaymentIntentState;
 
+export const PaymentIntentDestination = {
+  LOCAL: 'LOCAL',
+  REMOTE: 'REMOTE'
+} as const;
+export type PaymentIntentDestination = keyof typeof PaymentIntentDestination;
+
 export interface IPaymentIntent {
   id: string;
   walletAddressId: string;
   state: PaymentIntentState;
+  destination: PaymentIntentDestination;
   assetCode: string;
   assetScale: number;
   expiresAt: Date;

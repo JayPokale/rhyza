@@ -1,4 +1,4 @@
-import { IPaymentIntent, WalletAddress } from './interfaces';
+import { IPaymentIntent, PaymentIntentDestination, WalletAddress } from './interfaces';
 import { PaymentIntentEntity } from './entity';
 import { CreatePaymentIntentCmdPayload } from '../commands';
 import {
@@ -69,6 +69,7 @@ export class PaymentIntentAggregate {
     const entity = new PaymentIntentEntity(
       id,
       walletAddressId,
+      PaymentIntentDestination.LOCAL, // TODO: determine from peer lookup
       wallet.assetCode,
       wallet.assetScale,
       resolvedExpiresAt,

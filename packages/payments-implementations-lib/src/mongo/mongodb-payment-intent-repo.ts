@@ -97,6 +97,7 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
         id: doc.id,
         walletAddressId: doc.walletAddressId,
         state: doc.state,
+        destination: doc.destination,
         assetCode: doc.assetCode,
         assetScale: doc.assetScale,
         expiresAt: doc.expiresAt,

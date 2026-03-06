@@ -1,9 +1,14 @@
-import { IPaymentIntent, PaymentIntentState } from './interfaces';
+import {
+  IPaymentIntent,
+  PaymentIntentDestination,
+  PaymentIntentState
+} from './interfaces';
 
 export class PaymentIntentEntity implements IPaymentIntent {
   private _id: string;
   private _walletAddressId: string;
   private _state: PaymentIntentState;
+  private _destination: PaymentIntentDestination;
   private _assetCode: string;
   private _assetScale: number;
   private _expiresAt: Date;
@@ -13,6 +18,7 @@ export class PaymentIntentEntity implements IPaymentIntent {
   constructor(
     id: string,
     walletAddressId: string,
+    destination: PaymentIntentDestination,
     assetCode: string,
     assetScale: number,
     expiresAt: Date,
@@ -22,6 +28,7 @@ export class PaymentIntentEntity implements IPaymentIntent {
   ) {
     this._id = id;
     this._walletAddressId = walletAddressId;
+    this._destination = destination;
     this._assetCode = assetCode;
     this._assetScale = assetScale;
     this._expiresAt = expiresAt;
@@ -34,6 +41,7 @@ export class PaymentIntentEntity implements IPaymentIntent {
     return new PaymentIntentEntity(
       json.id,
       json.walletAddressId,
+      json.destination,
       json.assetCode,
       json.assetScale,
       json.expiresAt,
@@ -48,6 +56,7 @@ export class PaymentIntentEntity implements IPaymentIntent {
       id: this._id,
       walletAddressId: this._walletAddressId,
       state: this._state,
+      destination: this._destination,
       assetCode: this._assetCode,
       assetScale: this._assetScale,
       expiresAt: this._expiresAt,
@@ -66,6 +75,10 @@ export class PaymentIntentEntity implements IPaymentIntent {
 
   get state(): PaymentIntentState {
     return this._state;
+  }
+
+  get destination(): PaymentIntentDestination {
+    return this._destination;
   }
 
   get assetCode(): string {
