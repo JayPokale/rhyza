@@ -161,16 +161,22 @@ export class PalServiceServer {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private async _handleUnary(call: ServerUnaryCall<any, any>,callback: sendUnaryData<any>): Promise<void> {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let specificRequestHandler: (call: ServerUnaryCall<any, any>) => Promise<any>;
+  private async _handleUnary(
+    call: ServerUnaryCall<any, any>,
+    callback: sendUnaryData<any>
+  ): Promise<void> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let specificRequestHandler: (
+      call: ServerUnaryCall<any, any>
+    ) => Promise<any>;
 
     if (call.request instanceof CreateAssetRequest) {
       specificRequestHandler = this._handleAssetCreateRequest.bind(this);
     } else if (call.request instanceof GetAssetRequest) {
       specificRequestHandler = this._handleGetAssetRequest.bind(this);
     } else if (call.request instanceof CreateWalletAddressRequest) {
-      specificRequestHandler = this._handleCreateWalletAddressRequest.bind(this);
+      specificRequestHandler =
+        this._handleCreateWalletAddressRequest.bind(this);
     } else if (call.request instanceof GetWalletAddressRequest) {
       specificRequestHandler = this._handleGetWalletAddressRequest.bind(this);
     } else {

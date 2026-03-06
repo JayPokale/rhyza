@@ -25,5 +25,4 @@ export class MockWalletRepo implements IPalWalletAddressRepository {
   fetch(address: string): Promise<IPalWalletAddress | null> {
     return Promise.resolve(this._data.get(address) ?? null);
   }
-
 }

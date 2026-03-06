@@ -83,17 +83,14 @@ export class PalClient {
     }
 
     return new Promise((resolve, reject) => {
-      this._grpcClient.createAsset(
-        request,
-        (error: ServiceError | null) => {
-          if (error) {
-            console.error(error);
-            return reject(error);
-          }
-
-          return resolve();
+      this._grpcClient.createAsset(request, (error: ServiceError | null) => {
+        if (error) {
+          console.error(error);
+          return reject(error);
         }
-      );
+
+        return resolve();
+      });
     });
   }
 
