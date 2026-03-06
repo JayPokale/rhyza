@@ -1,9 +1,9 @@
-import { IIncomingPayment, IncomingPaymentState } from './interfaces';
+import { IPaymentIntent, PaymentIntentState } from './interfaces';
 
-export class IncomingPaymentEntity implements IIncomingPayment {
+export class PaymentIntentEntity implements IPaymentIntent {
   private _id: string;
   private _walletAddressId: string;
-  private _state: IncomingPaymentState;
+  private _state: PaymentIntentState;
   private _assetCode: string;
   private _assetScale: number;
   private _expiresAt: Date;
@@ -18,7 +18,7 @@ export class IncomingPaymentEntity implements IIncomingPayment {
     expiresAt: Date,
     incomingAmount: bigint | null = null,
     receivedAmount: bigint = 0n,
-    state: IncomingPaymentState = IncomingPaymentState.CREATED
+    state: PaymentIntentState = PaymentIntentState.CREATED
   ) {
     this._id = id;
     this._walletAddressId = walletAddressId;
@@ -30,8 +30,8 @@ export class IncomingPaymentEntity implements IIncomingPayment {
     this._state = state;
   }
 
-  static fromObject(json: IIncomingPayment): IncomingPaymentEntity {
-    return new IncomingPaymentEntity(
+  static fromObject(json: IPaymentIntent): PaymentIntentEntity {
+    return new PaymentIntentEntity(
       json.id,
       json.walletAddressId,
       json.assetCode,
@@ -43,7 +43,7 @@ export class IncomingPaymentEntity implements IIncomingPayment {
     );
   }
 
-  toObject(): IIncomingPayment {
+  toObject(): IPaymentIntent {
     return {
       id: this._id,
       walletAddressId: this._walletAddressId,
@@ -64,7 +64,7 @@ export class IncomingPaymentEntity implements IIncomingPayment {
     return this._walletAddressId;
   }
 
-  get state(): IncomingPaymentState {
+  get state(): PaymentIntentState {
     return this._state;
   }
 

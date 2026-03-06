@@ -1,9 +1,9 @@
 import { CommandMsg, CommandTopics } from 'common-types-lib';
 
 const BOUNDED_CONTEXT_NAME = 'payment';
-const INCOMING_AGG_NAME = 'incoming-payments';
+const PAYMENT_INTENT_AGG_NAME = 'payment-intents';
 
-export interface CreateIncomingPaymentCmdPayload {
+export interface CreatePaymentIntentCmdPayload {
   id: string;
   walletAddressId: string;
   expiresAt?: string;
@@ -11,15 +11,15 @@ export interface CreateIncomingPaymentCmdPayload {
   metadata?: string;
 }
 
-export class CreateIncomingPaymentCmd extends CommandMsg {
+export class CreatePaymentIntentCmd extends CommandMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateId: string;
-  aggregateName: string = INCOMING_AGG_NAME;
+  aggregateName: string = PAYMENT_INTENT_AGG_NAME;
   msgKey: string;
   msgTopic: string = CommandTopics.PaymentCommands;
-  payload: CreateIncomingPaymentCmdPayload;
+  payload: CreatePaymentIntentCmdPayload;
 
-  constructor(payload: CreateIncomingPaymentCmdPayload, requestId: string) {
+  constructor(payload: CreatePaymentIntentCmdPayload, requestId: string) {
     super();
     this.aggregateId = this.msgKey = payload.id;
     this.requestId = requestId;

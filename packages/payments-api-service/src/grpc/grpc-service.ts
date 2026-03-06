@@ -21,11 +21,11 @@ import {
 } from 'payments-public-types-lib';
 import { Message, MessageConsumer, MessageProducer } from 'common-types-lib';
 import {
-  CreateIncomingPaymentCmd,
-  IncomingPaymentCreatedEvent,
-  IncomingPaymentCreatedPayload,
-  IncomingPaymentCreateFailedEvent,
-  IncomingPaymentCreateFailedPayload
+  CreatePaymentIntentCmd,
+  PaymentIntentCreatedEvent,
+  PaymentIntentCreatedPayload,
+  PaymentIntentCreateFailedEvent,
+  PaymentIntentCreateFailedPayload
 } from 'payments-domain-lib';
 
 const PUBLIC_TYPES_LIB_PATH = require.resolve('payments-public-types-lib');
@@ -176,7 +176,7 @@ export class PaymentsServiceServer {
         return;
       }
       this._storePendingResponse(commandId, call, callback);
-      const cmd = new CreateIncomingPaymentCmd(
+      const cmd = new CreatePaymentIntentCmd(
         {
           id: commandId,
           walletAddressId: call.request.getWalletAddressId(),
@@ -250,15 +250,15 @@ export class PaymentsServiceServer {
     if (!pending) return;
 
     switch (message.msgName) {
-      case IncomingPaymentCreatedEvent.name: {
-        const payload = message.payload as IncomingPaymentCreatedPayload;
+      case PaymentIntentCreatedEvent.name: {
+        const payload = message.payload as PaymentIntentCreatedPayload;
         const response = new CreateIncomingPaymentResponse().setId(payload.id);
         this._resolvePendingResponse(pending, requestId, null, response);
         break;
       }
-      case IncomingPaymentCreateFailedEvent.name: {
+      case PaymentIntentCreateFailedEvent.name: {
         const errorPayload =
-          message.payload as IncomingPaymentCreateFailedPayload;
+          message.payload as PaymentIntentCreateFailedPayload;
         this._resolvePendingResponse(pending, requestId, {
           code: grpc.status.INTERNAL,
           message: errorPayload.message || 'Command processing failed',

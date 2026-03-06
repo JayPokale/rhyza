@@ -1,14 +1,14 @@
-export const IncomingPaymentState = {
+export const PaymentIntentState = {
   CREATED: 'CREATED',
   EXPIRED: 'EXPIRED',
   COMPLETED: 'COMPLETED'
 } as const;
-export type IncomingPaymentState = keyof typeof IncomingPaymentState;
+export type PaymentIntentState = keyof typeof PaymentIntentState;
 
-export interface IIncomingPayment {
+export interface IPaymentIntent {
   id: string;
   walletAddressId: string;
-  state: IncomingPaymentState;
+  state: PaymentIntentState;
   assetCode: string;
   assetScale: number;
   expiresAt: Date;
@@ -33,7 +33,7 @@ export interface IWalletAddressPort {
   fetchByIds(ids: string[]): Promise<WalletAddress[]>;
 }
 
-export interface IIncomingPaymentRepository {
-  storeMany(payments: IIncomingPayment[]): Promise<void>;
-  fetchByIds(ids: string[]): Promise<IIncomingPayment[]>;
+export interface IPaymentIntentRepository {
+  storeMany(payments: IPaymentIntent[]): Promise<void>;
+  fetchByIds(ids: string[]): Promise<IPaymentIntent[]>;
 }

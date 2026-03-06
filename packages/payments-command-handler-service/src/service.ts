@@ -3,17 +3,19 @@ import {
   RafikiKafkaJsonConsumer
 } from 'implementations-lib';
 import {
-  MongoDbIncomingPaymentRepo,
+  MongoDbPaymentIntentRepo,
   PalWalletAddressAdapter
 } from 'payments-implementations-lib';
-import { IncomingPaymentAggregate } from 'payments-domain-lib';
+import {
+  PaymentsDomainService,
+  PaymentIntentAggregate
+} from 'payments-domain-lib';
 import { PalClient } from 'pal-client-lib';
 import { PaymentsCommandHandler } from './cmd-handler';
 import process from 'process';
 
 const KAFKA_URL = process.env['KAFKA_URL'] || 'localhost:9092';
-const MONGODB_URL =
-  process.env['MONGODB_URL'] || 'mongodb://localhost:27017';
+const MONGODB_URL = process.env['MONGODB_URL'] || 'mongodb://localhost:27017';
 const PAL_GRPC_URL = process.env['PAL_GRPC_URL'] || 'localhost:50051';
 const CONSUMER_BATCH_SIZE =
   (process.env['CONSUMER_BATCH_SIZE'] &&
@@ -28,23 +30,22 @@ export class PaymentsCommandHandlerService {
   private static commandHandler: PaymentsCommandHandler;
   private static msgProducer: RafikiKafkaJsonProducer;
   private static msgConsumer: RafikiKafkaJsonConsumer;
-  private static repo: MongoDbIncomingPaymentRepo;
+  private static repo: MongoDbPaymentIntentRepo;
 
   static async start(): Promise<void> {
-    // Adapters
-    this.repo = new MongoDbIncomingPaymentRepo(MONGODB_URL);
+    this.repo = new MongoDbPaymentIntentRepo(MONGODB_URL);
     await this.repo.init();
 
     const palClient = new PalClient(PAL_GRPC_URL);
     const walletAddressPort = new PalWalletAddressAdapter(palClient);
 
-    // Aggregate
-    const aggregate = new IncomingPaymentAggregate(
+    const aggregate = new PaymentIntentAggregate();
+    const domainService = new PaymentsDomainService(
       this.repo,
-      walletAddressPort
+      walletAddressPort,
+      aggregate
     );
 
-    // Kafka
     this.msgProducer = new RafikiKafkaJsonProducer({
       kafkaBrokerList: KAFKA_URL,
       producerClientId: `payments-cmd-handler-${crypto.randomUUID()}`
@@ -58,11 +59,10 @@ export class PaymentsCommandHandlerService {
       batchTimeoutMs: CONSUMER_BATCH_TIMEOUT_MS
     });
 
-    // Command handler
     this.commandHandler = new PaymentsCommandHandler(
       this.msgConsumer,
       this.msgProducer,
-      aggregate
+      domainService
     );
     await this.commandHandler.start();
   }

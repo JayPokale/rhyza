@@ -1,1 +1,1 @@
-export * from './mongodb-incoming-payment-repo';
+export * from './mongodb-payment-intent-repo';

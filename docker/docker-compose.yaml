@@ -3,7 +3,7 @@ services:
   admin-api:
     build:
       context: ../
-      dockerfile: ./packages/admin-api/Dockerfile
+      dockerfile: ./packages/admin-api-service/Dockerfile
     restart: always
     environment:
       PAL_GRPC_URL: pal-api-service:50051

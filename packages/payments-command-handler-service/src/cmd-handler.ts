@@ -5,23 +5,23 @@ import {
   MessageProducer
 } from 'common-types-lib';
 import {
-  CreateIncomingPaymentCmd,
-  IncomingPaymentAggregate
+  CreatePaymentIntentCmd,
+  PaymentsDomainService
 } from 'payments-domain-lib';
 
 export class PaymentsCommandHandler {
   private _msgConsumer: MessageConsumer;
   private _msgProducer: MessageProducer;
-  private _incomingPaymentAggregate: IncomingPaymentAggregate;
+  private _domainService: PaymentsDomainService;
 
   constructor(
     msgConsumer: MessageConsumer,
     msgProducer: MessageProducer,
-    incomingPaymentAggregate: IncomingPaymentAggregate
+    domainService: PaymentsDomainService
   ) {
     this._msgConsumer = msgConsumer;
     this._msgProducer = msgProducer;
-    this._incomingPaymentAggregate = incomingPaymentAggregate;
+    this._domainService = domainService;
   }
 
   async start(): Promise<void> {
@@ -43,7 +43,7 @@ export class PaymentsCommandHandler {
 
     for (const msg of messages) {
       switch (msg.msgName) {
-        case CreateIncomingPaymentCmd.name:
+        case CreatePaymentIntentCmd.name:
           incomingPaymentCmds.push(msg);
           break;
         default:
@@ -62,7 +62,7 @@ export class PaymentsCommandHandler {
 
     if (incomingPaymentCmds.length > 0) {
       const result =
-        await this._incomingPaymentAggregate.handleBatch(incomingPaymentCmds);
+        await this._domainService.handleBatch(incomingPaymentCmds);
       events.push(...result);
     }
 

@@ -1,2 +1,3 @@
 export * from './commands';
-export * from './incoming-payment';
+export * from './payment-intent';
+export * from './domain-service';
