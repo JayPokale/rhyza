@@ -47,6 +47,7 @@ export class PaymentsClient {
   async createIncomingPayment(
     id: string,
     walletAddressId: string,
+    walletAddress: string,
     incomingAmount?: number,
     expiresAt?: string,
     metadata?: string
@@ -54,6 +55,7 @@ export class PaymentsClient {
     const request = new CreateIncomingPaymentRequest();
     request.setId(id);
     request.setWalletAddressId(walletAddressId);
+    request.setWalletAddress(walletAddress);
 
     if (incomingAmount !== undefined) {
       request.setIncomingAmount(incomingAmount);

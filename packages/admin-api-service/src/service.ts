@@ -37,6 +37,7 @@ export class AdminApiService {
       palClient: this.palClient
     });
     this.server.register(incomingPaymentRoutes, {
+      palClient: this.palClient,
       paymentsClient: this.paymentsClient
     });
 

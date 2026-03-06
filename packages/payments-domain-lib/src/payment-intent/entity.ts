@@ -7,6 +7,7 @@ import {
 export class PaymentIntentEntity implements IPaymentIntent {
   private _id: string;
   private _walletAddressId: string;
+  private _walletAddress: string;
   private _state: PaymentIntentState;
   private _destination: PaymentIntentDestination;
   private _assetCode: string;
@@ -18,6 +19,7 @@ export class PaymentIntentEntity implements IPaymentIntent {
   constructor(
     id: string,
     walletAddressId: string,
+    walletAddress: string,
     destination: PaymentIntentDestination,
     assetCode: string,
     assetScale: number,
@@ -28,6 +30,7 @@ export class PaymentIntentEntity implements IPaymentIntent {
   ) {
     this._id = id;
     this._walletAddressId = walletAddressId;
+    this._walletAddress = walletAddress;
     this._destination = destination;
     this._assetCode = assetCode;
     this._assetScale = assetScale;
@@ -41,6 +44,7 @@ export class PaymentIntentEntity implements IPaymentIntent {
     return new PaymentIntentEntity(
       json.id,
       json.walletAddressId,
+      json.walletAddress,
       json.destination,
       json.assetCode,
       json.assetScale,
@@ -55,6 +59,7 @@ export class PaymentIntentEntity implements IPaymentIntent {
     return {
       id: this._id,
       walletAddressId: this._walletAddressId,
+      walletAddress: this._walletAddress,
       state: this._state,
       destination: this._destination,
       assetCode: this._assetCode,
@@ -71,6 +76,10 @@ export class PaymentIntentEntity implements IPaymentIntent {
 
   get walletAddressId(): string {
     return this._walletAddressId;
+  }
+
+  get walletAddress(): string {
+    return this._walletAddress;
   }
 
   get state(): PaymentIntentState {

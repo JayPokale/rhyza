@@ -15,6 +15,7 @@ function makeCmd(
   overrides: Partial<{
     id: string;
     walletAddressId: string;
+    walletAddress: string;
     expiresAt: string;
     incomingAmount: number;
   }> = {}
@@ -23,6 +24,7 @@ function makeCmd(
     {
       id: overrides.id ?? crypto.randomUUID(),
       walletAddressId: overrides.walletAddressId ?? 'wallet-1',
+      walletAddress: overrides.walletAddress ?? 'domain.com/alice',
       expiresAt: overrides.expiresAt,
       incomingAmount: overrides.incomingAmount
     },
@@ -63,6 +65,7 @@ describe('PaymentsDomainService.handleBatch', () => {
     assert.equal(stored.length, 1);
     assert.equal(stored[0].id, cmd.payload.id);
     assert.equal(stored[0].walletAddressId, 'wallet-1');
+    assert.equal(stored[0].walletAddress, 'domain.com/alice');
     assert.equal(stored[0].assetCode, 'USD');
     assert.equal(stored[0].assetScale, 2);
     assert.equal(stored[0].state, 'CREATED');

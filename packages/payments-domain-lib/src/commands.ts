@@ -6,6 +6,7 @@ const PAYMENT_INTENT_AGG_NAME = 'payment-intents';
 export interface CreatePaymentIntentCmdPayload {
   id: string;
   walletAddressId: string;
+  walletAddress: string;
   expiresAt?: string;
   incomingAmount?: number;
   metadata?: string;

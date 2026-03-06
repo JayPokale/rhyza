@@ -180,6 +180,7 @@ export class PaymentsServiceServer {
         {
           id: commandId,
           walletAddressId: call.request.getWalletAddressId(),
+          walletAddress: call.request.getWalletAddress(),
           incomingAmount: call.request.getIncomingAmount(),
           expiresAt: call.request.getExpiresAt(),
           metadata: call.request.getMetadata()

@@ -25,7 +25,8 @@ export class PaymentIntentAggregate {
     entity: IPaymentIntent;
     event: PaymentIntentCreatedEvent;
   } {
-    const { id, walletAddressId, expiresAt, incomingAmount } = payload;
+    const { id, walletAddressId, walletAddress, expiresAt, incomingAmount } =
+      payload;
 
     if (seenIds.has(id)) {
       throw new CannotCreateDuplicatePaymentIntentError(
@@ -69,6 +70,7 @@ export class PaymentIntentAggregate {
     const entity = new PaymentIntentEntity(
       id,
       walletAddressId,
+      walletAddress,
       PaymentIntentDestination.LOCAL, // TODO: determine from peer lookup
       wallet.assetCode,
       wallet.assetScale,

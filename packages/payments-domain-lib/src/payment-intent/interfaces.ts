@@ -14,6 +14,7 @@ export type PaymentIntentDestination = keyof typeof PaymentIntentDestination;
 export interface IPaymentIntent {
   id: string;
   walletAddressId: string;
+  walletAddress: string;
   state: PaymentIntentState;
   destination: PaymentIntentDestination;
   assetCode: string;
