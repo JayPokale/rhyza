@@ -1,7 +1,7 @@
-import { IWalletAddressPort, WalletAddress } from 'payments-domain-lib';
+import { IWalletAddressService, WalletAddress } from 'payments-domain-lib';
 import { PalClient } from 'pal-client-lib';
 
-export class PalWalletAddressAdapter implements IWalletAddressPort {
+export class PalWalletAddressAdapter implements IWalletAddressService {
   private _palClient: PalClient;
 
   constructor(palClient: PalClient) {

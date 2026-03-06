@@ -37,12 +37,12 @@ export class PaymentsCommandHandlerService {
     await this.repo.init();
 
     const palClient = new PalClient(PAL_GRPC_URL);
-    const walletAddressPort = new PalWalletAddressAdapter(palClient);
+    const walletAddressAdapter = new PalWalletAddressAdapter(palClient);
 
     const aggregate = new PaymentIntentAggregate();
     const domainService = new PaymentsDomainService(
       this.repo,
-      walletAddressPort,
+      walletAddressAdapter,
       aggregate
     );
 

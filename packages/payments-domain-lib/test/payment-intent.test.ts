@@ -9,7 +9,7 @@ import {
 } from '../src/payment-intent/events';
 import { CreatePaymentIntentCmd } from '../src/commands';
 import { MockPaymentIntentRepo } from './mocks/mock-payment-intent-repo';
-import { MockWalletAddressPort } from './mocks/mock-wallet-address-port';
+import { MockWalletAddressAdapter } from './mocks/mock-wallet-address-port';
 
 function makeCmd(
   overrides: Partial<{
@@ -32,20 +32,20 @@ function makeCmd(
 
 describe('PaymentsDomainService.handleBatch', () => {
   let repo: MockPaymentIntentRepo;
-  let walletPort: MockWalletAddressPort;
+  let walletAdapter: MockWalletAddressAdapter;
   let service: PaymentsDomainService;
 
   beforeEach(() => {
     repo = new MockPaymentIntentRepo();
-    walletPort = new MockWalletAddressPort();
-    walletPort.addWallet({
+    walletAdapter = new MockWalletAddressAdapter();
+    walletAdapter.addWallet({
       id: 'wallet-1',
       isActive: true,
       assetCode: 'USD',
       assetScale: 2
     });
     const aggregate = new PaymentIntentAggregate();
-    service = new PaymentsDomainService(repo, walletPort, aggregate);
+    service = new PaymentsDomainService(repo, walletAdapter, aggregate);
   });
 
   it('creates a payment intent', async () => {
@@ -109,7 +109,7 @@ describe('PaymentsDomainService.handleBatch', () => {
   });
 
   it('rejects when wallet address is inactive', async () => {
-    walletPort.addWallet({
+    walletAdapter.addWallet({
       id: 'inactive-wallet',
       isActive: false,
       assetCode: 'USD',

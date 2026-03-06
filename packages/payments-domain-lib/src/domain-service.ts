@@ -2,7 +2,7 @@ import { Message } from 'common-types-lib';
 import {
   IPaymentIntent,
   IPaymentIntentRepository,
-  IWalletAddressPort,
+  IWalletAddressService,
   WalletAddress
 } from './payment-intent/interfaces';
 import { PaymentIntentAggregate } from './payment-intent/aggregate';
@@ -11,16 +11,16 @@ import { CreatePaymentIntentCmd } from './commands';
 
 export class PaymentsDomainService {
   private _repo: IPaymentIntentRepository;
-  private _walletAddressPort: IWalletAddressPort;
+  private _walletAddressService: IWalletAddressService;
   private _aggregate: PaymentIntentAggregate;
 
   constructor(
     repo: IPaymentIntentRepository,
-    walletAddressPort: IWalletAddressPort,
+    walletAddressService: IWalletAddressService,
     aggregate: PaymentIntentAggregate
   ) {
     this._repo = repo;
-    this._walletAddressPort = walletAddressPort;
+    this._walletAddressService = walletAddressService;
     this._aggregate = aggregate;
   }
 
@@ -40,7 +40,7 @@ export class PaymentsDomainService {
     }
 
     const [walletsArr, existingPayments] = await Promise.all([
-      this._walletAddressPort.fetchByIds([...walletIdSet]),
+      this._walletAddressService.fetchByIds([...walletIdSet]),
       this._repo.fetchByIds(paymentIds)
     ]);
 

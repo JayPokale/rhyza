@@ -23,13 +23,7 @@ export interface WalletAddress {
   assetScale: number;
 }
 
-// TODO: is this the right name? Would IWalletAddressPort be wrong because its
-// from another domain/bounded context? Options include:
-// - IWalletAddressRepository
-// - IWalletAddressClient
-// - IWalletAddressProvider
-// - IWalletAddressGateway
-export interface IWalletAddressPort {
+export interface IWalletAddressService {
   fetchByIds(ids: string[]): Promise<WalletAddress[]>;
 }
 
