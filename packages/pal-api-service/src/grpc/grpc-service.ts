@@ -160,14 +160,16 @@ export class PalServiceServer {
     });
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private async _handleUnary(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     call: ServerUnaryCall<any, any>,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     callback: sendUnaryData<any>
   ): Promise<void> {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let specificRequestHandler: (
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       call: ServerUnaryCall<any, any>
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ) => Promise<any>;
 
     if (call.request instanceof CreateAssetRequest) {
