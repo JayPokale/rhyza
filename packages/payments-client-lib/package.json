@@ -15,6 +15,7 @@
   },
   "devDependencies": {
     "@types/google-protobuf": "~3.15.12",
-    "tsx": "^4.19.3"
+    "tsx": "^4.19.3",
+    "pal-client-lib": "workspace:*"
   }
 }
