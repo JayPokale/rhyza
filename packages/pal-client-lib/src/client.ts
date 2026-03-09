@@ -29,7 +29,6 @@ import {
   ResolveWalletAddressAliasRequest,
   ResolveWalletAddressAliasResponse
 } from 'pal-public-types-lib';
-import { Empty } from 'google-protobuf/google/protobuf/empty_pb';
 
 export class PalClient {
   private readonly _serverUrl: string;
