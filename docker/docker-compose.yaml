@@ -1,6 +1,6 @@
 name: rafiki-poc
 services:
-  admin-api:
+  admin-api-service:
     build:
       context: ../
       dockerfile: ./packages/admin-api-service/Dockerfile
