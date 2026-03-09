@@ -1,6 +1,6 @@
 'use strict';
 
-import { after, before, test } from 'node:test';
+import { after, before, describe, test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import { randomUUID } from 'crypto';
 import { PaymentsClient } from '../src';
@@ -57,75 +57,77 @@ after(async () => {
   await palClient.disconnect();
 });
 
-test('payments client - create incoming payment (required fields only)', async () => {
-  const id = randomUUID();
-  const result = await paymentsClient.createIncomingPayment(
-    id,
-    receiverWalletAddressId,
-    WALLET_ADDRESS
-  );
+describe('Payments Client', () => {
+  test('create incoming payment (required fields only)', async () => {
+    const id = randomUUID();
+    const result = await paymentsClient.createIncomingPayment(
+      id,
+      receiverWalletAddressId,
+      WALLET_ADDRESS
+    );
 
-  assert.ok(result);
-  assert.equal(result.id, id);
-});
+    assert.ok(result);
+    assert.equal(result.id, id);
+  });
 
-test('payments client - create incoming payment (all fields)', async () => {
-  const id = randomUUID();
-  const expiresAt = new Date(Date.now() + 1000 * 60 * 5).toISOString(); // 5 minutes
-  const result = await paymentsClient.createIncomingPayment(
-    id,
-    receiverWalletAddressId,
-    WALLET_ADDRESS,
-    100,
-    expiresAt
-  );
+  test('create incoming payment (all fields)', async () => {
+    const id = randomUUID();
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 5).toISOString(); // 5 minutes
+    const result = await paymentsClient.createIncomingPayment(
+      id,
+      receiverWalletAddressId,
+      WALLET_ADDRESS,
+      100,
+      expiresAt
+    );
 
-  assert.ok(result);
-  assert.equal(result.id, id);
-});
+    assert.ok(result);
+    assert.equal(result.id, id);
+  });
 
-test('payments client - duplicate id is rejected', async () => {
-  const id = randomUUID();
-  await paymentsClient.createIncomingPayment(
-    id,
-    receiverWalletAddressId,
-    WALLET_ADDRESS
-  );
-
-  try {
+  test('duplicate id is rejected', async () => {
+    const id = randomUUID();
     await paymentsClient.createIncomingPayment(
       id,
       receiverWalletAddressId,
       WALLET_ADDRESS
     );
-    assert.fail('expected error for duplicate id');
-  } catch (e) {
-    assert.ok(e instanceof Error);
-  }
-});
 
-test('payments client - invalid uuid is rejected immediately', async () => {
-  try {
-    await paymentsClient.createIncomingPayment(
-      'not-a-uuid',
-      receiverWalletAddressId,
-      WALLET_ADDRESS
-    );
-    assert.fail('expected error for invalid uuid');
-  } catch (e) {
-    assert.ok(e instanceof Error);
-  }
-});
+    try {
+      await paymentsClient.createIncomingPayment(
+        id,
+        receiverWalletAddressId,
+        WALLET_ADDRESS
+      );
+      assert.fail('expected error for duplicate id');
+    } catch (e) {
+      assert.ok(e instanceof Error);
+    }
+  });
 
-test('payments client - unknown wallet address id is rejected', async () => {
-  try {
-    await paymentsClient.createIncomingPayment(
-      randomUUID(),
-      randomUUID(), // nonexistent wallet address id
-      WALLET_ADDRESS
-    );
-    assert.fail('expected error for unknown wallet address');
-  } catch (e) {
-    assert.ok(e instanceof Error);
-  }
+  test('invalid uuid is rejected immediately', async () => {
+    try {
+      await paymentsClient.createIncomingPayment(
+        'not-a-uuid',
+        receiverWalletAddressId,
+        WALLET_ADDRESS
+      );
+      assert.fail('expected error for invalid uuid');
+    } catch (e) {
+      assert.ok(e instanceof Error);
+    }
+  });
+
+  test('unknown wallet address id is rejected', async () => {
+    try {
+      await paymentsClient.createIncomingPayment(
+        randomUUID(),
+        randomUUID(), // nonexistent wallet address id
+        WALLET_ADDRESS
+      );
+      assert.fail('expected error for unknown wallet address');
+    } catch (e) {
+      assert.ok(e instanceof Error);
+    }
+  });
 });
