@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import * as path from 'path';
 import * as grpc from '@grpc/grpc-js';
 import * as protoLoader from '@grpc/proto-loader';
@@ -13,7 +14,6 @@ import {
   CreateIncomingPaymentRequest,
   CreateIncomingPaymentResponse,
   GetIncomingPaymentRequest,
-  GetIncomingPaymentResponse,
   HealthCheckRequest,
   HealthCheckResponse,
   HealthService,
@@ -33,7 +33,6 @@ const PUBLIC_TYPES_LIB_PATH = require.resolve('payments-public-types-lib');
 const DEFAULT_RESPONSE_TIMEOUT_MS = 120_000; // 2 minutes;
 
 interface PendingResponse {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   callback: sendUnaryData<any>;
   timer: ReturnType<typeof setTimeout>;
 }
@@ -161,7 +160,6 @@ export class PaymentsServiceServer {
   private static readonly UUID_REGEX =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private async _handleUnary(
     call: ServerUnaryCall<any, any>,
     callback: sendUnaryData<any>
@@ -206,12 +204,9 @@ export class PaymentsServiceServer {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private _storePendingResponse(
     commandId: string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     call: ServerUnaryCall<any, any>,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     callback: sendUnaryData<any>
   ): void {
     const deadline = call.getDeadline();
@@ -278,12 +273,10 @@ export class PaymentsServiceServer {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private _resolvePendingResponse(
     pending: PendingResponse,
     commandId: string,
     error: grpc.ServiceError | null,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     response?: any
   ): void {
     clearTimeout(pending.timer);

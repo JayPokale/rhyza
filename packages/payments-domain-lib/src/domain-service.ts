@@ -30,23 +30,23 @@ export class PaymentsDomainService {
 
     // prefetch any external data needed to process the batch
     const walletIdSet = new Set<string>();
-    const paymentIds: string[] = [];
+    const paymentIntentIdsSet = new Set<string>();
     for (const cmd of cmds) {
       if (cmd.msgName === CreatePaymentIntentCmd.name) {
         const payload = (cmd as CreatePaymentIntentCmd).payload;
         walletIdSet.add(payload.receiverWalletAddressId);
-        paymentIds.push(payload.id);
+        paymentIntentIdsSet.add(payload.id);
       }
     }
 
-    const [walletsArr, existingPayments] = await Promise.all([
+    const [walletAddresses, existingPayments] = await Promise.all([
       this._walletAddressService.fetchByIds([...walletIdSet]),
-      this._repo.fetchByIds(paymentIds)
+      this._repo.fetchByIds([...paymentIntentIdsSet])
     ]);
 
-    const walletMap = new Map<string, WalletAddress>();
-    for (const w of walletsArr) {
-      walletMap.set(w.id, w);
+    const walletAddressMap = new Map<string, WalletAddress>();
+    for (const walletAddress of walletAddresses) {
+      walletAddressMap.set(walletAddress.id, walletAddress);
     }
 
     // seed seenIds with existing DB entities — add newly processed ones as we go
@@ -59,7 +59,7 @@ export class PaymentsDomainService {
         try {
           const { entity, event } = this._aggregate.create(
             command.payload,
-            walletMap,
+            walletAddressMap,
             seenIds,
             command.requestId
           );

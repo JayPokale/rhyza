@@ -1,4 +1,8 @@
-import { IPaymentIntent, PaymentIntentDestination, WalletAddress } from './interfaces';
+import {
+  IPaymentIntent,
+  PaymentIntentDestination,
+  WalletAddress
+} from './interfaces';
 import { PaymentIntentEntity } from './entity';
 import { CreatePaymentIntentCmdPayload } from '../commands';
 import {
@@ -7,10 +11,7 @@ import {
   WalletAddressInactiveError,
   InvalidPaymentIntentExpiryError
 } from './errors';
-import {
-  PaymentIntentCreatedEvent,
-  PaymentIntentCreateFailedEvent
-} from './events';
+import { PaymentIntentCreatedEvent } from './events';
 
 const DEFAULT_EXPIRY_MS = 1000 * 60 * 10; // 10 minutes
 const MAX_EXPIRY_MS = 1000 * 60 * 60 * 24 * 30; // 30 days
@@ -18,15 +19,20 @@ const MAX_EXPIRY_MS = 1000 * 60 * 60 * 24 * 30; // 30 days
 export class PaymentIntentAggregate {
   create(
     payload: CreatePaymentIntentCmdPayload,
-    walletMap: Map<string, WalletAddress>,
+    walletAddressMap: Map<string, WalletAddress>,
     seenIds: Set<string>,
     requestId?: string
   ): {
     entity: IPaymentIntent;
     event: PaymentIntentCreatedEvent;
   } {
-    const { id, receiverWalletAddressId, receiverWalletAddress, expiresAt, incomingAmount } =
-      payload;
+    const {
+      id,
+      receiverWalletAddressId,
+      receiverWalletAddress,
+      expiresAt,
+      incomingAmount
+    } = payload;
 
     if (seenIds.has(id)) {
       throw new CannotCreateDuplicatePaymentIntentError(
@@ -34,13 +40,13 @@ export class PaymentIntentAggregate {
       );
     }
 
-    const wallet = walletMap.get(receiverWalletAddressId);
-    if (!wallet) {
+    const walletAddress = walletAddressMap.get(receiverWalletAddressId);
+    if (!walletAddress) {
       throw new WalletAddressNotFoundError(
         `Wallet address ${receiverWalletAddressId} not found`
       );
     }
-    if (!wallet.isActive) {
+    if (!walletAddress.isActive) {
       throw new WalletAddressInactiveError(
         `Wallet address ${receiverWalletAddressId} is not active`
       );
@@ -72,8 +78,8 @@ export class PaymentIntentAggregate {
       receiverWalletAddressId,
       receiverWalletAddress,
       PaymentIntentDestination.LOCAL, // TODO: determine from peer lookup
-      wallet.assetCode,
-      wallet.assetScale,
+      walletAddress.assetCode,
+      walletAddress.assetScale,
       resolvedExpiresAt,
       incomingAmount != null ? BigInt(incomingAmount) : null
     ).toObject();
