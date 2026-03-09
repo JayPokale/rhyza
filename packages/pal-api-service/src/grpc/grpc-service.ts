@@ -20,7 +20,12 @@ import {
   ServerUnaryCall
 } from '@grpc/grpc-js';
 
-import { IAssetAggregate, IWalletAddressAggregate } from 'pal-domain-lib';
+import {
+  WalletAddressAliasAggregate,
+  WalletAddressAggregate,
+  AssetAggregate,
+  WalletDomainService
+} from 'pal-domain-lib';
 import {
   CreateAssetRequest,
   CreateAssetResponse,
@@ -29,14 +34,18 @@ import {
   GetAssetRequest,
   GetAssetResponse,
   GetNonEmptyAssetResponse,
-  GetNonEmptyWalletAddressResponse,
-  GetWalletAddressRequest,
-  GetWalletAddressResponse,
+  GetWalletAddressesRequest,
+  GetWalletAddressesResponse,
   HealthCheckRequest,
   HealthCheckResponse,
   HealthService,
-  PalGrpcService
+  PalGrpcService,
+  ResolveWalletAddressAliasResponse,
+  ResolveWalletAddressNonEmptyResponse,
+  SingleWalletAddressResponse
 } from 'pal-public-types-lib';
+import { ResolveWalletAddressAliasRequest } from 'pal-public-types-lib';
+import { CreateWalletAddressAliasRequest } from 'pal-public-types-lib';
 import { Empty } from 'google-protobuf/google/protobuf/empty_pb';
 
 const PUBLIC_TYPES_LIB_PATH = require.resolve('pal-public-types-lib');
@@ -45,21 +54,27 @@ export class PalServiceServer {
   private readonly _instanceId: string;
   private readonly _serverUrl: string;
   private readonly _server: grpc.Server;
-  private readonly _assetAggregate: IAssetAggregate;
-  private readonly _walletAggregate: IWalletAddressAggregate;
+  private readonly _assetAggregate: AssetAggregate;
+  private readonly _walletAggregate: WalletAddressAggregate;
+  private readonly _walletAliasAggregate: WalletAddressAliasAggregate;
+  private readonly _walletDomainService: WalletDomainService;
   private _startedAt: number = 0;
   private _terminating: boolean = false;
 
   constructor(
     instanceId: string,
     serverUrl: string,
-    assetAggregate: IAssetAggregate,
-    walletAggregate: IWalletAddressAggregate
+    assetAggregate: AssetAggregate,
+    walletAggregate: WalletAddressAggregate,
+    walletAliasAggregate: WalletAddressAliasAggregate,
+    walletDomainService: WalletDomainService
   ) {
     this._serverUrl = serverUrl;
     this._instanceId = instanceId;
     this._assetAggregate = assetAggregate;
     this._walletAggregate = walletAggregate;
+    this._walletAliasAggregate = walletAliasAggregate;
+    this._walletDomainService = walletDomainService;
 
     this._server = new grpc.Server({
       'grpc.max_concurrent_streams': 100,
@@ -96,7 +111,9 @@ export class PalServiceServer {
       createAsset: this._handleUnary.bind(this),
       getAsset: this._handleUnary.bind(this),
       createWalletAddress: this._handleUnary.bind(this),
-      getWalletAddress: this._handleUnary.bind(this)
+      getWalletAddresses: this._handleUnary.bind(this),
+      resolveWalletAddressAlias: this._handleUnary.bind(this),
+      createWalletAddressAlias: this._handleUnary.bind(this)
     });
   }
 
@@ -159,6 +176,7 @@ export class PalServiceServer {
       message: 'Not yet implemented'
     });
   }
+  // endregion health check handlers
 
   private async _handleUnary(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -179,8 +197,14 @@ export class PalServiceServer {
     } else if (call.request instanceof CreateWalletAddressRequest) {
       specificRequestHandler =
         this._handleCreateWalletAddressRequest.bind(this);
-    } else if (call.request instanceof GetWalletAddressRequest) {
-      specificRequestHandler = this._handleGetWalletAddressRequest.bind(this);
+    } else if (call.request instanceof GetWalletAddressesRequest) {
+      specificRequestHandler = this._handleGetWalletAddressesRequest.bind(this);
+    } else if (call.request instanceof ResolveWalletAddressAliasRequest) {
+      specificRequestHandler =
+        this._handleResolveWalletAddressAliasRequest.bind(this);
+    } else if (call.request instanceof CreateWalletAddressAliasRequest) {
+      specificRequestHandler =
+        this._handleCreateWalletAddressAliasRequest.bind(this);
     } else {
       callback(
         new Error(`Invalid request type: ${call.request.constructor.name}`)
@@ -264,7 +288,7 @@ export class PalServiceServer {
       CreateWalletAddressRequest,
       CreateWalletAddressResponse
     >
-  ): Promise<Empty> {
+  ): Promise<CreateWalletAddressResponse> {
     const asset = await this._assetAggregate.getAsset(
       call.request.getAssetcode()
     );
@@ -276,7 +300,9 @@ export class PalServiceServer {
     const isActive =
       !call.request.hasIsactive() || call.request.getIsactive() == true;
 
-    const address = await this._walletAggregate.createWalletAddress(
+    // Use the wallet domain service to coordinate wallet address and wallet alias
+    // aggregates, ie, will automatically create the alias for the address
+    await this._walletDomainService.createWalletAddress(
       call.request.getAddress(),
       call.request.getPublicname(),
       asset.code,
@@ -284,33 +310,87 @@ export class PalServiceServer {
       isActive
     );
 
-    const resp = new CreateWalletAddressResponse();
-    resp.setAddress(address);
-    resp.setPublicname(call.request.getPublicname());
-    resp.setAssetcode(asset.code);
-    resp.setAssetscale(asset.scale);
-    resp.setIsactive(isActive);
+    return new CreateWalletAddressResponse()
+      .setAddress(call.request.getAddress())
+      .setPublicname(call.request.getPublicname())
+      .setAssetcode(asset.code)
+      .setAssetscale(asset.scale)
+      .setIsactive(isActive);
+  }
+
+  private async _handleGetWalletAddressesRequest(
+    call: ServerUnaryCall<GetWalletAddressesRequest, GetWalletAddressesResponse>
+  ): Promise<GetWalletAddressesResponse> {
+    const wallets = await this._walletAggregate.getWalletAddresses(
+      call.request.getIdsList()
+    );
+    const resp = new GetWalletAddressesResponse();
+
+    const walletList = wallets.map((item) => {
+      const wallet = new SingleWalletAddressResponse();
+      wallet.setId(item.id);
+      wallet.setPublicname(item.publicName);
+      wallet.setAssetcode(item.assetCode);
+      wallet.setAssetscale(item.assetScale);
+      wallet.setIsactive(item.isActive);
+      return wallet;
+    });
+
+    resp.setWalletaddressesList(walletList);
+
     return resp;
   }
 
-  private async _handleGetWalletAddressRequest(
-    call: ServerUnaryCall<GetWalletAddressRequest, GetWalletAddressResponse>
-  ): Promise<GetWalletAddressResponse> {
-    const wallet = await this._walletAggregate.getWalletAddress(
-      call.request.getAddress()
-    );
-    const resp = new GetWalletAddressResponse();
+  /*
+   * Wallet Address Aliases related functions
+   * */
 
-    if (wallet) {
-      const walletResp = new GetNonEmptyWalletAddressResponse();
-      walletResp.setAddress(wallet.address);
-      walletResp.setPublicname(wallet.publicName);
-      walletResp.setAssetcode(wallet.assetCode);
-      walletResp.setAssetscale(wallet.assetScale);
-      walletResp.setIsactive(wallet.isActive);
-      resp.setWalletaddress(walletResp);
+  private async _handleResolveWalletAddressAliasRequest(
+    call: ServerUnaryCall<
+      ResolveWalletAddressAliasRequest,
+      ResolveWalletAddressAliasResponse
+    >
+  ): Promise<ResolveWalletAddressAliasResponse> {
+    const prefix = call.request.hasPrefix()
+      ? call.request.getPrefix() || null
+      : null;
+    const suffix = call.request.getSuffix();
+
+    const walletAddressId =
+      await this._walletAliasAggregate.resolveWalletAddressAlias(
+        prefix,
+        suffix
+      );
+
+    const resp = new ResolveWalletAddressAliasResponse();
+
+    if (walletAddressId == null) {
+      return resp;
     }
 
+    const aliasResp = new ResolveWalletAddressNonEmptyResponse();
+    if (prefix) aliasResp.setPrefix(prefix);
+    aliasResp.setSuffix(suffix);
+    aliasResp.setWalletaddressid(walletAddressId);
+
+    resp.setAlias(aliasResp);
     return resp;
+  }
+
+  private async _handleCreateWalletAddressAliasRequest(
+    call: ServerUnaryCall<CreateWalletAddressAliasRequest, Empty>
+  ): Promise<Empty> {
+    const prefix = call.request.hasPrefix()
+      ? call.request.getPrefix() || null
+      : null;
+
+    // Use the wallet domain service to coordinate wallet address and wallet alias aggregates
+    await this._walletDomainService.createWalletAddressAlias(
+      prefix,
+      call.request.getSuffix(),
+      call.request.getWalletaddressid()
+    );
+
+    return new Empty();
   }
 }

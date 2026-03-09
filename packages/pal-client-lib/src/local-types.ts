@@ -25,3 +25,15 @@ export interface IPalClientWalletAddress {
   assetScale: number;
   isActive: boolean;
 }
+
+/**
+ * This object includes the internal wallet address id,
+ * should be used internally only
+ */
+export interface IGetWalletAddressResponse {
+  id: string;
+  publicName: string;
+  assetCode: string;
+  assetScale: number;
+  isActive: boolean;
+}
