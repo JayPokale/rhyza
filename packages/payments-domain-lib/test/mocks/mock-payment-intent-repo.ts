@@ -1,4 +1,7 @@
-import { IPaymentIntent, IPaymentIntentRepository } from '../../src/payment-intent/interfaces';
+import {
+  IPaymentIntent,
+  IPaymentIntentRepository
+} from '../../src/payment-intent/interfaces';
 
 export class MockPaymentIntentRepo implements IPaymentIntentRepository {
   private _store: Map<string, IPaymentIntent> = new Map();

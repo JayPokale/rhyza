@@ -1,8 +1,5 @@
 import { Collection, CollectionInfo, Db, MongoClient } from 'mongodb';
-import {
-  IPaymentIntent,
-  IPaymentIntentRepository
-} from 'payments-domain-lib';
+import { IPaymentIntent, IPaymentIntentRepository } from 'payments-domain-lib';
 
 const DB_NAME = 'payments';
 const COLLECTION_NAME = 'paymentIntents';

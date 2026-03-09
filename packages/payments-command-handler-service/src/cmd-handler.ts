@@ -61,8 +61,7 @@ export class PaymentsCommandHandler {
     const events: Message[] = [];
 
     if (incomingPaymentCmds.length > 0) {
-      const result =
-        await this._domainService.handleBatch(incomingPaymentCmds);
+      const result = await this._domainService.handleBatch(incomingPaymentCmds);
       events.push(...result);
     }
 

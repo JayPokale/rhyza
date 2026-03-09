@@ -24,7 +24,8 @@ function makeCmd(
     {
       id: overrides.id ?? crypto.randomUUID(),
       receiverWalletAddressId: overrides.receiverWalletAddressId ?? 'wallet-1',
-      receiverWalletAddress: overrides.receiverWalletAddress ?? 'domain.com/alice',
+      receiverWalletAddress:
+        overrides.receiverWalletAddress ?? 'domain.com/alice',
       expiresAt: overrides.expiresAt,
       incomingAmount: overrides.incomingAmount
     },

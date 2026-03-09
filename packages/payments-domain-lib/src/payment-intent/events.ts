@@ -37,10 +37,7 @@ export class PaymentIntentCreateFailedEvent extends DomainEventMsg {
   isErrorEvent: boolean = true;
   payload: PaymentIntentCreateFailedPayload;
 
-  constructor(
-    payload: PaymentIntentCreateFailedPayload,
-    requestId?: string
-  ) {
+  constructor(payload: PaymentIntentCreateFailedPayload, requestId?: string) {
     super();
     this.aggregateId = this.msgKey = requestId ?? '';
     this.payload = payload;

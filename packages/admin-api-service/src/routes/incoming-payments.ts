@@ -39,8 +39,7 @@ export async function incomingPaymentRoutes(
       metadata?: string;
     };
   }>('/incoming-payments', async (request, reply) => {
-    const { walletAddress, incomingAmount, expiresAt, metadata } =
-      request.body;
+    const { walletAddress, incomingAmount, expiresAt, metadata } = request.body;
 
     const id = request.body.id ?? randomUUID();
 
