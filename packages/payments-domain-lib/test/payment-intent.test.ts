@@ -1,7 +1,6 @@
 import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { PaymentsDomainService } from '../src/domain-service';
 import { PaymentIntentAggregate } from '../src/payment-intent/aggregate';
 import {
   PaymentIntentCreatedEvent,
@@ -9,7 +8,7 @@ import {
 } from '../src/payment-intent/events';
 import { CreatePaymentIntentCmd } from '../src/commands';
 import { MockPaymentIntentRepo } from './mocks/mock-payment-intent-repo';
-import { MockWalletAddressAdapter } from './mocks/mock-wallet-address-port';
+import { MockWalletAddressAdapter } from './mocks/mock-wallet-address-adapter';
 
 function makeCmd(
   overrides: Partial<{
@@ -35,25 +34,24 @@ function makeCmd(
 
 describe('PaymentsDomainService.handleBatch', () => {
   let repo: MockPaymentIntentRepo;
-  let walletAdapter: MockWalletAddressAdapter;
-  let service: PaymentsDomainService;
+  let walletAddressAdapter: MockWalletAddressAdapter;
+  let aggregate: PaymentIntentAggregate;
 
   beforeEach(() => {
     repo = new MockPaymentIntentRepo();
-    walletAdapter = new MockWalletAddressAdapter();
-    walletAdapter.addWallet({
+    walletAddressAdapter = new MockWalletAddressAdapter();
+    walletAddressAdapter.addWalletAddress({
       id: 'wallet-1',
       isActive: true,
       assetCode: 'USD',
       assetScale: 2
     });
-    const aggregate = new PaymentIntentAggregate();
-    service = new PaymentsDomainService(repo, walletAdapter, aggregate);
+    aggregate = new PaymentIntentAggregate(repo, walletAddressAdapter);
   });
 
   it('creates a payment intent', async () => {
     const cmd = makeCmd();
-    const events = await service.handleBatch([cmd]);
+    const events = await aggregate.handleBatch([cmd]);
 
     assert.equal(events.length, 1);
     assert.equal(events[0].msgName, PaymentIntentCreatedEvent.name);
@@ -75,10 +73,10 @@ describe('PaymentsDomainService.handleBatch', () => {
   it('rejects duplicate payment intent id (across batches)', async () => {
     const id = crypto.randomUUID();
     const cmd1 = makeCmd({ id });
-    await service.handleBatch([cmd1]);
+    await aggregate.handleBatch([cmd1]);
 
     const cmd2 = makeCmd({ id });
-    const events = await service.handleBatch([cmd2]);
+    const events = await aggregate.handleBatch([cmd2]);
 
     assert.equal(events.length, 1);
     assert.equal(events[0].msgName, PaymentIntentCreateFailedEvent.name);
@@ -90,7 +88,7 @@ describe('PaymentsDomainService.handleBatch', () => {
     const id = crypto.randomUUID();
     const cmd1 = makeCmd({ id });
     const cmd2 = makeCmd({ id });
-    const events = await service.handleBatch([cmd1, cmd2]);
+    const events = await aggregate.handleBatch([cmd1, cmd2]);
 
     assert.equal(events.length, 2);
     assert.equal(events[0].msgName, PaymentIntentCreatedEvent.name);
@@ -104,7 +102,7 @@ describe('PaymentsDomainService.handleBatch', () => {
 
   it('rejects when wallet address not found', async () => {
     const cmd = makeCmd({ receiverWalletAddressId: 'nonexistent' });
-    const events = await service.handleBatch([cmd]);
+    const events = await aggregate.handleBatch([cmd]);
 
     assert.equal(events.length, 1);
     assert.equal(events[0].msgName, PaymentIntentCreateFailedEvent.name);
@@ -113,14 +111,14 @@ describe('PaymentsDomainService.handleBatch', () => {
   });
 
   it('rejects when wallet address is inactive', async () => {
-    walletAdapter.addWallet({
+    walletAddressAdapter.addWalletAddress({
       id: 'inactive-wallet',
       isActive: false,
       assetCode: 'USD',
       assetScale: 2
     });
     const cmd = makeCmd({ receiverWalletAddressId: 'inactive-wallet' });
-    const events = await service.handleBatch([cmd]);
+    const events = await aggregate.handleBatch([cmd]);
 
     assert.equal(events.length, 1);
     assert.equal(events[0].msgName, PaymentIntentCreateFailedEvent.name);
@@ -131,7 +129,7 @@ describe('PaymentsDomainService.handleBatch', () => {
   it('rejects expiry in the past', async () => {
     const pastDate = new Date(Date.now() - 60_000).toISOString();
     const cmd = makeCmd({ expiresAt: pastDate });
-    const events = await service.handleBatch([cmd]);
+    const events = await aggregate.handleBatch([cmd]);
 
     assert.equal(events.length, 1);
     assert.equal(events[0].msgName, PaymentIntentCreateFailedEvent.name);
@@ -145,7 +143,7 @@ describe('PaymentsDomainService.handleBatch', () => {
       Date.now() + 1000 * 60 * 60 * 24 * 31
     ).toISOString(); // 31 days
     const cmd = makeCmd({ expiresAt: farFuture });
-    const events = await service.handleBatch([cmd]);
+    const events = await aggregate.handleBatch([cmd]);
 
     assert.equal(events.length, 1);
     assert.equal(events[0].msgName, PaymentIntentCreateFailedEvent.name);
