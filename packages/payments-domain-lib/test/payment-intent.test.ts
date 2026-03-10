@@ -9,6 +9,7 @@ import {
 import { CreatePaymentIntentCmd } from '../src/commands';
 import { MockPaymentIntentRepo } from './mocks/mock-payment-intent-repo';
 import { MockWalletAddressAdapter } from './mocks/mock-wallet-address-adapter';
+import { IPaymentIntent } from '../src/payment-intent/interfaces';
 
 function makeCmd(
   overrides: Partial<{
@@ -49,106 +50,122 @@ describe('PaymentIntentAggregate.handleBatch', () => {
     aggregate = new PaymentIntentAggregate(repo, walletAddressAdapter);
   });
 
-  it('creates a payment intent', async () => {
-    const cmd = makeCmd();
-    const events = await aggregate.handleBatch([cmd]);
+  describe('handleBatch', async () => {
+    it('creates a payment intent', async () => {
+      const cmd = makeCmd();
+      const { events, updatedEntities } = await aggregate.handleBatch([cmd]);
 
-    assert.equal(events.length, 1);
-    assert.equal(events[0].msgName, PaymentIntentCreatedEvent.name);
-    assert.equal(
-      (events[0] as PaymentIntentCreatedEvent).payload.id,
-      cmd.payload.id
-    );
-
-    const stored = repo.getAll();
-    assert.equal(stored.length, 1);
-    assert.equal(stored[0].id, cmd.payload.id);
-    assert.equal(stored[0].receiverWalletAddressId, 'wallet-1');
-    assert.equal(stored[0].receiverWalletAddress, 'domain.com/alice');
-    assert.equal(stored[0].assetCode, 'USD');
-    assert.equal(stored[0].assetScale, 2);
-    assert.equal(stored[0].state, 'CREATED');
-  });
-
-  it('rejects duplicate payment intent id (across batches)', async () => {
-    const id = crypto.randomUUID();
-    const cmd1 = makeCmd({ id });
-    await aggregate.handleBatch([cmd1]);
-
-    const cmd2 = makeCmd({ id });
-    const events = await aggregate.handleBatch([cmd2]);
-
-    assert.equal(events.length, 1);
-    assert.equal(events[0].msgName, PaymentIntentCreateFailedEvent.name);
-    const payload = (events[0] as PaymentIntentCreateFailedEvent).payload;
-    assert.equal(payload.errorName, 'CannotCreateDuplicatePaymentIntentError');
-  });
-
-  it('rejects duplicate payment intent id (within same batch)', async () => {
-    const id = crypto.randomUUID();
-    const cmd1 = makeCmd({ id });
-    const cmd2 = makeCmd({ id });
-    const events = await aggregate.handleBatch([cmd1, cmd2]);
-
-    assert.equal(events.length, 2);
-    assert.equal(events[0].msgName, PaymentIntentCreatedEvent.name);
-    assert.equal(events[1].msgName, PaymentIntentCreateFailedEvent.name);
-    const payload = (events[1] as PaymentIntentCreateFailedEvent).payload;
-    assert.equal(payload.errorName, 'CannotCreateDuplicatePaymentIntentError');
-
-    // Only one entity stored
-    assert.equal(repo.getAll().length, 1);
-  });
-
-  it('rejects when wallet address not found', async () => {
-    const cmd = makeCmd({ receiverWalletAddressId: 'nonexistent' });
-    const events = await aggregate.handleBatch([cmd]);
-
-    assert.equal(events.length, 1);
-    assert.equal(events[0].msgName, PaymentIntentCreateFailedEvent.name);
-    const payload = (events[0] as PaymentIntentCreateFailedEvent).payload;
-    assert.equal(payload.errorName, 'WalletAddressNotFoundError');
-  });
-
-  it('rejects when wallet address is inactive', async () => {
-    walletAddressAdapter.addWalletAddress({
-      id: 'inactive-wallet',
-      isActive: false,
-      assetCode: 'USD',
-      assetScale: 2
+      assert.equal(events.length, 1);
+      assert.equal(events[0].msgName, PaymentIntentCreatedEvent.name);
+      assert.equal(
+        (events[0] as PaymentIntentCreatedEvent).payload.id,
+        cmd.payload.id
+      );
+      assert.equal(updatedEntities.length, 1);
+      assert.equal(updatedEntities[0].id, cmd.payload.id);
+      assert.equal(updatedEntities[0].receiverWalletAddressId, 'wallet-1');
+      assert.equal(
+        updatedEntities[0].receiverWalletAddress,
+        'domain.com/alice'
+      );
+      assert.equal(updatedEntities[0].assetCode, 'USD');
+      assert.equal(updatedEntities[0].assetScale, 2);
+      assert.equal(updatedEntities[0].state, 'CREATED');
     });
-    const cmd = makeCmd({ receiverWalletAddressId: 'inactive-wallet' });
-    const events = await aggregate.handleBatch([cmd]);
 
-    assert.equal(events.length, 1);
-    assert.equal(events[0].msgName, PaymentIntentCreateFailedEvent.name);
-    const payload = (events[0] as PaymentIntentCreateFailedEvent).payload;
-    assert.equal(payload.errorName, 'WalletAddressInactiveError');
+    it('rejects duplicate payment intent id', async () => {
+      const id = crypto.randomUUID();
+      const cmd1 = makeCmd({ id });
+      const cmd2 = makeCmd({ id });
+      const { events, updatedEntities } = await aggregate.handleBatch([
+        cmd1,
+        cmd2
+      ]);
+
+      assert.equal(events.length, 2);
+      assert.equal(events[0].msgName, PaymentIntentCreatedEvent.name);
+      assert.equal(events[1].msgName, PaymentIntentCreateFailedEvent.name);
+      const payload = (events[1] as PaymentIntentCreateFailedEvent).payload;
+      assert.equal(
+        payload.errorName,
+        'CannotCreateDuplicatePaymentIntentError'
+      );
+
+      assert.equal(updatedEntities.length, 1);
+    });
+
+    it('rejects when wallet address not found', async () => {
+      const cmd = makeCmd({ receiverWalletAddressId: 'nonexistent' });
+      const { events } = await aggregate.handleBatch([cmd]);
+
+      assert.equal(events.length, 1);
+      assert.equal(events[0].msgName, PaymentIntentCreateFailedEvent.name);
+      const payload = (events[0] as PaymentIntentCreateFailedEvent).payload;
+      assert.equal(payload.errorName, 'WalletAddressNotFoundError');
+    });
+
+    it('rejects when wallet address is inactive', async () => {
+      walletAddressAdapter.addWalletAddress({
+        id: 'inactive-wallet',
+        isActive: false,
+        assetCode: 'USD',
+        assetScale: 2
+      });
+      const cmd = makeCmd({ receiverWalletAddressId: 'inactive-wallet' });
+      const { events } = await aggregate.handleBatch([cmd]);
+
+      assert.equal(events.length, 1);
+      assert.equal(events[0].msgName, PaymentIntentCreateFailedEvent.name);
+      const payload = (events[0] as PaymentIntentCreateFailedEvent).payload;
+      assert.equal(payload.errorName, 'WalletAddressInactiveError');
+    });
+
+    it('rejects expiry in the past', async () => {
+      const pastDate = new Date(Date.now() - 60_000).toISOString();
+      const cmd = makeCmd({ expiresAt: pastDate });
+      const { events } = await aggregate.handleBatch([cmd]);
+
+      assert.equal(events.length, 1);
+      assert.equal(events[0].msgName, PaymentIntentCreateFailedEvent.name);
+      const payload = (events[0] as PaymentIntentCreateFailedEvent).payload;
+      assert.equal(payload.errorName, 'InvalidPaymentIntentExpiryError');
+      assert.match(payload.message, /future/);
+    });
+
+    it('rejects expiry too far in the future', async () => {
+      const farFuture = new Date(
+        Date.now() + 1000 * 60 * 60 * 24 * 31
+      ).toISOString(); // 31 days
+      const cmd = makeCmd({ expiresAt: farFuture });
+      const { events } = await aggregate.handleBatch([cmd]);
+
+      assert.equal(events.length, 1);
+      assert.equal(events[0].msgName, PaymentIntentCreateFailedEvent.name);
+      const payload = (events[0] as PaymentIntentCreateFailedEvent).payload;
+      assert.equal(payload.errorName, 'InvalidPaymentIntentExpiryError');
+      assert.match(payload.message, /30 days/);
+    });
   });
 
-  it('rejects expiry in the past', async () => {
-    const pastDate = new Date(Date.now() - 60_000).toISOString();
-    const cmd = makeCmd({ expiresAt: pastDate });
-    const events = await aggregate.handleBatch([cmd]);
+  describe('flush', async () => {
+    it('creates a payment intent', async () => {
+      const paymentIntent: IPaymentIntent = {
+        id: crypto.randomUUID(),
+        receiverWalletAddressId: 'wallet-1',
+        receiverWalletAddress: 'domain.com/alice',
+        expiresAt: new Date(),
+        state: 'CREATED',
+        destination: 'LOCAL',
+        assetCode: 'USD',
+        assetScale: 2,
+        receivedAmount: 0n,
+        incomingAmount: null
+      };
+      await aggregate.flush([paymentIntent]);
 
-    assert.equal(events.length, 1);
-    assert.equal(events[0].msgName, PaymentIntentCreateFailedEvent.name);
-    const payload = (events[0] as PaymentIntentCreateFailedEvent).payload;
-    assert.equal(payload.errorName, 'InvalidPaymentIntentExpiryError');
-    assert.match(payload.message, /future/);
-  });
-
-  it('rejects expiry too far in the future', async () => {
-    const farFuture = new Date(
-      Date.now() + 1000 * 60 * 60 * 24 * 31
-    ).toISOString(); // 31 days
-    const cmd = makeCmd({ expiresAt: farFuture });
-    const events = await aggregate.handleBatch([cmd]);
-
-    assert.equal(events.length, 1);
-    assert.equal(events[0].msgName, PaymentIntentCreateFailedEvent.name);
-    const payload = (events[0] as PaymentIntentCreateFailedEvent).payload;
-    assert.equal(payload.errorName, 'InvalidPaymentIntentExpiryError');
-    assert.match(payload.message, /30 days/);
+      const stored = repo.getAll();
+      assert.equal(stored.length, 1);
+      assert.deepStrictEqual(stored[0], paymentIntent);
+    });
   });
 });

@@ -24,9 +24,11 @@ export class PaymentIntentAggregate {
     private _walletAddressService: IWalletAddressAdapter
   ) {}
 
-  async handleBatch(cmds: Message[]): Promise<Message[]> {
+  async handleBatch(
+    cmds: Message[]
+  ): Promise<{ events: Message[]; updatedEntities: IPaymentIntent[] }> {
     const outputEvents: Message[] = [];
-    const newEntities: IPaymentIntent[] = [];
+    const updatedEntities: IPaymentIntent[] = [];
 
     // prefetch any external data needed to process the batch
     const walletIdSet = new Set<string>();
@@ -64,7 +66,7 @@ export class PaymentIntentAggregate {
             command.requestId
           );
 
-          newEntities.push(entity);
+          updatedEntities.push(entity);
           seenIds.add(command.payload.id);
           outputEvents.push(event);
         } catch (e) {
@@ -81,11 +83,7 @@ export class PaymentIntentAggregate {
       }
     }
 
-    if (newEntities.length > 0) {
-      await this._repo.storeMany(newEntities);
-    }
-
-    return outputEvents;
+    return { events: outputEvents, updatedEntities };
   }
 
   private create(
@@ -143,5 +141,11 @@ export class PaymentIntentAggregate {
     const event = new PaymentIntentCreatedEvent({ id }, requestId);
 
     return { entity, event };
+  }
+
+  public async flush(entities: IPaymentIntent[]) {
+    if (entities.length > 0) {
+      await this._repo.storeMany(entities);
+    }
   }
 }

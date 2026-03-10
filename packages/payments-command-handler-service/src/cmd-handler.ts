@@ -58,16 +58,18 @@ export class PaymentsCommandHandler {
       );
     }
 
-    const events: Message[] = [];
+    const eventsToPublish: Message[] = [];
 
     if (incomingPaymentCmds.length > 0) {
-      const result =
+      const { events, updatedEntities } =
         await this._paymentIntentAggregate.handleBatch(incomingPaymentCmds);
-      events.push(...result);
+      eventsToPublish.push(...events);
+
+      await this._paymentIntentAggregate.flush(updatedEntities);
     }
 
-    if (events.length > 0) {
-      await this._msgProducer.send(events);
+    if (eventsToPublish.length > 0) {
+      await this._msgProducer.send(eventsToPublish);
     }
   }
 }
