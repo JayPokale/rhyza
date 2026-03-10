@@ -13,7 +13,6 @@ import {
 import {
   CreateIncomingPaymentRequest,
   CreateIncomingPaymentResponse,
-  GetIncomingPaymentRequest,
   HealthCheckRequest,
   HealthCheckResponse,
   HealthService,
@@ -186,17 +185,6 @@ export class PaymentsServiceServer {
         commandId
       );
       await this._msgProducer.send(cmd);
-    } else if (call.request instanceof GetIncomingPaymentRequest) {
-      const commandId = call.request.getId();
-      if (!PaymentsServiceServer.UUID_REGEX.test(commandId)) {
-        callback({
-          code: grpc.status.INVALID_ARGUMENT,
-          message: 'id must be a valid UUID'
-        });
-        return;
-      }
-      this._storePendingResponse(commandId, call, callback);
-      // TODO: publish GetIncomingPayment command to Kafka
     } else {
       callback(
         new Error(`Invalid request type: ${call.request.constructor.name}`)
