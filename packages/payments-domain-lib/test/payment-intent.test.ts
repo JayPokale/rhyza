@@ -32,7 +32,7 @@ function makeCmd(
   );
 }
 
-describe('PaymentsDomainService.handleBatch', () => {
+describe('PaymentIntentAggregate.handleBatch', () => {
   let repo: MockPaymentIntentRepo;
   let walletAddressAdapter: MockWalletAddressAdapter;
   let aggregate: PaymentIntentAggregate;
