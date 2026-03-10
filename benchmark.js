@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-undef */
 
 import http from 'k6/http';
 import { check } from 'k6';
