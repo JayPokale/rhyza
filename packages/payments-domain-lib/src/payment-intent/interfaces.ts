@@ -32,7 +32,7 @@ export interface WalletAddress {
   assetScale: number;
 }
 
-export interface IWalletAddressService {
+export interface IWalletAddressAdapter {
   fetchByIds(ids: string[]): Promise<WalletAddress[]>;
 }
 

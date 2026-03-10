@@ -1,24 +1,95 @@
+import { Message } from 'common-types-lib';
 import {
   IPaymentIntent,
+  IPaymentIntentRepository,
+  IWalletAddressAdapter,
   PaymentIntentDestination,
   WalletAddress
 } from './interfaces';
-import { PaymentIntentEntity } from './entity';
-import { CreatePaymentIntentCmdPayload } from '../commands';
+import { PaymentIntent } from './entity';
+import { CreatePaymentIntentCmd } from '../commands';
 import {
   CannotCreateDuplicatePaymentIntentError,
   WalletAddressNotFoundError,
-  WalletAddressInactiveError,
-  InvalidPaymentIntentExpiryError
+  WalletAddressInactiveError
 } from './errors';
-import { PaymentIntentCreatedEvent } from './events';
-
-const DEFAULT_EXPIRY_MS = 1000 * 60 * 10; // 10 minutes
-const MAX_EXPIRY_MS = 1000 * 60 * 60 * 24 * 30; // 30 days
+import {
+  PaymentIntentCreatedEvent,
+  PaymentIntentCreateFailedEvent
+} from './events';
 
 export class PaymentIntentAggregate {
+  constructor(
+    private _repo: IPaymentIntentRepository,
+    private _walletAddressService: IWalletAddressAdapter
+  ) {}
+
+  async handleBatch(cmds: Message[]): Promise<Message[]> {
+    const outputEvents: Message[] = [];
+    const newEntities: IPaymentIntent[] = [];
+
+    // prefetch any external data needed to process the batch
+    const walletIdSet = new Set<string>();
+    const paymentIntentIdsSet = new Set<string>();
+    for (const cmd of cmds) {
+      if (cmd.msgName === CreatePaymentIntentCmd.name) {
+        const payload = (cmd as CreatePaymentIntentCmd).payload;
+        walletIdSet.add(payload.receiverWalletAddressId);
+        paymentIntentIdsSet.add(payload.id);
+      }
+    }
+
+    const [walletAddresses, existingPayments] = await Promise.all([
+      this._walletAddressService.fetchByIds([...walletIdSet]),
+      this._repo.fetchByIds([...paymentIntentIdsSet])
+    ]);
+
+    const walletAddressMap = new Map<string, WalletAddress>();
+    for (const walletAddress of walletAddresses) {
+      walletAddressMap.set(walletAddress.id, walletAddress);
+    }
+
+    // seed seenIds with existing DB entities — add newly processed ones as we go
+    const seenIds = new Set<string>(existingPayments.map((p) => p.id));
+
+    // process each command
+    for (const cmd of cmds) {
+      if (cmd.msgName === CreatePaymentIntentCmd.name) {
+        const command = cmd as CreatePaymentIntentCmd;
+        try {
+          const { entity, event } = this.create(
+            command.payload,
+            walletAddressMap,
+            seenIds,
+            command.requestId
+          );
+
+          newEntities.push(entity);
+          seenIds.add(command.payload.id);
+          outputEvents.push(event);
+        } catch (e) {
+          outputEvents.push(
+            new PaymentIntentCreateFailedEvent(
+              {
+                errorName: (e as Error).constructor.name,
+                message: (e as Error).message
+              },
+              command.requestId
+            )
+          );
+        }
+      }
+    }
+
+    if (newEntities.length > 0) {
+      await this._repo.storeMany(newEntities);
+    }
+
+    return outputEvents;
+  }
+
   create(
-    payload: CreatePaymentIntentCmdPayload,
+    payload: CreatePaymentIntentCmd['payload'],
     walletAddressMap: Map<string, WalletAddress>,
     seenIds: Set<string>,
     requestId?: string
@@ -58,29 +129,14 @@ export class PaymentIntentAggregate {
     // the sender understands the asset to be used?
     // - v1 Rafiki requires it to be passed in
 
-    const resolvedExpiresAt = expiresAt
-      ? new Date(expiresAt)
-      : new Date(Date.now() + DEFAULT_EXPIRY_MS);
-
-    if (resolvedExpiresAt.getTime() <= Date.now()) {
-      throw new InvalidPaymentIntentExpiryError(
-        'expiresAt must be in the future'
-      );
-    }
-    if (resolvedExpiresAt.getTime() > Date.now() + MAX_EXPIRY_MS) {
-      throw new InvalidPaymentIntentExpiryError(
-        'expiresAt must be within 30 days'
-      );
-    }
-
-    const entity = new PaymentIntentEntity(
+    const entity = new PaymentIntent(
       id,
       receiverWalletAddressId,
       receiverWalletAddress,
       PaymentIntentDestination.LOCAL, // TODO: determine from peer lookup
       walletAddress.assetCode,
       walletAddress.assetScale,
-      resolvedExpiresAt,
+      expiresAt ?? null,
       incomingAmount != null ? BigInt(incomingAmount) : null
     ).toObject();
 

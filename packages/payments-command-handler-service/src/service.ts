@@ -6,10 +6,7 @@ import {
   MongoDbPaymentIntentRepo,
   PalWalletAddressAdapter
 } from 'payments-implementations-lib';
-import {
-  PaymentsDomainService,
-  PaymentIntentAggregate
-} from 'payments-domain-lib';
+import { PaymentIntentAggregate } from 'payments-domain-lib';
 import { PalClient } from 'pal-client-lib';
 import { PaymentsCommandHandler } from './cmd-handler';
 import process from 'process';
@@ -39,11 +36,9 @@ export class PaymentsCommandHandlerService {
     const palClient = new PalClient(PAL_GRPC_URL);
     const walletAddressAdapter = new PalWalletAddressAdapter(palClient);
 
-    const aggregate = new PaymentIntentAggregate();
-    const domainService = new PaymentsDomainService(
+    const aggregate = new PaymentIntentAggregate(
       this.repo,
-      walletAddressAdapter,
-      aggregate
+      walletAddressAdapter
     );
 
     this.msgProducer = new RafikiKafkaJsonProducer({
@@ -62,7 +57,7 @@ export class PaymentsCommandHandlerService {
     this.commandHandler = new PaymentsCommandHandler(
       this.msgConsumer,
       this.msgProducer,
-      domainService
+      aggregate
     );
     await this.commandHandler.start();
   }

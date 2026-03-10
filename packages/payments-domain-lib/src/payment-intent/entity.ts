@@ -1,10 +1,14 @@
+import { InvalidPaymentIntentExpiryError } from './errors';
 import {
   IPaymentIntent,
   PaymentIntentDestination,
   PaymentIntentState
 } from './interfaces';
 
-export class PaymentIntentEntity implements IPaymentIntent {
+const DEFAULT_EXPIRY_MS = 1000 * 60 * 10; // 10 minutes
+const MAX_EXPIRY_MS = 1000 * 60 * 60 * 24 * 30; // 30 days
+
+export class PaymentIntent implements IPaymentIntent {
   private _id: string;
   private _receiverWalletAddressId: string;
   private _receiverWalletAddress: string;
@@ -23,7 +27,7 @@ export class PaymentIntentEntity implements IPaymentIntent {
     destination: PaymentIntentDestination,
     assetCode: string,
     assetScale: number,
-    expiresAt: Date,
+    expiresAt: string | null,
     incomingAmount: bigint | null = null,
     receivedAmount: bigint = 0n,
     state: PaymentIntentState = PaymentIntentState.CREATED
@@ -34,21 +38,38 @@ export class PaymentIntentEntity implements IPaymentIntent {
     this._destination = destination;
     this._assetCode = assetCode;
     this._assetScale = assetScale;
-    this._expiresAt = expiresAt;
+
     this._incomingAmount = incomingAmount;
     this._receivedAmount = receivedAmount;
     this._state = state;
+
+    const resolvedExpiresAt = expiresAt
+      ? new Date(expiresAt)
+      : new Date(Date.now() + DEFAULT_EXPIRY_MS);
+
+    if (resolvedExpiresAt.getTime() <= Date.now()) {
+      throw new InvalidPaymentIntentExpiryError(
+        'expiresAt must be in the future'
+      );
+    }
+    if (resolvedExpiresAt.getTime() > Date.now() + MAX_EXPIRY_MS) {
+      throw new InvalidPaymentIntentExpiryError(
+        'expiresAt must be within 30 days'
+      );
+    }
+
+    this._expiresAt = resolvedExpiresAt;
   }
 
-  static fromObject(json: IPaymentIntent): PaymentIntentEntity {
-    return new PaymentIntentEntity(
+  static fromObject(json: IPaymentIntent): PaymentIntent {
+    return new PaymentIntent(
       json.id,
       json.receiverWalletAddressId,
       json.receiverWalletAddress,
       json.destination,
       json.assetCode,
       json.assetScale,
-      json.expiresAt,
+      json.expiresAt.toISOString(),
       json.incomingAmount,
       json.receivedAmount,
       json.state
