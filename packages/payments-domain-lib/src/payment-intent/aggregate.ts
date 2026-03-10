@@ -88,7 +88,7 @@ export class PaymentIntentAggregate {
     return outputEvents;
   }
 
-  create(
+  private create(
     payload: CreatePaymentIntentCmd['payload'],
     walletAddressMap: Map<string, WalletAddress>,
     seenIds: Set<string>,
