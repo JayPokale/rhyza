@@ -4,7 +4,8 @@ import {
 } from 'implementations-lib';
 import {
   MongoDbPaymentIntentRepo,
-  PalWalletAddressAdapter
+  PalWalletAddressAdapter,
+  StaticRatesService
 } from 'payments-implementations-lib';
 import { PaymentIntentAggregate } from 'payments-domain-lib';
 import { PalClient } from 'pal-client-lib';
@@ -34,11 +35,15 @@ export class PaymentsCommandHandlerService {
     await this.repo.init();
 
     const palClient = new PalClient(PAL_GRPC_URL);
+
+    // TODO standardize these namings, is it adapter or service?
     const walletAddressAdapter = new PalWalletAddressAdapter(palClient);
+    const staticRatesService = new StaticRatesService();
 
     const aggregate = new PaymentIntentAggregate(
       this.repo,
-      walletAddressAdapter
+      walletAddressAdapter,
+      staticRatesService
     );
 
     this.msgProducer = new RafikiKafkaJsonProducer({

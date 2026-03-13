@@ -6,6 +6,7 @@ import {
 } from 'common-types-lib';
 import {
   CreatePaymentIntentCmd,
+  CreateQuoteCmd,
   PaymentIntentAggregate
 } from 'payments-domain-lib';
 
@@ -37,14 +38,17 @@ export class PaymentsCommandHandler {
   }
 
   private async _handleBatch(messages: Message[]): Promise<void> {
-    const incomingPaymentCmds: Message[] = [];
+    const commandMessages: Message[] = [];
     // TODO: route quote and outgoing payment commands to their aggregates
     const unhandled: Message[] = [];
 
     for (const msg of messages) {
       switch (msg.msgName) {
         case CreatePaymentIntentCmd.name:
-          incomingPaymentCmds.push(msg);
+          commandMessages.push(msg);
+          break;
+        case CreateQuoteCmd.name:
+          commandMessages.push(msg);
           break;
         default:
           unhandled.push(msg);
@@ -60,12 +64,12 @@ export class PaymentsCommandHandler {
 
     const eventsToPublish: Message[] = [];
 
-    if (incomingPaymentCmds.length > 0) {
-      const { events, updatedEntities } =
-        await this._paymentIntentAggregate.handleBatch(incomingPaymentCmds);
+    if (commandMessages.length > 0) {
+      const { events } =
+        await this._paymentIntentAggregate.handleBatch(commandMessages);
       eventsToPublish.push(...events);
 
-      await this._paymentIntentAggregate.flush(updatedEntities);
+      await this._paymentIntentAggregate.flush();
     }
 
     if (eventsToPublish.length > 0) {

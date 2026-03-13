@@ -55,7 +55,7 @@ export async function incomingPaymentRoutes(
       id,
       alias.walletAddressId,
       walletAddress,
-      incomingAmount,
+      Number(incomingAmount),
       expiresAt,
       metadata
     );

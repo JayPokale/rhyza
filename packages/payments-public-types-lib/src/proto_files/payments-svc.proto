@@ -6,6 +6,9 @@ service PaymentsGrpc {
   // Creates a new incoming payment.
   rpc CreateIncomingPayment(CreateIncomingPaymentRequest) returns (CreateIncomingPaymentResponse);
   // Retrieves an incoming payment by ID.
+
+  // Creates a new quote.
+  rpc CreateQuote(CreateQuoteRequest) returns (CreateQuoteResponse);
 }
 
 /*
@@ -24,6 +27,25 @@ message CreateIncomingPaymentRequest {
 
 // Response containing the ID of the created incoming payment.
 message CreateIncomingPaymentResponse {
+  string id = 1;
+}
+
+/*
+ * Quote messages
+ */
+
+// Request to create a new quote.
+message CreateQuoteRequest {
+  string id = 1;
+  string wallet_address_id = 2;
+  string wallet_address = 3;
+  string incoming_payment_id = 4;
+  optional uint64 debit_amount = 5;
+  optional uint64 receive_amount = 6;
+}
+
+// Response containing the ID of the created quote.
+message CreateQuoteResponse {
   string id = 1;
 }
 

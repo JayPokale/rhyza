@@ -6,6 +6,7 @@ import { PaymentsClient } from 'payments-client-lib';
 import { assetRoutes } from './routes/assets.js';
 import { walletAddressRoutes } from './routes/wallet-addresses.js';
 import { incomingPaymentRoutes } from './routes/incoming-payments.js';
+import { quoteRoutes } from './routes/quotes.js';
 
 const PORT = parseInt(process.env['PORT'] || '3001', 10);
 const HOST = process.env['HOST'] || '0.0.0.0';
@@ -37,6 +38,10 @@ export class AdminApiService {
       palClient: this.palClient
     });
     this.server.register(incomingPaymentRoutes, {
+      palClient: this.palClient,
+      paymentsClient: this.paymentsClient
+    });
+    this.server.register(quoteRoutes, {
       palClient: this.palClient,
       paymentsClient: this.paymentsClient
     });

@@ -2,3 +2,8 @@ export class CannotCreateDuplicatePaymentIntentError extends Error {}
 export class WalletAddressNotFoundError extends Error {}
 export class WalletAddressInactiveError extends Error {}
 export class InvalidPaymentIntentExpiryError extends Error {}
+export class PaymentIntentNotFoundError extends Error {}
+export class PaymentIntentInvalidState extends Error {}
+export class ConversionError extends Error {}
+export class InvalidQuoteAmountError extends Error {}
+export class InvalidQuoteIdError extends Error {}

@@ -100,12 +100,54 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
         assetScale: doc.assetScale,
         expiresAt: doc.expiresAt,
         incomingAmount: doc.incomingAmount,
-        receivedAmount: doc.receivedAmount
+        receivedAmount: doc.receivedAmount,
+        quotes: doc.quotes.map((quote) => ({
+          id: quote.id,
+          state: quote.state,
+          senderWalletAddress: quote.senderWalletAddress,
+          senderWalletAddressId: quote.senderWalletAddressId,
+          debitAmount: quote.debitAmount,
+          receiveAmount: quote.receiveAmount,
+          expiresAt: quote.expiresAt,
+          exchangeRate: quote.exchangeRate
+        }))
       }));
+    } catch (err) {
+      console.error(err);
+      throw new Error(
+        `Unable to fetch payment intents - error: ${(err as Error).message}`
+      );
+    }
+  }
+
+  async storeQuotes(
+    quoteUpdates: { quoteIds: string[]; paymentIntent: IPaymentIntent }[]
+  ): Promise<void> {
+    this._checkInitialisedOrThrow();
+
+    if (quoteUpdates.length === 0) return;
+
+    try {
+      await this._collection.bulkWrite(
+        quoteUpdates.map((update) => ({
+          updateOne: {
+            filter: { id: update.paymentIntent.id },
+            update: {
+              $push: {
+                quotes: {
+                  $each: update.paymentIntent.quotes.filter((q) =>
+                    update.quoteIds.includes(q.id)
+                  )
+                }
+              }
+            }
+          }
+        }))
+      );
     } catch (e) {
       console.error(e);
       throw new Error(
-        `Unable to fetch payment intents - error: ${(e as Error).message}`
+        `Unable to store quotes for payment intents - error: ${(e as Error).message}`
       );
     }
   }

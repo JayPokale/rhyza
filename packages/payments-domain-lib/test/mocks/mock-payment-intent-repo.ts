@@ -21,6 +21,14 @@ export class MockPaymentIntentRepo implements IPaymentIntentRepository {
     return results;
   }
 
+  async storeQuotes(
+    quoteUpdates: { quoteIds: string[]; paymentIntent: IPaymentIntent }[]
+  ): Promise<void> {
+    for (const update of quoteUpdates) {
+      this._store.set(update.paymentIntent.id, update.paymentIntent);
+    }
+  }
+
   getAll(): IPaymentIntent[] {
     return [...this._store.values()];
   }

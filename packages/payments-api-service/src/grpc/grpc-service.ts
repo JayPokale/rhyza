@@ -13,6 +13,8 @@ import {
 import {
   CreateIncomingPaymentRequest,
   CreateIncomingPaymentResponse,
+  CreateQuoteRequest,
+  CreateQuoteResponse,
   HealthCheckRequest,
   HealthCheckResponse,
   HealthService,
@@ -21,10 +23,15 @@ import {
 import { Message, MessageConsumer, MessageProducer } from 'common-types-lib';
 import {
   CreatePaymentIntentCmd,
+  CreateQuoteCmd,
   PaymentIntentCreatedEvent,
   PaymentIntentCreatedPayload,
   PaymentIntentCreateFailedEvent,
-  PaymentIntentCreateFailedPayload
+  PaymentIntentCreateFailedPayload,
+  QuoteCompletedEvent,
+  QuoteCompletedPayload,
+  QuoteCreateFailedEvent,
+  QuoteCreateFailedPayload
 } from 'payments-domain-lib';
 
 const PUBLIC_TYPES_LIB_PATH = require.resolve('payments-public-types-lib');
@@ -94,7 +101,7 @@ export class PaymentsServiceServer {
     // payments service RPCs
     this._server.addService(PaymentsGrpcService, {
       createIncomingPayment: this._handleUnary.bind(this),
-      getIncomingPayment: this._handleUnary.bind(this)
+      createQuote: this._handleUnary.bind(this)
     });
   }
 
@@ -185,6 +192,30 @@ export class PaymentsServiceServer {
         commandId
       );
       await this._msgProducer.send(cmd);
+    } else if (call.request instanceof CreateQuoteRequest) {
+      const commandId = call.request.getId();
+      if (!PaymentsServiceServer.UUID_REGEX.test(commandId)) {
+        callback({
+          code: grpc.status.INVALID_ARGUMENT,
+          message: 'id must be a valid UUID'
+        });
+        return;
+      }
+      this._storePendingResponse(commandId, call, callback);
+      const receiveAmount = call.request.getReceiveAmount();
+      const debitAmount = call.request.getDebitAmount();
+      const cmd = new CreateQuoteCmd(
+        {
+          id: commandId,
+          paymentIntentId: call.request.getIncomingPaymentId(),
+          senderWalletAddressId: call.request.getWalletAddressId(),
+          senderWalletAddress: call.request.getWalletAddress(),
+          receiveAmount: receiveAmount ? receiveAmount : undefined,
+          debitAmount: debitAmount ? debitAmount : undefined
+        },
+        commandId
+      );
+      await this._msgProducer.send(cmd);
     } else {
       callback(
         new Error(`Invalid request type: ${call.request.constructor.name}`)
@@ -243,6 +274,23 @@ export class PaymentsServiceServer {
       case PaymentIntentCreateFailedEvent.name: {
         const errorPayload =
           message.payload as PaymentIntentCreateFailedPayload;
+        this._resolvePendingResponse(pending, requestId, {
+          code: grpc.status.INTERNAL,
+          message: errorPayload.message || 'Command processing failed',
+          details: errorPayload.message,
+          name: errorPayload.errorName || 'CommandError',
+          metadata: new grpc.Metadata()
+        });
+        break;
+      }
+      case QuoteCompletedEvent.name: {
+        const payload = message.payload as QuoteCompletedPayload;
+        const response = new CreateQuoteResponse().setId(payload.id);
+        this._resolvePendingResponse(pending, requestId, null, response);
+        break;
+      }
+      case QuoteCreateFailedEvent.name: {
+        const errorPayload = message.payload as QuoteCreateFailedPayload;
         this._resolvePendingResponse(pending, requestId, {
           code: grpc.status.INTERNAL,
           message: errorPayload.message || 'Command processing failed',

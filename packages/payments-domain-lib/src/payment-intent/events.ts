@@ -44,3 +44,45 @@ export class PaymentIntentCreateFailedEvent extends DomainEventMsg {
     this.requestId = requestId;
   }
 }
+
+export interface QuoteCompletedPayload {
+  id: string;
+}
+
+export class QuoteCompletedEvent extends DomainEventMsg {
+  contextName: string = BOUNDED_CONTEXT_NAME;
+  aggregateId: string;
+  aggregateName: string = AGGREGATE_NAME;
+  msgKey: string;
+  msgTopic: string = EventTopics.PaymentEvents;
+  payload: QuoteCompletedPayload;
+
+  constructor(payload: QuoteCompletedPayload, requestId?: string) {
+    super();
+    this.aggregateId = this.msgKey = payload.id;
+    this.payload = payload;
+    this.requestId = requestId;
+  }
+}
+
+export interface QuoteCreateFailedPayload {
+  errorName: string;
+  message: string;
+}
+
+export class QuoteCreateFailedEvent extends DomainEventMsg {
+  contextName: string = BOUNDED_CONTEXT_NAME;
+  aggregateId: string;
+  aggregateName: string = AGGREGATE_NAME;
+  msgKey: string;
+  msgTopic: string = EventTopics.PaymentEvents;
+  isErrorEvent: boolean = true;
+  payload: QuoteCreateFailedPayload;
+
+  constructor(payload: QuoteCreateFailedPayload, requestId?: string) {
+    super();
+    this.aggregateId = this.msgKey = requestId ?? '';
+    this.payload = payload;
+    this.requestId = requestId;
+  }
+}
