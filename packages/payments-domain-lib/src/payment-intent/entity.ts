@@ -1,4 +1,9 @@
-import { InvalidPaymentIntentExpiryError, InvalidQuoteIdError } from './errors';
+import {
+  InvalidPaymentIntentExpiryError,
+  InvalidQuoteAmountError,
+  InvalidQuoteIdError,
+  PaymentIntentInvalidState
+} from './errors';
 import {
   IPaymentIntent,
   PaymentIntentDestination,
@@ -14,8 +19,8 @@ interface Quote {
   state: QuoteState;
   senderWalletAddress: string;
   senderWalletAddressId: string;
-  expiresAt: Date;
 
+  expiresAt?: Date;
   receiveAmount?: bigint;
   debitAmount?: bigint;
   exchangeRate?: number;
@@ -145,22 +150,40 @@ export class PaymentIntent implements IPaymentIntent {
     };
   }
 
-  addCompletedQuote(args: {
+  addLocalQuote(args: {
     id: string;
-    receiveAmount: bigint;
-    debitAmount: bigint;
+    receiveAmount?: bigint;
+    debitAmount?: bigint;
     exchangeRate: number;
-    senderWalletAddress: string;
-    senderWalletAddressId: string;
+    senderWalletAddress: {
+      id: string;
+      address: string;
+      assetCode: string;
+      assetScale: number;
+    };
   }): void {
     const {
       id,
-      receiveAmount,
       debitAmount,
+      receiveAmount,
       senderWalletAddress,
-      senderWalletAddressId,
-      exchangeRate
+      exchangeRate: unscaledExchangeRate
     } = args;
+
+    const isValidPaymentIntentState =
+      this.state === 'CREATED' || this.state === 'PARTIALLY_PAID';
+
+    if (!isValidPaymentIntentState) {
+      throw new PaymentIntentInvalidState(
+        `Payment intent is in an invalid state for quoting: ${this.state}`
+      );
+    }
+
+    if (this.isExpired) {
+      throw new PaymentIntentInvalidState(
+        `Payment intent is expired at: ${this.expiresAt.toISOString()}`
+      );
+    }
 
     if (this.quotes.find((quote) => quote.id === id)) {
       throw new InvalidQuoteIdError(
@@ -168,14 +191,41 @@ export class PaymentIntent implements IPaymentIntent {
       );
     }
 
+    let quoteReceiveAmount: bigint;
+    let quoteDebitAmount: bigint;
+
+    const scaleDiff = this.assetScale - senderWalletAddress.assetScale;
+    const exchangeRate = unscaledExchangeRate * 10 ** scaleDiff;
+
+    if (debitAmount) {
+      quoteReceiveAmount = BigInt(
+        Math.floor(Number(debitAmount) * exchangeRate)
+      );
+      quoteDebitAmount = debitAmount;
+    } else if (receiveAmount) {
+      quoteDebitAmount = BigInt(
+        Math.ceil(Number(receiveAmount) / exchangeRate)
+      );
+      quoteReceiveAmount = receiveAmount;
+    } else if (this.incomingAmount) {
+      quoteDebitAmount = BigInt(
+        Math.ceil(Number(this.incomingAmount) / exchangeRate)
+      );
+      quoteReceiveAmount = this.incomingAmount;
+    } else {
+      throw new InvalidQuoteAmountError(
+        'Quote request must have debitAmount, receiveAmount, or the payment intent must have an incomingAmount'
+      );
+    }
+
     const quoteDefaultExpiryMs = Date.now() + QUOTE_EXPIRY_MS;
     const quote: Quote = {
       id,
-      debitAmount,
+      debitAmount: quoteDebitAmount,
+      receiveAmount: quoteReceiveAmount,
       state: 'COMPLETED',
-      receiveAmount,
-      senderWalletAddress,
-      senderWalletAddressId,
+      senderWalletAddress: senderWalletAddress.address,
+      senderWalletAddressId: senderWalletAddress.id,
       expiresAt: new Date(
         Math.min(this.expiresAt.getTime(), quoteDefaultExpiryMs)
       ),

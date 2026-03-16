@@ -4,7 +4,9 @@ import assert from 'node:assert/strict';
 import { PaymentIntent } from '../../src/payment-intent/entity';
 import {
   InvalidPaymentIntentExpiryError,
-  InvalidQuoteIdError
+  InvalidQuoteAmountError,
+  InvalidQuoteIdError,
+  PaymentIntentInvalidState
 } from '../../src/payment-intent/errors';
 import { PaymentIntentDestination } from '../../src/payment-intent/interfaces';
 
@@ -112,7 +114,7 @@ describe('PaymentIntent Entity', () => {
     });
   });
 
-  describe('addCompletedQuote', () => {
+  describe('addLocalQuote', () => {
     it('adds a quote', (context) => {
       const now = Date.now();
       context.mock.timers.enable({ apis: ['Date'], now });
@@ -130,13 +132,16 @@ describe('PaymentIntent Entity', () => {
       const quoteId = crypto.randomUUID();
       const senderWalletAddressId = crypto.randomUUID();
 
-      paymentIntent.addCompletedQuote({
+      paymentIntent.addLocalQuote({
         id: quoteId,
-        receiveAmount: 100n,
         debitAmount: 200n,
         exchangeRate: 0.5,
-        senderWalletAddress: 'sender',
-        senderWalletAddressId
+        senderWalletAddress: {
+          id: senderWalletAddressId,
+          address: 'sender',
+          assetCode: 'USD',
+          assetScale: 2
+        }
       });
 
       assert.equal(paymentIntent.quotes.length, 1);
@@ -149,7 +154,7 @@ describe('PaymentIntent Entity', () => {
       assert.equal(quote.senderWalletAddressId, senderWalletAddressId);
 
       const expectedExpiry = new Date(now + 1000 * 60 * 10); // Default quote expiry is 10 mins
-      assert.equal(quote.expiresAt.getTime(), expectedExpiry.getTime());
+      assert.equal(quote.expiresAt?.getTime(), expectedExpiry.getTime());
       assert.ok(quote.expiresAt.getTime() < paymentIntent.expiresAt.getTime());
     });
 
@@ -167,17 +172,20 @@ describe('PaymentIntent Entity', () => {
         paymentIntentExpiry
       );
 
-      paymentIntent.addCompletedQuote({
+      paymentIntent.addLocalQuote({
         id: crypto.randomUUID(),
-        receiveAmount: 100n,
         debitAmount: 200n,
         exchangeRate: 0.5,
-        senderWalletAddress: 'sender',
-        senderWalletAddressId: crypto.randomUUID()
+        senderWalletAddress: {
+          id: crypto.randomUUID(),
+          address: 'sender',
+          assetCode: 'USD',
+          assetScale: 2
+        }
       });
 
       assert.equal(
-        paymentIntent.quotes[0].expiresAt.toISOString(),
+        paymentIntent.quotes[0].expiresAt?.toISOString(),
         paymentIntentExpiry
       );
     });
@@ -193,21 +201,23 @@ describe('PaymentIntent Entity', () => {
         new Date(Date.now() + 60_000 * 10).toISOString()
       );
 
-      const quoteId = crypto.randomUUID();
       const quoteArgs = {
-        id: quoteId,
-        receiveAmount: 100n,
+        id: crypto.randomUUID(),
         debitAmount: 200n,
         exchangeRate: 0.5,
-        senderWalletAddress: 'sender',
-        senderWalletAddressId: crypto.randomUUID()
+        senderWalletAddress: {
+          id: crypto.randomUUID(),
+          address: 'sender',
+          assetCode: 'USD',
+          assetScale: 2
+        }
       };
 
-      paymentIntent.addCompletedQuote(quoteArgs);
+      paymentIntent.addLocalQuote(quoteArgs);
 
       assert.throws(
         () => {
-          paymentIntent.addCompletedQuote(quoteArgs);
+          paymentIntent.addLocalQuote(quoteArgs);
         },
         (err: Error) => {
           assert(err instanceof InvalidQuoteIdError);
@@ -215,6 +225,209 @@ describe('PaymentIntent Entity', () => {
           return true;
         }
       );
+    });
+
+    // TODO to for each of the invalid states
+    it('fails if quote when payment intent is in invalid state', async () => {
+      const paymentIntent = PaymentIntent.fromObject({
+        id: crypto.randomUUID(),
+        receiverWalletAddressId: crypto.randomUUID(),
+        receiverWalletAddress: 'receiver',
+        destination: PaymentIntentDestination.LOCAL,
+        assetCode: 'USD',
+        assetScale: 2,
+        incomingAmount: null,
+        receivedAmount: 0n,
+        state: 'COMPLETED',
+        expiresAt: new Date(Date.now() + 1000),
+        quotes: []
+      });
+
+      assert.throws(
+        () => {
+          paymentIntent.addLocalQuote({
+            id: crypto.randomUUID(),
+            debitAmount: 200n,
+            exchangeRate: 0.5,
+            senderWalletAddress: {
+              id: crypto.randomUUID(),
+              address: 'sender',
+              assetCode: 'USD',
+              assetScale: 2
+            }
+          });
+        },
+        (err: Error) => {
+          assert(err instanceof PaymentIntentInvalidState);
+          assert.match(err.message, /invalid state/);
+          return true;
+        }
+      );
+    });
+
+    it('fails if payment intent is expired', async () => {
+      const paymentIntent = PaymentIntent.fromObject({
+        id: crypto.randomUUID(),
+        receiverWalletAddressId: crypto.randomUUID(),
+        receiverWalletAddress: 'receiver',
+        destination: PaymentIntentDestination.LOCAL,
+        assetCode: 'USD',
+        assetScale: 2,
+        incomingAmount: null,
+        receivedAmount: 0n,
+        state: 'CREATED',
+        expiresAt: new Date(Date.now() - 1000), // in the past
+        quotes: []
+      });
+
+      assert.throws(
+        () => {
+          paymentIntent.addLocalQuote({
+            id: crypto.randomUUID(),
+            debitAmount: 200n,
+            exchangeRate: 0.5,
+            senderWalletAddress: {
+              id: crypto.randomUUID(),
+              address: 'sender',
+              assetCode: 'USD',
+              assetScale: 2
+            }
+          });
+        },
+        (err: Error) => {
+          assert(err instanceof PaymentIntentInvalidState);
+          assert.match(err.message, /expired/);
+          return true;
+        }
+      );
+    });
+
+    it('fails if no amounts provided for quote', async () => {
+      const paymentIntent = PaymentIntent.fromObject({
+        id: crypto.randomUUID(),
+        receiverWalletAddressId: crypto.randomUUID(),
+        receiverWalletAddress: 'receiver',
+        destination: PaymentIntentDestination.LOCAL,
+        assetCode: 'USD',
+        assetScale: 2,
+        incomingAmount: null,
+        receivedAmount: 0n,
+        state: 'CREATED',
+        expiresAt: new Date(Date.now() + 1000),
+        quotes: []
+      });
+
+      assert.throws(
+        () => {
+          paymentIntent.addLocalQuote({
+            id: crypto.randomUUID(),
+            exchangeRate: 0.5,
+            senderWalletAddress: {
+              id: crypto.randomUUID(),
+              address: 'sender',
+              assetCode: 'USD',
+              assetScale: 2
+            }
+          });
+        },
+        (err: Error) => {
+          assert(err instanceof InvalidQuoteAmountError);
+          return true;
+        }
+      );
+    });
+
+    it('successfully creates a quote with debit amount', () => {
+      const paymentIntent = PaymentIntent.create(
+        crypto.randomUUID(),
+        crypto.randomUUID(),
+        'receiver',
+        PaymentIntentDestination.LOCAL,
+        'USD',
+        2,
+        null
+      );
+
+      const quoteId = crypto.randomUUID();
+      paymentIntent.addLocalQuote({
+        id: quoteId,
+        debitAmount: 200n,
+        exchangeRate: 0.5,
+        senderWalletAddress: {
+          id: crypto.randomUUID(),
+          address: 'sender',
+          assetCode: 'USD',
+          assetScale: 2
+        }
+      });
+
+      assert.equal(paymentIntent.quotes.length, 1);
+      const quote = paymentIntent.quotes[0];
+      assert.equal(quote.id, quoteId);
+      assert.equal(quote.receiveAmount, 100n);
+      assert.equal(quote.debitAmount, 200n);
+    });
+
+    it('successfully creates a quote with receive amount', () => {
+      const paymentIntent = PaymentIntent.create(
+        crypto.randomUUID(),
+        crypto.randomUUID(),
+        'receiver',
+        PaymentIntentDestination.LOCAL,
+        'USD',
+        2,
+        null
+      );
+
+      const quoteId = crypto.randomUUID();
+      paymentIntent.addLocalQuote({
+        id: quoteId,
+        receiveAmount: 100n,
+        exchangeRate: 0.5,
+        senderWalletAddress: {
+          id: crypto.randomUUID(),
+          address: 'sender',
+          assetCode: 'USD',
+          assetScale: 2
+        }
+      });
+
+      assert.equal(paymentIntent.quotes.length, 1);
+      const quote = paymentIntent.quotes[0];
+      assert.equal(quote.id, quoteId);
+      assert.equal(quote.receiveAmount, 100n);
+      assert.equal(quote.debitAmount, 200n);
+    });
+
+    it('successfully creates quote with incomingAmount from payment intent', () => {
+      const paymentIntent = PaymentIntent.create(
+        crypto.randomUUID(),
+        crypto.randomUUID(),
+        'receiver',
+        PaymentIntentDestination.LOCAL,
+        'USD',
+        2,
+        null,
+        100n
+      );
+
+      const quoteId = crypto.randomUUID();
+      paymentIntent.addLocalQuote({
+        id: quoteId,
+        exchangeRate: 0.5,
+        senderWalletAddress: {
+          id: crypto.randomUUID(),
+          address: 'sender',
+          assetCode: 'USD',
+          assetScale: 2
+        }
+      });
+
+      assert.equal(paymentIntent.quotes.length, 1);
+      const quote = paymentIntent.quotes[0];
+      assert.equal(quote.id, quoteId);
+      assert.equal(quote.receiveAmount, 100n);
+      assert.equal(quote.debitAmount, 200n);
     });
   });
 });

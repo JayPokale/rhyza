@@ -1,9 +1,7 @@
-import { randomUUID } from 'crypto';
-import { DomainEventMsg, Message } from 'common-types-lib';
+import { Message } from 'common-types-lib';
 import {
   IPaymentIntent,
   IPaymentIntentRepository,
-  IQuote,
   IRatesServiceAdapter,
   IWalletAddressAdapter,
   PaymentIntentDestination,
@@ -17,8 +15,7 @@ import {
   WalletAddressInactiveError,
   PaymentIntentNotFoundError,
   PaymentIntentInvalidState,
-  ConversionError,
-  InvalidQuoteAmountError
+  RatesError
 } from './errors';
 import {
   PaymentIntentCreatedEvent,
@@ -157,20 +154,19 @@ export class PaymentIntentAggregate {
       const {
         id,
         senderWalletAddressId,
+        senderWalletAddress,
         receiveAmount,
         debitAmount,
         paymentIntentId
       } = cmd.payload;
 
-      const senderWalletAddress = this.walletAddressMap.get(
-        senderWalletAddressId
-      );
-      if (!senderWalletAddress) {
+      const walletAddress = this.walletAddressMap.get(senderWalletAddressId);
+      if (!walletAddress) {
         throw new WalletAddressNotFoundError(
           `Wallet address ${senderWalletAddressId} not found`
         );
       }
-      if (!senderWalletAddress.isActive) {
+      if (!walletAddress.isActive) {
         throw new WalletAddressInactiveError(
           `Wallet address ${senderWalletAddressId} is not active`
         );
@@ -189,6 +185,15 @@ export class PaymentIntentAggregate {
 
       const paymentIntent = PaymentIntent.fromObject(paymentIntentObj);
 
+      const exchangeRate = await this._ratesService.getRate(
+        walletAddress.assetCode,
+        paymentIntent.assetCode
+      );
+
+      if (!exchangeRate) {
+        throw new RatesError('Could not get rates during quoting');
+      }
+
       // TODO: handle ILP quotes
       if (paymentIntent.destination !== 'LOCAL') {
         throw new PaymentIntentInvalidState(
@@ -196,68 +201,16 @@ export class PaymentIntentAggregate {
         );
       }
 
-      const isValidPaymentIntentState =
-        paymentIntent.state === 'CREATED' ||
-        paymentIntent.state === 'PARTIALLY_PAID';
-
-      if (!isValidPaymentIntentState) {
-        throw new PaymentIntentInvalidState(
-          `Payment intent is in an invalid state for quoting: ${paymentIntent.state}`
-        );
-      }
-
-      if (paymentIntent.isExpired) {
-        throw new PaymentIntentInvalidState(
-          `Payment intent is expired at: ${paymentIntent.expiresAt.toISOString()}`
-        );
-      }
-
-      let exchangeRate: number;
-      let quoteReceiveAmount: bigint;
-      let quoteDebitAmount: bigint;
-
-      if (debitAmount) {
-        const result = await this.calculateReceiveAmountFromDebitAmount(
-          BigInt(debitAmount),
-          senderWalletAddress,
-          paymentIntent
-        );
-
-        quoteReceiveAmount = result.receiveAmount;
-        exchangeRate = result.exchangeRate;
-        quoteDebitAmount = BigInt(debitAmount);
-      } else if (receiveAmount) {
-        const result = await this.calculateDebitAmountFromReceiveAmount(
-          BigInt(receiveAmount),
-          senderWalletAddress,
-          paymentIntent
-        );
-
-        quoteDebitAmount = result.debitAmount;
-        exchangeRate = result.exchangeRate;
-        quoteReceiveAmount = BigInt(receiveAmount);
-      } else if (paymentIntent.incomingAmount) {
-        const result = await this.calculateDebitAmountFromReceiveAmount(
-          paymentIntent.incomingAmount, // We do not subtract the already delivered amount (that is bound to change at any given moment)
-          senderWalletAddress,
-          paymentIntent
-        );
-
-        quoteDebitAmount = result.debitAmount;
-        exchangeRate = result.exchangeRate;
-        quoteReceiveAmount = paymentIntent.incomingAmount;
-      } else {
-        throw new InvalidQuoteAmountError(
-          'Quote request must have debitAmount, receiveAmount, or the payment intent must have an incomingAmount'
-        );
-      }
-
-      paymentIntent.addCompletedQuote({
+      paymentIntent.addLocalQuote({
         id,
-        senderWalletAddress: cmd.payload.senderWalletAddress,
-        senderWalletAddressId,
-        debitAmount: quoteDebitAmount,
-        receiveAmount: quoteReceiveAmount,
+        senderWalletAddress: {
+          id: senderWalletAddressId,
+          address: senderWalletAddress,
+          assetScale: walletAddress.assetScale,
+          assetCode: walletAddress.assetCode
+        },
+        debitAmount: debitAmount ? BigInt(debitAmount) : undefined,
+        receiveAmount: receiveAmount ? BigInt(receiveAmount) : undefined,
         exchangeRate
       });
 
@@ -285,96 +238,6 @@ export class PaymentIntentAggregate {
 
       return event;
     }
-  }
-
-  private async calculateReceiveAmountFromDebitAmount(
-    debitAmount: bigint,
-    senderWalletAddress: WalletAddress,
-    paymentIntent: PaymentIntent
-  ) {
-    const isSameAssetQuote =
-      senderWalletAddress.assetCode === paymentIntent.assetCode;
-
-    if (isSameAssetQuote) {
-      const exchangeRate =
-        10 ** (paymentIntent.assetScale - senderWalletAddress.assetScale);
-      const receiveAmount = BigInt(
-        Math.floor(Number(debitAmount) * exchangeRate)
-      );
-
-      return {
-        receiveAmount,
-        exchangeRate
-      };
-    }
-
-    const conversionResponse = await this._ratesService.convertFromDestination({
-      sourceAsset: {
-        code: senderWalletAddress.assetCode,
-        scale: senderWalletAddress.assetScale
-      },
-      destinationAsset: {
-        scale: paymentIntent.assetScale,
-        code: paymentIntent.assetCode
-      },
-      destinationAmount: debitAmount
-    });
-
-    if (!conversionResponse) {
-      throw new ConversionError(
-        `Could not convert rates from ${senderWalletAddress.assetCode} to ${paymentIntent.assetCode}`
-      );
-    }
-
-    return {
-      receiveAmount: conversionResponse.sourceAmount,
-      exchangeRate: conversionResponse.exchangeRate
-    };
-  }
-
-  private async calculateDebitAmountFromReceiveAmount(
-    receiveAmount: bigint,
-    senderWalletAddress: WalletAddress,
-    paymentIntent: PaymentIntent
-  ) {
-    const isSameAssetQuote =
-      paymentIntent.assetCode === senderWalletAddress.assetCode;
-    if (isSameAssetQuote) {
-      // TODO: additional logic for making sure we can actually deliver the minimum amount of the receiving asset scale (e.g. sending from scale 4 to 2, may not satisfy a single unit of 2)
-      const exchangeRate =
-        10 ** (senderWalletAddress.assetScale - paymentIntent.assetScale);
-      const debitAmount = BigInt(
-        Math.ceil(Number(receiveAmount) * exchangeRate)
-      );
-
-      return {
-        debitAmount,
-        exchangeRate
-      };
-    }
-
-    const conversionResponse = await this._ratesService.convertFromDestination({
-      destinationAsset: {
-        code: paymentIntent.assetCode,
-        scale: paymentIntent.assetScale
-      },
-      destinationAmount: receiveAmount,
-      sourceAsset: {
-        code: senderWalletAddress.assetCode,
-        scale: senderWalletAddress.assetScale
-      }
-    });
-
-    if (!conversionResponse) {
-      throw new ConversionError(
-        `Could not convert rates from ${senderWalletAddress.assetCode} to ${paymentIntent.assetCode}`
-      );
-    }
-
-    return {
-      debitAmount: conversionResponse.sourceAmount,
-      exchangeRate: conversionResponse.exchangeRate
-    };
   }
 
   public async flush() {

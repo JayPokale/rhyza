@@ -66,6 +66,7 @@ function makeCreateQuoteCmd(
 describe('PaymentIntentAggregate.handleBatch', () => {
   let repo: MockPaymentIntentRepo;
   let walletAddressAdapter: MockWalletAddressAdapter;
+  let mockRatesServiceAdapter: MockRatesServiceAdapter;
   let aggregate: PaymentIntentAggregate;
 
   beforeEach(() => {
@@ -77,10 +78,11 @@ describe('PaymentIntentAggregate.handleBatch', () => {
       assetCode: 'USD',
       assetScale: 2
     });
+    mockRatesServiceAdapter = new MockRatesServiceAdapter();
     aggregate = new PaymentIntentAggregate(
       repo,
       walletAddressAdapter,
-      new MockRatesServiceAdapter()
+      mockRatesServiceAdapter
     );
   });
 
@@ -190,134 +192,62 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         assert.equal(payload.errorName, 'PaymentIntentNotFoundError');
       });
 
-      it('fails if quote when payment intent is in invalid state', async () => {
+      it('fails if rates could not be fetched', async () => {
         const paymentIntent: IPaymentIntent = {
           id: crypto.randomUUID(),
-          receiverWalletAddressId: crypto.randomUUID(),
-          receiverWalletAddress: crypto.randomUUID(),
-          state: 'COMPLETED',
-          destination: 'LOCAL',
-          assetCode: 'USD',
-          assetScale: 0,
-          expiresAt: new Date(),
-          incomingAmount: null,
           receivedAmount: 0n,
-          quotes: []
-        };
-        repo.storeMany([paymentIntent]);
-
-        const quoteCmd = makeCreateQuoteCmd({
-          paymentIntentId: paymentIntent.id
-        });
-        const { events } = await aggregate.handleBatch([quoteCmd]);
-
-        assert.equal(events.length, 1);
-        assert.equal(events[0].msgName, QuoteCreateFailedEvent.name);
-        const payload = (events[0] as QuoteCreateFailedEvent).payload;
-        assert.equal(payload.errorName, 'PaymentIntentInvalidState');
-        assert.match(payload.message, /COMPLETED/);
-      });
-
-      it('fails if payment intent is expired', async () => {
-        const paymentIntent: IPaymentIntent = {
-          id: crypto.randomUUID(),
-          receiverWalletAddressId: 'wallet-1',
-          receiverWalletAddress: 'domain.com/alice',
-          state: 'CREATED',
-          destination: 'LOCAL',
+          receiverWalletAddress: 'receiver',
+          receiverWalletAddressId: crypto.randomUUID(),
           assetCode: 'USD',
           assetScale: 2,
-          expiresAt: new Date(Date.now() - 10000), // expired
+          state: 'CREATED',
+          destination: 'LOCAL',
+          expiresAt: new Date(Date.now() + 1000),
           incomingAmount: null,
-          receivedAmount: 0n,
           quotes: []
         };
-        repo.storeMany([paymentIntent]);
+        await repo.storeMany([paymentIntent]);
 
-        const quoteCmd = makeCreateQuoteCmd({
+        mockRatesServiceAdapter.getRate = async () => undefined;
+
+        const cmd = makeCreateQuoteCmd({
           paymentIntentId: paymentIntent.id
         });
-        const { events } = await aggregate.handleBatch([quoteCmd]);
+        const { events } = await aggregate.handleBatch([cmd]);
 
         assert.equal(events.length, 1);
         assert.equal(events[0].msgName, QuoteCreateFailedEvent.name);
         const payload = (events[0] as QuoteCreateFailedEvent).payload;
-        assert.equal(payload.errorName, 'PaymentIntentInvalidState');
-        assert.match(payload.message, /expired/);
+        assert.equal(payload.errorName, 'RatesError');
       });
 
-      it('fails if invalid amount for quote', async () => {
-        const paymentIntentId = crypto.randomUUID();
-        const createPaymentIntentCmd = makeCreatePaymentIntentCmd({
-          id: paymentIntentId
-        });
-        await aggregate.handleBatch([createPaymentIntentCmd]);
+      it('creates local quote', async () => {
+        const paymentIntent: IPaymentIntent = {
+          id: crypto.randomUUID(),
+          receivedAmount: 0n,
+          receiverWalletAddress: 'receiver',
+          receiverWalletAddressId: crypto.randomUUID(),
+          assetCode: 'USD',
+          assetScale: 2,
+          state: 'CREATED',
+          destination: 'LOCAL',
+          expiresAt: new Date(Date.now() + 1000),
+          incomingAmount: null,
+          quotes: []
+        };
+        await repo.storeMany([paymentIntent]);
 
-        const quoteCmd = makeCreateQuoteCmd({
-          paymentIntentId: paymentIntentId,
-          debitAmount: undefined,
-          receiveAmount: undefined
+        const cmd = makeCreateQuoteCmd({
+          paymentIntentId: paymentIntent.id
         });
-        const { events } = await aggregate.handleBatch([quoteCmd]);
-
-        assert.equal(events.length, 1);
-        assert.equal(events[0].msgName, QuoteCreateFailedEvent.name);
-        const payload = (events[0] as QuoteCreateFailedEvent).payload;
-        assert.equal(payload.errorName, 'InvalidQuoteAmountError');
-      });
-
-      it('successfully creates quote with debitAmount', async () => {
-        const paymentIntentId = crypto.randomUUID();
-        const createPaymentIntentCmd = makeCreatePaymentIntentCmd({
-          id: paymentIntentId
-        });
-        await aggregate.handleBatch([createPaymentIntentCmd]);
-
-        const quoteCmd = makeCreateQuoteCmd({
-          paymentIntentId: paymentIntentId,
-          debitAmount: 100
-        });
-        const { events } = await aggregate.handleBatch([quoteCmd]);
+        const { events } = await aggregate.handleBatch([cmd]);
 
         assert.equal(events.length, 1);
         assert.equal(events[0].msgName, QuoteCompletedEvent.name);
-      });
-
-      it('successfully creates quote with receiveAmount', async () => {
-        const paymentIntentId = crypto.randomUUID();
-        const createPaymentIntentCmd = makeCreatePaymentIntentCmd({
-          id: paymentIntentId
-        });
-        await aggregate.handleBatch([createPaymentIntentCmd]);
-
-        const quoteCmd = makeCreateQuoteCmd({
-          paymentIntentId: paymentIntentId,
-          debitAmount: undefined,
-          receiveAmount: 200
-        });
-        const { events } = await aggregate.handleBatch([quoteCmd]);
-
-        assert.equal(events.length, 1);
-        assert.equal(events[0].msgName, QuoteCompletedEvent.name);
-      });
-
-      it('successfully creates quote with incomingAmount from payment intent', async () => {
-        const paymentIntentId = crypto.randomUUID();
-        const createPaymentIntentCmd = makeCreatePaymentIntentCmd({
-          id: paymentIntentId,
-          incomingAmount: 1000
-        });
-        await aggregate.handleBatch([createPaymentIntentCmd]);
-
-        const quoteCmd = makeCreateQuoteCmd({
-          paymentIntentId: paymentIntentId,
-          debitAmount: undefined,
-          receiveAmount: undefined
-        });
-        const { events } = await aggregate.handleBatch([quoteCmd]);
-
-        assert.equal(events.length, 1);
-        assert.equal(events[0].msgName, QuoteCompletedEvent.name);
+        assert.equal(
+          (events[0] as QuoteCompletedEvent).payload.id,
+          cmd.payload.id
+        );
       });
     });
   });

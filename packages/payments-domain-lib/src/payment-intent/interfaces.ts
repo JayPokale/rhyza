@@ -23,9 +23,9 @@ export interface IQuote {
   state: QuoteState;
   senderWalletAddress: string;
   senderWalletAddressId: string;
-  expiresAt: Date;
 
   // The amounts might be defined only after getting the ILP quote
+  expiresAt?: Date;
   debitAmount?: bigint;
   receiveAmount?: bigint;
   exchangeRate?: number;
@@ -56,47 +56,11 @@ export interface IWalletAddressAdapter {
   fetchByIds(ids: string[]): Promise<WalletAddress[]>;
 }
 
-export interface SourceConversionRequest {
-  sourceAmount: bigint;
-  sourceAsset: {
-    scale: number;
-    code: string;
-  };
-  destinationAsset: {
-    scale: number;
-    code: string;
-  };
-}
-
-export interface SourceConversionResponse {
-  destinationAmount: bigint;
-  exchangeRate: number;
-}
-
-export interface DestinationConversionRequest {
-  sourceAsset: {
-    scale: number;
-    code: string;
-  };
-  destinationAsset: {
-    scale: number;
-    code: string;
-  };
-  destinationAmount: bigint;
-}
-
-export interface DestinationConversionResponse {
-  sourceAmount: bigint;
-  exchangeRate: number;
-}
-
 export interface IRatesServiceAdapter {
-  convertFromSource(
-    request: SourceConversionRequest
-  ): Promise<SourceConversionResponse | undefined>;
-  convertFromDestination(
-    request: DestinationConversionRequest
-  ): Promise<DestinationConversionResponse | undefined>;
+  getRate(
+    sourceAssetCode: string,
+    destinationAssetCode: string
+  ): Promise<number | undefined>;
 }
 
 export interface IPaymentIntentRepository {
