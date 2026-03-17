@@ -52,11 +52,11 @@ export interface WalletAddress {
   assetScale: number;
 }
 
-export interface IWalletAddressAdapter {
+export interface IWalletAddressService {
   fetchByIds(ids: string[]): Promise<WalletAddress[]>;
 }
 
-export interface IRatesServiceAdapter {
+export interface IRatesService {
   getRate(
     sourceAssetCode: string,
     destinationAssetCode: string

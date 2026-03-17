@@ -2,8 +2,8 @@ import { Message } from 'common-types-lib';
 import {
   IPaymentIntent,
   IPaymentIntentRepository,
-  IRatesServiceAdapter,
-  IWalletAddressAdapter,
+  IRatesService,
+  IWalletAddressService,
   PaymentIntentDestination,
   WalletAddress
 } from './interfaces';
@@ -32,8 +32,8 @@ export class PaymentIntentAggregate {
 
   constructor(
     private _repo: IPaymentIntentRepository,
-    private _walletAddressService: IWalletAddressAdapter,
-    private _ratesService: IRatesServiceAdapter
+    private _walletAddressService: IWalletAddressService,
+    private _ratesService: IRatesService
   ) {}
 
   async handleBatch(cmds: Message[]): Promise<{ events: Message[] }> {

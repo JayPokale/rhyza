@@ -39,7 +39,7 @@ export class PaymentIntent implements IPaymentIntent {
   private _receivedAmount: bigint;
   private _quotes: Quote[] = [];
 
-  constructor(
+  private constructor(
     id: string,
     receiverWalletAddressId: string,
     receiverWalletAddress: string,

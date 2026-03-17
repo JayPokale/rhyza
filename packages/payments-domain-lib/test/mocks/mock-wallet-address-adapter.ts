@@ -1,9 +1,9 @@
 import {
-  IWalletAddressAdapter,
+  IWalletAddressService,
   WalletAddress
 } from '../../src/payment-intent/interfaces';
 
-export class MockWalletAddressAdapter implements IWalletAddressAdapter {
+export class MockWalletAddressAdapter implements IWalletAddressService {
   private _walletAddresses: Map<string, WalletAddress> = new Map();
 
   addWalletAddress(wallet: WalletAddress): void {

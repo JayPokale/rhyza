@@ -10,7 +10,7 @@ import { CreatePaymentIntentCmd } from '../../src/commands';
 import {
   MockPaymentIntentRepo,
   MockWalletAddressAdapter,
-  MockRatesServiceAdapter
+  MockRatesAdapter
 } from '../mocks';
 import { QuoteCreateFailedEvent } from '../../src/payment-intent/events';
 import { CreateQuoteCmd } from '../../src/commands';
@@ -66,7 +66,7 @@ function makeCreateQuoteCmd(
 describe('PaymentIntentAggregate.handleBatch', () => {
   let repo: MockPaymentIntentRepo;
   let walletAddressAdapter: MockWalletAddressAdapter;
-  let mockRatesServiceAdapter: MockRatesServiceAdapter;
+  let mockRatesAdapter: MockRatesAdapter;
   let aggregate: PaymentIntentAggregate;
 
   beforeEach(() => {
@@ -78,11 +78,11 @@ describe('PaymentIntentAggregate.handleBatch', () => {
       assetCode: 'USD',
       assetScale: 2
     });
-    mockRatesServiceAdapter = new MockRatesServiceAdapter();
+    mockRatesAdapter = new MockRatesAdapter();
     aggregate = new PaymentIntentAggregate(
       repo,
       walletAddressAdapter,
-      mockRatesServiceAdapter
+      mockRatesAdapter
     );
   });
 
@@ -208,7 +208,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         };
         await repo.storeMany([paymentIntent]);
 
-        mockRatesServiceAdapter.getRate = async () => undefined;
+        mockRatesAdapter.getRate = async () => undefined;
 
         const cmd = makeCreateQuoteCmd({
           paymentIntentId: paymentIntent.id

@@ -1,3 +1,3 @@
 export * from './mock-payment-intent-repo';
 export * from './mock-wallet-address-adapter';
-export * from './mock-rates-service-adapter';
+export * from './mock-rates-adapter';
