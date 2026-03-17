@@ -337,37 +337,6 @@ describe('PaymentIntent Entity', () => {
       );
     });
 
-    it('successfully creates a quote with debit amount', () => {
-      const paymentIntent = PaymentIntent.create(
-        crypto.randomUUID(),
-        crypto.randomUUID(),
-        'receiver',
-        PaymentIntentDestination.LOCAL,
-        'USD',
-        2,
-        null
-      );
-
-      const quoteId = crypto.randomUUID();
-      paymentIntent.addLocalQuote({
-        id: quoteId,
-        debitAmount: 200n,
-        exchangeRate: 0.5,
-        senderWalletAddress: {
-          id: crypto.randomUUID(),
-          address: 'sender',
-          assetCode: 'USD',
-          assetScale: 2
-        }
-      });
-
-      assert.equal(paymentIntent.quotes.length, 1);
-      const quote = paymentIntent.quotes[0];
-      assert.equal(quote.id, quoteId);
-      assert.equal(quote.receiveAmount, 100n);
-      assert.equal(quote.debitAmount, 200n);
-    });
-
     it('successfully creates a quote with receive amount', () => {
       const paymentIntent = PaymentIntent.create(
         crypto.randomUUID(),
@@ -428,6 +397,162 @@ describe('PaymentIntent Entity', () => {
       assert.equal(quote.id, quoteId);
       assert.equal(quote.receiveAmount, 100n);
       assert.equal(quote.debitAmount, 200n);
+    });
+
+    [
+      {
+        debitAmount: 1n,
+        expectedReceiveAmount: 1n,
+        exchangeRate: 1,
+        description: 'exchange rate = 1'
+      },
+      {
+        debitAmount: 10n,
+        expectedReceiveAmount: 14n,
+        exchangeRate: 1.4,
+        description: 'exchange rate > 1'
+      },
+      {
+        debitAmount: 10n,
+        expectedReceiveAmount: 6n,
+        exchangeRate: 0.67,
+        description: 'exchange rate < 1 (flooring)'
+      }
+    ].forEach((test) => {
+      it(`successfully creates quote with with debitAmount and ${test.description}`, () => {
+        const paymentIntent = PaymentIntent.create(
+          crypto.randomUUID(),
+          crypto.randomUUID(),
+          'receiver',
+          PaymentIntentDestination.LOCAL,
+          'USD',
+          2,
+          null
+        );
+
+        const quoteId = crypto.randomUUID();
+        paymentIntent.addLocalQuote({
+          id: quoteId,
+          exchangeRate: test.exchangeRate,
+          debitAmount: test.debitAmount,
+          senderWalletAddress: {
+            id: crypto.randomUUID(),
+            address: 'sender',
+            assetCode: 'USD',
+            assetScale: 2
+          }
+        });
+
+        assert.equal(paymentIntent.quotes.length, 1);
+        const quote = paymentIntent.quotes[0];
+        assert.equal(quote.id, quoteId);
+        assert.equal(quote.receiveAmount, test.expectedReceiveAmount);
+        assert.equal(quote.debitAmount, test.debitAmount);
+      });
+    });
+
+    [
+      {
+        receiveAmount: 1n,
+        expectedDebitAmount: 1n,
+        exchangeRate: 1,
+        description: 'exchange rate = 1'
+      },
+      {
+        receiveAmount: 10n,
+        expectedDebitAmount: 7n,
+        exchangeRate: 1.45,
+        description: 'exchange rate > 1'
+      },
+      {
+        receiveAmount: 10n,
+        expectedDebitAmount: 15n,
+        exchangeRate: 0.67,
+        description: 'exchange rate < 1 (ceil)'
+      }
+    ].forEach((test) => {
+      it(`successfully creates quote with with receiveAmount and ${test.description}`, () => {
+        const paymentIntent = PaymentIntent.create(
+          crypto.randomUUID(),
+          crypto.randomUUID(),
+          'receiver',
+          PaymentIntentDestination.LOCAL,
+          'USD',
+          2,
+          null
+        );
+
+        const quoteId = crypto.randomUUID();
+        paymentIntent.addLocalQuote({
+          id: quoteId,
+          exchangeRate: test.exchangeRate,
+          receiveAmount: test.receiveAmount,
+          senderWalletAddress: {
+            id: crypto.randomUUID(),
+            address: 'sender',
+            assetCode: 'USD',
+            assetScale: 2
+          }
+        });
+
+        assert.equal(paymentIntent.quotes.length, 1);
+        const quote = paymentIntent.quotes[0];
+        assert.equal(quote.id, quoteId);
+        assert.equal(quote.debitAmount, test.expectedDebitAmount);
+        assert.equal(quote.receiveAmount, test.receiveAmount);
+      });
+    });
+
+    [
+      {
+        receiveAmount: 1n,
+        expectedDebitAmount: 1n,
+        exchangeRate: 1,
+        description: 'exchange rate = 1'
+      },
+      {
+        receiveAmount: 10n,
+        expectedDebitAmount: 7n,
+        exchangeRate: 1.45,
+        description: 'exchange rate > 1'
+      },
+      {
+        receiveAmount: 10n,
+        expectedDebitAmount: 15n,
+        exchangeRate: 0.67,
+        description: 'exchange rate < 1 (ceil)'
+      }
+    ].forEach((test) => {
+      it(`successfully creates quote with with receiveAmount and ${test.description}`, () => {
+        const paymentIntent = PaymentIntent.create(
+          crypto.randomUUID(),
+          crypto.randomUUID(),
+          'receiver',
+          PaymentIntentDestination.LOCAL,
+          'USD',
+          2,
+          null
+        );
+
+        const quoteId = crypto.randomUUID();
+        paymentIntent.addLocalQuote({
+          id: quoteId,
+          exchangeRate: test.exchangeRate,
+          receiveAmount: test.receiveAmount,
+          senderWalletAddress: {
+            id: crypto.randomUUID(),
+            address: 'sender',
+            assetCode: 'USD',
+            assetScale: 2
+          }
+        });
+
+        assert.equal(paymentIntent.quotes.length, 1);
+        const quote = paymentIntent.quotes[0];
+        assert.equal(quote.id, quoteId);
+        assert.equal(quote.debitAmount, test.expectedDebitAmount);
+        assert.equal(quote.receiveAmount, test.receiveAmount);
+      });
     });
   });
 });
