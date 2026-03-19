@@ -2,27 +2,12 @@
 
 import { randomUUID } from 'crypto';
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
-import { PalClient } from 'pal-client-lib';
+import { PalClient, parseAddressToDomainAndPathName } from 'pal-client-lib';
 import { PaymentsClient } from 'payments-client-lib';
 
 interface OutgoingPaymentRouteOptions extends FastifyPluginOptions {
   palClient: PalClient;
   paymentsClient: PaymentsClient;
-}
-
-// TODO replace with util from pal client
-function parseWalletAddress(address: string): {
-  prefix: string | null;
-  suffix: string;
-} {
-  const lastIndex = address.lastIndexOf('/');
-  if (lastIndex >= 0) {
-    return {
-      prefix: address.substring(0, lastIndex),
-      suffix: address.substring(lastIndex + 1)
-    };
-  }
-  return { prefix: null, suffix: address };
 }
 
 export async function outgoingPaymentRoutes(
@@ -65,8 +50,8 @@ export async function outgoingPaymentRoutes(
       });
     }
 
-    const { prefix, suffix } = parseWalletAddress(walletAddress);
-    const alias = await palClient.ResolveWalletAddressAlias(prefix, suffix);
+    const { domain, pathName } = parseAddressToDomainAndPathName(walletAddress);
+    const alias = await palClient.ResolveWalletAddressAlias(domain, pathName);
     if (!alias) {
       return reply
         .status(404)
