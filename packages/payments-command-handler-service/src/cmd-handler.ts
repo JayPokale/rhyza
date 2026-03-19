@@ -7,6 +7,7 @@ import {
 import {
   CreatePaymentIntentCmd,
   CreateQuoteCmd,
+  CreatePaymentCmd,
   PaymentIntentAggregate
 } from 'payments-domain-lib';
 
@@ -48,6 +49,9 @@ export class PaymentsCommandHandler {
           commandMessages.push(msg);
           break;
         case CreateQuoteCmd.name:
+          commandMessages.push(msg);
+          break;
+        case CreatePaymentCmd.name:
           commandMessages.push(msg);
           break;
         default:

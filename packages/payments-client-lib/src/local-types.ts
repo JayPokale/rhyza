@@ -5,3 +5,7 @@ export interface ICreateIncomingPaymentResponse {
 export interface ICreateQuoteResponse {
   id: string;
 }
+
+export interface ICreateOutgoingPaymentResponse {
+  id: string;
+}

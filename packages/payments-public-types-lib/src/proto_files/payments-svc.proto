@@ -9,6 +9,9 @@ service PaymentsGrpc {
 
   // Creates a new quote.
   rpc CreateQuote(CreateQuoteRequest) returns (CreateQuoteResponse);
+
+  // Creates a new outgoing payment.
+  rpc CreateOutgoingPayment(CreateOutgoingPaymentRequest) returns (CreateOutgoingPaymentResponse);
 }
 
 /*
@@ -46,6 +49,25 @@ message CreateQuoteRequest {
 
 // Response containing the ID of the created quote.
 message CreateQuoteResponse {
+  string id = 1;
+}
+
+/*
+ * Outgoing Payment messages
+ */
+
+// Request to create a new outgoing payment.
+message CreateOutgoingPaymentRequest {
+  string id = 1;
+  string wallet_address_id = 2;
+  string wallet_address = 3;
+  string incoming_payment_id = 4;
+  optional string quote_id = 5;
+  optional uint64 debit_amount = 6;
+}
+
+// Response containing the ID of the created outgoing payment.
+message CreateOutgoingPaymentResponse {
   string id = 1;
 }
 

@@ -15,6 +15,8 @@ import {
   CreateIncomingPaymentResponse,
   CreateQuoteRequest,
   CreateQuoteResponse,
+  CreateOutgoingPaymentRequest,
+  CreateOutgoingPaymentResponse,
   HealthCheckRequest,
   HealthCheckResponse,
   HealthService,
@@ -24,6 +26,7 @@ import { Message, MessageConsumer, MessageProducer } from 'common-types-lib';
 import {
   CreatePaymentIntentCmd,
   CreateQuoteCmd,
+  CreatePaymentCmd,
   PaymentIntentCreatedEvent,
   PaymentIntentCreatedPayload,
   PaymentIntentCreateFailedEvent,
@@ -31,7 +34,9 @@ import {
   QuoteCompletedEvent,
   QuoteCompletedPayload,
   QuoteCreateFailedEvent,
-  QuoteCreateFailedPayload
+  QuoteCreateFailedPayload,
+  PaymentCreatedEvent,
+  PaymentCreatedPayload
 } from 'payments-domain-lib';
 
 const PUBLIC_TYPES_LIB_PATH = require.resolve('payments-public-types-lib');
@@ -101,7 +106,8 @@ export class PaymentsServiceServer {
     // payments service RPCs
     this._server.addService(PaymentsGrpcService, {
       createIncomingPayment: this._handleUnary.bind(this),
-      createQuote: this._handleUnary.bind(this)
+      createQuote: this._handleUnary.bind(this),
+      createOutgoingPayment: this._handleUnary.bind(this)
     });
   }
 
@@ -216,6 +222,28 @@ export class PaymentsServiceServer {
         commandId
       );
       await this._msgProducer.send(cmd);
+    } else if (call.request instanceof CreateOutgoingPaymentRequest) {
+      const commandId = call.request.getId();
+      if (!PaymentsServiceServer.UUID_REGEX.test(commandId)) {
+        callback({
+          code: grpc.status.INVALID_ARGUMENT,
+          message: 'id must be a valid UUID'
+        });
+        return;
+      }
+      this._storePendingResponse(commandId, call, callback);
+      const cmd = new CreatePaymentCmd(
+        {
+          id: commandId,
+          senderWalletAddressId: call.request.getWalletAddressId(),
+          senderWalletAddress: call.request.getWalletAddress(),
+          paymentIntentId: call.request.getIncomingPaymentId(),
+          quoteId: call.request.getQuoteId(),
+          debitAmount: call.request.getDebitAmount() || undefined
+        },
+        commandId
+      );
+      await this._msgProducer.send(cmd);
     } else {
       callback(
         new Error(`Invalid request type: ${call.request.constructor.name}`)
@@ -298,6 +326,12 @@ export class PaymentsServiceServer {
           name: errorPayload.errorName || 'CommandError',
           metadata: new grpc.Metadata()
         });
+        break;
+      }
+      case PaymentCreatedEvent.name: {
+        const payload = message.payload as PaymentCreatedPayload;
+        const response = new CreateOutgoingPaymentResponse().setId(payload.id);
+        this._resolvePendingResponse(pending, requestId, null, response);
         break;
       }
       default: {

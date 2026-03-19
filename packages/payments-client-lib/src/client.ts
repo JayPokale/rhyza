@@ -2,14 +2,17 @@ import * as grpc from '@grpc/grpc-js';
 import { ServiceError } from '@grpc/grpc-js';
 import {
   ICreateIncomingPaymentResponse,
-  ICreateQuoteResponse
+  ICreateQuoteResponse,
+  ICreateOutgoingPaymentResponse
 } from './local-types';
 import {
   CreateIncomingPaymentRequest,
   CreateIncomingPaymentResponse,
   PaymentsGrpcClient,
   CreateQuoteRequest,
-  CreateQuoteResponse
+  CreateQuoteResponse,
+  CreateOutgoingPaymentRequest,
+  CreateOutgoingPaymentResponse
 } from 'payments-public-types-lib';
 
 export class PaymentsClient {
@@ -117,6 +120,48 @@ export class PaymentsClient {
       this._grpcClient.createQuote(
         request,
         (error: ServiceError | null, response: CreateQuoteResponse) => {
+          if (error) {
+            console.error(error);
+            return reject(error);
+          }
+
+          return resolve({
+            id: response.getId()
+          });
+        }
+      );
+    });
+  }
+
+  async createOutgoingPayment(
+    id: string,
+    walletAddressId: string,
+    walletAddress: string,
+    incomingPaymentId: string,
+    quoteId?: string,
+    debitAmount?: number
+  ): Promise<ICreateOutgoingPaymentResponse> {
+    const request = new CreateOutgoingPaymentRequest();
+    request.setId(id);
+    request.setWalletAddressId(walletAddressId);
+    request.setWalletAddress(walletAddress);
+    request.setIncomingPaymentId(incomingPaymentId);
+
+    if (quoteId) {
+      request.setQuoteId(quoteId);
+    }
+
+    if (debitAmount) {
+      request.setDebitAmount(debitAmount);
+    }
+
+    return new Promise((resolve, reject) => {
+      this._grpcClient.createOutgoingPayment(
+        request,
+        (
+          error: ServiceError | null,
+          response: CreateOutgoingPaymentResponse
+        ) => {
           if (error) {
             console.error(error);
             return reject(error);

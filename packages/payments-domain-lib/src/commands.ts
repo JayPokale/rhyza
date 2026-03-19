@@ -52,3 +52,28 @@ export class CreateQuoteCmd extends CommandMsg {
     this.payload = payload;
   }
 }
+
+export interface CreatePaymentCmdPayload {
+  id: string;
+  senderWalletAddress: string;
+  senderWalletAddressId: string;
+  paymentIntentId: string;
+  quoteId?: string;
+  debitAmount?: number;
+}
+
+export class CreatePaymentCmd extends CommandMsg {
+  contextName: string = BOUNDED_CONTEXT_NAME;
+  aggregateId: string;
+  aggregateName: string = PAYMENT_INTENT_AGG_NAME;
+  msgKey: string;
+  msgTopic: string = CommandTopics.PaymentCommands;
+  payload: CreatePaymentCmdPayload;
+
+  constructor(payload: CreatePaymentCmdPayload, requestId: string) {
+    super();
+    this.aggregateId = this.msgKey = payload.id;
+    this.requestId = requestId;
+    this.payload = payload;
+  }
+}
