@@ -36,7 +36,9 @@ import {
   QuoteCreateFailedEvent,
   QuoteCreateFailedPayload,
   PaymentCreatedEvent,
-  PaymentCreatedPayload
+  PaymentCreatedPayload,
+  PaymentCreateFailedEvent,
+  PaymentCreateFailedPayload
 } from 'payments-domain-lib';
 
 const PUBLIC_TYPES_LIB_PATH = require.resolve('payments-public-types-lib');
@@ -332,6 +334,17 @@ export class PaymentsServiceServer {
         const payload = message.payload as PaymentCreatedPayload;
         const response = new CreateOutgoingPaymentResponse().setId(payload.id);
         this._resolvePendingResponse(pending, requestId, null, response);
+        break;
+      }
+      case PaymentCreateFailedEvent.name: {
+        const errorPayload = message.payload as PaymentCreateFailedPayload;
+        this._resolvePendingResponse(pending, requestId, {
+          code: grpc.status.INTERNAL,
+          message: errorPayload.message || 'Command processing failed',
+          details: errorPayload.message,
+          name: errorPayload.errorName || 'CommandError',
+          metadata: new grpc.Metadata()
+        });
         break;
       }
       default: {
