@@ -363,6 +363,7 @@ export class PaymentIntent implements IPaymentIntent {
         );
       }
 
+      // TODO: do we want to make this a requirement? ie, does it matter if we "re-use" a quote?
       if (
         this._payments.find(
           (payment) =>
@@ -453,8 +454,7 @@ export class PaymentIntent implements IPaymentIntent {
     }
 
     // TODO: determine if we want to allow paying more than the incomingAmount.
-    // For now, the logic is that we allow overpaying the incomingAmount, but any following payments
-    // will be prevented.
+    // For now, the logic is that we allow overpaying the incomingAmount once.
 
     payment.sentAmount += payment.debitAmount;
     this._receivedAmount += payment.receiveAmount;

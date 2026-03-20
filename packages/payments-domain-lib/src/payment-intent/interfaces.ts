@@ -25,8 +25,6 @@ interface BaseQuote {
 
 interface PendingQuote extends BaseQuote {
   state: 'PENDING';
-  senderWalletAddress: string;
-  senderWalletAddressId: string;
 }
 
 interface CompletedQuote extends BaseQuote {
