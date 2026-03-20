@@ -754,8 +754,9 @@ describe('PaymentIntent Entity', () => {
     it('throws InvalidQuoteStateError if quote is already consumed by a COMPLETED payment', () => {
       const senderWalletAddressId = crypto.randomUUID();
       const quoteId = crypto.randomUUID();
+      const paymentIntentId = crypto.randomUUID();
       const paymentIntent = PaymentIntent.fromObject({
-        id: crypto.randomUUID(),
+        id: paymentIntentId,
         receiverWalletAddressId: crypto.randomUUID(),
         receiverWalletAddress: 'receiver',
         destination: PaymentIntentDestination.LOCAL,
@@ -783,6 +784,7 @@ describe('PaymentIntent Entity', () => {
             state: 'COMPLETED',
             quoteId,
             senderWalletAddress: 'sender',
+            paymentIntentId,
             senderWalletAddressId,
             assetCode: 'USD',
             assetScale: 2,
@@ -1308,6 +1310,7 @@ describe('PaymentIntent Entity', () => {
     });
 
     it('fails if payment is already completed', () => {
+      const paymentIntentId = crypto.randomUUID();
       const paymentIntent = PaymentIntent.fromObject({
         id: crypto.randomUUID(),
         receiverWalletAddressId: crypto.randomUUID(),
@@ -1324,6 +1327,7 @@ describe('PaymentIntent Entity', () => {
           {
             id: 'payment-1',
             state: 'COMPLETED',
+            paymentIntentId: paymentIntentId,
             senderWalletAddress: 'sender',
             senderWalletAddressId: crypto.randomUUID(),
             assetCode: 'USD',

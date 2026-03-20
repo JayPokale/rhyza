@@ -440,6 +440,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
               senderWalletAddress: 'sender',
               senderWalletAddressId: crypto.randomUUID(),
               assetCode: 'USD',
+              paymentIntentId: paymentIntentId,
               assetScale: 2,
               debitAmount: 100n,
               receiveAmount: 100n,
