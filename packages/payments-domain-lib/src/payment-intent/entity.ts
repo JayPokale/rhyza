@@ -1,10 +1,14 @@
 import {
   InvalidPaymentAmountError,
+  InvalidPaymentIdError,
   InvalidPaymentIntentExpiryError,
   InvalidQuoteAmountError,
   InvalidQuoteIdError,
   InvalidQuoteStateError,
+  PaymentIntentExpired,
   PaymentIntentInvalidState,
+  PaymentInvalidStateError,
+  PaymentNotFoundError,
   QuoteExpiredError
 } from './errors';
 import {
@@ -168,9 +172,9 @@ export class PaymentIntent implements IPaymentIntent {
       })),
       obj.payments.map((payment) => ({
         id: payment.id,
-        paymentIntentId: obj.id,
         senderWalletAddress: payment.senderWalletAddress,
         senderWalletAddressId: payment.senderWalletAddressId,
+        quoteId: payment.quoteId,
         assetCode: payment.assetCode,
         assetScale: payment.assetScale,
         sentAmount: payment.sentAmount,
@@ -211,7 +215,6 @@ export class PaymentIntent implements IPaymentIntent {
       })),
       payments: this._payments.map((payment) => ({
         id: payment.id,
-        paymentIntentId: this._id,
         state: payment.state,
         senderWalletAddress: payment.senderWalletAddress,
         senderWalletAddressId: payment.senderWalletAddressId,
@@ -245,17 +248,14 @@ export class PaymentIntent implements IPaymentIntent {
       exchangeRate: unscaledExchangeRate
     } = args;
 
-    const isValidPaymentIntentState =
-      this.state === 'CREATED' || this.state === 'PARTIALLY_PAID';
-
-    if (!isValidPaymentIntentState) {
+    if (this.state !== 'CREATED') {
       throw new PaymentIntentInvalidState(
         `Payment intent is in an invalid state for quoting: ${this.state}`
       );
     }
 
     if (this.isExpired) {
-      throw new PaymentIntentInvalidState(
+      throw new PaymentIntentExpired(
         `Payment intent is expired at: ${this.expiresAt.toISOString()}`
       );
     }
@@ -330,23 +330,20 @@ export class PaymentIntent implements IPaymentIntent {
       exchangeRate: unscaledExchangeRate
     } = args;
 
-    const isValidPaymentIntentState =
-      this.state === 'CREATED' || this.state === 'PARTIALLY_PAID';
-
-    if (!isValidPaymentIntentState) {
+    if (this.state !== 'CREATED') {
       throw new PaymentIntentInvalidState(
         `Payment intent is in an invalid state for payment: ${this.state}`
       );
     }
 
     if (this.isExpired) {
-      throw new PaymentIntentInvalidState(
+      throw new PaymentIntentExpired(
         `Payment intent is expired at: ${this.expiresAt.toISOString()}`
       );
     }
 
     if (this._payments.find((payment) => payment.id === id)) {
-      throw new InvalidQuoteIdError(
+      throw new InvalidPaymentIdError(
         `Duplicate payment id ${id} exists for ${this.id} payment intent`
       );
     }
@@ -363,6 +360,17 @@ export class PaymentIntent implements IPaymentIntent {
       if (!quote) {
         throw new InvalidQuoteIdError(
           `Could not find ${quoteId} quote for ${this.id} payment intent`
+        );
+      }
+
+      if (
+        this._payments.find(
+          (payment) =>
+            payment.quoteId === quoteId && payment.state === 'COMPLETED'
+        )
+      ) {
+        throw new InvalidQuoteStateError(
+          `Already consumed quote ${quoteId} for payment ${id}`
         );
       }
 
@@ -416,6 +424,45 @@ export class PaymentIntent implements IPaymentIntent {
     };
 
     this._payments.push(payment);
+  }
+
+  completeLocalPayment(args: { id: string }): void {
+    const { id } = args;
+
+    if (this.state !== 'CREATED') {
+      throw new PaymentIntentInvalidState(
+        `Payment intent is in an invalid state for payment: ${this.state}`
+      );
+    }
+
+    if (this.isExpired) {
+      throw new PaymentIntentExpired(
+        `Payment intent is expired at: ${this.expiresAt.toISOString()}`
+      );
+    }
+
+    const payment = this._payments.find((payment) => payment.id === id);
+    if (!payment) {
+      throw new PaymentNotFoundError(
+        `Payment ${id} not found for ${this.id} payment intent`
+      );
+    }
+
+    if (payment.state === 'COMPLETED') {
+      throw new PaymentInvalidStateError(`Payment ${id} is already completed`);
+    }
+
+    // TODO: determine if we want to allow paying more than the incomingAmount.
+    // For now, the logic is that we allow overpaying the incomingAmount, but any following payments
+    // will be prevented.
+
+    payment.sentAmount += payment.debitAmount;
+    this._receivedAmount += payment.receiveAmount;
+
+    if (this._incomingAmount && this.receivedAmount >= this._incomingAmount) {
+      this._state = 'COMPLETED';
+    }
+    payment.state = 'COMPLETED';
   }
 
   get id(): string {

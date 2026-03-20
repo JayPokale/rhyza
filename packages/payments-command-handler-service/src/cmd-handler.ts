@@ -8,7 +8,8 @@ import {
   CreatePaymentIntentCmd,
   CreateQuoteCmd,
   CreatePaymentCmd,
-  PaymentIntentAggregate
+  PaymentIntentAggregate,
+  ApprovePaymentCmd
 } from 'payments-domain-lib';
 
 export class PaymentsCommandHandler {
@@ -44,6 +45,9 @@ export class PaymentsCommandHandler {
     const unhandled: Message[] = [];
 
     for (const msg of messages) {
+      console.log(`---------- RECEIVED ${msg.msgName} message ________`, {
+        msg
+      });
       switch (msg.msgName) {
         case CreatePaymentIntentCmd.name:
           commandMessages.push(msg);
@@ -52,6 +56,9 @@ export class PaymentsCommandHandler {
           commandMessages.push(msg);
           break;
         case CreatePaymentCmd.name:
+          commandMessages.push(msg);
+          break;
+        case ApprovePaymentCmd.name:
           commandMessages.push(msg);
           break;
         default:

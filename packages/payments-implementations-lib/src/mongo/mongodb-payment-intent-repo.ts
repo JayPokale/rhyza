@@ -267,4 +267,52 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
       );
     }
   }
+
+  async storeCompletedLocalPayments(
+    paymentUpdates: { paymentIds: string[]; paymentIntent: IPaymentIntent }[]
+  ): Promise<void> {
+    this._checkInitialisedOrThrow();
+
+    if (paymentUpdates.length === 0) return;
+
+    try {
+      const intentWrites = paymentUpdates.map((update) => ({
+        updateOne: {
+          filter: { id: update.paymentIntent.id },
+          update: {
+            $set: {
+              state: update.paymentIntent.state,
+              receivedAmount: update.paymentIntent.receivedAmount
+            }
+          }
+        }
+      }));
+
+      const paymentWrites = paymentUpdates.flatMap((update) =>
+        update.paymentIntent.payments
+          .filter((p) => update.paymentIds.includes(p.id))
+          .map((payment) => ({
+            updateOne: {
+              filter: { id: payment.id },
+              update: {
+                $set: {
+                  state: payment.state,
+                  sentAmount: payment.sentAmount
+                }
+              }
+            }
+          }))
+      );
+
+      await Promise.all([
+        this._paymentIntentCollection.bulkWrite(intentWrites),
+        this._paymentCollection.bulkWrite(paymentWrites)
+      ]);
+    } catch (e) {
+      console.error(e);
+      throw new Error(
+        `Unable to store payments - error: ${(e as Error).message}`
+      );
+    }
+  }
 }

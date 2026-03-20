@@ -4,9 +4,13 @@ export class WalletAddressInactiveError extends Error {}
 export class InvalidPaymentIntentExpiryError extends Error {}
 export class PaymentIntentNotFoundError extends Error {}
 export class PaymentIntentInvalidState extends Error {}
+export class PaymentIntentExpired extends Error {}
 export class RatesError extends Error {}
 export class InvalidQuoteAmountError extends Error {}
 export class InvalidQuoteIdError extends Error {}
 export class InvalidQuoteStateError extends Error {}
 export class QuoteExpiredError extends Error {}
+export class InvalidPaymentIdError extends Error {}
+export class PaymentNotFoundError extends Error {}
+export class PaymentInvalidStateError extends Error {}
 export class InvalidPaymentAmountError extends Error {}

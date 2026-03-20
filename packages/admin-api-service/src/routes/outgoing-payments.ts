@@ -39,7 +39,7 @@ export async function outgoingPaymentRoutes(
         });
       }
 
-      [quoteId, incomingPaymentId] = request.body.quoteId.split('_');
+      [incomingPaymentId, quoteId] = request.body.quoteId.split('_');
     } else if (request.body.incomingPaymentId) {
       incomingPaymentId = request.body.incomingPaymentId;
     } else {
@@ -65,6 +65,31 @@ export async function outgoingPaymentRoutes(
       debitAmount ? Number(debitAmount) : undefined
     );
 
-    return reply.status(201).send({ id: result.id });
+    return reply.status(201).send({ id: `${incomingPaymentId}_${result.id}` });
+  });
+
+  server.post<{
+    Params: {
+      id: string;
+    };
+  }>('/outgoing-payments/:id/approve', async (request, reply) => {
+    if (!request.params.id.includes('_')) {
+      return reply.status(400).send({
+        error: 'Invalid id provided'
+      });
+    }
+
+    const [incomingPaymentId, id] = request.params.id.split('_');
+
+    try {
+      const result = await paymentsClient.approveOutgoingPayment(
+        id,
+        incomingPaymentId
+      );
+      return reply.status(200).send({ id: result.id });
+    } catch (err) {
+      server.log.error(err);
+      return reply.status(500).send({ error: (err as Error).message });
+    }
   });
 }

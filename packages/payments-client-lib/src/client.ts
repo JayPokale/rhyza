@@ -3,7 +3,8 @@ import { ServiceError } from '@grpc/grpc-js';
 import {
   ICreateIncomingPaymentResponse,
   ICreateQuoteResponse,
-  ICreateOutgoingPaymentResponse
+  ICreateOutgoingPaymentResponse,
+  IApproveOutgoingPaymentResponse
 } from './local-types';
 import {
   CreateIncomingPaymentRequest,
@@ -12,7 +13,9 @@ import {
   CreateQuoteRequest,
   CreateQuoteResponse,
   CreateOutgoingPaymentRequest,
-  CreateOutgoingPaymentResponse
+  CreateOutgoingPaymentResponse,
+  ApproveOutgoingPaymentRequest,
+  ApproveOutgoingPaymentResponse
 } from 'payments-public-types-lib';
 
 export class PaymentsClient {
@@ -161,6 +164,34 @@ export class PaymentsClient {
         (
           error: ServiceError | null,
           response: CreateOutgoingPaymentResponse
+        ) => {
+          if (error) {
+            console.error(error);
+            return reject(error);
+          }
+
+          return resolve({
+            id: response.getId()
+          });
+        }
+      );
+    });
+  }
+
+  async approveOutgoingPayment(
+    id: string,
+    incomingPaymentId: string
+  ): Promise<IApproveOutgoingPaymentResponse> {
+    const request = new ApproveOutgoingPaymentRequest();
+    request.setId(id);
+    request.setIncomingPaymentId(incomingPaymentId);
+
+    return new Promise((resolve, reject) => {
+      this._grpcClient.approveOutgoingPayment(
+        request,
+        (
+          error: ServiceError | null,
+          response: ApproveOutgoingPaymentResponse
         ) => {
           if (error) {
             console.error(error);

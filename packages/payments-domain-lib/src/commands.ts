@@ -77,3 +77,24 @@ export class CreatePaymentCmd extends CommandMsg {
     this.payload = payload;
   }
 }
+
+export interface ApprovePaymentCmdPayload {
+  id: string;
+  paymentIntentId: string;
+}
+
+export class ApprovePaymentCmd extends CommandMsg {
+  contextName: string = BOUNDED_CONTEXT_NAME;
+  aggregateId: string;
+  aggregateName: string = PAYMENT_INTENT_AGG_NAME;
+  msgKey: string;
+  msgTopic: string = CommandTopics.PaymentCommands;
+  payload: ApprovePaymentCmdPayload;
+
+  constructor(payload: ApprovePaymentCmdPayload, requestId: string) {
+    super();
+    this.aggregateId = this.msgKey = payload.paymentIntentId;
+    this.requestId = requestId;
+    this.payload = payload;
+  }
+}

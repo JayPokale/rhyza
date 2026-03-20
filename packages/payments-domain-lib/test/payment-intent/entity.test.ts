@@ -8,8 +8,12 @@ import {
   InvalidQuoteAmountError,
   InvalidQuoteIdError,
   InvalidQuoteStateError,
+  PaymentIntentExpired,
   PaymentIntentInvalidState,
-  QuoteExpiredError
+  QuoteExpiredError,
+  PaymentNotFoundError,
+  PaymentInvalidStateError,
+  InvalidPaymentIdError
 } from '../../src/payment-intent/errors';
 import { PaymentIntentDestination } from '../../src/payment-intent/interfaces';
 
@@ -232,7 +236,6 @@ describe('PaymentIntent Entity', () => {
       );
     });
 
-    // TODO to for each of the invalid states
     it('fails if quote when payment intent is in invalid state', async () => {
       const paymentIntent = PaymentIntent.fromObject({
         id: crypto.randomUUID(),
@@ -302,7 +305,7 @@ describe('PaymentIntent Entity', () => {
           });
         },
         (err: Error) => {
-          assert(err instanceof PaymentIntentInvalidState);
+          assert(err instanceof PaymentIntentExpired);
           assert.match(err.message, /expired/);
           return true;
         }
@@ -708,7 +711,7 @@ describe('PaymentIntent Entity', () => {
           paymentIntent.addLocalPayment(paymentArgs);
         },
         (err: Error) => {
-          assert(err instanceof InvalidQuoteIdError);
+          assert(err instanceof InvalidPaymentIdError);
           assert.match(err.message, /Duplicate payment id/);
           return true;
         }
@@ -743,6 +746,72 @@ describe('PaymentIntent Entity', () => {
         (err: Error) => {
           assert(err instanceof InvalidQuoteIdError);
           assert.match(err.message, /Could not find/);
+          return true;
+        }
+      );
+    });
+
+    it('throws InvalidQuoteStateError if quote is already consumed by a COMPLETED payment', () => {
+      const senderWalletAddressId = crypto.randomUUID();
+      const quoteId = crypto.randomUUID();
+      const paymentIntent = PaymentIntent.fromObject({
+        id: crypto.randomUUID(),
+        receiverWalletAddressId: crypto.randomUUID(),
+        receiverWalletAddress: 'receiver',
+        destination: PaymentIntentDestination.LOCAL,
+        assetCode: 'USD',
+        assetScale: 2,
+        incomingAmount: null,
+        receivedAmount: 0n,
+        state: 'CREATED',
+        expiresAt: new Date(Date.now() + 1000 * 60),
+        quotes: [
+          {
+            id: quoteId,
+            state: 'COMPLETED',
+            senderWalletAddress: 'sender',
+            senderWalletAddressId,
+            receiveAmount: 100n,
+            debitAmount: 200n,
+            exchangeRate: 0.5,
+            expiresAt: new Date(Date.now() + 1000 * 60)
+          }
+        ],
+        payments: [
+          {
+            id: crypto.randomUUID(),
+            state: 'COMPLETED',
+            quoteId,
+            senderWalletAddress: 'sender',
+            senderWalletAddressId,
+            assetCode: 'USD',
+            assetScale: 2,
+            debitAmount: 200n,
+            receiveAmount: 100n,
+            sentAmount: 0n
+          }
+        ]
+      });
+
+      const newPaymentId = crypto.randomUUID();
+
+      assert.throws(
+        () => {
+          paymentIntent.addLocalPayment({
+            id: newPaymentId,
+            quoteId,
+            exchangeRate: 1,
+            senderWalletAddress: {
+              id: senderWalletAddressId,
+              address: 'sender',
+              assetCode: 'USD',
+              assetScale: 2
+            }
+          });
+        },
+        (err: Error) => {
+          assert(err instanceof InvalidQuoteStateError, 'help');
+          assert.match(err.message, /Already consumed quote/, '2');
           return true;
         }
       );
@@ -913,7 +982,7 @@ describe('PaymentIntent Entity', () => {
           });
         },
         (err: Error) => {
-          assert(err instanceof PaymentIntentInvalidState);
+          assert(err instanceof PaymentIntentExpired);
           assert.match(err.message, /expired/);
           return true;
         }
@@ -1052,6 +1121,230 @@ describe('PaymentIntent Entity', () => {
         assert.equal(payment.receiveAmount, test.expectedReceiveAmount);
         assert.equal(payment.debitAmount, test.debitAmount);
       });
+    });
+  });
+
+  describe('completeLocalPayment', () => {
+    it('completes a payment successfully', () => {
+      const paymentIntent = PaymentIntent.create(
+        crypto.randomUUID(),
+        crypto.randomUUID(),
+        'receiver',
+        PaymentIntentDestination.LOCAL,
+        'USD',
+        2,
+        null
+      );
+
+      const paymentId = crypto.randomUUID();
+      paymentIntent.addLocalPayment({
+        id: paymentId,
+        exchangeRate: 1,
+        debitAmount: 100n,
+        senderWalletAddress: {
+          id: crypto.randomUUID(),
+          address: 'sender',
+          assetCode: 'USD',
+          assetScale: 2
+        }
+      });
+
+      paymentIntent.completeLocalPayment({ id: paymentId });
+
+      const payment = paymentIntent.payments[0];
+      assert.equal(payment.state, 'COMPLETED');
+      assert.equal(payment.sentAmount, 100n);
+      assert.equal(paymentIntent.receivedAmount, 100n);
+      assert.equal(paymentIntent.state, 'CREATED');
+    });
+
+    it('completes a payment successfully and marks payment intent as completed', () => {
+      const paymentIntent = PaymentIntent.create(
+        crypto.randomUUID(),
+        crypto.randomUUID(),
+        'receiver',
+        PaymentIntentDestination.LOCAL,
+        'USD',
+        2,
+        null,
+        100n
+      );
+
+      const paymentId = crypto.randomUUID();
+      paymentIntent.addLocalPayment({
+        id: paymentId,
+        exchangeRate: 1,
+        debitAmount: 100n,
+        senderWalletAddress: {
+          id: crypto.randomUUID(),
+          address: 'sender',
+          assetCode: 'USD',
+          assetScale: 2
+        }
+      });
+
+      paymentIntent.completeLocalPayment({ id: paymentId });
+
+      const payment = paymentIntent.payments[0];
+      assert.equal(payment.state, 'COMPLETED');
+      assert.equal(payment.sentAmount, 100n);
+      assert.equal(paymentIntent.receivedAmount, 100n);
+      assert.equal(paymentIntent.state, 'COMPLETED');
+    });
+
+    it('completes a payment successfully overpaying more than incomingAmount', () => {
+      const paymentIntent = PaymentIntent.create(
+        crypto.randomUUID(),
+        crypto.randomUUID(),
+        'receiver',
+        PaymentIntentDestination.LOCAL,
+        'USD',
+        2,
+        null,
+        100n
+      );
+
+      const paymentId = crypto.randomUUID();
+      paymentIntent.addLocalPayment({
+        id: paymentId,
+        exchangeRate: 1,
+        debitAmount: 110n,
+        senderWalletAddress: {
+          id: crypto.randomUUID(),
+          address: 'sender',
+          assetCode: 'USD',
+          assetScale: 2
+        }
+      });
+
+      paymentIntent.completeLocalPayment({ id: paymentId });
+
+      const payment = paymentIntent.payments[0];
+      assert.equal(payment.state, 'COMPLETED');
+      assert.equal(payment.sentAmount, 110n);
+      assert.equal(paymentIntent.incomingAmount, 100n);
+      assert.equal(paymentIntent.receivedAmount, 110n);
+      assert(paymentIntent.receivedAmount >= paymentIntent.incomingAmount);
+      assert.equal(paymentIntent.state, 'COMPLETED');
+    });
+
+    it('fails if payment intent is in invalid state', () => {
+      const paymentIntent = PaymentIntent.fromObject({
+        id: crypto.randomUUID(),
+        receiverWalletAddressId: crypto.randomUUID(),
+        receiverWalletAddress: 'receiver',
+        destination: PaymentIntentDestination.LOCAL,
+        assetCode: 'USD',
+        assetScale: 2,
+        incomingAmount: null,
+        receivedAmount: 0n,
+        state: 'COMPLETED',
+        expiresAt: new Date(Date.now() + 1000 * 60),
+        quotes: [],
+        payments: []
+      });
+
+      assert.throws(
+        () => {
+          paymentIntent.completeLocalPayment({ id: crypto.randomUUID() });
+        },
+        (err: Error) => {
+          assert(err instanceof PaymentIntentInvalidState);
+          assert.match(err.message, /invalid state/);
+          return true;
+        }
+      );
+    });
+
+    it('fails if payment intent is expired', () => {
+      const paymentIntent = PaymentIntent.fromObject({
+        id: crypto.randomUUID(),
+        receiverWalletAddressId: crypto.randomUUID(),
+        receiverWalletAddress: 'receiver',
+        destination: PaymentIntentDestination.LOCAL,
+        assetCode: 'USD',
+        assetScale: 2,
+        incomingAmount: null,
+        receivedAmount: 0n,
+        state: 'CREATED',
+        expiresAt: new Date(Date.now() - 1000),
+        quotes: [],
+        payments: []
+      });
+
+      assert.throws(
+        () => {
+          paymentIntent.completeLocalPayment({ id: crypto.randomUUID() });
+        },
+        (err: Error) => {
+          assert(err instanceof PaymentIntentExpired);
+          assert.match(err.message, /expired/);
+          return true;
+        }
+      );
+    });
+
+    it('fails if payment not found', () => {
+      const paymentIntent = PaymentIntent.create(
+        crypto.randomUUID(),
+        crypto.randomUUID(),
+        'receiver',
+        PaymentIntentDestination.LOCAL,
+        'USD',
+        2,
+        null
+      );
+
+      assert.throws(
+        () => {
+          paymentIntent.completeLocalPayment({ id: crypto.randomUUID() });
+        },
+        (err: Error) => {
+          assert(err instanceof PaymentNotFoundError);
+          assert.match(err.message, /not found/);
+          return true;
+        }
+      );
+    });
+
+    it('fails if payment is already completed', () => {
+      const paymentIntent = PaymentIntent.fromObject({
+        id: crypto.randomUUID(),
+        receiverWalletAddressId: crypto.randomUUID(),
+        receiverWalletAddress: 'receiver',
+        destination: PaymentIntentDestination.LOCAL,
+        assetCode: 'USD',
+        assetScale: 2,
+        incomingAmount: null,
+        receivedAmount: 0n,
+        state: 'CREATED',
+        expiresAt: new Date(Date.now() + 1000 * 60),
+        quotes: [],
+        payments: [
+          {
+            id: 'payment-1',
+            state: 'COMPLETED',
+            senderWalletAddress: 'sender',
+            senderWalletAddressId: crypto.randomUUID(),
+            assetCode: 'USD',
+            assetScale: 2,
+            debitAmount: 100n,
+            receiveAmount: 100n,
+            sentAmount: 100n
+          }
+        ]
+      });
+
+      assert.throws(
+        () => {
+          paymentIntent.completeLocalPayment({ id: 'payment-1' });
+        },
+        (err: Error) => {
+          assert(err instanceof PaymentInvalidStateError);
+          assert.match(err.message, /already completed/);
+          return true;
+        }
+      );
     });
   });
 });

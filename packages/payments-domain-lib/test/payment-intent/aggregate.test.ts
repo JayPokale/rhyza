@@ -18,6 +18,27 @@ import { QuoteCreateFailedEvent } from '../../src/payment-intent/events';
 import { CreateQuoteCmd } from '../../src/commands';
 import { QuoteCompletedEvent } from '../../src/payment-intent/events';
 import { IPaymentIntent } from '../../src/payment-intent/interfaces';
+import { ApprovePaymentCmd } from '../../src/commands';
+import {
+  LocalPaymentCompletedEvent,
+  LocalPaymentCompleteFailedEvent
+} from '../../src/payment-intent/events';
+
+function makeApprovePaymentCmd(
+  overrides: Partial<{
+    id: string;
+    paymentIntentId: string;
+  }> = {}
+): ApprovePaymentCmd {
+  return new ApprovePaymentCmd(
+    {
+      id: overrides.id ?? crypto.randomUUID(),
+      paymentIntentId: overrides.paymentIntentId ?? crypto.randomUUID(),
+      ...overrides
+    },
+    crypto.randomUUID()
+  );
+}
 
 function makeCreatePaymentIntentCmd(
   overrides: Partial<{
@@ -380,6 +401,65 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         assert.equal(
           (events[0] as PaymentCreatedEvent).payload.id,
           cmd.payload.id
+        );
+      });
+    });
+
+    describe('handlePaymentApproveCommand', () => {
+      it('fails when payment intent not found', async () => {
+        const cmd = makeApprovePaymentCmd({
+          paymentIntentId: 'nonexistent'
+        });
+        const { events } = await aggregate.handleBatch([cmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, LocalPaymentCompleteFailedEvent.name);
+        const payload = (events[0] as LocalPaymentCompleteFailedEvent).payload;
+        assert.equal(payload.errorName, 'PaymentIntentNotFoundError');
+      });
+
+      it('completes local payment', async () => {
+        const paymentIntentId = crypto.randomUUID();
+        const paymentId = crypto.randomUUID();
+        const paymentIntent: IPaymentIntent = {
+          id: paymentIntentId,
+          receivedAmount: 0n,
+          receiverWalletAddress: 'receiver',
+          receiverWalletAddressId: crypto.randomUUID(),
+          assetCode: 'USD',
+          assetScale: 2,
+          state: 'CREATED',
+          destination: 'LOCAL',
+          expiresAt: new Date(Date.now() + 1000),
+          incomingAmount: 100n,
+          quotes: [],
+          payments: [
+            {
+              id: paymentId,
+              state: 'CREATED',
+              senderWalletAddress: 'sender',
+              senderWalletAddressId: crypto.randomUUID(),
+              assetCode: 'USD',
+              assetScale: 2,
+              debitAmount: 100n,
+              receiveAmount: 100n,
+              sentAmount: 0n
+            }
+          ]
+        };
+        await repo.storeMany([paymentIntent]);
+
+        const cmd = makeApprovePaymentCmd({
+          id: paymentId,
+          paymentIntentId: paymentIntentId
+        });
+        const { events } = await aggregate.handleBatch([cmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, LocalPaymentCompletedEvent.name);
+        assert.equal(
+          (events[0] as LocalPaymentCompletedEvent).payload.id,
+          paymentId
         );
       });
     });

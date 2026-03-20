@@ -17,6 +17,8 @@ import {
   CreateQuoteResponse,
   CreateOutgoingPaymentRequest,
   CreateOutgoingPaymentResponse,
+  ApproveOutgoingPaymentRequest,
+  ApproveOutgoingPaymentResponse,
   HealthCheckRequest,
   HealthCheckResponse,
   HealthService,
@@ -38,7 +40,12 @@ import {
   PaymentCreatedEvent,
   PaymentCreatedPayload,
   PaymentCreateFailedEvent,
-  PaymentCreateFailedPayload
+  PaymentCreateFailedPayload,
+  ApprovePaymentCmd,
+  LocalPaymentCompletedEvent,
+  LocalPaymentCompletedPayload,
+  LocalPaymentCompleteFailedEvent,
+  LocalPaymentCompleteFailedPayload
 } from 'payments-domain-lib';
 
 const PUBLIC_TYPES_LIB_PATH = require.resolve('payments-public-types-lib');
@@ -109,7 +116,8 @@ export class PaymentsServiceServer {
     this._server.addService(PaymentsGrpcService, {
       createIncomingPayment: this._handleUnary.bind(this),
       createQuote: this._handleUnary.bind(this),
-      createOutgoingPayment: this._handleUnary.bind(this)
+      createOutgoingPayment: this._handleUnary.bind(this),
+      approveOutgoingPayment: this._handleUnary.bind(this)
     });
   }
 
@@ -246,6 +254,21 @@ export class PaymentsServiceServer {
         commandId
       );
       await this._msgProducer.send(cmd);
+    } else if (call.request instanceof ApproveOutgoingPaymentRequest) {
+      const commandId = call.request.getId();
+      if (!PaymentsServiceServer.UUID_REGEX.test(commandId)) {
+        callback({
+          code: grpc.status.INVALID_ARGUMENT,
+          message: 'id must be a valid UUID'
+        });
+        return;
+      }
+      this._storePendingResponse(commandId, call, callback);
+      const cmd = new ApprovePaymentCmd(
+        { id: commandId, paymentIntentId: call.request.getIncomingPaymentId() },
+        commandId
+      );
+      await this._msgProducer.send(cmd);
     } else {
       callback(
         new Error(`Invalid request type: ${call.request.constructor.name}`)
@@ -338,6 +361,24 @@ export class PaymentsServiceServer {
       }
       case PaymentCreateFailedEvent.name: {
         const errorPayload = message.payload as PaymentCreateFailedPayload;
+        this._resolvePendingResponse(pending, requestId, {
+          code: grpc.status.INTERNAL,
+          message: errorPayload.message || 'Command processing failed',
+          details: errorPayload.message,
+          name: errorPayload.errorName || 'CommandError',
+          metadata: new grpc.Metadata()
+        });
+        break;
+      }
+      case LocalPaymentCompletedEvent.name: {
+        const payload = message.payload as LocalPaymentCompletedPayload;
+        const response = new ApproveOutgoingPaymentResponse().setId(payload.id);
+        this._resolvePendingResponse(pending, requestId, null, response);
+        break;
+      }
+      case LocalPaymentCompleteFailedEvent.name: {
+        const errorPayload =
+          message.payload as LocalPaymentCompleteFailedPayload;
         this._resolvePendingResponse(pending, requestId, {
           code: grpc.status.INTERNAL,
           message: errorPayload.message || 'Command processing failed',

@@ -1,7 +1,5 @@
 export const PaymentIntentState = {
   CREATED: 'CREATED',
-  PARTIALLY_PAID: 'PARTIALLY_PAID',
-  EXPIRED: 'EXPIRED',
   COMPLETED: 'COMPLETED'
 } as const;
 export type PaymentIntentState = keyof typeof PaymentIntentState;
@@ -101,6 +99,9 @@ export interface IPaymentIntentRepository {
     quoteUpdate: { quoteIds: string[]; paymentIntent: IPaymentIntent }[]
   ): Promise<void>;
   storePayments(
+    paymentUpdate: { paymentIds: string[]; paymentIntent: IPaymentIntent }[]
+  ): Promise<void>;
+  storeCompletedLocalPayments(
     paymentUpdate: { paymentIds: string[]; paymentIntent: IPaymentIntent }[]
   ): Promise<void>;
 }

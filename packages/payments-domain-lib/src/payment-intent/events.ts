@@ -128,3 +128,45 @@ export class PaymentCreateFailedEvent extends DomainEventMsg {
     this.requestId = requestId;
   }
 }
+
+export interface LocalPaymentCompletedPayload {
+  id: string;
+}
+
+export class LocalPaymentCompletedEvent extends DomainEventMsg {
+  contextName: string = BOUNDED_CONTEXT_NAME;
+  aggregateId: string;
+  aggregateName: string = AGGREGATE_NAME;
+  msgKey: string;
+  msgTopic: string = EventTopics.PaymentEvents;
+  payload: LocalPaymentCompletedPayload;
+
+  constructor(payload: LocalPaymentCompletedPayload, requestId?: string) {
+    super();
+    this.aggregateId = this.msgKey = payload.id;
+    this.payload = payload;
+    this.requestId = requestId;
+  }
+}
+
+export interface LocalPaymentCompleteFailedPayload {
+  errorName: string;
+  message: string;
+}
+
+export class LocalPaymentCompleteFailedEvent extends DomainEventMsg {
+  contextName: string = BOUNDED_CONTEXT_NAME;
+  aggregateId: string;
+  aggregateName: string = AGGREGATE_NAME;
+  msgKey: string;
+  msgTopic: string = EventTopics.PaymentEvents;
+  isErrorEvent: boolean = true;
+  payload: LocalPaymentCompleteFailedPayload;
+
+  constructor(payload: LocalPaymentCompleteFailedPayload, requestId?: string) {
+    super();
+    this.aggregateId = this.msgKey = requestId ?? '';
+    this.payload = payload;
+    this.requestId = requestId;
+  }
+}
