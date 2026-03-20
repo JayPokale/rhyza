@@ -1,21 +1,29 @@
 import { Collection, CollectionInfo, Db, MongoClient } from 'mongodb';
-import { IPaymentIntent, IPaymentIntentRepository } from 'payments-domain-lib';
+import {
+  IPayment,
+  IPaymentIntent,
+  IPaymentIntentRepository
+} from 'payments-domain-lib';
 
 const DB_NAME = 'payments';
-const COLLECTION_NAME = 'paymentIntents';
+const PAYMENT_INTENTS_COLLECTION_NAME = 'paymentIntents';
+const PAYMENTS_COLLECTION_NAME = 'payments';
 const TIMEOUT_MS = 5_000;
 
 export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
   private readonly _connectionString: string;
   private _client!: MongoClient;
-  private _collection!: Collection<IPaymentIntent>;
+  private _paymentIntentCollection!: Collection<
+    Omit<IPaymentIntent, 'payments'>
+  >;
+  private _paymentCollection!: Collection<IPayment>;
 
   constructor(connectionString: string) {
     this._connectionString = connectionString;
   }
 
   private _checkInitialisedOrThrow(): boolean {
-    if (!this._client || !this._collection) {
+    if (!this._client || !this._paymentIntentCollection) {
       throw new Error('MongoClient not initialised');
     }
     return true;
@@ -30,22 +38,44 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
       await this._client.connect();
       const db: Db = this._client.db(DB_NAME);
 
-      // Check if the collection already exists.
+      // Check if the collections already exist.
       const collections: (
         | Pick<CollectionInfo, 'name' | 'type'>
         | CollectionInfo
       )[] = await db.listCollections().toArray();
-      const collectionExists = collections.some(
-        (collection) => collection.name === COLLECTION_NAME
+
+      const paymentIntentsCollectionExists = collections.some(
+        (collection) => collection.name === PAYMENT_INTENTS_COLLECTION_NAME
       );
 
       // load or create the collection (and add its indexes) - should check version and perform migrations
-      if (collectionExists) {
-        this._collection = db.collection<IPaymentIntent>(COLLECTION_NAME);
+      if (paymentIntentsCollectionExists) {
+        this._paymentIntentCollection = db.collection<
+          Omit<IPaymentIntent, 'payments'>
+        >(PAYMENT_INTENTS_COLLECTION_NAME);
       } else {
-        this._collection =
-          await db.createCollection<IPaymentIntent>(COLLECTION_NAME);
-        await this._collection.createIndex({ id: 1 }, { unique: true });
+        this._paymentIntentCollection = await db.createCollection<
+          Omit<IPaymentIntent, 'payments'>
+        >(PAYMENT_INTENTS_COLLECTION_NAME);
+        await this._paymentIntentCollection.createIndex(
+          { id: 1 },
+          { unique: true }
+        );
+      }
+
+      const paymentsCollectionExists = collections.some(
+        (collection) => collection.name === PAYMENTS_COLLECTION_NAME
+      );
+      // load or create the collection (and add its indexes) - should check version and perform migrations
+      if (paymentsCollectionExists) {
+        this._paymentCollection = db.collection<IPayment>(
+          PAYMENTS_COLLECTION_NAME
+        );
+      } else {
+        this._paymentCollection = await db.createCollection<IPayment>(
+          PAYMENTS_COLLECTION_NAME
+        );
+        await this._paymentCollection.createIndex({ id: 1 }, { unique: true });
       }
     } catch (e: unknown) {
       if (e instanceof Error) {
@@ -73,7 +103,36 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
     if (payments.length === 0) return;
 
     try {
-      await this._collection.insertMany(payments);
+      await this._paymentIntentCollection.insertMany(
+        payments.map((p) => ({
+          id: p.id,
+          receiverWalletAddressId: p.receiverWalletAddressId,
+          receiverWalletAddress: p.receiverWalletAddress,
+          state: p.state,
+          destination: p.destination,
+          assetCode: p.assetCode,
+          assetScale: p.assetScale,
+          expiresAt: p.expiresAt,
+          incomingAmount: p.incomingAmount,
+          receivedAmount: p.receivedAmount,
+          quotes: p.quotes.map((quote) => ({
+            id: quote.id,
+            senderWalletAddress: quote.senderWalletAddress,
+            senderWalletAddressId: quote.senderWalletAddressId,
+            ...(quote.state === 'COMPLETED'
+              ? {
+                  debitAmount: quote.debitAmount,
+                  receiveAmount: quote.receiveAmount,
+                  expiresAt: quote.expiresAt,
+                  exchangeRate: quote.exchangeRate,
+                  state: quote.state
+                }
+              : {
+                  state: quote.state
+                })
+          }))
+        }))
+      );
     } catch (e) {
       console.error(e);
       throw new Error(
@@ -88,9 +147,14 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
     if (ids.length === 0) return [];
 
     try {
-      const docs = await this._collection.find({ id: { $in: ids } }).toArray();
+      const [paymentIntentDocs, paymentDocs] = await Promise.all([
+        this._paymentIntentCollection.find({ id: { $in: ids } }).toArray(),
+        this._paymentCollection
+          .find({ paymentIntentId: { $in: ids } })
+          .toArray()
+      ]);
 
-      return docs.map((doc) => ({
+      return paymentIntentDocs.map((doc) => ({
         id: doc.id,
         receiverWalletAddressId: doc.receiverWalletAddressId,
         receiverWalletAddress: doc.receiverWalletAddress,
@@ -103,14 +167,34 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
         receivedAmount: doc.receivedAmount,
         quotes: doc.quotes.map((quote) => ({
           id: quote.id,
-          state: quote.state,
           senderWalletAddress: quote.senderWalletAddress,
           senderWalletAddressId: quote.senderWalletAddressId,
-          debitAmount: quote.debitAmount,
-          receiveAmount: quote.receiveAmount,
-          expiresAt: quote.expiresAt,
-          exchangeRate: quote.exchangeRate
-        }))
+          ...(quote.state === 'COMPLETED'
+            ? {
+                debitAmount: quote.debitAmount,
+                receiveAmount: quote.receiveAmount,
+                expiresAt: quote.expiresAt,
+                exchangeRate: quote.exchangeRate,
+                state: quote.state
+              }
+            : {
+                state: quote.state
+              })
+        })),
+        payments: paymentDocs
+          .filter((p) => p.paymentIntentId === doc.id)
+          .map((payment) => ({
+            id: payment.id,
+            state: payment.state,
+            senderWalletAddress: payment.senderWalletAddress,
+            senderWalletAddressId: payment.senderWalletAddressId,
+            quoteId: payment.quoteId,
+            assetCode: payment.assetCode,
+            assetScale: payment.assetScale,
+            debitAmount: payment.debitAmount,
+            receiveAmount: payment.receiveAmount,
+            sentAmount: payment.sentAmount
+          }))
       }));
     } catch (err) {
       console.error(err);
@@ -128,7 +212,7 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
     if (quoteUpdates.length === 0) return;
 
     try {
-      await this._collection.bulkWrite(
+      await this._paymentIntentCollection.bulkWrite(
         quoteUpdates.map((update) => ({
           updateOne: {
             filter: { id: update.paymentIntent.id },
@@ -148,6 +232,38 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
       console.error(e);
       throw new Error(
         `Unable to store quotes for payment intents - error: ${(e as Error).message}`
+      );
+    }
+  }
+
+  async storePayments(
+    paymentUpdates: { paymentIds: string[]; paymentIntent: IPaymentIntent }[]
+  ): Promise<void> {
+    this._checkInitialisedOrThrow();
+
+    if (paymentUpdates.length === 0) return;
+
+    const newPaymentEntities: IPayment[] = [];
+
+    for (const update of paymentUpdates) {
+      const payments = update.paymentIntent.payments.filter((p) =>
+        update.paymentIds.includes(p.id)
+      );
+
+      for (const payment of payments) {
+        newPaymentEntities.push({
+          ...payment,
+          paymentIntentId: update.paymentIntent.id
+        });
+      }
+    }
+
+    try {
+      await this._paymentCollection.insertMany(newPaymentEntities);
+    } catch (e) {
+      console.error(e);
+      throw new Error(
+        `Unable to store payments - error: ${(e as Error).message}`
       );
     }
   }
