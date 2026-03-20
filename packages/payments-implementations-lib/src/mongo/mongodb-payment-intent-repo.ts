@@ -50,13 +50,13 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
 
       // load or create the collection (and add its indexes) - should check version and perform migrations
       if (paymentIntentsCollectionExists) {
-        this._paymentIntentCollection = db.collection<
-          Omit<IPaymentIntent, 'payments'>
-        >(PAYMENT_INTENTS_COLLECTION_NAME);
+        this._paymentIntentCollection = db.collection(
+          PAYMENT_INTENTS_COLLECTION_NAME
+        );
       } else {
-        this._paymentIntentCollection = await db.createCollection<
-          Omit<IPaymentIntent, 'payments'>
-        >(PAYMENT_INTENTS_COLLECTION_NAME);
+        this._paymentIntentCollection = await db.createCollection(
+          PAYMENT_INTENTS_COLLECTION_NAME
+        );
         await this._paymentIntentCollection.createIndex(
           { id: 1 },
           { unique: true }
@@ -141,7 +141,7 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
     }
   }
 
-  async fetchByIds(ids: string[]): Promise<IPaymentIntent[]> {
+  async fetchByIdsWithPayments(ids: string[]): Promise<IPaymentIntent[]> {
     this._checkInitialisedOrThrow();
 
     if (ids.length === 0) return [];
@@ -186,6 +186,7 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
           .map((payment) => ({
             id: payment.id,
             state: payment.state,
+            paymentIntentId: payment.paymentIntentId,
             senderWalletAddress: payment.senderWalletAddress,
             senderWalletAddressId: payment.senderWalletAddressId,
             quoteId: payment.quoteId,
@@ -252,8 +253,17 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
 
       for (const payment of payments) {
         newPaymentEntities.push({
-          ...payment,
-          paymentIntentId: update.paymentIntent.id
+          id: payment.id,
+          state: payment.state,
+          senderWalletAddress: payment.senderWalletAddress,
+          senderWalletAddressId: payment.senderWalletAddressId,
+          paymentIntentId: payment.paymentIntentId,
+          assetCode: payment.assetCode,
+          assetScale: payment.assetScale,
+          debitAmount: payment.debitAmount,
+          quoteId: payment.quoteId ? payment.quoteId : undefined,
+          receiveAmount: payment.receiveAmount,
+          sentAmount: payment.sentAmount
         });
       }
     }

@@ -74,7 +74,7 @@ export class PaymentIntentAggregate {
 
     const [walletAddresses, existingPaymentIntents] = await Promise.all([
       this._walletAddressService.fetchByIds([...walletAddressIdSet]),
-      this._repo.fetchByIds([...paymentIntentIdsSet])
+      this._repo.fetchByIdsWithPayments([...paymentIntentIdsSet])
     ]);
 
     for (const walletAddress of walletAddresses) {

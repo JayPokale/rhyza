@@ -47,6 +47,7 @@ interface Payment {
   id: string;
   state: PaymentState;
   quoteId?: string;
+  paymentIntentId: string;
   senderWalletAddress: string;
   senderWalletAddressId: string;
   assetScale: number;
@@ -416,6 +417,7 @@ export class PaymentIntent implements IPaymentIntent {
       state: 'CREATED',
       senderWalletAddress: senderWalletAddress.address,
       senderWalletAddressId: senderWalletAddress.id,
+      paymentIntentId: this.id,
       assetCode: senderWalletAddress.assetCode,
       assetScale: senderWalletAddress.assetScale,
       debitAmount: paymentDebitAmount,
