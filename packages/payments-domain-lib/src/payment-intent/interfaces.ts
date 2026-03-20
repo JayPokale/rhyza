@@ -96,7 +96,7 @@ export interface IRatesService {
 
 export interface IPaymentIntentRepository {
   storeMany(paymentIntents: IPaymentIntent[]): Promise<void>;
-  fetchByIds(ids: string[]): Promise<IPaymentIntent[]>;
+  fetchByIdsWithPayments(ids: string[]): Promise<IPaymentIntent[]>;
   storeQuotes(
     quoteUpdate: { quoteIds: string[]; paymentIntent: IPaymentIntent }[]
   ): Promise<void>;

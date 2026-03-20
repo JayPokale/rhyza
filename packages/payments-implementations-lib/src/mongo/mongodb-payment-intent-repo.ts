@@ -141,7 +141,7 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
     }
   }
 
-  async fetchByIds(ids: string[]): Promise<IPaymentIntent[]> {
+  async fetchByIdsWithPayments(ids: string[]): Promise<IPaymentIntent[]> {
     this._checkInitialisedOrThrow();
 
     if (ids.length === 0) return [];
@@ -253,8 +253,17 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
 
       for (const payment of payments) {
         newPaymentEntities.push({
-          ...payment,
-          paymentIntentId: update.paymentIntent.id
+          id: payment.id,
+          state: payment.state,
+          senderWalletAddress: payment.senderWalletAddress,
+          senderWalletAddressId: payment.senderWalletAddressId,
+          paymentIntentId: payment.paymentIntentId,
+          assetCode: payment.assetCode,
+          assetScale: payment.assetScale,
+          debitAmount: payment.debitAmount,
+          quoteId: payment.quoteId ? payment.quoteId : undefined,
+          receiveAmount: payment.receiveAmount,
+          sentAmount: payment.sentAmount
         });
       }
     }
