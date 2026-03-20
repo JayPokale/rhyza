@@ -33,7 +33,7 @@ import {
 export class PaymentIntentAggregate {
   private newPaymentIntentIds: string[] = [];
   private newPaymentIntentQuotes = new Map<string, string[]>(); // paymentIntentId, quoteIds
-  private newPayments = new Map<string, string[]>(); // paymentIntentId, paymentIds
+  private newPaymentsMap = new Map<string, string[]>(); // paymentIntentId, paymentIds
   private paymentIntentMap = new Map<string, IPaymentIntent>();
   private walletAddressMap = new Map<string, WalletAddress>();
 
@@ -315,11 +315,11 @@ export class PaymentIntentAggregate {
 
       this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
 
-      if (!this.newPayments.has(paymentIntent.id)) {
-        this.newPayments.set(paymentIntent.id, []);
+      if (!this.newPaymentsMap.has(paymentIntent.id)) {
+        this.newPaymentsMap.set(paymentIntent.id, []);
       }
 
-      this.newPayments.get(paymentIntent.id)?.push(id);
+      this.newPaymentsMap.get(paymentIntent.id)?.push(id);
 
       return new PaymentCreatedEvent({ id }, cmd.requestId);
     } catch (err) {
@@ -344,7 +344,7 @@ export class PaymentIntentAggregate {
         const paymentIntent = this.paymentIntentMap.get(id);
         if (!paymentIntent) {
           console.error(
-            `Payment intent ${id} missing from paymentIntentMap during flush`
+            `Payment intent ${id} missing from paymentIntentMap during flush (payment intents)`
           );
           continue;
         }
@@ -367,7 +367,7 @@ export class PaymentIntentAggregate {
         const paymentIntent = this.paymentIntentMap.get(paymentIntentId);
         if (!paymentIntent) {
           console.error(
-            `Payment intent ${paymentIntentId} missing from paymentIntentMap during flush`
+            `Payment intent ${paymentIntentId} missing from paymentIntentMap during flush (quotes)`
           );
           continue;
         }
@@ -378,13 +378,36 @@ export class PaymentIntentAggregate {
       promises.push(this._repo.storeQuotes(updates));
     }
 
+    if (this.newPaymentsMap.size > 0) {
+      const updates: {
+        paymentIntent: IPaymentIntent;
+        paymentIds: string[];
+      }[] = [];
+      for (const [
+        paymentIntentId,
+        paymentIds
+      ] of this.newPaymentsMap.entries()) {
+        const paymentIntent = this.paymentIntentMap.get(paymentIntentId);
+        if (!paymentIntent) {
+          console.error(
+            `Payment intent ${paymentIntentId} missing from paymentIntentMap during flush (payments)`
+          );
+          continue;
+        }
+
+        updates.push({ paymentIntent, paymentIds });
+      }
+
+      promises.push(this._repo.storePayments(updates));
+    }
+
     // TODO handle gracefully
     try {
       await Promise.all(promises);
     } finally {
       this.paymentIntentMap.clear();
       this.walletAddressMap.clear(); // TODO: wallet addresses are OK to be cached
-      this.paymentIntentMap.clear();
+      this.newPaymentsMap.clear();
       this.newPaymentIntentQuotes.clear();
       this.newPaymentIntentIds = [];
     }

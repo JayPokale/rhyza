@@ -168,6 +168,7 @@ export class PaymentIntent implements IPaymentIntent {
       })),
       obj.payments.map((payment) => ({
         id: payment.id,
+        paymentIntentId: obj.id,
         senderWalletAddress: payment.senderWalletAddress,
         senderWalletAddressId: payment.senderWalletAddressId,
         assetCode: payment.assetCode,
@@ -210,6 +211,7 @@ export class PaymentIntent implements IPaymentIntent {
       })),
       payments: this._payments.map((payment) => ({
         id: payment.id,
+        paymentIntentId: this._id,
         state: payment.state,
         senderWalletAddress: payment.senderWalletAddress,
         senderWalletAddressId: payment.senderWalletAddressId,
@@ -361,6 +363,12 @@ export class PaymentIntent implements IPaymentIntent {
       if (!quote) {
         throw new InvalidQuoteIdError(
           `Could not find ${quoteId} quote for ${this.id} payment intent`
+        );
+      }
+
+      if (quote.senderWalletAddressId !== senderWalletAddress.id) {
+        throw new InvalidQuoteStateError(
+          `Invalid sender wallet address for quote ${quoteId}`
         );
       }
 

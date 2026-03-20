@@ -52,6 +52,7 @@ export interface IPayment {
   state: PaymentState;
   senderWalletAddress: string;
   senderWalletAddressId: string;
+  paymentIntentId: string;
   assetCode: string;
   assetScale: number;
   quoteId?: string;
@@ -72,7 +73,7 @@ export interface IPaymentIntent {
   incomingAmount: bigint | null;
   receivedAmount: bigint;
   quotes: IQuote[];
-  payments: IPayment[];
+  payments: Omit<IPayment, 'paymentIntentId'>[];
 }
 
 export interface WalletAddress {
@@ -98,5 +99,8 @@ export interface IPaymentIntentRepository {
   fetchByIds(ids: string[]): Promise<IPaymentIntent[]>;
   storeQuotes(
     quoteUpdate: { quoteIds: string[]; paymentIntent: IPaymentIntent }[]
+  ): Promise<void>;
+  storePayments(
+    paymentUpdate: { paymentIds: string[]; paymentIntent: IPaymentIntent }[]
   ): Promise<void>;
 }
