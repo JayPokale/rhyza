@@ -256,13 +256,6 @@ export class PaymentsServiceServer {
       await this._msgProducer.send(cmd);
     } else if (call.request instanceof ApproveOutgoingPaymentRequest) {
       const commandId = call.request.getId();
-      if (!PaymentsServiceServer.UUID_REGEX.test(commandId)) {
-        callback({
-          code: grpc.status.INVALID_ARGUMENT,
-          message: 'id must be a valid UUID'
-        });
-        return;
-      }
       this._storePendingResponse(commandId, call, callback);
       const cmd = new ApprovePaymentCmd(
         { id: commandId, paymentIntentId: call.request.getIncomingPaymentId() },
