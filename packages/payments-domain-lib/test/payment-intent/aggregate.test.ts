@@ -3,10 +3,12 @@ import assert from 'node:assert/strict';
 
 import { PaymentIntentAggregate } from '../../src/payment-intent/aggregate';
 import {
+  PaymentCreatedEvent,
+  PaymentCreateFailedEvent,
   PaymentIntentCreatedEvent,
   PaymentIntentCreateFailedEvent
 } from '../../src/payment-intent/events';
-import { CreatePaymentIntentCmd } from '../../src/commands';
+import { CreatePaymentCmd, CreatePaymentIntentCmd } from '../../src/commands';
 import {
   MockPaymentIntentRepo,
   MockWalletAddressAdapter,
@@ -51,6 +53,29 @@ function makeCreateQuoteCmd(
   }> = {}
 ): CreateQuoteCmd {
   return new CreateQuoteCmd(
+    {
+      id: crypto.randomUUID(),
+      paymentIntentId: crypto.randomUUID(),
+      senderWalletAddressId: 'wallet-1',
+      senderWalletAddress: 'domain.com/bob',
+      debitAmount: 100,
+      ...overrides
+    },
+    crypto.randomUUID()
+  );
+}
+
+function makeCreatePaymentCmd(
+  overrides: Partial<{
+    id: string;
+    paymentIntentId: string;
+    senderWalletAddressId: string;
+    senderWalletAddress: string;
+    debitAmount: number;
+    quoteId: string;
+  }> = {}
+): CreatePaymentCmd {
+  return new CreatePaymentCmd(
     {
       id: crypto.randomUUID(),
       paymentIntentId: crypto.randomUUID(),
@@ -148,7 +173,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
     });
 
     describe('handleCreateQuoteCommand', () => {
-      it('fails if quote when sender wallet address not found', async () => {
+      it('fails when sender wallet address not found', async () => {
         const quoteCmd = makeCreateQuoteCmd({
           senderWalletAddressId: 'nonexistent'
         });
@@ -161,7 +186,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         assert.match(payload.message, /Wallet address nonexistent not found/);
       });
 
-      it('fails if quote when sender wallet address is inactive', async () => {
+      it('fails when sender wallet address is inactive', async () => {
         walletAddressAdapter.addWalletAddress({
           id: 'inactive-sender',
           isActive: false,
@@ -180,7 +205,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         assert.equal(payload.errorName, 'WalletAddressInactiveError');
       });
 
-      it('fails if quote when payment intent not found', async () => {
+      it('fails when payment intent not found', async () => {
         const quoteCmd = makeCreateQuoteCmd({
           paymentIntentId: 'nonexistent'
         });
@@ -204,7 +229,8 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           destination: 'LOCAL',
           expiresAt: new Date(Date.now() + 1000),
           incomingAmount: null,
-          quotes: []
+          quotes: [],
+          payments: []
         };
         await repo.storeMany([paymentIntent]);
 
@@ -233,7 +259,8 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           destination: 'LOCAL',
           expiresAt: new Date(Date.now() + 1000),
           incomingAmount: null,
-          quotes: []
+          quotes: [],
+          payments: []
         };
         await repo.storeMany([paymentIntent]);
 
@@ -246,6 +273,112 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         assert.equal(events[0].msgName, QuoteCompletedEvent.name);
         assert.equal(
           (events[0] as QuoteCompletedEvent).payload.id,
+          cmd.payload.id
+        );
+      });
+    });
+
+    describe('handleCreatePaymentCommand', () => {
+      it('fails when sender wallet address not found', async () => {
+        const quoteCmd = makeCreatePaymentCmd({
+          senderWalletAddressId: 'nonexistent'
+        });
+        const { events } = await aggregate.handleBatch([quoteCmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, PaymentCreateFailedEvent.name);
+        const payload = (events[0] as PaymentCreateFailedEvent).payload;
+        assert.equal(payload.errorName, 'WalletAddressNotFoundError');
+        assert.match(payload.message, /Wallet address nonexistent not found/);
+      });
+
+      it('fails when sender wallet address is inactive', async () => {
+        walletAddressAdapter.addWalletAddress({
+          id: 'inactive-sender',
+          isActive: false,
+          assetCode: 'USD',
+          assetScale: 2
+        });
+
+        const quoteCmd = makeCreatePaymentCmd({
+          senderWalletAddressId: 'inactive-sender'
+        });
+        const { events } = await aggregate.handleBatch([quoteCmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, PaymentCreateFailedEvent.name);
+        const payload = (events[0] as PaymentCreateFailedEvent).payload;
+        assert.equal(payload.errorName, 'WalletAddressInactiveError');
+      });
+
+      it('fails when payment intent not found', async () => {
+        const quoteCmd = makeCreatePaymentCmd({
+          paymentIntentId: 'nonexistent'
+        });
+        const { events } = await aggregate.handleBatch([quoteCmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, PaymentCreateFailedEvent.name);
+        const payload = (events[0] as PaymentCreateFailedEvent).payload;
+        assert.equal(payload.errorName, 'PaymentIntentNotFoundError');
+      });
+
+      it('fails if rates could not be fetched', async () => {
+        const paymentIntent: IPaymentIntent = {
+          id: crypto.randomUUID(),
+          receivedAmount: 0n,
+          receiverWalletAddress: 'receiver',
+          receiverWalletAddressId: crypto.randomUUID(),
+          assetCode: 'USD',
+          assetScale: 2,
+          state: 'CREATED',
+          destination: 'LOCAL',
+          expiresAt: new Date(Date.now() + 1000),
+          incomingAmount: null,
+          quotes: [],
+          payments: []
+        };
+        await repo.storeMany([paymentIntent]);
+
+        mockRatesAdapter.getRate = async () => undefined;
+
+        const cmd = makeCreatePaymentCmd({
+          paymentIntentId: paymentIntent.id
+        });
+        const { events } = await aggregate.handleBatch([cmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, PaymentCreateFailedEvent.name);
+        const payload = (events[0] as PaymentCreateFailedEvent).payload;
+        assert.equal(payload.errorName, 'RatesError');
+      });
+
+      it('creates local payment', async () => {
+        const paymentIntent: IPaymentIntent = {
+          id: crypto.randomUUID(),
+          receivedAmount: 0n,
+          receiverWalletAddress: 'receiver',
+          receiverWalletAddressId: crypto.randomUUID(),
+          assetCode: 'USD',
+          assetScale: 2,
+          state: 'CREATED',
+          destination: 'LOCAL',
+          expiresAt: new Date(Date.now() + 1000),
+          incomingAmount: null,
+          quotes: [],
+          payments: []
+        };
+        await repo.storeMany([paymentIntent]);
+
+        const cmd = makeCreatePaymentCmd({
+          paymentIntentId: paymentIntent.id
+        });
+        const { events } = await aggregate.handleBatch([cmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, PaymentCreatedEvent.name);
+        assert.equal(
+          (events[0] as PaymentCreatedEvent).payload.id,
           cmd.payload.id
         );
       });
