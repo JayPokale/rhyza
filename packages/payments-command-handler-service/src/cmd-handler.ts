@@ -45,9 +45,6 @@ export class PaymentsCommandHandler {
     const unhandled: Message[] = [];
 
     for (const msg of messages) {
-      console.log(`---------- RECEIVED ${msg.msgName} message ________`, {
-        msg
-      });
       switch (msg.msgName) {
         case CreatePaymentIntentCmd.name:
           commandMessages.push(msg);
