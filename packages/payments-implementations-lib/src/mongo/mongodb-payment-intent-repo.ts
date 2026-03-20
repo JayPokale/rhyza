@@ -50,13 +50,13 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
 
       // load or create the collection (and add its indexes) - should check version and perform migrations
       if (paymentIntentsCollectionExists) {
-        this._paymentIntentCollection = db.collection<
-          Omit<IPaymentIntent, 'payments'>
-        >(PAYMENT_INTENTS_COLLECTION_NAME);
+        this._paymentIntentCollection = db.collection(
+          PAYMENT_INTENTS_COLLECTION_NAME
+        );
       } else {
-        this._paymentIntentCollection = await db.createCollection<
-          Omit<IPaymentIntent, 'payments'>
-        >(PAYMENT_INTENTS_COLLECTION_NAME);
+        this._paymentIntentCollection = await db.createCollection(
+          PAYMENT_INTENTS_COLLECTION_NAME
+        );
         await this._paymentIntentCollection.createIndex(
           { id: 1 },
           { unique: true }
@@ -186,6 +186,7 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
           .map((payment) => ({
             id: payment.id,
             state: payment.state,
+            paymentIntentId: payment.paymentIntentId,
             senderWalletAddress: payment.senderWalletAddress,
             senderWalletAddressId: payment.senderWalletAddressId,
             quoteId: payment.quoteId,

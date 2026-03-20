@@ -73,7 +73,7 @@ export interface IPaymentIntent {
   incomingAmount: bigint | null;
   receivedAmount: bigint;
   quotes: IQuote[];
-  payments: Omit<IPayment, 'paymentIntentId'>[];
+  payments: IPayment[];
 }
 
 export interface WalletAddress {
