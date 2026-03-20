@@ -4,7 +4,7 @@ import { after, before, describe, test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import { randomUUID } from 'crypto';
 import { PaymentsClient } from '../src';
-import { PalClient } from 'pal-client-lib';
+import { PalClient, parseAddressToDomainAndPathName } from 'pal-client-lib';
 
 describe('Payments Client', () => {
   async function createIncomingPayment(incomingAmount?: number) {
@@ -12,7 +12,7 @@ describe('Payments Client', () => {
     await paymentsClient.createIncomingPayment(
       id,
       receiverWalletAddressId,
-      WALLET_ADDRESS,
+      RECEIVER_WALLET_ADDRESS,
       incomingAmount
     );
     return id;
@@ -23,7 +23,7 @@ describe('Payments Client', () => {
 
   const ASSET_CODE = 'USD';
   const ASSET_SCALE = 2;
-  const WALLET_ADDRESS = 'payments-client-test.com/receiver';
+  const RECEIVER_WALLET_ADDRESS = 'payments-client-test.com/receiver';
   const PUBLIC_NAME = 'Test Receiver';
   const SENDER_WALLET_ADDRESS = 'payments-client-test.com/sender';
   const SENDER_PUBLIC_NAME = 'Test Sender';
@@ -50,9 +50,13 @@ describe('Payments Client', () => {
     }
 
     // Ensure wallet address exists
+    const { domain: receiverDomain, pathName: receiverPathName } =
+      parseAddressToDomainAndPathName(RECEIVER_WALLET_ADDRESS);
+
     try {
       await palClient.createWalletAddress(
-        WALLET_ADDRESS,
+        receiverDomain,
+        receiverPathName,
         PUBLIC_NAME,
         ASSET_CODE
       );
@@ -61,9 +65,13 @@ describe('Payments Client', () => {
     }
 
     // Ensure sender wallet address exists
+    const { domain: senderDomain, pathName: senderPathName } =
+      parseAddressToDomainAndPathName(RECEIVER_WALLET_ADDRESS);
+
     try {
       await palClient.createWalletAddress(
-        SENDER_WALLET_ADDRESS,
+        senderDomain,
+        senderPathName,
         SENDER_PUBLIC_NAME,
         ASSET_CODE
       );
@@ -71,21 +79,22 @@ describe('Payments Client', () => {
       // already exists — fine for reruns
     }
 
-    // Resolve the internal UUID for use in payment commands
-    const [prefix, suffix] = WALLET_ADDRESS.split('/') as [string, string];
-    const alias = await palClient.ResolveWalletAddressAlias(prefix, suffix);
-    assert.ok(alias, 'wallet address alias must resolve');
-    receiverWalletAddressId = alias.walletAddressId;
-
-    const [senderPrefix, senderSuffix] = SENDER_WALLET_ADDRESS.split('/') as [
-      string,
-      string
-    ];
-    const senderAlias = await palClient.ResolveWalletAddressAlias(
-      senderPrefix,
-      senderSuffix
+    const receiverAlias = await palClient.ResolveWalletAddressAlias(
+      receiverDomain,
+      receiverPathName
     );
+
+    assert.ok(receiverAlias, 'receiver wallet address alias must resolve');
+
+    receiverWalletAddressId = receiverAlias.walletAddressId;
+
+    const senderAlias = await palClient.ResolveWalletAddressAlias(
+      receiverDomain,
+      receiverPathName
+    );
+
     assert.ok(senderAlias, 'sender wallet address alias must resolve');
+
     senderWalletAddressId = senderAlias.walletAddressId;
 
     paymentsClient = new PaymentsClient(PAYMENTS_GRPC_URL);
@@ -102,7 +111,7 @@ describe('Payments Client', () => {
     const result = await paymentsClient.createIncomingPayment(
       id,
       receiverWalletAddressId,
-      WALLET_ADDRESS
+      RECEIVER_WALLET_ADDRESS
     );
 
     assert.ok(result);
@@ -115,7 +124,7 @@ describe('Payments Client', () => {
     const result = await paymentsClient.createIncomingPayment(
       id,
       receiverWalletAddressId,
-      WALLET_ADDRESS,
+      RECEIVER_WALLET_ADDRESS,
       100,
       expiresAt
     );
@@ -129,14 +138,14 @@ describe('Payments Client', () => {
     await paymentsClient.createIncomingPayment(
       id,
       receiverWalletAddressId,
-      WALLET_ADDRESS
+      RECEIVER_WALLET_ADDRESS
     );
 
     try {
       await paymentsClient.createIncomingPayment(
         id,
         receiverWalletAddressId,
-        WALLET_ADDRESS
+        RECEIVER_WALLET_ADDRESS
       );
       assert.fail('expected error for duplicate id');
     } catch (e) {
@@ -149,7 +158,7 @@ describe('Payments Client', () => {
       await paymentsClient.createIncomingPayment(
         'not-a-uuid',
         receiverWalletAddressId,
-        WALLET_ADDRESS
+        RECEIVER_WALLET_ADDRESS
       );
       assert.fail('expected error for invalid uuid');
     } catch (e) {
@@ -162,7 +171,7 @@ describe('Payments Client', () => {
       await paymentsClient.createIncomingPayment(
         randomUUID(),
         randomUUID(), // nonexistent wallet address id
-        WALLET_ADDRESS
+        RECEIVER_WALLET_ADDRESS
       );
       assert.fail('expected error for unknown wallet address');
     } catch (e) {
@@ -264,6 +273,107 @@ describe('Payments Client', () => {
           paymentId,
           randomUUID(),
           SENDER_WALLET_ADDRESS,
+          100
+        );
+        assert.fail('expected error for unknown wallet address');
+      } catch (e) {
+        assert.ok(e instanceof Error);
+      }
+    });
+  });
+
+  describe('createOutgoingPayment', () => {
+    test('create outgoing payment with quoteId', async () => {
+      const incomingPaymentId = await createIncomingPayment(100);
+      const quoteId = randomUUID();
+      await paymentsClient.createQuote(
+        quoteId,
+        incomingPaymentId,
+        senderWalletAddressId,
+        SENDER_WALLET_ADDRESS
+      );
+
+      const outgoingPaymentId = randomUUID();
+      const result = await paymentsClient.createOutgoingPayment(
+        outgoingPaymentId,
+        senderWalletAddressId,
+        SENDER_WALLET_ADDRESS,
+        incomingPaymentId,
+        quoteId
+      );
+
+      assert.ok(result);
+      assert.equal(result.id, outgoingPaymentId);
+    });
+
+    test('create outgoing payment with debitAmount', async () => {
+      const incomingPaymentId = await createIncomingPayment(100);
+      const outgoingPaymentId = randomUUID();
+      const result = await paymentsClient.createOutgoingPayment(
+        outgoingPaymentId,
+        senderWalletAddressId,
+        SENDER_WALLET_ADDRESS,
+        incomingPaymentId,
+        undefined,
+        100
+      );
+
+      assert.ok(result);
+      assert.equal(result.id, outgoingPaymentId);
+    });
+
+    test('duplicate id is rejected', async () => {
+      const incomingPaymentId = await createIncomingPayment(100);
+      const outgoingPaymentId = randomUUID();
+      await paymentsClient.createOutgoingPayment(
+        outgoingPaymentId,
+        senderWalletAddressId,
+        SENDER_WALLET_ADDRESS,
+        incomingPaymentId,
+        undefined,
+        100
+      );
+
+      try {
+        await paymentsClient.createOutgoingPayment(
+          outgoingPaymentId,
+          senderWalletAddressId,
+          SENDER_WALLET_ADDRESS,
+          incomingPaymentId,
+          undefined,
+          100
+        );
+        assert.fail('expected error for duplicate id');
+      } catch (e) {
+        assert.ok(e instanceof Error);
+      }
+    });
+
+    test('unknown incoming payment id is rejected', async () => {
+      try {
+        await paymentsClient.createOutgoingPayment(
+          randomUUID(),
+          senderWalletAddressId,
+          SENDER_WALLET_ADDRESS,
+          randomUUID(),
+          undefined,
+          100
+        );
+        assert.fail('expected error for unknown incoming payment');
+      } catch (e) {
+        assert.ok(e instanceof Error);
+      }
+    });
+
+    test('unknown wallet address id is rejected', async () => {
+      const incomingPaymentId = await createIncomingPayment(100);
+      try {
+        await paymentsClient.createOutgoingPayment(
+          randomUUID(),
+          randomUUID(),
+          SENDER_WALLET_ADDRESS,
+          incomingPaymentId,
+          undefined,
           100
         );
         assert.fail('expected error for unknown wallet address');
