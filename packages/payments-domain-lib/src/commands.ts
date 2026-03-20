@@ -72,7 +72,7 @@ export class CreatePaymentCmd extends CommandMsg {
 
   constructor(payload: CreatePaymentCmdPayload, requestId: string) {
     super();
-    this.aggregateId = this.msgKey = payload.id;
+    this.aggregateId = this.msgKey = payload.paymentIntentId;
     this.requestId = requestId;
     this.payload = payload;
   }
