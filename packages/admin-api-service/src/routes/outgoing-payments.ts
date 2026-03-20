@@ -24,8 +24,8 @@ export async function outgoingPaymentRoutes(
       incomingPaymentId?: string;
       debitAmount?: number;
     };
-  }>('/outgoing-payment', async (request, reply) => {
-    const { walletAddress } = request.body;
+  }>('/outgoing-payments', async (request, reply) => {
+    const { walletAddress, debitAmount } = request.body;
 
     const id = request.body.id ?? randomUUID();
 
@@ -39,9 +39,7 @@ export async function outgoingPaymentRoutes(
         });
       }
 
-      const [_quoteId, _incomingPaymentId] = request.body.quoteId.split('_');
-      quoteId = _quoteId;
-      incomingPaymentId = _incomingPaymentId;
+      [quoteId, incomingPaymentId] = request.body.quoteId.split('_');
     } else if (request.body.incomingPaymentId) {
       incomingPaymentId = request.body.incomingPaymentId;
     } else {
@@ -63,7 +61,8 @@ export async function outgoingPaymentRoutes(
       alias.walletAddressId,
       walletAddress,
       incomingPaymentId,
-      quoteId
+      quoteId,
+      debitAmount ? Number(debitAmount) : undefined
     );
 
     return reply.status(201).send({ id: result.id });
