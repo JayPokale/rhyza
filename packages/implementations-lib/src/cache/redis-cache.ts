@@ -1,8 +1,8 @@
 import type { Redis } from 'ioredis';
 import type { Logger } from 'pino';
-import { Cache } from 'common-types-lib';
+import { ICache } from 'common-types-lib';
 
-export class RedisCache<T> implements Cache<T> {
+export class RedisCache<T> implements ICache<T> {
   constructor(
     private redisClient: Redis,
     private keyTtlMs: number,

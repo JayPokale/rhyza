@@ -22,7 +22,7 @@ import {
   HealthService,
   PaymentsGrpcService
 } from 'payments-public-types-lib';
-import { Message, MessageConsumer, MessageProducer } from 'common-types-lib';
+import { IMessage, IMessageConsumer, IMessageProducer } from 'common-types-lib';
 import {
   CreatePaymentIntentCmd,
   CreateQuoteCmd,
@@ -54,8 +54,8 @@ export class PaymentsServiceServer {
   private readonly _instanceId: string;
   private readonly _serverUrl: string;
   private readonly _server: grpc.Server;
-  private readonly _msgProducer: MessageProducer;
-  private readonly _msgConsumer: MessageConsumer;
+  private readonly _msgProducer: IMessageProducer;
+  private readonly _msgConsumer: IMessageConsumer;
   private readonly _responseTimeoutMs: number;
   // Holds pending gRPC callbacks keyed by command ID (UUID).
   // Kafka consumer resolves/rejects these when response events arrive.
@@ -67,8 +67,8 @@ export class PaymentsServiceServer {
   constructor(
     instanceId: string,
     serverUrl: string,
-    msgProducer: MessageProducer,
-    msgConsumer: MessageConsumer,
+    msgProducer: IMessageProducer,
+    msgConsumer: IMessageConsumer,
     responseTimeoutMs: number = DEFAULT_RESPONSE_TIMEOUT_MS
   ) {
     this._responseTimeoutMs = responseTimeoutMs;
@@ -286,7 +286,7 @@ export class PaymentsServiceServer {
     this._responseMap.set(commandId, { callback, timer });
   }
 
-  private async _handleResponseEvent(message: Message): Promise<void> {
+  private async _handleResponseEvent(message: IMessage): Promise<void> {
     const requestId = message.requestId;
     if (!requestId) return;
 

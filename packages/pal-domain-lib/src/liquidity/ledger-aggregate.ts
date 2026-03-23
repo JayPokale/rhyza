@@ -1,0 +1,159 @@
+/*****
+ Copyright © 2026 & Interledger Foundation
+ ----------------------------------------------
+ Contributors
+
+ * Cyberbones Digital Solutions
+ - Pedro Sousa Barreto <pedrosousabarreto@gmail.com>
+ ******/
+
+"use strict";
+
+
+import {Ledger} from "./ledger";
+
+import {
+    CreateLedgerCmd,
+} from "./messages/commands";
+
+
+import {LedgerCreatedStateEvent, LedgerStateEvents} from "./messages/events";
+import console from "node:console";
+import {ILedgerAccount} from "./entities/ledger-account";
+import {ILedgerEventSourcingRepository} from "./interfaces";
+import {BaseMessage, CommandMsg, ILogger, MessageTypes } from "common-types-lib";
+
+const INTERNAL_ASSET_SCALE = 20;
+
+
+export class LedgerAggregate {
+    private readonly _logger: ILogger;
+    private readonly _ledgers: Map<string, Ledger>;
+    private readonly _esRepo: ILedgerEventSourcingRepository;
+    private readonly _uncommittedEvents: LedgerStateEvents[];
+
+    constructor(esRepo: ILedgerEventSourcingRepository, logger: ILogger) {
+        this._esRepo = esRepo;
+        this._logger = logger;
+        this._ledgers = new Map<string, Ledger>();
+        this._uncommittedEvents = [];
+    }
+
+    private async _processSingleCommand(command: CommandMsg): Promise<void> {
+        // detect commands for the aggregate (ie, not for a specific ledger)
+        if(command.msgName === CreateLedgerCmd.name) {
+            await this._processCreateLedgerCmd(command);
+        }else{
+            // ledger specific commands, load it first
+            const ledger = await this.getOrLoadLedger(command.aggregateId);
+            if(!ledger) {
+                throw new Error("Ledger not found"); // TODO make error event
+            }
+            await ledger.processCommand(command);
+            this._uncommittedEvents.push(...ledger.uncommittedEvents);
+            ledger.clearUncommittedEvents();
+        }
+    }
+
+    private async _processCreateLedgerCmd(cmd:CreateLedgerCmd):Promise<void>{
+        const existing = await this.getOrLoadLedger(cmd.aggregateId);
+        if(existing) {
+            throw new Error(`Ledger for asset: ${cmd.aggregateId} already exists`); // TODO make error event
+        }
+
+        const newLedger = Ledger.CreateNewLedger(cmd.aggregateId, INTERNAL_ASSET_SCALE, this._logger);
+        const event = new LedgerCreatedStateEvent(cmd.aggregateId, INTERNAL_ASSET_SCALE);
+
+        this._ledgers.set( cmd.aggregateId, newLedger);
+
+        this._uncommittedEvents.push(event);
+    }
+
+    async processCommands(commands: CommandMsg | CommandMsg[]): Promise<void> {
+        const startTs = Date.now();
+        if(!Array.isArray(commands) ) {
+            commands = [commands];
+        }
+
+        for(const cmd of commands) {
+            if(cmd.msgType !== MessageTypes.COMMAND) {
+                throw new Error("Invalid command type"); // TODO make error event
+            }
+            if(!cmd.aggregateId) {
+                throw new Error("Invalid aggregateId in command"); // TODO make error event
+            }
+
+            await this._processSingleCommand(cmd);
+        }
+
+        // publish and clear uncommited events
+        const eventsCount = this._uncommittedEvents.length;
+        await this._esRepo.publishEvents(this._uncommittedEvents);
+        this._uncommittedEvents.length = 0;
+
+        this._logger.debug(`LedgerAggregate: processed ${commands.length} commands and published ${eventsCount} events in ${Date.now() - startTs}ms`);
+    }
+
+    async getOrLoadLedger(ledgerId: string, replayed: boolean = false): Promise<Ledger|null> {
+        let loadedLedger = this._ledgers.get(ledgerId);
+
+        // TODO detect partition changes so we can force load before continuing
+        if(loadedLedger) {
+            return loadedLedger;
+        }
+
+        const startTs = Date.now();
+
+        // try to load the ledger state from event-sourcing repo snapshot+events
+        const snapshot = await this._esRepo.fetchLastSnapshot(ledgerId);
+
+
+        let partitionAndOffset: {partition: number, offset: number} | undefined = undefined;
+        if(snapshot?.lastEventIndexOffset && snapshot?.lastEventIndexPartition){
+            partitionAndOffset = {
+                partition: snapshot.lastEventIndexPartition,
+                offset: snapshot.lastEventIndexOffset + 1 // we want to start reading the next message, not the last one that made it to the snapshot
+            }
+        }
+        const events = await this._esRepo.fetchStateEvents(ledgerId, partitionAndOffset);
+
+        if (!snapshot && events.length<=0) {
+            return null; // cannot load from event-sourcing repo
+        }
+
+        const ledger = Ledger.GetUnloadedLedger(ledgerId, this._logger);
+        const loaded = await ledger.load(snapshot, events, replayed);
+        if(!loaded) {
+            return null;
+        }
+
+        this._ledgers.set(ledgerId, ledger);
+
+        this._logger.info(`LedgerAggregate: ledger loading took: ${Date.now() - startTs}ms`);
+        return ledger;
+    }
+
+    getAccounts(ids: string[]): ReadonlyArray<ILedgerAccount> {
+        const foundAccounts: ILedgerAccount[] = [];
+
+        for(const ledger of this._ledgers.values()) {
+            const accounts = ledger.getAccounts(ids);
+            foundAccounts.push(...accounts);
+        }
+        return foundAccounts as ReadonlyArray<ILedgerAccount>;
+    }
+
+    printStats() {
+        for(const ledger of this._ledgers.values()) {
+            const header = `${"-".repeat(10)} LEDGER STATE for ledger Id: ${ledger.id} ${"-".repeat(10)}`;
+            const footer = "-".repeat(header.length);
+
+            let output = `Version:                ${ledger.version}\n`
+            output += `Last snapshot version:  ${ledger.lastSnapshotVersion}\n`;
+            output += `Accounts count:         ${ledger.accountsCount}\n`;
+            output += `Transactions count:     ${ledger.transactionsCount}`
+
+            console.log(`${header}\n${output}\n${footer}\n`);
+        }
+    }
+}

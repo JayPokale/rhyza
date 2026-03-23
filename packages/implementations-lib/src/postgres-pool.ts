@@ -1,5 +1,7 @@
 import { Pool } from 'pg';
-import { logger } from './logger';
+import { PinoLogger } from './logger';
+
+const logger = new PinoLogger()
 
 export const postgresPool = new Pool({
   connectionString:

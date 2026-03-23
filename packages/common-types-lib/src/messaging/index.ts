@@ -1,3 +1,4 @@
 export * from './messages';
-export * from './message-consumer';
-export * from './message-producer';
+export * from './interfaces';
+export * from './raw/interfaces';
+export * from './raw/messages';

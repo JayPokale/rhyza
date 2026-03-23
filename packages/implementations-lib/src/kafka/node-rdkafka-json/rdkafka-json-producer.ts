@@ -1,26 +1,24 @@
-import { MessageProducer, Message } from 'common-types-lib';
-import {
-  RafikiKafkaRawProducer,
-  RafikiKafkaRawProducerOptions
-} from './raw/rdkafka-raw-producer';
-import { RawMessage } from './raw/raw-types';
+import { IMessageProducer, IMessage, IRawMessage, IMessageProducerAcks, ILogger } from 'common-types-lib';
 
-import { logger } from '../logger';
+import { PinoLogger } from '../../logger';
+import { RafikiKafkaRawProducer, RafikiKafkaRawProducerOptions } from '../node-rdkafka-raw/rdkafka-raw-producer';
 
 export type RafikiKafkaJsonProducerOptions = RafikiKafkaRawProducerOptions;
 
-export class RafikiKafkaJsonProducer implements MessageProducer {
+export class RafikiKafkaJsonProducer implements IMessageProducer {
+  private readonly _logger: ILogger;
   private readonly _rawKafkaProducer: RafikiKafkaRawProducer;
 
-  constructor(options: RafikiKafkaJsonProducerOptions) {
-    this._rawKafkaProducer = new RafikiKafkaRawProducer(options);
+  constructor(options: RafikiKafkaJsonProducerOptions, logger: ILogger) {
+    this._logger = logger;
+    this._rawKafkaProducer = new RafikiKafkaRawProducer(options, logger);
     logger.info('RafikiKafkaJsonProducer - instance created');
   }
 
-  private _convert(message: Message | Message[]): RawMessage[] {
-    const outpuMsgs: RawMessage[] = [];
+  private _convert(message: IMessage | IMessage[]): IRawMessage[] {
+    const outpuMsgs: IRawMessage[] = [];
 
-    const inputMsgs: Message[] = Array.isArray(message)
+    const inputMsgs: IMessage[] = Array.isArray(message)
       ? [...message]
       : [message];
 
@@ -41,10 +39,10 @@ export class RafikiKafkaJsonProducer implements MessageProducer {
     return outpuMsgs;
   }
 
-  async send(message: Message | Message[]): Promise<void> {
+  async send(message: IMessage | IMessage[]): Promise<void> {
     // TODO fill in missing fields with defaults (id, timestamp, etc)
 
-    const rawMsg: RawMessage[] = this._convert(message);
+    const rawMsg: IRawMessage[] = this._convert(message);
     return this._rawKafkaProducer.send(rawMsg);
   }
 
@@ -62,6 +60,12 @@ export class RafikiKafkaJsonProducer implements MessageProducer {
       | ((topic: string, partition: number, offset: number) => void)
   ): void {
     this._rawKafkaProducer.setDeliveryReportFn(handlerCallback);
+  }
+
+  sendWithAck(
+    message: IMessage | IMessage[]
+  ): Promise<IMessageProducerAcks[]> {
+    throw new Error('Method not implemented.');
   }
 
   async destroy(): Promise<void> {

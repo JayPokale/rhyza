@@ -14,14 +14,12 @@ export interface CreatePaymentIntentCmdPayload {
 
 export class CreatePaymentIntentCmd extends CommandMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
   aggregateName: string = PAYMENT_INTENT_AGG_NAME;
-  msgKey: string;
   msgTopic: string = CommandTopics.PaymentCommands;
   payload: CreatePaymentIntentCmdPayload;
 
   constructor(payload: CreatePaymentIntentCmdPayload, requestId: string) {
-    super();
+    super(payload.id);
     this.aggregateId = this.msgKey = payload.id;
     this.requestId = requestId;
     this.payload = payload;
@@ -39,14 +37,12 @@ export interface CreateQuoteCmdPayload {
 
 export class CreateQuoteCmd extends CommandMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
   aggregateName: string = PAYMENT_INTENT_AGG_NAME;
-  msgKey: string;
   msgTopic: string = CommandTopics.PaymentCommands;
   payload: CreateQuoteCmdPayload;
 
   constructor(payload: CreateQuoteCmdPayload, requestId: string) {
-    super();
+    super(payload.paymentIntentId);
     this.aggregateId = this.msgKey = payload.paymentIntentId;
     this.requestId = requestId;
     this.payload = payload;
@@ -64,14 +60,12 @@ export interface CreatePaymentCmdPayload {
 
 export class CreatePaymentCmd extends CommandMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
   aggregateName: string = PAYMENT_INTENT_AGG_NAME;
-  msgKey: string;
   msgTopic: string = CommandTopics.PaymentCommands;
   payload: CreatePaymentCmdPayload;
 
   constructor(payload: CreatePaymentCmdPayload, requestId: string) {
-    super();
+    super(payload.paymentIntentId);
     this.aggregateId = this.msgKey = payload.paymentIntentId;
     this.requestId = requestId;
     this.payload = payload;

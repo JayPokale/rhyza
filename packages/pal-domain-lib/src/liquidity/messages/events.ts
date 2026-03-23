@@ -1,0 +1,126 @@
+/*****
+ Contributors
+
+ * Interledger Foundation
+ - Pedro Sousa Barreto <pedrosousabarreto@gmail.com>
+
+ --------------
+ ******/
+
+"use strict";
+
+import { StateEvent, SnapshotEvent, SnapshotEventTopics, StateEventTopics } from 'common-types-lib';
+import {ILedgerAccountStateDTO} from "../entities/ledger-account";
+import {ILedgerTransactionStateDTO} from "../entities/transaction";
+
+
+export type LedgerStateEvents = LedgerCreatedStateEvent | LedgerAccountCreatedStateEvent | LedgerTransactionRecordedStateEvent;
+
+
+export abstract class BaseLedgerStateEvent extends StateEvent {
+  msgTopic: string = StateEventTopics.LedgerStateEvents;
+  protected constructor(aggId: string) {
+    super(aggId);
+  }
+}
+export abstract class BaseLedgerSnapshotEvent extends SnapshotEvent{
+    msgTopic:string = SnapshotEventTopics.LedgerSnapshotEvents;
+    protected constructor(aggId:string, aggVersion:string) {
+        super(aggId, aggVersion);
+    }
+}
+
+/*
+* State Events
+* */
+
+export type LedgerCreatedStatePayload = {
+    id: string;
+    assetScale: number;
+}
+export class LedgerCreatedStateEvent extends BaseLedgerStateEvent {
+  payload: LedgerCreatedStatePayload;
+
+  constructor(aggId: string, assetScale: number) {
+    super(aggId);
+    this.aggregateVersion = '1';
+    this.payload = {
+      id: aggId,
+      assetScale: assetScale
+    };
+  }
+}
+
+
+export type LedgerAccountCreatedStatePayload = {
+    account:ILedgerAccountStateDTO;
+}
+export class LedgerAccountCreatedStateEvent extends BaseLedgerStateEvent {
+  payload: LedgerAccountCreatedStatePayload;
+
+  constructor(
+    aggId: string,
+    aggVersion: string,
+    payload: LedgerAccountCreatedStatePayload
+  ) {
+    super(aggId);
+    this.aggregateVersion = aggVersion;
+    this.payload = payload;
+  }
+}
+
+export type LedgerTransactionRecordedStatePayload = {
+    transaction: ILedgerTransactionStateDTO;
+}
+export class LedgerTransactionRecordedStateEvent extends BaseLedgerStateEvent{
+    payload: LedgerTransactionRecordedStatePayload;
+
+    constructor(aggId:string, aggVersion:string, payload: LedgerTransactionRecordedStatePayload){
+        super(aggId);
+        this.aggregateVersion = aggVersion;
+        this.payload = payload;
+    };
+}
+
+/*
+* Snapshot Events
+* */
+export type LedgerSnapshotPayload = {
+    accounts: ILedgerAccountStateDTO[];
+    transactionCount: string;
+    assetScale: number;
+}
+// export class LedgerSnapshotEvent extends BaseLedgerSnapshotEvent implements IProtobuffMessage<LedgerSnapshotEvent>{
+export class LedgerSnapshotEvent extends BaseLedgerSnapshotEvent{
+    payload: LedgerSnapshotPayload;
+
+    constructor(aggId:string, aggVersion:string, payload:LedgerSnapshotPayload){
+        super(aggId, aggVersion);
+        this.payload = payload;
+    };
+}
+
+
+/*
+
+/!*
+* Domain Events
+**!/
+
+export class LegerAccountCreatedEvent extends DomainEvent{
+    declare assetCode: string;
+    declare assetDisplayScale: number;
+    declare name: string;
+    declare debitedAmount: bigint;
+    declare creditedAmount: bigint;
+}
+
+export class LegerTransactionPostedEvent extends DomainEvent{
+    declare debitedAccountId: string;
+    declare creditedAccountId: string;
+    declare amount: bigint;
+    declare amountScale: number;
+    declare timestamp: number;
+}
+
+*/

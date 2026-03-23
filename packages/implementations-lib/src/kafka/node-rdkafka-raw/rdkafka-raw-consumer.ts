@@ -3,13 +3,9 @@ import { EventEmitter } from 'events';
 import { TopicPartition } from 'node-rdkafka';
 import * as RDKafka from 'node-rdkafka';
 import { LibrdKafkaError, Metadata } from 'node-rdkafka';
-import {
-  RawAuthenticationOptions,
-  RawMessage,
-  RawMessageConsumer
-} from './raw-types';
+import {IRawAuthenticationOptions} from '../raw-types';
 import * as crypto from 'crypto';
-import { logger } from '../../logger';
+import {ILogger, IRawMessage, IRawMessageConsumer } from 'common-types-lib';
 
 export enum RafikiKafkaRawConsumerOutputType {
   Raw,
@@ -36,7 +32,7 @@ export class RafikiKafkaRawConsumerOptions {
   batchSize?: number;
   batchTimeoutMs?: number;
   fetchErrorBackoffMms?: number;
-  authentication?: RawAuthenticationOptions;
+  authentication?: IRawAuthenticationOptions;
 }
 
 type RafikiKafkaRawConsumerEvents =
@@ -67,22 +63,24 @@ type RafikiKafkaRawConsumerEventListener<K extends string> =
 
 export class RafikiKafkaRawConsumer
   extends EventEmitter
-  implements RawMessageConsumer
+  implements IRawMessageConsumer
 {
+  private readonly _logger: ILogger;
   private _options: RafikiKafkaRawConsumerOptions;
   private _globalConfig: RDKafka.ConsumerGlobalConfig = {};
   private _topicConfig: RDKafka.ConsumerTopicConfig = {};
   private _topics: string[] = [];
   private readonly _client: RDKafka.KafkaConsumer;
-  private _handlerCallback: ((message: RawMessage) => Promise<void>) | null =
+  private _handlerCallback: ((message: IRawMessage) => Promise<void>) | null =
     null;
   private _batchHandlerCallback:
-    | ((messages: RawMessage[]) => Promise<void>)
+    | ((messages: IRawMessage[]) => Promise<void>)
     | null = null;
   private _batchSize = defaultOptions.batchSize;
 
-  constructor(options: RafikiKafkaRawConsumerOptions) {
+  constructor(options: RafikiKafkaRawConsumerOptions, logger:ILogger) {
     super();
+    this._logger = logger;
     this._options = options;
 
     // parse options and apply defaults
@@ -198,21 +196,21 @@ export class RafikiKafkaRawConsumer
     // apply local defaults
     this._batchSize = this._options.batchSize;
 
-    logger.info(
+    this._logger.info(
       `RafikiRawKafkaConsumer - options: ${JSON.stringify(
         this._options,
         null,
         2
       )}`
     );
-    logger.info(
+    this._logger.info(
       `RafikiRawKafkaConsumer - global: ${JSON.stringify(
         this._globalConfig,
         null,
         2
       )}`
     );
-    logger.info(
+    this._logger.info(
       `RafikiRawKafkaConsumer - global: ${JSON.stringify(
         this._topicConfig,
         null,
@@ -222,7 +220,7 @@ export class RafikiKafkaRawConsumer
   }
 
   private _onReady(info: RDKafka.ReadyInfo, metadata: RDKafka.Metadata): void {
-    logger.info(
+    this._logger.info(
       `RafikiRawKafkaConsumer - event.ready - info: ${JSON.stringify(
         info,
         null,
@@ -231,7 +229,7 @@ export class RafikiKafkaRawConsumer
     );
 
     // this a huge
-    logger.debug(
+    this._logger.debug(
       `RafikiRawKafkaConsumer - event.ready - metadata: ${JSON.stringify(
         metadata,
         null,
@@ -245,7 +243,7 @@ export class RafikiKafkaRawConsumer
 
   /* istanbul ignore next */
   private _onError(error: RDKafka.LibrdKafkaError): void {
-    logger.error(error.message, error);
+    this._logger.error(error.message, error);
   }
 
   /* istanbul ignore next */
@@ -267,7 +265,7 @@ export class RafikiKafkaRawConsumer
     // half a second is enough and this is not a performance issue
     // https://github.com/Blizzard/node-rdkafka/blob/aba2011d6c1ae2a0ae745b5d71bef77aa42180cc/lib/kafka-consumer.js#L59
     setTimeout(() => {
-      logger.debug(
+      this._logger.debug(
         `RafikiRawKafkaConsumer - event.rebalance - ${JSON.stringify(
           assignments,
           null,
@@ -283,7 +281,7 @@ export class RafikiKafkaRawConsumer
   private _onRebalanceError(error: Error) {
     // same as above in _onRebalance()
     setTimeout(() => {
-      logger.warn(
+      this._logger.warn(
         `RafikiRawKafkaConsumer - event.rebalance error - ${JSON.stringify(
           error,
           null,
@@ -296,7 +294,7 @@ export class RafikiKafkaRawConsumer
 
   /* istanbul ignore next */
   private _onEvent(eventData: any): void {
-    logger.debug(
+    this._logger.debug(
       `RafikiRawKafkaConsumer - event.event - ${JSON.stringify(
         eventData,
         null,
@@ -308,7 +306,7 @@ export class RafikiKafkaRawConsumer
 
   /* istanbul ignore next */
   private _onThrottle(eventData: any): void {
-    logger.warn(
+    this._logger.warn(
       `RafikiRawKafkaConsumer - event.throttle - ${JSON.stringify(
         eventData,
         null,
@@ -320,7 +318,7 @@ export class RafikiKafkaRawConsumer
 
   /* istanbul ignore next */
   private _onLog(eventData: any): void {
-    logger.debug(
+    this._logger.debug(
       `RafikiRawKafkaConsumer - event.log - ${JSON.stringify(
         eventData,
         null,
@@ -331,7 +329,7 @@ export class RafikiKafkaRawConsumer
 
   /* istanbul ignore next */
   private _onStats(eventData: any): void {
-    logger.debug(
+    this._logger.debug(
       `RafikiRawKafkaConsumer - event.stats - ${JSON.stringify(
         eventData,
         null,
@@ -344,13 +342,13 @@ export class RafikiKafkaRawConsumer
   private _onDisconnect(metrics: RDKafka.ClientMetrics): void {
     /* istanbul ignore else */
     if (metrics?.connectionOpened) {
-      logger.info(
+      this._logger.info(
         `RafikiRawKafkaConsumer - event.disconnected - connected for ${
           (Date.now() - metrics.connectionOpened) / 1000
         } secs`
       );
     } else {
-      logger.info(
+      this._logger.info(
         `RafikiRawKafkaConsumer - event.disconnected - ${JSON.stringify(
           metrics,
           null,
@@ -384,7 +382,7 @@ export class RafikiKafkaRawConsumer
             err.code == 3 /* Broker: Unknown topic or partition */
           )
             return;
-          logger.error(
+          this._logger.error(
             `RafikiKafkaRawConsumer got callback with err: ${err.message}`,
             err
           );
@@ -433,8 +431,8 @@ export class RafikiKafkaRawConsumer
     );
   }
 
-  private _toIMessage(kafkaMsg: RDKafka.Message): RawMessage {
-    const msg: RawMessage = {
+  private _toIMessage(kafkaMsg: RDKafka.Message): IRawMessage {
+    const msg: IRawMessage = {
       topic: kafkaMsg.topic,
       partition: kafkaMsg.partition,
       offset: kafkaMsg.offset,
@@ -483,7 +481,7 @@ export class RafikiKafkaRawConsumer
           msg.value = JSON.parse(kafkaMsg.value.toString());
         } catch (err) {
           /* istanbul ignore next */
-          logger.error(
+          this._logger.error(
             'RafikiRawKafkaConsumer - error converting msg value to JSON',
             err
           );
@@ -505,7 +503,7 @@ export class RafikiKafkaRawConsumer
   /*	// commit all read offsets
       private _commitMessages(kafkaMessages: RDKafka.Message[]): void {
           if (this._globalConfig["enable.auto.commit"]===true) return
-  
+
           if (this._options.useSyncCommit) {
               this._client.commitSync(kafkaMessages)
           } else {
@@ -527,13 +525,13 @@ export class RafikiKafkaRawConsumer
     this._batchSize = size;
   }
 
-  setCallbackFn(handlerCallback: (message: RawMessage) => Promise<void>): void {
+  setCallbackFn(handlerCallback: (message: IRawMessage) => Promise<void>): void {
     this._batchHandlerCallback = null;
     this._handlerCallback = handlerCallback;
   }
 
   setBatchCallbackFn(
-    batchHandlerCallback: (messages: RawMessage[]) => Promise<void>
+    batchHandlerCallback: (messages: IRawMessage[]) => Promise<void>
   ): void {
     this._batchHandlerCallback = batchHandlerCallback;
   }
@@ -543,7 +541,7 @@ export class RafikiKafkaRawConsumer
   }
 
   async destroy(force: boolean): Promise<void> {
-    logger.info('RafikiKafkaProducer - destroy called...');
+    this._logger.info('RafikiKafkaProducer - destroy called...');
     return await this.disconnect();
   }
 
@@ -557,7 +555,7 @@ export class RafikiKafkaRawConsumer
         (err: RDKafka.LibrdKafkaError, metadata: RDKafka.Metadata) => {
           /* istanbul ignore if */
           if (err) {
-            logger.error(
+            this._logger.error(
               'RafikiRawKafkaConsumer - error connecting to cluster',
               err
             );
@@ -571,16 +569,16 @@ export class RafikiKafkaRawConsumer
           // throw if topics not found in metadata
           if (this._topics) {
             this._topics.forEach((topicName) => {
-              logger.debug(
+              this._logger.debug(
                 `RafikiRawKafkaConsumer - checking if topic '${topicName}' exists in kafka...`,
                 metadata
               );
-              logger.debug(metadata);
+              this._logger.debug(metadata);
 
               if (!metadata || !metadata.topics) {
-                logger.error('Fetching Meta-Data:');
+                this._logger.error('Fetching Meta-Data:');
                 const fetchedMetaData = this.getMetadata();
-                logger.error(fetchedMetaData);
+                this._logger.error(fetchedMetaData);
                 throw new Error(
                   `Topic '${topicName}' not found in kafka, no topics found in metadata. MetaData[${metadata}]`
                 );
@@ -596,7 +594,7 @@ export class RafikiKafkaRawConsumer
             });
           }
           // metadata is handled by the onReady event
-          logger.info('RafikiRawKafkaConsumer - connected!');
+          this._logger.info('RafikiRawKafkaConsumer - connected!');
           resolve();
         }
       );
@@ -605,9 +603,9 @@ export class RafikiKafkaRawConsumer
 
   async disconnect(): Promise<void> {
     return new Promise((resolve, reject) => {
-      logger.info('RafikiRawKafkaConsumer - disconnect called...');
+      this._logger.info('RafikiRawKafkaConsumer - disconnect called...');
       if (!this._client.isConnected()) {
-        logger.warn(
+        this._logger.warn(
           'RafikiRawKafkaConsumer - disconnect called but consumer is not connected'
         );
         return resolve();
@@ -615,10 +613,10 @@ export class RafikiKafkaRawConsumer
       this._client.disconnect((err: any, _data: RDKafka.ClientMetrics) => {
         /* istanbul ignore if */
         if (err) {
-          logger.error('RafikiRawKafkaConsumer - disconnect failed', err);
+          this._logger.error('RafikiRawKafkaConsumer - disconnect failed', err);
           return reject(err);
         }
-        logger.info('RafikiRawKafkaConsumer - disconnected.');
+        this._logger.info('RafikiRawKafkaConsumer - disconnected.');
         resolve();
       });
     });
@@ -634,7 +632,7 @@ export class RafikiKafkaRawConsumer
           );
         }
 
-        logger.info(
+        this._logger.info(
           'RafikiRawKafkaConsumer - got rebalance on startAndWaitForRebalance()'
         );
         setImmediate(() => {
@@ -651,20 +649,20 @@ export class RafikiKafkaRawConsumer
   start(): Promise<void> {
     return new Promise((resolve, reject) => {
       if (!Array.isArray(this._topics) || this._topics.length == 0) {
-        logger.warn('RafikiRawKafkaConsumer - no topics subscribed on start()');
+        this._logger.warn('RafikiRawKafkaConsumer - no topics subscribed on start()');
         resolve();
         return;
       }
 
       this._client.once('subscribed', async (topics) => {
-        logger.info('RafikiRawKafkaConsumer - subscribed');
+        this._logger.info('RafikiRawKafkaConsumer - subscribed');
         setImmediate(() => {
           this._consumeLoop();
         });
         resolve();
       });
 
-      logger.info(
+      this._logger.info(
         `RafikiRawKafkaConsumer - Subscribing to topics ${JSON.stringify(
           this._topics
         )}`
@@ -675,7 +673,7 @@ export class RafikiKafkaRawConsumer
 
   async stop(): Promise<void> {
     this._client.unsubscribe();
-    logger.info(
+    this._logger.info(
       'RafikiRawKafkaConsumer - stop called, unsubscribed from previously subscribed topics'
     );
   }
@@ -686,7 +684,7 @@ export class RafikiKafkaRawConsumer
         { allTopics: true },
         (err: LibrdKafkaError, data: Metadata) => {
           if (err) {
-            logger.error(
+            this._logger.error(
               `RafikiRawKafkaConsumer - error requesting metadata from RDKafka client - error-no: ${err.errno} message: ${err.message}`,
               err
             );
