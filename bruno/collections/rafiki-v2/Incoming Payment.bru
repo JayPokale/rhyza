@@ -1,19 +1,19 @@
 meta {
   name: Incoming Payment
   type: http
-  seq: 1
+  seq: 5
 }
 
 post {
-  url: http://localhost/incoming-payment
+  url: http://{{baseUrl}}/incoming-payments
   body: json
   auth: none
 }
 
 body:json {
   {
-    "walletAddressId":"a1469618-077a-447d-b5a3-a9ed11265a64",
-    "id": "f7739688-eee3-430d-a9c8-19b3eaad09ff"
+    "walletAddress": "test.com/receiver",
+    "incomingAmount": 100
   }
 }
 
