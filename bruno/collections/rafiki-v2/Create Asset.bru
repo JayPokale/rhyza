@@ -1,0 +1,23 @@
+meta {
+  name: Create Asset
+  type: http
+  seq: 2
+}
+
+post {
+  url: http://{{baseUrl}}/assets
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "code": "USD",
+    "scale": 2
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

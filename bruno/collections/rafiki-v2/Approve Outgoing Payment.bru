@@ -1,0 +1,15 @@
+meta {
+  name: Approve Outgoing Payment
+  type: http
+  seq: 8
+}
+
+post {
+  url: http://{{baseUrl}}/outgoing-payments/{{outgoingPaymentId}}/approve
+  body: json
+  auth: none
+}
+
+body:json {
+  {}
+}

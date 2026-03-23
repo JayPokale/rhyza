@@ -1,6 +1,6 @@
 {
   "version": "1",
-  "name": "rafiki-poc",
+  "name": "rafiki-v2",
   "type": "collection",
   "ignore": ["node_modules", ".git"]
 }
