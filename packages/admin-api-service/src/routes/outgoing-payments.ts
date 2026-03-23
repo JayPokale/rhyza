@@ -82,11 +82,8 @@ export async function outgoingPaymentRoutes(
     const [incomingPaymentId, id] = request.params.id.split('_');
 
     try {
-      const result = await paymentsClient.approveOutgoingPayment(
-        id,
-        incomingPaymentId
-      );
-      return reply.status(200).send({ id: result.id });
+      await paymentsClient.approveOutgoingPayment(id, incomingPaymentId);
+      return reply.status(200).send({ id: `${incomingPaymentId}_${id}` });
     } catch (err) {
       server.log.error(err);
       return reply.status(500).send({ error: (err as Error).message });
