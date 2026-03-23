@@ -1,6 +1,8 @@
 import {
   IPaymentIntent,
-  IPaymentIntentRepository
+  IPaymentIntentRepository,
+  PaymentIntentState,
+  PaymentState
 } from '../../src/payment-intent/interfaces';
 
 export class MockPaymentIntentRepo implements IPaymentIntentRepository {
@@ -30,18 +32,43 @@ export class MockPaymentIntentRepo implements IPaymentIntentRepository {
   }
 
   async storePayments(
-    paymentUpdate: { paymentIds: string[]; paymentIntent: IPaymentIntent }[]
+    paymentUpdates: { paymentIds: string[]; paymentIntent: IPaymentIntent }[]
   ): Promise<void> {
-    for (const update of paymentUpdate) {
+    for (const update of paymentUpdates) {
       this._store.set(update.paymentIntent.id, update.paymentIntent);
     }
   }
 
   async storeCompletedLocalPayments(
-    paymentUpdate: { paymentIds: string[]; paymentIntent: IPaymentIntent }[]
+    paymentUpdates: {
+      paymentIntent: {
+        id: string;
+        receivedAmount: bigint;
+        state: PaymentIntentState;
+      };
+      payments: { id: string; state: PaymentState; sentAmount: bigint }[];
+    }[]
   ): Promise<void> {
-    for (const update of paymentUpdate) {
-      this._store.set(update.paymentIntent.id, update.paymentIntent);
+    for (const update of paymentUpdates) {
+      const paymentIntent = this._store.get(update.paymentIntent.id);
+      if (!paymentIntent) {
+        throw new Error('Could not find paymentIntent in store');
+      }
+
+      paymentIntent.state = update.paymentIntent.state;
+      paymentIntent.receivedAmount = update.paymentIntent.receivedAmount;
+
+      for (const payment of update.payments) {
+        const foundPayment = paymentIntent.payments.find(
+          (p) => p.id === payment.id
+        );
+        if (!foundPayment) {
+          throw new Error('Could not find paymentIntent in store');
+        }
+
+        foundPayment.state = payment.state;
+        foundPayment.sentAmount = payment.sentAmount;
+      }
     }
   }
 

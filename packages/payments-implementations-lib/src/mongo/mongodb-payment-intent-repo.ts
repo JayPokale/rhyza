@@ -2,7 +2,9 @@ import { Collection, CollectionInfo, Db, MongoClient } from 'mongodb';
 import {
   IPayment,
   IPaymentIntent,
-  IPaymentIntentRepository
+  IPaymentIntentRepository,
+  PaymentIntentState,
+  PaymentState
 } from 'payments-domain-lib';
 
 const DB_NAME = 'payments';
@@ -279,7 +281,14 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
   }
 
   async storeCompletedLocalPayments(
-    paymentUpdates: { paymentIds: string[]; paymentIntent: IPaymentIntent }[]
+    paymentUpdates: {
+      paymentIntent: {
+        id: string;
+        receivedAmount: bigint;
+        state: PaymentIntentState;
+      };
+      payments: { id: string; state: PaymentState; sentAmount: bigint }[];
+    }[]
   ): Promise<void> {
     this._checkInitialisedOrThrow();
 
@@ -299,8 +308,8 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
       }));
 
       const paymentWrites = paymentUpdates.flatMap((update) =>
-        update.paymentIntent.payments
-          .filter((p) => update.paymentIds.includes(p.id))
+        update.payments
+          .filter((p) => update.payments.map((p) => p.id).includes(p.id))
           .map((payment) => ({
             updateOne: {
               filter: { id: payment.id },

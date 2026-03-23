@@ -94,12 +94,19 @@ export interface IPaymentIntentRepository {
   storeMany(paymentIntents: IPaymentIntent[]): Promise<void>;
   fetchByIdsWithPayments(ids: string[]): Promise<IPaymentIntent[]>;
   storeQuotes(
-    quoteUpdate: { quoteIds: string[]; paymentIntent: IPaymentIntent }[]
+    quoteUpdates: { quoteIds: string[]; paymentIntent: IPaymentIntent }[]
   ): Promise<void>;
   storePayments(
-    paymentUpdate: { paymentIds: string[]; paymentIntent: IPaymentIntent }[]
+    paymentUpdates: { paymentIds: string[]; paymentIntent: IPaymentIntent }[]
   ): Promise<void>;
   storeCompletedLocalPayments(
-    paymentUpdate: { paymentIds: string[]; paymentIntent: IPaymentIntent }[]
+    paymentUpdates: {
+      paymentIntent: {
+        id: string;
+        receivedAmount: bigint;
+        state: PaymentIntentState;
+      };
+      payments: { id: string; state: PaymentState; sentAmount: bigint }[];
+    }[]
   ): Promise<void>;
 }
