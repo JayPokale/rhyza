@@ -26,7 +26,6 @@ sequenceDiagram
 	PCH ->> PCH: Determine whether payment is local or <br> remote
     PCH ->> PALC: Fetch wallet addresses
     PCH ->> PALC: Fetch FX
-    PEH -->> PCH: Complete outgoing payment command
-    PCH ->> PCH: Mark payment as completed
-    PCH -->> PET: Outgoing payment completed event
+    PCH ->> PCH: Mark local payment as completed
+    PCH -->> PET: Local outgoing payment completed event
 ```

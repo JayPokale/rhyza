@@ -29,8 +29,8 @@ sequenceDiagram
 	PCH ->> PCH: Determine whether payment is local or <br> remote
     PCH ->> PALC: Get FX rates
     PCH ->> PCH: Store quote
-    PCH -->> PET: Quote created event
-    PAPI -->> PET: Read quote created event
+    PCH -->> PET: Quote completed event
+    PAPI -->> PET: Read quote completed event
     PAPI -->> PC: Return quote
     PC ->> AGW: Return quote
 ```
