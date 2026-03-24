@@ -22,10 +22,10 @@ sequenceDiagram
     AGW ->>PC: Approve outgoing payment
     PC ->> PAPI: Approve outgoing payment
     PAPI -->> PCH: Approve outgoing payment command
-    PCH ->> PCH: Fetch quote or incoming payment (and validate)
+    PCH ->> PCH: Fetch & validate incoming payment (and quote, if present)
 	PCH ->> PCH: Determine whether payment is local or <br> remote
     PCH ->> PALC: Fetch wallet addresses
-    PCH ->> PALC: Fetch FX
     PCH ->> PCH: Mark local payment as completed
+    PCH ->> PCH: Mark incoming payment as completed (if incomingAmount reached)
     PCH -->> PET: Local outgoing payment completed event
 ```
