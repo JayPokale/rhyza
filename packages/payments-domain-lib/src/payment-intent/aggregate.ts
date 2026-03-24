@@ -5,6 +5,8 @@ import {
   IRatesService,
   IWalletAddressService,
   PaymentIntentDestination,
+  PaymentIntentState,
+  PaymentState,
   WalletAddress
 } from './interfaces';
 import { PaymentIntent } from './entity';
@@ -176,7 +178,7 @@ export class PaymentIntentAggregate {
   private async handleCreateQuoteCommand(cmd: CreateQuoteCmd) {
     try {
       const {
-        id,
+        id: quoteId,
         senderWalletAddressId,
         senderWalletAddress,
         receiveAmount,
@@ -226,7 +228,7 @@ export class PaymentIntentAggregate {
       }
 
       paymentIntent.addLocalQuote({
-        id,
+        id: quoteId,
         senderWalletAddress: {
           id: senderWalletAddressId,
           address: senderWalletAddress,
@@ -239,15 +241,10 @@ export class PaymentIntentAggregate {
       });
 
       this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
-
-      if (!this.newPaymentIntentQuotes.has(paymentIntent.id)) {
-        this.newPaymentIntentQuotes.set(paymentIntent.id, []);
-      }
-
-      this.newPaymentIntentQuotes.get(paymentIntent.id)?.push(id);
+      this.appendToMap(this.newPaymentIntentQuotes, paymentIntent.id, quoteId);
 
       const quoteCompletedEvent = new QuoteCompletedEvent(
-        { id },
+        { id: quoteId },
         cmd.requestId
       );
       return quoteCompletedEvent;
@@ -266,7 +263,7 @@ export class PaymentIntentAggregate {
 
   private async handleCreatePaymentCommand(cmd: CreatePaymentCmd) {
     const {
-      id,
+      id: paymentId,
       senderWalletAddressId,
       senderWalletAddress,
       paymentIntentId,
@@ -312,7 +309,7 @@ export class PaymentIntentAggregate {
       }
 
       paymentIntent.addLocalPayment({
-        id,
+        id: paymentId,
         senderWalletAddress: {
           id: senderWalletAddressId,
           address: senderWalletAddress,
@@ -325,14 +322,9 @@ export class PaymentIntentAggregate {
       });
 
       this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
+      this.appendToMap(this.newPaymentsMap, paymentIntent.id, paymentId);
 
-      if (!this.newPaymentsMap.has(paymentIntent.id)) {
-        this.newPaymentsMap.set(paymentIntent.id, []);
-      }
-
-      this.newPaymentsMap.get(paymentIntent.id)?.push(id);
-
-      return new PaymentCreatedEvent({ id }, cmd.requestId);
+      return new PaymentCreatedEvent({ id: paymentId }, cmd.requestId);
     } catch (err) {
       const event = new PaymentCreateFailedEvent(
         {
@@ -347,7 +339,7 @@ export class PaymentIntentAggregate {
   }
 
   private async handleApprovePaymentCommand(cmd: ApprovePaymentCmd) {
-    const { id, paymentIntentId } = cmd.payload;
+    const { id: paymentId, paymentIntentId } = cmd.payload;
 
     try {
       const paymentIntentObj = this.paymentIntentMap.get(paymentIntentId);
@@ -365,17 +357,15 @@ export class PaymentIntentAggregate {
         );
       }
 
-      paymentIntent.completeLocalPayment({ id });
-
+      paymentIntent.completeLocalPayment({ id: paymentId });
       this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
+      this.appendToMap(
+        this.completedLocalPayments,
+        paymentIntent.id,
+        paymentId
+      );
 
-      if (!this.completedLocalPayments.has(paymentIntent.id)) {
-        this.completedLocalPayments.set(paymentIntent.id, []);
-      }
-
-      this.completedLocalPayments.get(paymentIntent.id)?.push(id);
-
-      return new LocalPaymentCompletedEvent({ id }, cmd.requestId);
+      return new LocalPaymentCompletedEvent({ id: paymentId }, cmd.requestId);
     } catch (err) {
       return new LocalPaymentCompleteFailedEvent(
         {
@@ -385,6 +375,18 @@ export class PaymentIntentAggregate {
         cmd.requestId
       );
     }
+  }
+
+  private appendToMap(
+    map: Map<string, string[]>,
+    paymentIntentId: string,
+    idToAppend: string
+  ) {
+    if (!map.has(paymentIntentId)) {
+      map.set(paymentIntentId, []);
+    }
+
+    map.get(paymentIntentId)?.push(idToAppend);
   }
 
   public async flush() {
@@ -455,9 +457,14 @@ export class PaymentIntentAggregate {
 
     if (this.completedLocalPayments.size > 0) {
       const updates: {
-        paymentIntent: IPaymentIntent;
-        paymentIds: string[];
+        paymentIntent: {
+          id: string;
+          receivedAmount: bigint;
+          state: PaymentIntentState;
+        };
+        payments: { id: string; state: PaymentState; sentAmount: bigint }[];
       }[] = [];
+
       for (const [
         paymentIntentId,
         paymentIds
@@ -470,7 +477,20 @@ export class PaymentIntentAggregate {
           continue;
         }
 
-        updates.push({ paymentIntent, paymentIds });
+        updates.push({
+          paymentIntent: {
+            id: paymentIntent.id,
+            state: paymentIntent.state,
+            receivedAmount: paymentIntent.receivedAmount
+          },
+          payments: paymentIntent.payments
+            .filter((p) => paymentIds.includes(p.id))
+            .map((p) => ({
+              id: p.id,
+              state: p.state,
+              sentAmount: p.sentAmount
+            }))
+        });
       }
 
       promises.push(this._repo.storeCompletedLocalPayments(updates));
