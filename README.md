@@ -1,73 +1,80 @@
-# Rafiki POC
+# Rafiki v2
 
-This repository contains a Proof of Concept (PoC) project that explores a new payment flow for Rafiki.
+This repository contains Rafiki’s new architecture: a suite of performant, horizontally scalable services that enable Account Servicing Entities (ASEs) to provide Interledger and Open Payments functionality to their users.
 
-It is intended for experimental purposes only.
+## Project Architecture
 
-## Usage
+The project follows a modular architecture based on **Domain-Driven Design (DDD)**, where each **Bounded Context (BC)** is split into several packages to ensure a separation of concerns.
 
-Prepare correct Node.
+- [Project Structure & Guidelines](./internal-docs/Structure%20&%20Guidelines.md)
+- [Project Structure Diagram](./internal-docs/diagrams/structure.png)
+- [Architecture Diagram](./internal-docs/diagrams/architecture.png)
+- [Sequence Diagrams](./internal-docs/sequence-diagrams/)
 
-```shell
-nvm install
-nvm use
-```
+## Getting Started
 
-Build and start POC.
+### Prerequisites
 
-```shell
-corepack enable
-# Install & Build:
-pnpm i
-pnpm build
-```
+- [Node.js](https://nodejs.org/) (use [nvm](https://github.com/nvm-sh/nvm) for version management)
+- [pnpm](https://pnpm.io/)
+- [Docker](https://www.docker.com/)
 
-Full build and install:
+### Installation & Build
 
-```shell
-pnpm i && pnpm -r build
-```
+1. **Set up Node version**:
 
-Once ready, run test.
+   ```shell
+   nvm install
+   nvm use
+   ```
+
+2. **Enable corepack and install dependencies**:
+
+   ```shell
+   corepack enable
+   pnpm install
+   ```
+
+3. **Build the project**:
+   ```shell
+   pnpm -r build
+   ```
+
+### Running Tests
+
+To run the full test suite:
 
 ```shell
 pnpm test
 ```
 
-## Docker-Compose
+## Running with Docker Compose
 
-#### Build:
-
-Start the containers up with 3 command handlers and 2 api instances.
+The easiest way to run the entire stack is using Docker Compose.
 
 ```shell
-docker compose up -d --build --scale=backend=3 --scale=api=2
+pnpm docker compose up -d --build
 ```
 
-Then you can run the benchmark as follows:
+### Monitoring & Dashboards
+
+Once the services are running, you can monitor them at:
+
+- **Grafana**: [http://localhost:4501](http://localhost:4501)
+- **Redpanda (Kafka Console)**: [http://localhost:8080](http://localhost:8080)
+
+### Benchmarking
+
+To run a performance benchmark using [k6](https://k6.io/):
 
 ```shell
 k6 run benchmark.js
 ```
 
-You can monitor performance results on the Grafana dashboard at:
-http://localhost:4501/d/aeg4uh40kdl34d/rafiki-poc?orgId=1&from=now-5m&to=now&timezone=browser&refresh=5s
+### Cleanup
 
-You can monitor Kafka processing on the Redpanda dashboard at:
-http://localhost:8080
-
-Inspect the logs:
+To stop and remove all containers, volumes, and images:
 
 ```shell
-docker-compose logs -f backend
+pnpm docker down --volumes --rmi all
 ```
-
-Shut down and clear images and volumes:
-
-```shell
-docker-compose down --volumes --rmi all
-```
-
-### Docker
-
-`docker compose -f docker/docker-compose.yaml up`
