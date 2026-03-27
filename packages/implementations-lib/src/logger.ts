@@ -1,7 +1,6 @@
 import pino from 'pino';
 import {ILogger} from "common-types-lib";
 
-console.error()
 export class PinoLogger implements ILogger {
   private _logger: pino.Logger<never, boolean>;
 

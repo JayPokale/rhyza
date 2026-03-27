@@ -9,15 +9,23 @@
 
 "use strict";
 
-
-
 import { CommandMsg, CommandTopics } from 'common-types-lib';
 
-export abstract class BaseLedgerCommandMsg extends CommandMsg{
+export abstract class LedgerCommand extends CommandMsg{
     msgTopic:string = CommandTopics.LedgerCommands;
     protected constructor(aggId:string) {
         super(aggId);
         this.msgKey = aggId;
+    }
+
+    static isCreateLedgerCmd(cmd:CommandMsg):cmd is CreateLedgerCmd {
+        return cmd.msgName === CreateLedgerCmd.name;
+    }
+    static isCreateLedgerAccountCmd(cmd:CommandMsg):cmd is CreateLedgerAccountCmd {
+        return cmd.msgName === CreateLedgerAccountCmd.name;
+    }
+    static isPostTransactionCmd(cmd:CommandMsg):cmd is PostTransactionCmd {
+        return cmd.msgName === PostTransactionCmd.name;
     }
 }
 
@@ -25,7 +33,7 @@ export abstract class BaseLedgerCommandMsg extends CommandMsg{
 export interface CreateLedgerCmdPayload {
     id: string;
 }
-export class CreateLedgerCmd extends BaseLedgerCommandMsg{
+export class CreateLedgerCmd extends LedgerCommand{
     payload: CreateLedgerCmdPayload;
     constructor( payload: CreateLedgerCmdPayload) {
         super(payload.id);
@@ -40,7 +48,7 @@ export interface CreateLedgerAccountCmdPayload {
     assetDisplayScale: number;
     name: string;
 }
-export class CreateLedgerAccountCmd extends BaseLedgerCommandMsg{
+export class CreateLedgerAccountCmd extends LedgerCommand{
     payload: CreateLedgerAccountCmdPayload;
     constructor(aggId:string, payload: CreateLedgerAccountCmdPayload) {
         super(aggId);
@@ -56,7 +64,7 @@ export interface PostTransactionCmdPayload {
     amount: string;
     amountScale: number;
 }
-export class PostTransactionCmd extends BaseLedgerCommandMsg{
+export class PostTransactionCmd extends LedgerCommand{
     payload: PostTransactionCmdPayload;
     constructor(aggId:string, payload: PostTransactionCmdPayload) {
         super(aggId);

@@ -13,17 +13,15 @@ import {ILedgerAccount, LedgerAccountSerializer} from "./entities/ledger-account
 import {ILedgerTransaction, TransactionSerializer} from "./entities/transaction";
 import {
   LedgerAccountCreatedStateEvent, LedgerCreatedStateEvent,
-  LedgerSnapshotEvent, LedgerSnapshotPayload, LedgerStateEvents,
+  LedgerSnapshotEvent, LedgerSnapshotPayload, LedgerStateEvent,
   LedgerTransactionRecordedStateEvent,
 } from "./messages/events";
 import {
-    CreateLedgerAccountCmd,
-    PostTransactionCmd
+  CreateLedgerAccountCmd, LedgerCommand,
+  PostTransactionCmd
 } from "./messages/commands";
 import * as console from "node:console";
-import {BaseMessage, CommandMsg, ILogger, MessageTypes, SnapshotEvent, StateEvent } from "common-types-lib";
-
-const MAX_EVENTS_PER_SNAPSHOT = 10;
+import {ILogger, MessageTypes, SnapshotEvent } from "common-types-lib";
 
 export class Ledger {
     private readonly _id: string;   // ledger id is the asset code
@@ -34,7 +32,7 @@ export class Ledger {
     private _transactionCount: bigint;
     private _lastSnapshotVersion: bigint;
 
-    private readonly _uncommittedEvents: LedgerStateEvents[];
+    private readonly _uncommittedEvents: LedgerStateEvent[];
 
     //private _esRepo: IEventSourcingRepository;
 
@@ -94,7 +92,7 @@ export class Ledger {
         return this._lastSnapshotVersion;
     }
 
-    get uncommittedEvents(): LedgerStateEvents[] {
+    get uncommittedEvents(): LedgerStateEvent[] {
         return this._uncommittedEvents;
     }
 
@@ -110,7 +108,7 @@ export class Ledger {
     * private
     * */
 
-    private _applySnapshot(snapshot: SnapshotEvent): void {
+    private _applySnapshot(snapshot: LedgerSnapshotEvent): void {
         if (snapshot.msgType !== MessageTypes.SNAPSHOT_EVENT || snapshot.msgName !== LedgerSnapshotEvent.name) {
             throw new Error("Invalid snapshot event type");
         }
@@ -121,10 +119,9 @@ export class Ledger {
         after the snapshot is applied.
         */
 
-        const snapshotEvent = snapshot as LedgerSnapshotEvent;
-        this._accounts = snapshotEvent.payload.accounts.map(LedgerAccountSerializer.fromDTO);
-        this._lastSnapshotVersion = this._version = BigInt(snapshotEvent.aggregateVersion);
-        this._transactionCount = BigInt(snapshotEvent.payload.transactionCount);
+        this._accounts = snapshot.payload.accounts.map(LedgerAccountSerializer.fromDTO);
+        this._lastSnapshotVersion = this._version = BigInt(snapshot.aggregateVersion);
+        this._transactionCount = BigInt(snapshot.payload.transactionCount);
 
         // TODO only greater than current version, not equal
         if (this._version !== BigInt(snapshot.aggregateVersion)) {
@@ -132,7 +129,7 @@ export class Ledger {
         }
     }
 
-    private _applyEvent(event: StateEvent, replayed: boolean = false) {
+    private _applyEvent(event: LedgerStateEvent, replayed: boolean = false) {
         if (event.msgType !== MessageTypes.STATE_EVENT) throw new Error("Invalid event type");
 
         if (BigInt(event.aggregateVersion) !== this._version + 1n) {
@@ -140,19 +137,18 @@ export class Ledger {
             throw new Error("Event version mismatch, cannot apply event out of order");
         }
 
-        if (event.msgName === LedgerCreatedStateEvent.name) {
-            this._applyLedgerCreatedStateEvent(event as LedgerCreatedStateEvent);
-        }else if (event.msgName === LedgerAccountCreatedStateEvent.name) {
-            this._applyLedgerAccountCreatedStateEvent(event as LedgerAccountCreatedStateEvent);
-        } else if (event.msgName === LedgerTransactionRecordedStateEvent.name) {
-            this._applyLedgerTransactionRecordedStateEvent(event as LedgerTransactionRecordedStateEvent);
+        if (LedgerStateEvent.isLedgerCreatedStateEvent(event)) {
+            this._applyLedgerCreatedStateEvent(event);
+        }else if (LedgerStateEvent.isLedgerAccountCreatedStateEvent(event)) {
+            this._applyLedgerAccountCreatedStateEvent(event);
+        } else if (LedgerStateEvent.isLedgerTransactionRecordedStateEvent(event)) {
+            this._applyLedgerTransactionRecordedStateEvent(event);
         } else {
             throw new Error("Invalid event type");
         }
 
         // increment version or set to last event, if replaying
         this._version = replayed ? BigInt(event.aggregateVersion) : this._version + 1n;
-        // this._version++;
     }
 
     private _applyLedgerCreatedStateEvent(event: LedgerCreatedStateEvent): void {
@@ -180,7 +176,7 @@ export class Ledger {
         this._transactionCount++;
     }
 
-    private _recordStateEvents(events: StateEvent[]): void {
+    private _recordStateEvents(events: LedgerStateEvent[]): void {
         events.forEach(event => {
             this._version++;
             event.aggregateVersion = this._version.toString();
@@ -256,7 +252,7 @@ export class Ledger {
     * public
     * */
 
-    async load(snapshot:SnapshotEvent | null, events:StateEvent[], replayed: boolean = false): Promise<boolean> {
+    async load(snapshot:LedgerSnapshotEvent | null, events:LedgerStateEvent[], replayed: boolean = false): Promise<boolean> {
         if(!snapshot && !events.length){
             return false;
         }
@@ -281,17 +277,13 @@ export class Ledger {
         return true;
     }
 
-    async processCommand(cmd: CommandMsg): Promise<void> {
-        if(cmd.msgType !== MessageTypes.COMMAND){
-            throw new Error(`invalid command msgType: '${cmd.msgType}' in processCommand()`);
-        }
-
-        if(cmd.msgName === CreateLedgerAccountCmd.name) {
-            await this._processCreateLedgerAccountCmd(cmd as CreateLedgerAccountCmd);
-        }else if(cmd.msgName === PostTransactionCmd.name) {
-            await this._processPostTransactionCmd(cmd as PostTransactionCmd);
+    async processCommand(ledgerCmd: LedgerCommand): Promise<void> {
+        if(LedgerCommand.isCreateLedgerAccountCmd(ledgerCmd)) {
+            await this._processCreateLedgerAccountCmd(ledgerCmd);
+        }else if(LedgerCommand.isPostTransactionCmd(ledgerCmd)) {
+            await this._processPostTransactionCmd(ledgerCmd);
         }else{
-            throw new Error(`unhandled command with msgName: '${cmd.msgName}'`);
+            throw new Error(`unhandled command with msgName: '${ledgerCmd.msgName}'`);
         }
 
         //this._logger.debug(`Ledger ${this.id} - processed command: ${cmd.msgName}`);

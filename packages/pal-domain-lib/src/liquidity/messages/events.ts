@@ -14,13 +14,20 @@ import {ILedgerAccountStateDTO} from "../entities/ledger-account";
 import {ILedgerTransactionStateDTO} from "../entities/transaction";
 
 
-export type LedgerStateEvents = LedgerCreatedStateEvent | LedgerAccountCreatedStateEvent | LedgerTransactionRecordedStateEvent;
-
-
-export abstract class BaseLedgerStateEvent extends StateEvent {
+export abstract class LedgerStateEvent extends StateEvent {
   msgTopic: string = StateEventTopics.LedgerStateEvents;
   protected constructor(aggId: string) {
     super(aggId);
+  }
+
+  static isLedgerCreatedStateEvent(evt:StateEvent):evt is LedgerCreatedStateEvent {
+    return evt.msgName === LedgerCreatedStateEvent.name;
+  }
+  static isLedgerAccountCreatedStateEvent(evt:StateEvent):evt is LedgerAccountCreatedStateEvent {
+    return evt.msgName === LedgerAccountCreatedStateEvent.name;
+  }
+  static isLedgerTransactionRecordedStateEvent(evt:StateEvent):evt is LedgerTransactionRecordedStateEvent {
+    return evt.msgName === LedgerTransactionRecordedStateEvent.name;
   }
 }
 export abstract class BaseLedgerSnapshotEvent extends SnapshotEvent{
@@ -38,7 +45,7 @@ export type LedgerCreatedStatePayload = {
     id: string;
     assetScale: number;
 }
-export class LedgerCreatedStateEvent extends BaseLedgerStateEvent {
+export class LedgerCreatedStateEvent extends LedgerStateEvent {
   payload: LedgerCreatedStatePayload;
 
   constructor(aggId: string, assetScale: number) {
@@ -55,7 +62,7 @@ export class LedgerCreatedStateEvent extends BaseLedgerStateEvent {
 export type LedgerAccountCreatedStatePayload = {
     account:ILedgerAccountStateDTO;
 }
-export class LedgerAccountCreatedStateEvent extends BaseLedgerStateEvent {
+export class LedgerAccountCreatedStateEvent extends LedgerStateEvent {
   payload: LedgerAccountCreatedStatePayload;
 
   constructor(
@@ -72,7 +79,7 @@ export class LedgerAccountCreatedStateEvent extends BaseLedgerStateEvent {
 export type LedgerTransactionRecordedStatePayload = {
     transaction: ILedgerTransactionStateDTO;
 }
-export class LedgerTransactionRecordedStateEvent extends BaseLedgerStateEvent{
+export class LedgerTransactionRecordedStateEvent extends LedgerStateEvent{
     payload: LedgerTransactionRecordedStatePayload;
 
     constructor(aggId:string, aggVersion:string, payload: LedgerTransactionRecordedStatePayload){

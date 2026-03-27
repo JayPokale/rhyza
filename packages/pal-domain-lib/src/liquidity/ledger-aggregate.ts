@@ -13,15 +13,15 @@
 import {Ledger} from "./ledger";
 
 import {
-    CreateLedgerCmd,
+  CreateLedgerCmd, LedgerCommand,
 } from "./messages/commands";
 
 
-import {LedgerCreatedStateEvent, LedgerStateEvents} from "./messages/events";
+import {LedgerCreatedStateEvent, LedgerStateEvent} from "./messages/events";
 import console from "node:console";
 import {ILedgerAccount} from "./entities/ledger-account";
 import {ILedgerEventSourcingRepository} from "./interfaces";
-import {BaseMessage, CommandMsg, ILogger, MessageTypes } from "common-types-lib";
+import {CommandMsg, ILogger, MessageTypes } from "common-types-lib";
 
 const INTERNAL_ASSET_SCALE = 20;
 
@@ -30,7 +30,7 @@ export class LedgerAggregate {
     private readonly _logger: ILogger;
     private readonly _ledgers: Map<string, Ledger>;
     private readonly _esRepo: ILedgerEventSourcingRepository;
-    private readonly _uncommittedEvents: LedgerStateEvents[];
+    private readonly _uncommittedEvents: LedgerStateEvent[];
 
     constructor(esRepo: ILedgerEventSourcingRepository, logger: ILogger) {
         this._esRepo = esRepo;
@@ -39,12 +39,12 @@ export class LedgerAggregate {
         this._uncommittedEvents = [];
     }
 
-    private async _processSingleCommand(command: CommandMsg): Promise<void> {
+    private async _processSingleCommand(command: LedgerCommand): Promise<void> {
         // detect commands for the aggregate (ie, not for a specific ledger)
-        if(command.msgName === CreateLedgerCmd.name) {
+        if(LedgerCommand.isCreateLedgerCmd(command)) {
             await this._processCreateLedgerCmd(command);
         }else{
-            // ledger specific commands, load it first
+            // ledger-specific commands, load it first
             const ledger = await this.getOrLoadLedger(command.aggregateId);
             if(!ledger) {
                 throw new Error("Ledger not found"); // TODO make error event
@@ -83,7 +83,7 @@ export class LedgerAggregate {
                 throw new Error("Invalid aggregateId in command"); // TODO make error event
             }
 
-            await this._processSingleCommand(cmd);
+            await this._processSingleCommand(cmd as LedgerCommand);
         }
 
         // publish and clear uncommited events
@@ -97,7 +97,7 @@ export class LedgerAggregate {
     async getOrLoadLedger(ledgerId: string, replayed: boolean = false): Promise<Ledger|null> {
         let loadedLedger = this._ledgers.get(ledgerId);
 
-        // TODO detect partition changes so we can force load before continuing
+        // TODO detect partition changes (rebalancing) so we can force load before continuing
         if(loadedLedger) {
             return loadedLedger;
         }

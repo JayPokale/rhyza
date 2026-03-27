@@ -48,7 +48,7 @@ export class RafikiKafkaRawProducer
   extends EventEmitter
   implements IRawMessageProducer
 {
-  private readonly _logger: ILogger;
+  private readonly _logger: ILogger | null;
   private readonly _client!: RDKafka.HighLevelProducer;
   private _globalConfig: RDKafka.ProducerGlobalConfig = {};
   private _topicConfig: RDKafka.ProducerTopicConfig = {};
@@ -70,7 +70,7 @@ export class RafikiKafkaRawProducer
           return super.emit(event, ...args)
       }*/
 
-  constructor(options: RafikiKafkaRawProducerOptions, logger: ILogger) {
+  constructor(options: RafikiKafkaRawProducerOptions, logger: ILogger | null = null) {
     super();
     this._logger = logger;
     this._options = options;
@@ -97,8 +97,8 @@ export class RafikiKafkaRawProducer
     this._client.on('disconnected', this._onDisconnect.bind(this));
     this._client.on('delivery-report', this._onDeliveryReport.bind(this));
 
-    this._logger.info('RafikiRawKafkaProducer - instance created');
-    this._logger.info(`RafikiRawKafkaProducer - features: ${RDKafka.features}`);
+    this._logger?.info('RafikiRawKafkaProducer - instance created');
+    this._logger?.info(`RafikiRawKafkaProducer - features: ${RDKafka.features}`);
   }
 
   private _parseOptionsAndApplyDefault(): void {
@@ -165,7 +165,7 @@ export class RafikiKafkaRawProducer
   }
 
   private _onReady(info: RDKafka.ReadyInfo, metadata: RDKafka.Metadata): void {
-    this._logger.info(
+    this._logger?.info(
       `RafikiRawKafkaProducer - event.ready - info: ${JSON.stringify(
         info,
         null,
@@ -175,13 +175,13 @@ export class RafikiKafkaRawProducer
   }
 
   private _onError(error: RDKafka.LibrdKafkaError): void {
-    this._logger.error(
+    this._logger?.error(
       `RafikiRawKafkaProducer - event.error - ${JSON.stringify(error, null, 2)}`
     );
   }
 
   private _onThrottle(eventData: any) {
-    this._logger.warn(
+    this._logger?.warn(
       `RafikiRawKafkaProducer - event.throttle - ${JSON.stringify(
         eventData,
         null,
@@ -191,7 +191,7 @@ export class RafikiKafkaRawProducer
   }
 
   private _onLog(eventData: any): void {
-    this._logger.debug(
+    this._logger?.debug(
       `RafikiRawKafkaProducer - event.log - ${JSON.stringify(
         eventData,
         null,
@@ -201,19 +201,19 @@ export class RafikiKafkaRawProducer
   }
 
   private _onStats(eventData: any): void {
-    this._logger.debug(`RafikiRawKafkaProducer - event.stats - ${eventData.message}`);
+    this._logger?.debug(`RafikiRawKafkaProducer - event.stats - ${eventData.message}`);
   }
 
   private _onDisconnect(metrics: RDKafka.ClientMetrics): void {
     /* istanbul ignore else */
     if (metrics?.connectionOpened) {
-      this._logger.info(
+      this._logger?.info(
         `RafikiRawKafkaProducer - event.disconnected - connected for ${
           (Date.now() - metrics.connectionOpened) / 1000
         } secs`
       );
     } else {
-      this._logger.info(
+      this._logger?.info(
         `RafikiRawKafkaProducer - event.disconnected - ${JSON.stringify(
           metrics,
           null,
@@ -229,10 +229,10 @@ export class RafikiKafkaRawProducer
   ): void {
     /* istanbul ignore if */
     if (err) {
-      this._logger.error(err, 'RafikiRawKafkaProducer - delivery-report error');
+      this._logger?.error(err, 'RafikiRawKafkaProducer - delivery-report error');
       return;
     }
-    //this._logger?.isDebugEnabled() && this._logger.debug(`RafikiRawKafkaProducer - delivery-report - ${JSON.stringify(eventData, null, 2)}`)
+    //this._logger?.isDebugEnabled() && this._logger?.debug(`RafikiRawKafkaProducer - delivery-report - ${JSON.stringify(eventData, null, 2)}`)
     if (this._deliveryReportHandlerFn) {
       this._deliveryReportHandlerFn(
         eventData.topic,
@@ -261,7 +261,7 @@ export class RafikiKafkaRawProducer
       try {
         message = Buffer.from(JSON.stringify(msg.value), 'utf-8');
       } catch (err) {
-        this._logger.error(
+        this._logger?.error(
           err,
           'RafikiRawKafkaProducer - error parsing message value - JSON.stringify() error'
         );
@@ -275,7 +275,7 @@ export class RafikiKafkaRawProducer
       try {
         key = Buffer.from(JSON.stringify(msg.key), 'utf-8');
       } catch (err) {
-        this._logger.error(
+        this._logger?.error(
           'RafikiRawKafkaProducer - error parsing key value - JSON.stringify() error',
           err
         );
@@ -326,7 +326,7 @@ export class RafikiKafkaRawProducer
             (err: any, offset?: RDKafka.NumberNullUndefined) => {
               /* istanbul ignore if */
               if (err !== null) {
-                this._logger.error(
+                this._logger?.error(
                   'RafikiRawKafkaProducer - send - Error getting aks from publisher',
                   err
                 );
@@ -345,7 +345,7 @@ export class RafikiKafkaRawProducer
             }
           );
         } catch (err) {
-          this._logger.error('RafikiRawKafkaProducer - send ...error !', err);
+          this._logger?.error('RafikiRawKafkaProducer - send ...error !', err);
 
           reject(err);
         }
@@ -355,9 +355,9 @@ export class RafikiKafkaRawProducer
 
   async disconnect(): Promise<void> {
     return new Promise((resolve, reject) => {
-      this._logger.info('RafikiRawKafkaProducer - disconnect called...');
+      this._logger?.info('RafikiRawKafkaProducer - disconnect called...');
       if (!this._client.isConnected()) {
-        this._logger.warn(
+        this._logger?.warn(
           'RafikiRawKafkaProducer - disconnect called but producer is not connected'
         );
         return resolve();
@@ -365,10 +365,10 @@ export class RafikiKafkaRawProducer
       this._client.disconnect((err: any, _data: RDKafka.ClientMetrics) => {
         /* istanbul ignore if */
         if (err) {
-          this._logger.error('RafikiRawKafkaProducer - disconnect failed', err);
+          this._logger?.error('RafikiRawKafkaProducer - disconnect failed', err);
           return reject(err);
         }
-        this._logger.info('RafikiRawKafkaProducer - disconnected.');
+        this._logger?.info('RafikiRawKafkaProducer - disconnected.');
         resolve();
       });
     });
@@ -381,7 +381,7 @@ export class RafikiKafkaRawProducer
         (err: RDKafka.LibrdKafkaError, metadata: RDKafka.Metadata) => {
           /* istanbul ignore if */
           if (err) {
-            this._logger.error(
+            this._logger?.error(
               err,
               'RafikiRawKafkaProducer - error connecting to cluster'
             );
@@ -392,8 +392,8 @@ export class RafikiKafkaRawProducer
             );
           }
 
-          //this._logger?.isDebugEnabled() && this._logger.debug(`RafikiRawKafkaProducer::event.ready - metadata: ${JSON.stringify(metadata, null, 2)}`)
-          this._logger.info('RafikiRawKafkaProducer - connected!');
+          //this._logger?.isDebugEnabled() && this._logger?.debug(`RafikiRawKafkaProducer::event.ready - metadata: ${JSON.stringify(metadata, null, 2)}`)
+          this._logger?.info('RafikiRawKafkaProducer - connected!');
           resolve();
         }
       );
@@ -415,7 +415,7 @@ export class RafikiKafkaRawProducer
   }
 
   async destroy(): Promise<void> {
-    this._logger.info('RafikiRawKafkaProducer - destroy called...');
+    this._logger?.info('RafikiRawKafkaProducer - destroy called...');
     return await this.disconnect();
   }
 }

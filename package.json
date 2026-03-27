@@ -29,7 +29,8 @@
       "esbuild",
       "grpc-tools",
       "node-rdkafka",
-      "protobufjs"
+      "protobufjs",
+      "@confluentinc/kafka-javascript"
     ]
   }
 }

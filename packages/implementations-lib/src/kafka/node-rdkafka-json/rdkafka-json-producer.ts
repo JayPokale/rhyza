@@ -6,13 +6,13 @@ import { RafikiKafkaRawProducer, RafikiKafkaRawProducerOptions } from '../node-r
 export type RafikiKafkaJsonProducerOptions = RafikiKafkaRawProducerOptions;
 
 export class RafikiKafkaJsonProducer implements IMessageProducer {
-  private readonly _logger: ILogger;
+  private readonly _logger: ILogger | null;
   private readonly _rawKafkaProducer: RafikiKafkaRawProducer;
 
-  constructor(options: RafikiKafkaJsonProducerOptions, logger: ILogger) {
+  constructor(options: RafikiKafkaJsonProducerOptions, logger: ILogger | null = null) {
     this._logger = logger;
     this._rawKafkaProducer = new RafikiKafkaRawProducer(options, logger);
-    logger.info('RafikiKafkaJsonProducer - instance created');
+    this._logger?.info('RafikiKafkaJsonProducer - instance created');
   }
 
   private _convert(message: IMessage | IMessage[]): IRawMessage[] {

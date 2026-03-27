@@ -61,7 +61,7 @@ const KAFKA_URL =
 const kafkaProducerCommonOptions: RafikiKafkaJsonProducerOptions = {
   kafkaBrokerList: KAFKA_URL,
   producerClientId: `${INSTANCE_ID}`,
-  queueBufferingMaxMessage: 500_000
+  queueBufferingMaxMessages: 500_000
 };
 const kafkaConsumerCommonOptions: RafikiKafkaJsonConsumerOptions = {
   kafkaBrokerList: KAFKA_URL,
@@ -74,36 +74,48 @@ const kafkaConsumerCommonOptions: RafikiKafkaJsonConsumerOptions = {
 export class PalLedgerCommandHandlerService {
   private static _logger: ILogger;
   private static _ledgerAggregate: LedgerAggregate;
+  private static _esRepo: KafkaLedgerEventSourcingRepository;
   private static _producer: IMessageProducer;
   private static _consumer: IMessageConsumer;
 
-  static async start(): Promise<void> {
-    this._logger = new PinoLogger();
+  static async start(
+    logger?: ILogger,
+    esRepo?: KafkaLedgerEventSourcingRepository
+  ): Promise<void> {
+    if(!logger){
+      logger = new PinoLogger();
+    }
+    this._logger = logger;
+
     this._logger.info(`Starting ${this.constructor.name}...`);
 
-    const snapshotSerde = SnapshotEventSerializer.instance();
-    snapshotSerde.setSerde(LedgerSnapshotEvent.name, new LedgerSnapshotSerde());
+    if(!esRepo){
+      const snapshotSerde = SnapshotEventSerializer.instance();
+      snapshotSerde.setSerde(LedgerSnapshotEvent.name, new LedgerSnapshotSerde());
 
-    const eventSerde = StateEventSerializer.instance();
-    eventSerde.setSerde(LedgerCreatedStateEvent.name, new LedgerCreatedStateEventSerde());
-    eventSerde.setSerde(LedgerAccountCreatedStateEvent.name, new LedgerAccountCreatedStateEventSerde());
-    eventSerde.setSerde(LedgerTransactionRecordedStateEvent.name, new LedgerTransactionRecordedStateEventSerde());
+      const eventSerde = StateEventSerializer.instance();
+      eventSerde.setSerde(LedgerCreatedStateEvent.name, new LedgerCreatedStateEventSerde());
+      eventSerde.setSerde(LedgerAccountCreatedStateEvent.name, new LedgerAccountCreatedStateEventSerde());
+      eventSerde.setSerde(LedgerTransactionRecordedStateEvent.name, new LedgerTransactionRecordedStateEventSerde());
 
-    const esRepo = new KafkaLedgerEventSourcingRepository(
-      kafkaProducerCommonOptions,
-      kafkaConsumerCommonOptions,
-      REDIS_URL,
-      snapshotSerde,
-      eventSerde,
-      this._logger
-    );
+      esRepo = new KafkaLedgerEventSourcingRepository(
+        kafkaProducerCommonOptions,
+        kafkaConsumerCommonOptions,
+        REDIS_URL,
+        snapshotSerde,
+        eventSerde,
+        this._logger
+      );
+      await esRepo.init();
+    }
+    this._esRepo = esRepo;
 
-    this._ledgerAggregate = new LedgerAggregate(esRepo, this._logger);
+    this._ledgerAggregate = new LedgerAggregate(this._esRepo, this._logger);
 
     this._ledgerAggregate.printStats();
     this._logger.info("Ledger initialized");
 
-    this._consumer = new RafikiKafkaJsonConsumer(kafkaConsumerCommonOptions)
+    this._consumer = new RafikiKafkaJsonConsumer(kafkaConsumerCommonOptions, this._logger);
     this._consumer.setTopics([CommandTopics.LedgerCommands]);
 
     this._consumer.setBatchCallbackFn(async (messages:IMessage[]) => {
@@ -114,7 +126,7 @@ export class PalLedgerCommandHandlerService {
     await this._consumer.connect();
     await this._consumer.startAndWaitForRebalance();
 
-    this._logger.info("Ledger ready to receive commands");
+    this._logger.info(`${this.constructor.name} ready to receive commands`);
   }
 
   static async stop(): Promise<void> {}

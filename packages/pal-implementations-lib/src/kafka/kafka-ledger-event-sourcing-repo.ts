@@ -15,9 +15,9 @@ import {
   RafikiKafkaJsonFetcherOptions,
   RafikiKafkaJsonProducerOptions
 } from 'implementations-lib';
-import {ILedgerEventSourcingRepository, LedgerSnapshotEvent, LedgerStateEvents} from "pal-domain-lib";
+import {ILedgerEventSourcingRepository, LedgerSnapshotEvent, LedgerStateEvent} from "pal-domain-lib";
 
-const CACHE_PREFIX = "ES_SNAPSHOT_";
+const CACHE_PREFIX = "LEDGER_ES_SNAPSHOT_";
 
 type SnapshotCacheData = {
     topic: string;
@@ -26,12 +26,12 @@ type SnapshotCacheData = {
 }
 
 export class KafkaLedgerEventSourcingRepository implements ILedgerEventSourcingRepository {
-    private _logger:ILogger
-    private _producer: IRawMessageProducer;
-    private _consumerOptions: RafikiKafkaJsonFetcherOptions;
-    private _redisClient: Redis;
-    private _snapshotSerializer: SnapshotEventSerializer;
-    private _eventSerializer: StateEventSerializer;
+    private readonly _logger:ILogger
+    private readonly _producer: IRawMessageProducer;
+    private readonly _consumerOptions: RafikiKafkaJsonFetcherOptions;
+    private readonly _redisClient: Redis;
+    private readonly _snapshotSerializer: SnapshotEventSerializer;
+    private readonly _eventSerializer: StateEventSerializer;
 
     constructor(
         producerOptions: RafikiKafkaJsonProducerOptions, consumerOptions: RafikiKafkaJsonFetcherOptions,
@@ -53,6 +53,14 @@ export class KafkaLedgerEventSourcingRepository implements ILedgerEventSourcingR
         return `${CACHE_PREFIX}_${aggregateId}`;
     }
 
+    get eventSerializer(): StateEventSerializer {
+        return this._eventSerializer;
+    }
+
+    get snapshotSerializer(): SnapshotEventSerializer {
+        return this._snapshotSerializer;
+    }
+
     async init(): Promise<void> {
         await this._producer.connect();
 
@@ -69,7 +77,7 @@ export class KafkaLedgerEventSourcingRepository implements ILedgerEventSourcingR
         return Promise.resolve();
     }
 
-    async publishEvents(events:LedgerStateEvents[]):Promise<void> {
+    async publishEvents(events:LedgerStateEvent[]):Promise<void> {
         // const rawMsgs:IRawMessage[] = events.map(this._getRawMessageFromIMessage);
         const rawMsgs:IRawMessage[] = events.map(this._eventSerializer.serialize.bind(this._eventSerializer));
         await this._producer.sendWithAck(rawMsgs);
@@ -137,7 +145,7 @@ export class KafkaLedgerEventSourcingRepository implements ILedgerEventSourcingR
         return snapShotMsg;
     }
 
-    async fetchStateEvents(aggId: string, partitionAndOffset?: { partition: number, offset: number }): Promise<LedgerStateEvents[]> {
+    async fetchStateEvents(aggId: string, partitionAndOffset?: { partition: number, offset: number }): Promise<LedgerStateEvent[]> {
         const fetcher = new KafkaJavascriptProtobufFetcher(this._consumerOptions, this._logger);
         const rawEvents = await fetcher.fetchAll(
           aggId,
@@ -148,7 +156,7 @@ export class KafkaLedgerEventSourcingRepository implements ILedgerEventSourcingR
             return [];
         }
 
-        const stateEvents = rawEvents.map(this._eventSerializer.deserialize.bind(this._eventSerializer)) as LedgerStateEvents[];
+        const stateEvents = rawEvents.map(this._eventSerializer.deserialize.bind(this._eventSerializer)) as LedgerStateEvent[];
         return stateEvents;
     }
 

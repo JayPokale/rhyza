@@ -13,7 +13,6 @@
   "license": "ISC",
   "dependencies": {
     "mongodb": "~7.1.0",
-    "@confluentinc/kafka-javascript": "~1.8.2",
     "ioredis": "~5.10.1",
     "google-protobuf": "~4.0.2",
     "pal-domain-lib": "workspace: *",
