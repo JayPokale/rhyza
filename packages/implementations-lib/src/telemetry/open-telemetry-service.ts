@@ -12,7 +12,7 @@ import { NodeSDK } from '@opentelemetry/sdk-node';
 import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-node';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
-import { PgInstrumentation } from '@opentelemetry/instrumentation-pg';
+import { MongoDBInstrumentation } from '@opentelemetry/instrumentation-mongodb';
 import {
   ATTR_SERVICE_INSTANCE_ID,
   ATTR_SERVICE_NAME,
@@ -26,8 +26,12 @@ import {
   Gauge,
   Histogram,
   MetricOptions,
-  metrics
+  metrics,
+  trace,
+  SpanStatusCode,
+  context
 } from '@opentelemetry/api';
+import { GrpcInstrumentation } from '@opentelemetry/instrumentation-grpc';
 
 const OPEN_TELEMETRY_COLLECTOR_URL =
   process.env['OPEN_TELEMETRY_COLLECTOR_URL'] || 'http://127.0.0.1:4317';
@@ -118,17 +122,25 @@ export class OpenTelemetryService implements TelemetryService {
       url: collectorUrl
     });
 
+    const instrumentations = [
+      new HttpInstrumentation(),
+      new MongoDBInstrumentation({ enhancedDatabaseReporting: true }),
+      new GrpcInstrumentation()
+    ];
+
     const sdk = new NodeSDK({
       resource: commonResource,
       traceExporter: traceExporter,
-      metricReader: metricExporterReader
+      metricReader: metricExporterReader,
+      instrumentations: instrumentations
     });
 
     sdk.start();
 
     this.instance.fastifyOtelInstrumentation = new FastifyOtelInstrumentation({
       // @ts-expect-error TODO fix fastify otel instrumentation
-      servername: `${appName}_${instanceId}`
+      servername: `${appName}_${instanceId}`,
+      registerOnInitialization: true
     });
 
     const tracerProvider = new NodeTracerProvider({
@@ -143,11 +155,7 @@ export class OpenTelemetryService implements TelemetryService {
     tracerProvider.register();
 
     registerInstrumentations({
-      instrumentations: [
-        // Fastify instrumentation expects HTTP instrumentation
-        new HttpInstrumentation(),
-        new PgInstrumentation()
-      ]
+      instrumentations
     });
 
     this.instance.logger.info(
@@ -223,5 +231,31 @@ export class OpenTelemetryService implements TelemetryService {
         ...additionalAttributes
       });
     };
+  }
+
+  public async trace<T>(
+    name: string,
+    fn: () => Promise<T>,
+    attributes: Attributes = {}
+  ): Promise<T> {
+    const tracer = trace.getTracer(this.appName);
+    return tracer.startActiveSpan(name, { attributes }, async (span) => {
+      try {
+        const result = await fn();
+        span.setStatus({ code: SpanStatusCode.OK });
+        return result;
+      } catch (error) {
+        span.setStatus({
+          code: SpanStatusCode.ERROR,
+          message: error instanceof Error ? error.message : String(error)
+        });
+        if (error instanceof Error) {
+          span.recordException(error);
+        }
+        throw error;
+      } finally {
+        span.end();
+      }
+    });
   }
 }

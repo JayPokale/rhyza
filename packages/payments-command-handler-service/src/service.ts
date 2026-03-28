@@ -1,6 +1,7 @@
 import {
   RafikiKafkaJsonProducer,
-  RafikiKafkaJsonConsumer
+  RafikiKafkaJsonConsumer,
+  OpenTelemetryService
 } from 'implementations-lib';
 import {
   MongoDbPaymentIntentRepo,
@@ -61,7 +62,8 @@ export class PaymentsCommandHandlerService {
     this.commandHandler = new PaymentsCommandHandler(
       this.msgConsumer,
       this.msgProducer,
-      aggregate
+      aggregate,
+      OpenTelemetryService.getInstance()
     );
     await this.commandHandler.start();
   }

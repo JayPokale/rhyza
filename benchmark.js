@@ -13,8 +13,8 @@ export const options = {
       executor: 'ramping-vus',
       startVUs: 0,
       stages: [
-        { duration: '15s', target: 500 },
-        { duration: '15s', target: 500 },
+        { duration: '15s', target: 100 },
+        { duration: '15s', target: 100 },
         { duration: '15s', target: 0 }
       ]
       // gracefulRampDown: "30s",
@@ -22,13 +22,14 @@ export const options = {
   }
 };
 
-const ADMIN_API_URL = 'http://localhost:3001';
+const ADMIN_API_URL = 'http://localhost';
 
-function request(url, data) {
+function request(url, data, tag) {
   return http.post(url, JSON.stringify(data), {
     headers: {
       'Content-Type': 'application/json'
-    }
+    },
+    tags: { name: tag || 'none' }
   });
 }
 
@@ -43,7 +44,7 @@ export function setup() {
   });
 
   const receiverRes = request(`${ADMIN_API_URL}/wallet-addresses`, {
-    address: 'receiver',
+    address: 'test.com/receiver',
     publicName: 'Receiver',
     assetCode: 'USD'
   });
@@ -54,7 +55,7 @@ export function setup() {
   const receiver = JSON.parse(receiverRes.body);
 
   const senderRes = request(`${ADMIN_API_URL}/wallet-addresses`, {
-    address: 'sender',
+    address: 'test.com/sender',
     publicName: 'Sender',
     assetCode: 'USD'
   });
@@ -65,17 +66,21 @@ export function setup() {
   const sender = JSON.parse(senderRes.body);
 
   return {
-    receiverWalletAddress: receiver.address || 'receiver',
-    senderWalletAddress: sender.address || 'sender'
+    receiverWalletAddress: receiver.address || 'test.com/receiver',
+    senderWalletAddress: sender.address || 'test.com/sender'
   };
 }
 
 export default function (data) {
   const incomingPaymentId = uuidv4();
-  const incomingPaymentRes = request(`${ADMIN_API_URL}/incoming-payments`, {
-    id: incomingPaymentId,
-    walletAddress: data.receiverWalletAddress
-  });
+  const incomingPaymentRes = request(
+    `${ADMIN_API_URL}/incoming-payments`,
+    {
+      id: incomingPaymentId,
+      walletAddress: data.receiverWalletAddress
+    },
+    'createIncomingPayment'
+  );
 
   console.log(`incoming payment response: ${incomingPaymentRes.body}`);
 

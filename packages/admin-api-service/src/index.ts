@@ -1,4 +1,14 @@
 'use strict';
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { OpenTelemetryService, logger } = require('implementations-lib');
+
+OpenTelemetryService.Start(
+  'admin-api-service',
+  'admin-api-service',
+  '1',
+  'admin-api-service',
+  logger
+);
 
 import { AdminApiService } from './service.js';
 import process from 'process';

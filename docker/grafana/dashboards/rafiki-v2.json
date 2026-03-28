@@ -18,7 +18,6 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 1,
   "links": [],
   "panels": [
     {
@@ -29,15 +28,15 @@
         "x": 0,
         "y": 0
       },
-      "id": 14,
+      "id": 1,
       "panels": [],
-      "title": "API Stats",
+      "title": "HTTP Metrics - Admin API",
       "type": "row"
     },
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "Prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -49,1122 +48,62 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 3,
-        "w": 4,
-        "x": 0,
-        "y": 1
-      },
-      "id": 12,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "12.0.2",
-      "targets": [
-        {
-          "editorMode": "code",
-          "expr": "sum(rate(api_requests_count{callName=\"HandleIncomingPayment\"}[$__rate_interval]) )",
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "IncomingPayments / sec",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 3,
-        "w": 4,
-        "x": 4,
-        "y": 1
-      },
-      "id": 20,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "12.0.2",
-      "targets": [
-        {
-          "editorMode": "code",
-          "expr": "sum(rate(api_requests_count{callName=\"HandleQuote\"}[$__rate_interval]))",
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Quotes / sec",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 3,
-        "w": 4,
-        "x": 8,
-        "y": 1
-      },
-      "id": 21,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "12.0.2",
-      "targets": [
-        {
-          "editorMode": "code",
-          "expr": "sum(rate(api_requests_count{callName=\"HandleOutgoingPayment\"}[$__rate_interval]))",
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "OutgoingPayment / sec",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 3,
-        "w": 5,
-        "x": 12,
-        "y": 1
-      },
-      "id": 13,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "12.0.2",
-      "targets": [
-        {
-          "disableTextWrap": false,
-          "editorMode": "code",
-          "expr": "avg(ConsumerBatchSize{service_name=\"api-svc\"})",
-          "fullMetaSearch": false,
-          "includeNullMetadata": true,
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A",
-          "useBackend": false
-        }
-      ],
-      "title": "ApiConsumer BatchSize (total)",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 3,
-        "w": 4,
-        "x": 20,
-        "y": 1
-      },
-      "id": 22,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "12.0.2",
-      "targets": [
-        {
-          "editorMode": "code",
-          "expr": "count(count by (service_instance_id)(delta(api_requests_count[15s]) > 0)) OR on() vector(0)",
-          "hide": true,
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "editorMode": "code",
-          "expr": "count(count by (service_instance_id) (api_requests_count))",
-          "hide": false,
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "B"
-        }
-      ],
-      "title": "API Instances",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
-      },
-      "description": "Rate of API Requests Per Second.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": [
-          {
-            "__systemRef": "hideSeriesFrom",
-            "matcher": {
-              "id": "byNames",
-              "options": {
-                "mode": "exclude",
-                "names": ["Value"],
-                "prefix": "All except:",
-                "readOnly": true
-              }
-            },
-            "properties": [
-              {
-                "id": "custom.hideFrom",
-                "value": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": true
-                }
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 24,
-        "x": 0,
-        "y": 4
-      },
-      "id": 8,
-      "interval": "1s",
-      "options": {
-        "legend": {
-          "calcs": ["lastNotNull", "min", "mean", "max"],
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true,
-          "sortBy": "Last *",
-          "sortDesc": true,
-          "width": 600
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "12.0.2",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "disableTextWrap": false,
-          "editorMode": "code",
-          "expr": "sum(rate(api_requests_count{callName=\"HandleIncomingPayment\"}[$__rate_interval]))",
-          "fullMetaSearch": false,
-          "includeNullMetadata": false,
-          "legendFormat": "HandleIncomingPayment",
-          "range": true,
-          "refId": "A",
-          "useBackend": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "disableTextWrap": false,
-          "editorMode": "code",
-          "expr": "sum(rate(api_requests_count{callName=\"HandleOutgoingPayment\"}[$__rate_interval]))",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": false,
-          "legendFormat": "HandleOutgoingPayment",
-          "range": true,
-          "refId": "B",
-          "useBackend": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "disableTextWrap": false,
-          "editorMode": "code",
-          "expr": "sum(rate(api_requests_count{callName=\"HandleQuote\"}[$__rate_interval]))",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": false,
-          "legendFormat": "HandleQuote",
-          "range": true,
-          "refId": "C",
-          "useBackend": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "editorMode": "code",
-          "expr": "avg (ApiConsumeBatchSize)",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "ApiConsumeBatchSize",
-          "range": true,
-          "refId": "D"
-        }
-      ],
-      "title": "API Requests",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
-      },
-      "description": "Processing durations for the api.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              },
-              {
-                "color": "red",
-                "value": 80
+                "value": 500
               }
             ]
           },
           "unit": "ms"
         },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Responses Consumer BatchSize"
-            },
-            "properties": [
-              {
-                "id": "custom.axisPlacement",
-                "value": "right"
-              },
-              {
-                "id": "unit",
-                "value": "short"
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 7,
-        "w": 24,
-        "x": 0,
-        "y": 9
-      },
-      "id": 5,
-      "options": {
-        "legend": {
-          "calcs": ["lastNotNull", "min", "mean", "max"],
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true,
-          "sortBy": "Last *",
-          "sortDesc": true,
-          "width": 600
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "12.0.2",
-      "targets": [
-        {
-          "editorMode": "code",
-          "expr": "avg by (callName) (rate(api_requests_sum[$__rate_interval])/rate(api_requests_count[$__rate_interval]) >=0)",
-          "legendFormat": "{{callName}}",
-          "range": true,
-          "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "editorMode": "code",
-          "expr": "avg by (callName) (rate(outgoing_payment_create_api_replies_sum[$__rate_interval])/rate(outgoing_payment_create_api_replies_count[$__rate_interval]) >=0)",
-          "hide": false,
-          "legendFormat": "{{callName}}",
-          "range": true,
-          "refId": "B"
-        }
-      ],
-      "title": "API Processing Duration",
-      "type": "timeseries"
-    },
-    {
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 16
-      },
-      "id": 15,
-      "panels": [],
-      "title": "Command Handler Stats",
-      "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
         "overrides": []
-      },
-      "gridPos": {
-        "h": 3,
-        "w": 4,
-        "x": 12,
-        "y": 17
-      },
-      "id": 25,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "12.0.2",
-      "targets": [
-        {
-          "disableTextWrap": false,
-          "editorMode": "code",
-          "expr": "sum(ConsumerBatchSize{service_name=\"command-handler-svc\"})",
-          "fullMetaSearch": false,
-          "includeNullMetadata": true,
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A",
-          "useBackend": false
-        }
-      ],
-      "title": "CmdHandler BatchSize (total)",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 2,
-        "w": 4,
-        "x": 20,
-        "y": 17
-      },
-      "id": 23,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "12.0.2",
-      "targets": [
-        {
-          "editorMode": "code",
-          "expr": "count(count by (service_instance_id)(delta(api_requests_count[15s]) > 0)) OR on() vector(0)",
-          "hide": true,
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "editorMode": "code",
-          "expr": "count(count by (service_instance_id) (ConsumerBatchSize{service_name=\"command-handler-svc\"}))",
-          "hide": false,
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "B"
-        }
-      ],
-      "title": "CmdHandler Instances",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
-      },
-      "description": "Processing durations for the command handler.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "msgDelay"
-            },
-            "properties": [
-              {
-                "id": "custom.axisPlacement",
-                "value": "right"
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 13,
-        "w": 24,
-        "x": 0,
-        "y": 20
-      },
-      "id": 6,
-      "options": {
-        "legend": {
-          "calcs": ["lastNotNull", "min", "mean", "max"],
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true,
-          "sortBy": "Last *",
-          "sortDesc": true,
-          "width": 600
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "12.0.2",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "editorMode": "code",
-          "expr": "avg by (callName) (rate(payments_domain_sum[$__rate_interval])/rate(payments_domain_count[$__rate_interval])  >=0)",
-          "hide": false,
-          "legendFormat": "{{callName}}",
-          "range": true,
-          "refId": "B"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "editorMode": "code",
-          "expr": "avg by (callName) (rate(command_handler_sum[$__rate_interval])/rate(command_handler_count[$__rate_interval]) >=0)",
-          "hide": false,
-          "legendFormat": "{{callName}}",
-          "range": true,
-          "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "editorMode": "code",
-          "expr": "avg (ApiConsumeBatchSize)",
-          "hide": false,
-          "legendFormat": "ConsumeBatchSize",
-          "range": true,
-          "refId": "C"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "editorMode": "code",
-          "expr": "sum(rate(outgoing_payments_completed_total[$__rate_interval]))",
-          "hide": true,
-          "legendFormat": "OutgoingCompleted",
-          "range": true,
-          "refId": "D"
-        }
-      ],
-      "title": "Command Handler Duration",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
-      },
-      "description": "Processing durations for the command handler.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "msgDelay"
-            },
-            "properties": [
-              {
-                "id": "custom.axisPlacement",
-                "value": "right"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "OutgoingCompleted"
-            },
-            "properties": [
-              {
-                "id": "custom.axisPlacement",
-                "value": "right"
-              }
-            ]
-          }
-        ]
       },
       "gridPos": {
         "h": 4,
-        "w": 24,
+        "w": 6,
         "x": 0,
-        "y": 33
+        "y": 1
       },
-      "id": 27,
+      "id": 3,
       "options": {
-        "legend": {
-          "calcs": ["lastNotNull", "min", "mean", "max"],
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true,
-          "sortBy": "Last *",
-          "sortDesc": true,
-          "width": 600
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": ["mean"],
+          "fields": "",
+          "values": false
         },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        }
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "12.0.2",
+      "pluginVersion": "12.4.1",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(rate(outgoing_payments_completed_total[$__rate_interval]))",
-          "hide": false,
-          "legendFormat": "OutgoingCompleted",
+          "expr": "sum(rate(http_server_duration_milliseconds_sum{service_name=\"admin-api-service\"}[$__rate_interval])) / sum(rate(http_server_duration_milliseconds_count{service_name=\"admin-api-service\"}[$__rate_interval]))",
+          "legendFormat": "Avg Latency",
           "range": true,
-          "refId": "D"
+          "refId": "A"
         }
       ],
-      "title": "Command Handler Duration",
-      "type": "timeseries"
-    },
-    {
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 37
-      },
-      "id": 17,
-      "panels": [],
-      "title": "Liquidity Svc",
-      "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 3,
-        "w": 4,
-        "x": 12,
-        "y": 38
-      },
-      "id": 19,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "12.0.2",
-      "targets": [
-        {
-          "disableTextWrap": false,
-          "editorMode": "code",
-          "expr": "avg(RequestBatchSize{service_name=\"liquidity-svc\"})",
-          "fullMetaSearch": false,
-          "includeNullMetadata": true,
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A",
-          "useBackend": false
-        }
-      ],
-      "title": "Liq Request BatchSize",
+      "title": "Average Latency",
       "type": "stat"
     },
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "Prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -1176,24 +115,26 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "red",
                 "value": 80
               }
             ]
-          }
+          },
+          "unit": "reqps"
         },
         "overrides": []
       },
       "gridPos": {
-        "h": 3,
-        "w": 4,
-        "x": 16,
-        "y": 38
+        "h": 4,
+        "w": 7,
+        "x": 6,
+        "y": 1
       },
-      "id": 26,
+      "id": 2,
       "options": {
         "colorMode": "value",
         "graphMode": "area",
@@ -1209,95 +150,28 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.0.2",
-      "targets": [
-        {
-          "disableTextWrap": false,
-          "editorMode": "code",
-          "expr": "avg(ExecuteBatchSize{service_name=\"liquidity-svc\"})",
-          "fullMetaSearch": false,
-          "includeNullMetadata": true,
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A",
-          "useBackend": false
-        }
-      ],
-      "title": "Liq Execute BatchSize",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 2,
-        "w": 4,
-        "x": 20,
-        "y": 38
-      },
-      "id": 24,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "12.0.2",
+      "pluginVersion": "12.4.1",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "count(count by (service_instance_id) (RequestBatchSize {service_name=\"liquidity-svc\"}))",
-          "hide": false,
-          "legendFormat": "__auto",
+          "expr": "sum((rate(http_server_duration_milliseconds_count{service_name=\"admin-api-service\"}[$__rate_interval]))) ",
+          "legendFormat": "Requests / sec",
           "range": true,
-          "refId": "B"
+          "refId": "A"
         }
       ],
-      "title": "Liq Svc Instances",
+      "title": "Total Requests / sec",
       "type": "stat"
     },
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "Prometheus"
       },
-      "description": "Processing durations for the api.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1312,7 +186,7 @@
             "barAlignment": 0,
             "barWidthFactor": 0.6,
             "drawStyle": "line",
-            "fillOpacity": 0,
+            "fillOpacity": 10,
             "gradientMode": "none",
             "hideFrom": {
               "legend": false,
@@ -1327,6 +201,7 @@
               "type": "linear"
             },
             "showPoints": "auto",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -1341,72 +216,28 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
-              },
-              {
-                "color": "red",
-                "value": 80
+                "color": "green",
+                "value": 0
               }
             ]
           },
           "unit": "ms"
         },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "ExecuteBatchSize"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "short"
-              },
-              {
-                "id": "custom.axisPlacement",
-                "value": "right"
-              },
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "#523f3f",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "RequestBatchSize"
-            },
-            "properties": [
-              {
-                "id": "custom.axisPlacement",
-                "value": "right"
-              },
-              {
-                "id": "unit",
-                "value": "short"
-              }
-            ]
-          }
-        ]
+        "overrides": []
       },
       "gridPos": {
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 41
+        "y": 5
       },
-      "id": 18,
+      "id": 4,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "min", "mean", "max"],
+          "calcs": ["mean", "max", "lastNotNull"],
           "displayMode": "table",
           "placement": "right",
-          "showLegend": true,
-          "width": 600
+          "showLegend": true
         },
         "tooltip": {
           "hideZeros": false,
@@ -1414,169 +245,240 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "12.0.2",
+      "pluginVersion": "12.4.1",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
           "editorMode": "code",
-          "expr": "avg by (callName) (rate(liquidity_domain_sum[$__rate_interval])/rate(liquidity_domain_count[$__rate_interval]) >=0)",
-          "legendFormat": "{{callName}}",
+          "expr": "sum by (http_method, http_route) (rate(http_server_duration_milliseconds_sum{service_name=\"admin-api-service\"}[$__rate_interval])) / sum by (http_method, http_route) (rate(http_server_duration_milliseconds_count{service_name=\"admin-api-service\"}[$__rate_interval]))",
+          "legendFormat": "{{http_method}} {{http_route}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Latency by Route",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 17,
+        "x": 0,
+        "y": 13
+      },
+      "id": 6,
+      "options": {
+        "legend": {
+          "calcs": ["mean", "max", "lastNotNull"],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": false
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.4.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (service_name) (\n  rate(http_server_duration_milliseconds_count{service_name=\"admin-api-service\"}[$__rate_interval])\n)",
+          "legendFormat": "{{http_method}} {{http_route}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Requests per second",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 21
+      },
+      "id": 5,
+      "options": {
+        "legend": {
+          "calcs": ["lastNotNull"],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.4.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.99, sum by (le, http_method) (rate(http_server_duration_milliseconds_bucket{service_name=\"admin-api-service\"}[$__rate_interval])))",
+          "legendFormat": "p99 {{http_method}} {{http_route}}",
           "range": true,
           "refId": "A"
         },
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "avg(RequestBatchSize{service_name=\"liquidity-svc\"})",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "RequestBatchSize",
+          "expr": "histogram_quantile(0.95, sum by (le, http_method) (rate(http_server_duration_milliseconds_bucket{service_name=\"admin-api-service\"}[$__rate_interval])))",
+          "legendFormat": "p95 {{http_method}} {{http_route}}",
           "range": true,
           "refId": "B"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "editorMode": "code",
-          "expr": "avg(ExecuteBatchSize{service_name=\"liquidity-svc\"})",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "ExecuteBatchSize",
-          "range": true,
-          "refId": "C"
         }
       ],
-      "title": "Liq Svc Duration",
+      "title": "Quantile Latency (p95, p99)",
       "type": "timeseries"
-    },
-    {
-      "collapsed": true,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 49
-      },
-      "id": 16,
-      "panels": [
-        {
-          "datasource": {
-            "type": "tempo",
-            "uid": "P214B5B846CF3925F"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "thresholds"
-              },
-              "custom": {
-                "align": "auto",
-                "cellOptions": {
-                  "type": "auto"
-                },
-                "inspect": false
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green"
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 11,
-            "w": 24,
-            "x": 0,
-            "y": 148
-          },
-          "id": 3,
-          "options": {
-            "cellHeight": "sm",
-            "footer": {
-              "countRows": false,
-              "fields": "",
-              "reducer": ["sum"],
-              "show": false
-            },
-            "showHeader": true,
-            "sortBy": [
-              {
-                "desc": true,
-                "displayName": "Duration"
-              }
-            ]
-          },
-          "pluginVersion": "11.6.0",
-          "targets": [
-            {
-              "datasource": {
-                "type": "tempo",
-                "uid": "P214B5B846CF3925F"
-              },
-              "filters": [
-                {
-                  "id": "f0f831ae",
-                  "operator": "=",
-                  "scope": "span"
-                },
-                {
-                  "id": "service-name",
-                  "operator": "=",
-                  "scope": "resource",
-                  "tag": "service.name",
-                  "value": [],
-                  "valueType": "string"
-                },
-                {
-                  "id": "min-duration",
-                  "operator": ">",
-                  "tag": "duration",
-                  "value": "100ms",
-                  "valueType": "duration"
-                }
-              ],
-              "limit": 20,
-              "metricsQueryType": "range",
-              "queryType": "traceqlSearch",
-              "refId": "A",
-              "tableType": "traces"
-            }
-          ],
-          "title": "Tempo",
-          "type": "table"
-        }
-      ],
-      "title": "Tracing",
-      "type": "row"
     }
   ],
   "preload": false,
   "refresh": "5s",
-  "schemaVersion": 41,
-  "tags": [],
+  "schemaVersion": 42,
+  "tags": ["rafiki-v2", "admin-api"],
   "templating": {
     "list": []
   },
   "time": {
-    "from": "now-30m",
+    "from": "now-15m",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "Rafiki V2",
-  "uid": "aeg4uh40kdl34b",
-  "version": 11
+  "title": "Rafiki v2",
+  "uid": "rafiki-v2",
+  "version": 2,
+  "weekStart": ""
 }

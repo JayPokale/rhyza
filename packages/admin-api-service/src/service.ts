@@ -30,7 +30,7 @@ export class AdminApiService {
 
     // TODO: Wire up OpenAPI spec for route validation.
     // e.g. fastify-openapi-glue to generate validation from the spec
-    this.server = Fastify({ logger: true });
+    this.server = Fastify({ logger: true, requestTimeout: 5000 });
 
     this.server.register(assetRoutes, {
       palClient: this.palClient

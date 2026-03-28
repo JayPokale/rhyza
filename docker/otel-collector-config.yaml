@@ -14,7 +14,7 @@ exporters:
       enabled: true
 
   otlp:
-    endpoint: http://tempo:8492
+    endpoint: tempo:8492
     tls:
       insecure: true
 

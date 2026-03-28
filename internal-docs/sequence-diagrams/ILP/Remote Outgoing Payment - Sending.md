@@ -22,6 +22,7 @@ sequenceDiagram
     end
 
     box ILP BC
+    participant ILPBCC as ILP BC Client
     participant ILPET as ILP Events Topic
     participant ILPEH as ILP Event Handler
 	participant ILP as ILP Command Handler
@@ -33,7 +34,7 @@ sequenceDiagram
     AGW ->> PC: Approve outgoing payment
     PC ->> PAPI: Approve outgoing payment
 	PCH ->> PCH: Determine whether payment is local or <br> remote
-    PCH ->> PALC: Fetch peer
+    PCH ->> ILPBCC: Resolve peer by static ILP address
     PCH -->> PET: Remote outgoing payment approved <br> (with ILP destination details <br> on incoming payment + any additional <br>quote information)
     PALEH -->> PET: Read outgoing payment approved event
     PALEH -->> PALCH: Process outgoing payment liquidity command

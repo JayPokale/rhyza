@@ -26,6 +26,7 @@ COPY package.json pnpm-workspace.yaml ./
 COPY packages/pal-public-types-lib/package.json ./packages/pal-public-types-lib/package.json
 COPY packages/pal-domain-lib/package.json ./packages/pal-domain-lib/package.json
 COPY packages/pal-implementations-lib/package.json ./packages/pal-implementations-lib/package.json
+COPY packages/implementations-lib/package.json ./packages/implementations-lib/package.json
 COPY packages/pal-api-service/package.json ./packages/pal-api-service/package.json
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store BUILD_LIBRDKAFKA=0 pnpm install --recursive --prefer-offline --frozen-lockfile --prod
 
@@ -35,27 +36,32 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store BUILD_LIBRDKAFKA=0 pnpm instal
 RUN pnpm --filter pal-public-types-lib build
 RUN pnpm --filter pal-domain-lib build
 RUN pnpm --filter pal-implementations-lib build
+RUN pnpm --filter implementations-lib build
 RUN pnpm --filter pal-api-service-lib build
 
 FROM node:24-alpine AS runner
+RUN apk update && apk add --no-cache librdkafka
 WORKDIR /workspace
 
 # root + per-package node_modules from prod-deps
 COPY --from=prod-deps /workspace/node_modules ./node_modules
 COPY --from=prod-deps /workspace/packages/pal-public-types-lib/node_modules ./packages/pal-public-types-lib/node_modules
 COPY --from=prod-deps /workspace/packages/pal-implementations-lib/node_modules ./packages/pal-implementations-lib/node_modules
+COPY --from=prod-deps /workspace/packages/implementations-lib/node_modules ./packages/implementations-lib/node_modules
 COPY --from=prod-deps /workspace/packages/pal-api-service/node_modules ./packages/pal-api-service/node_modules
 
 # package.json for each workspace dep
 COPY --from=prod-deps /workspace/packages/pal-public-types-lib/package.json ./packages/pal-public-types-lib/package.json
 COPY --from=prod-deps /workspace/packages/pal-domain-lib/package.json ./packages/pal-domain-lib/package.json
 COPY --from=prod-deps /workspace/packages/pal-implementations-lib/package.json ./packages/pal-implementations-lib/package.json
+COPY --from=prod-deps /workspace/packages/implementations-lib/package.json ./packages/implementations-lib/package.json
 COPY --from=prod-deps /workspace/packages/pal-api-service/package.json ./packages/pal-api-service/package.json
 
 # built dist from each workspace dep
 COPY --from=build /workspace/packages/pal-public-types-lib/dist ./packages/pal-public-types-lib/dist
 COPY --from=build /workspace/packages/pal-domain-lib/dist ./packages/pal-domain-lib/dist
 COPY --from=build /workspace/packages/pal-implementations-lib/dist ./packages/pal-implementations-lib/dist
+COPY --from=build /workspace/packages/implementations-lib/dist ./packages/implementations-lib/dist
 COPY --from=build /workspace/packages/pal-api-service/dist ./packages/pal-api-service/dist
 
-CMD ["node", "packages/pal-api-service/dist/index.js"]
+CMD ["node", "--require", "./packages/pal-api-service/dist/telemetry.js", "packages/pal-api-service/dist/index.js"]

@@ -10,4 +10,5 @@ export interface TelemetryService {
   ): (additionalAttributes?: Attributes) => void;
   recordHistogram(name: string, value: number, attributes?: Attributes): void;
   updateGauge(name: string, value: number, attributes?: Attributes): void;
+  trace<T>(name: string, fn: () => Promise<T>, attributes?: Attributes): Promise<T>;
 }

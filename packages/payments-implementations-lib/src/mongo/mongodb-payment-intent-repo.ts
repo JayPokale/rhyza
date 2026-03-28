@@ -63,6 +63,10 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
           { id: 1 },
           { unique: true }
         );
+        await this._paymentIntentCollection.createIndex(
+          { paymentIntentId: 1 },
+          { unique: false }
+        );
       }
 
       const paymentsCollectionExists = collections.some(
