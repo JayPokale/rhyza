@@ -3,6 +3,7 @@ import * as assert from 'node:assert/strict';
 import {MockLedgerEventSourcingRepository} from "./mocks/mock-ledger-es-repo";
 
 import {
+  CheckBalanceAndReserveCmd, CommitTransferCmd,
   CreateLedgerAccountCmd, CreateLedgerCmd,
   LedgerAccountCreatedStateEvent, LedgerAccountCreatedStatePayload, LedgerAggregate, LedgerCreatedStateEvent,
   LedgerTransactionRecordedStateEvent, LedgerTransactionRecordedStatePayload,
@@ -20,6 +21,7 @@ const EUR_ACCOUNT_TWO_ID = "elsa";
 before(() => {
   mockRepo = new MockLedgerEventSourcingRepository();
   aggregate = new LedgerAggregate(mockRepo, new ConsoleLogger());
+  assert.ok(aggregate.verify());
 });
 
 test("PAL Ledger - create ledger", async () => {
@@ -32,6 +34,8 @@ test("PAL Ledger - create ledger", async () => {
   assert.equal(lastEvents[lastEvents.length-1].msgName, LedgerCreatedStateEvent.name);
   assert.equal(lastEvents[lastEvents.length-1].aggregateId, EUR_LEDGER_ID);
   assert.equal(lastEvents[lastEvents.length-1].aggregateVersion, "1");
+
+  assert.ok(aggregate.verify());
 });
 
 
@@ -65,6 +69,8 @@ test("PAL Ledger - create account", async () => {
   assert.equal(acc[0].id, EUR_ACCOUNT_ONE_ID);
   assert.equal(acc[0].creditedAmount, BigInt(0));
   assert.equal(acc[0].debitedAmount, BigInt(0));
+
+  assert.ok(aggregate.verify());
 });
 
 
@@ -98,6 +104,8 @@ test("PAL Ledger - create a second account", async () => {
   assert.equal(acc[0].id, EUR_ACCOUNT_TWO_ID);
   assert.equal(acc[0].creditedAmount, BigInt(0));
   assert.equal(acc[0].debitedAmount, BigInt(0));
+
+  assert.ok(aggregate.verify());
 });
 
 
@@ -137,4 +145,6 @@ test("PAL Ledger - post transaction", async () => {
   assert.equal(debitedAcc.debitedAmount, BigInt(123));
   assert.equal(creditedAcc.creditedAmount, BigInt(123));
   assert.equal(creditedAcc.debitedAmount, BigInt(0));
+
+  assert.ok(aggregate.verify());
 });

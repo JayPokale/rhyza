@@ -156,4 +156,13 @@ export class LedgerAggregate {
             console.log(`${header}\n${output}\n${footer}\n`);
         }
     }
+
+    verify(): boolean {
+      this._ledgers.forEach(ledger => {
+        if(!ledger.verify()) {
+          return false;
+        }
+      });
+      return true;
+    }
 }

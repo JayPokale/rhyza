@@ -1,5 +1,5 @@
 import pino from 'pino';
-import {ILogger} from "common-types-lib";
+import {ILogger, ILoggerParams} from "common-types-lib";
 
 export class PinoLogger implements ILogger {
   private _logger: pino.Logger<never, boolean>;
@@ -11,23 +11,31 @@ export class PinoLogger implements ILogger {
     });
   }
 
+  private _log(fn:  ILoggerParams, ...args: any[]): void {
+    if(args.length > 0 && (typeof args[0] === "string" || args[0] instanceof Error || args[0] instanceof Object) ){
+      fn(args[0], args.slice(1) || undefined);
+    }else{
+      fn(args);
+    }
+  }
+
   fatal(...args:any[]): void {
-    this._logger.fatal(args);
+    this._log(this._logger.fatal.bind(this._logger), ...args);
   }
   error(...args:any[]): void {
-    this._logger.error(args);
+    this._log(this._logger.error.bind(this._logger), ...args);
   }
   warn(...args:any[]): void {
-    this._logger.warn(args);
+    this._log(this._logger.warn.bind(this._logger), ...args);
   }
   info(...args:any[]): void {
-    this._logger.info(args);
+    this._log(this._logger.info.bind(this._logger), ...args);
   }
   debug(...args:any[]): void {
-    this._logger.debug(args);
+    this._log(this._logger.debug.bind(this._logger), ...args);
   }
   trace(...args:any[]): void {
-    this._logger.trace(args);
+    this._log(this._logger.trace.bind(this._logger), ...args);
   }
 
   isTraceEnabled(): boolean {

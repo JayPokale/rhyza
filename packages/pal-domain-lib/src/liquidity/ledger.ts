@@ -17,11 +17,13 @@ import {
   LedgerTransactionRecordedStateEvent,
 } from "./messages/events";
 import {
+  CheckBalanceAndReserveCmd, CommitTransferCmd,
   CreateLedgerAccountCmd, LedgerCommand,
-  PostTransactionCmd
+  PostTransactionCmd, RejectTransferCmd, ReserveTransferCmd
 } from "./messages/commands";
 import * as console from "node:console";
 import {ILogger, MessageTypes, SnapshotEvent } from "common-types-lib";
+import {InsufficientFundsError} from "./errors";
 
 export class Ledger {
     private readonly _id: string;   // ledger id is the asset code
@@ -107,6 +109,25 @@ export class Ledger {
     /*
     * private
     * */
+
+    private _checkLiquidity(clearingAcc: ILedgerAccount, liquidityAcc: ILedgerAccount, amount:bigint): boolean{
+      return (clearingAcc.creditedAmount - clearingAcc.debitedAmount) + (liquidityAcc.creditedAmount - liquidityAcc.debitedAmount) >= amount;
+    }
+
+    private _postTransaction(debitedAccount: ILedgerAccount, creditedAccount: ILedgerAccount, transaction:ILedgerTransaction):void{
+      debitedAccount.debitedAmount += transaction.amount;
+      creditedAccount.creditedAmount += transaction.amount;
+
+      this._transactionCount++;
+
+      this._recordStateEvents([
+        new LedgerTransactionRecordedStateEvent(
+          this._id,
+          this._version.toString(),
+          { transaction: TransactionSerializer.toDTO(transaction) }
+        )
+      ]);
+    }
 
     private _applySnapshot(snapshot: LedgerSnapshotEvent): void {
         if (snapshot.msgType !== MessageTypes.SNAPSHOT_EVENT || snapshot.msgName !== LedgerSnapshotEvent.name) {
@@ -219,9 +240,7 @@ export class Ledger {
         if (!debitedAccount || !creditedAccount) {
             throw new Error("Account(s) not found");
         }
-        if (debitedAccount.assetCode !== creditedAccount.assetCode || debitedAccount.assetCode !== this._id) {
-            throw new Error("Account(s) not of same asset or not the ledger's asset");
-        }
+        // note: we don't need to check that the accounts are of the same asset in the same ledger!
 
         const transaction: ILedgerTransaction = {
             id: cmd.payload.id,
@@ -234,18 +253,110 @@ export class Ledger {
 
         // TODO validate amount and convert to ledger scale
 
-        debitedAccount.debitedAmount += transaction.amount;
-        creditedAccount.creditedAmount += transaction.amount;
+        this._postTransaction(debitedAccount, creditedAccount, transaction);
+    }
 
-        this._transactionCount++;
+  private async _processReserveTransferCmd(cmd:ReserveTransferCmd): Promise<void> {
+    const payerClearingAccount: ILedgerAccount | undefined = this._accounts.find(a => a.id === cmd.payload.payerClearingAccountId);
+    const suspenseAccount = this._accounts.find(a => a.id === cmd.payload.suspenseAccountId);
+    if (!payerClearingAccount || !suspenseAccount) {
+      throw new Error("Account(s) not found");
+    }
+    // note: we don't need to check that the accounts are of the same asset in the same ledger!
 
-        this._recordStateEvents([
-            new LedgerTransactionRecordedStateEvent(
-                this._id,
-                this._version.toString(),
-                { transaction: TransactionSerializer.toDTO(transaction) }
-            )
-        ]);
+    const amount = BigInt(cmd.payload.amount);
+
+    // TODO validate amount and convert to ledger scale
+
+    this._postTransaction(payerClearingAccount, suspenseAccount, {
+      id: cmd.payload.transactionId,
+      debitedAccountId: cmd.payload.payerClearingAccountId,
+      creditedAccountId: cmd.payload.suspenseAccountId,
+      amount: amount,
+      amountScale: cmd.payload.amountScale,
+      timestamp: Date.now(),
+      externalId: cmd.payload.transactionId,
+    });
+  }
+
+    private async _processCheckBalanceAndReserveCmd(cmd:CheckBalanceAndReserveCmd): Promise<void> {
+      const payerClearingAccount: ILedgerAccount | undefined = this._accounts.find(a => a.id === cmd.payload.payerClearingAccountId);
+      const payerLiquidityAccount = this._accounts.find(a => a.id === cmd.payload.payerLiquidityAccountId);
+      const suspenseAccount = this._accounts.find(a => a.id === cmd.payload.suspenseAccountId);
+      if (!payerClearingAccount || !payerLiquidityAccount || !suspenseAccount) {
+        throw new Error("Account(s) not found");
+      }
+      // note: we don't need to check that the accounts are of the same asset in the same ledger!
+
+      const amount = BigInt(cmd.payload.amount);
+
+      // check liquidity
+      const hasLiquidity = this._checkLiquidity(payerClearingAccount, payerLiquidityAccount, amount);
+
+      if(!hasLiquidity) {
+        throw new InsufficientFundsError();
+      }
+
+      // TODO validate amount and convert to ledger scale
+
+      this._postTransaction(payerClearingAccount, suspenseAccount, {
+        id: cmd.payload.transactionId,
+        debitedAccountId: cmd.payload.payerClearingAccountId,
+        creditedAccountId: cmd.payload.suspenseAccountId,
+        amount: amount,
+        amountScale: cmd.payload.amountScale,
+        timestamp: Date.now(),
+        externalId: cmd.payload.transactionId,
+      });
+    }
+
+    private async _processCommitTransferCmd(cmd:CommitTransferCmd): Promise<void> {
+      const suspenseAccount = this._accounts.find(a => a.id === cmd.payload.suspenseAccountId);
+      const payerClearingAccount: ILedgerAccount | undefined = this._accounts.find(a => a.id === cmd.payload.payerClearingAccountId);
+      const payeeClearingAccount = this._accounts.find(a => a.id === cmd.payload.payeeClearingAccountId);
+      if (!payerClearingAccount || !payeeClearingAccount || !suspenseAccount) {
+        throw new Error("Account(s) not found");
+      }
+
+      const amount = BigInt(cmd.payload.amount);
+      const now = Date.now();
+
+      this._postTransaction(suspenseAccount, payerClearingAccount, {
+        id: cmd.payload.transactionId,
+        debitedAccountId: cmd.payload.suspenseAccountId,
+        creditedAccountId: cmd.payload.payerClearingAccountId,
+        amount: amount,
+        amountScale: cmd.payload.amountScale,
+        timestamp: now,
+        externalId: cmd.payload.transactionId
+      })
+
+      this._postTransaction(payerClearingAccount, payeeClearingAccount, {
+        id: cmd.payload.transactionId,
+        debitedAccountId: cmd.payload.payerClearingAccountId,
+        creditedAccountId: cmd.payload.payeeClearingAccountId,
+        amount: amount,
+        amountScale: cmd.payload.amountScale,
+        timestamp: now,
+        externalId: cmd.payload.transactionId,
+      });
+    }
+    private async _processRejectTransferCmd(cmd:RejectTransferCmd): Promise<void> {
+      const suspenseAccount = this._accounts.find(a => a.id === cmd.payload.suspenseAccountId);
+      const payerClearingAccount: ILedgerAccount | undefined = this._accounts.find(a => a.id === cmd.payload.payerClearingAccountId);
+      if (!payerClearingAccount || !suspenseAccount) {
+        throw new Error("Account(s) not found");
+      }
+
+      this._postTransaction(suspenseAccount, payerClearingAccount, {
+        id: cmd.payload.transactionId,
+        debitedAccountId: cmd.payload.suspenseAccountId,
+        creditedAccountId: cmd.payload.payerClearingAccountId,
+        amount: BigInt(cmd.payload.amount),
+        amountScale: cmd.payload.amountScale,
+        timestamp: Date.now(),
+        externalId: cmd.payload.transactionId
+      })
     }
 
     /*
@@ -282,6 +393,14 @@ export class Ledger {
             await this._processCreateLedgerAccountCmd(ledgerCmd);
         }else if(LedgerCommand.isPostTransactionCmd(ledgerCmd)) {
             await this._processPostTransactionCmd(ledgerCmd);
+        }else if(LedgerCommand.isReserveTransferCmd(ledgerCmd)) {
+          await this._processReserveTransferCmd(ledgerCmd);
+        }else if(LedgerCommand.isCheckBalanceAndReserveCmd(ledgerCmd)) {
+          await this._processCheckBalanceAndReserveCmd(ledgerCmd);
+        }else if(LedgerCommand.isCommitTransferCmd(ledgerCmd)) {
+          await this._processCommitTransferCmd(ledgerCmd);
+        }else if(LedgerCommand.isRejectTransferCmd(ledgerCmd)) {
+          await this._processRejectTransferCmd(ledgerCmd);
         }else{
             throw new Error(`unhandled command with msgName: '${ledgerCmd.msgName}'`);
         }
@@ -312,7 +431,15 @@ export class Ledger {
     }
 
     getAccounts(ids: string[]): ReadonlyArray<ILedgerAccount> {
-        return this._accounts.filter(a => ids.includes(a.id)) as ReadonlyArray<ILedgerAccount>;
+      const list: ILedgerAccount[] = [];
+      // not ideal but keeps the order of the ids
+      ids.forEach(id => {
+        const account = this._accounts.find(a => a.id === id);
+        if(account) {
+          list.push(account);
+        }
+      });
+      return list as ReadonlyArray<ILedgerAccount>;
     }
 
     printStats() {
@@ -325,5 +452,16 @@ export class Ledger {
         output += `Transactions:          ${this._transactionCount}`
 
         console.log(`${header}\n${output}\n${footer}\n`);
+    }
+
+    verify(): boolean {
+      let totalDebited = 0n;
+      let totalCredited = 0n;
+      this._accounts.forEach(account => {
+        totalDebited += account.debitedAmount;
+        totalCredited += account.creditedAmount;
+      });
+
+      return totalDebited == totalCredited;
     }
 }

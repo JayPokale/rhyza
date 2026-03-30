@@ -25,6 +25,7 @@ export interface ILedgerTransaction {
     amount: bigint;
     amountScale: number;
     timestamp: number;
+    externalId?: string;
 }
 
 export class TransactionSerializer {

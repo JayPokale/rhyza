@@ -13,39 +13,45 @@ package rafiki.pal.svc;
 import "google/protobuf/empty.proto";
 
 service PalGrpc {
-  rpc CreateAsset(CreateAssetRequest) returns (CreateAssetResponse);
-  rpc GetAsset(GetAssetRequest) returns (GetAssetResponse);
+  rpc CreateAsset(PbCreateAssetRequest) returns (PbCreateAssetResponse);
+  rpc GetAsset(PbGetAssetRequest) returns (PbGetAssetResponse);
 
-  rpc CreateWalletAddress(CreateWalletAddressRequest) returns (CreateWalletAddressResponse);
-  rpc GetWalletAddresses(GetWalletAddressesRequest) returns (GetWalletAddressesResponse);
+  rpc CreateWalletAddress(PbCreateWalletAddressRequest) returns (PbCreateWalletAddressResponse);
+  rpc GetWalletAddresses(PbGetWalletAddressesRequest) returns (PbGetWalletAddressesResponse);
 
-  rpc ResolveWalletAddressAlias(ResolveWalletAddressAliasRequest) returns (ResolveWalletAddressAliasResponse);
-  rpc CreateWalletAddressAlias(CreateWalletAddressAliasRequest) returns (google.protobuf.Empty);
+  rpc ResolveWalletAddressAlias(PbResolveWalletAddressAliasRequest) returns (PbResolveWalletAddressAliasResponse);
+  rpc CreateWalletAddressAlias(PbCreateWalletAddressAliasRequest) returns (google.protobuf.Empty);
+
+  // high level liquidity API
+  rpc LedgerProcessHighLevelRequests(PbLedgerHighLevelRequestList) returns (PbLedgerHighLevelResponseList);
+
+  // TODO low level liquidity API
+  //rpc LedgerProcessHighLevelRequests(PbLedgerHighLevelRequestList) returns (PbLedgerHighLevelResponseList);
 }
 
 /*
 Asset messages
 */
-message CreateAssetRequest{
+message PbCreateAssetRequest{
   string code = 1;
   uint32 scale = 2;
   optional uint64 liquidity_low_threshold = 3;
   optional uint64 liquidity_high_threshold = 4;
 }
-message CreateAssetResponse{
+message PbCreateAssetResponse{
   string code = 1;
   uint32 scale = 2;
   optional uint64 liquidity_low_threshold = 3;
   optional uint64 liquidity_high_threshold = 4;
 }
 
-message GetAssetRequest{
+message PbGetAssetRequest{
   string code = 1;
 }
-message GetAssetResponse{
-  optional GetNonEmptyAssetResponse asset = 1;
+message PbGetAssetResponse{
+  optional PbGetNonEmptyAssetResponse asset = 1;
 }
-message GetNonEmptyAssetResponse{
+message PbGetNonEmptyAssetResponse{
   string code = 1;
   uint32 scale = 2;
   optional uint64 liquidity_low_threshold = 3;
@@ -56,7 +62,7 @@ message GetNonEmptyAssetResponse{
 Wallet Address messages
 */
 
-message CreateWalletAddressRequest {
+message PbCreateWalletAddressRequest {
   string path_name = 1;
   string asset_code = 2;
   string public_name = 3;
@@ -64,7 +70,7 @@ message CreateWalletAddressRequest {
   optional string domain = 5;
 }
 
-message CreateWalletAddressResponse {
+message PbCreateWalletAddressResponse {
   string path_name = 1;
   string public_name = 2;
   string asset_code = 3;
@@ -73,14 +79,14 @@ message CreateWalletAddressResponse {
   optional string domain = 6;
 }
 
-message GetWalletAddressesRequest {
+message PbGetWalletAddressesRequest {
   repeated string ids = 1;
 }
 
-message GetWalletAddressesResponse {
-  repeated SingleWalletAddressResponse wallet_addresses = 1;
+message PbGetWalletAddressesResponse {
+  repeated PbSingleWalletAddressResponse wallet_addresses = 1;
 }
-message SingleWalletAddressResponse {
+message PbSingleWalletAddressResponse {
   string id = 1;
   string public_name = 2;
   string asset_code = 3;
@@ -91,21 +97,79 @@ message SingleWalletAddressResponse {
 /*
 Wallet Address Aliases messages
 */
-message ResolveWalletAddressAliasRequest {
+message PbResolveWalletAddressAliasRequest {
   string path_name = 1;
   optional string domain =2;
 }
-message ResolveWalletAddressAliasResponse {
-  optional ResolveWalletAddressNonEmptyResponse alias = 1;
+message PbResolveWalletAddressAliasResponse {
+  optional PbResolveWalletAddressNonEmptyResponse alias = 1;
 }
-message ResolveWalletAddressNonEmptyResponse {
+message PbResolveWalletAddressNonEmptyResponse {
   string path_name = 1;
   optional string domain = 2;
   string wallet_address_id = 3;
 }
 
-message CreateWalletAddressAliasRequest {
+message PbCreateWalletAddressAliasRequest {
   string path_name = 1;
   optional string domain = 2;
   string wallet_address_id = 3;
 }
+
+/*
+Liquidity messages
+*/
+
+// High level requests
+message PbLedgerHighLevelRequestList{
+  repeated PbLedgerHighLevelRequest requests = 1;
+}
+
+message PbLedgerHighLevelRequest{
+  oneof high_level_request_type{
+    PbLedgerTransferCheckAndReserveRequest check_and_reserve_request = 1;
+    PbLedgerCommitTransferRequest commit_request = 2;
+    PbLedgerCancelTransferRequest reject_request = 3;
+  }
+}
+message PbLedgerTransferCheckAndReserveRequest{
+  string request_id = 1;
+  string transfer_id = 2;
+  string payer_clearing_accountId = 3;
+  string payer_liquidity_accountId = 4;
+  string suspense_accountId = 5;
+  string amount = 6;
+  uint32 amount_scale = 7;
+}
+
+message PbLedgerCommitTransferRequest{
+  string request_id = 1;
+  string transfer_id = 2;
+  string payer_clearing_accountId = 3;
+  string suspense_accountId = 4;
+  string payee_clearing_accountId = 5;
+  string amount = 6;
+  uint32 amount_scale = 7;
+}
+
+message PbLedgerCancelTransferRequest{
+  string request_id = 1;
+  string transfer_id = 2;
+  string payer_clearing_accountId = 3;
+  string suspense_accountId = 4;
+  string amount = 5;
+  uint32 amount_scale = 6;
+}
+
+message PbLedgerHighLevelResponseList{
+  repeated PbLedgerHighLevelResponse responses = 1;
+}
+
+message PbLedgerHighLevelResponse {
+  string request_id = 1;
+  uint32 request_type = 2;
+  bool success = 3;
+  optional string error_message = 4;
+}
+
+// Low level requests

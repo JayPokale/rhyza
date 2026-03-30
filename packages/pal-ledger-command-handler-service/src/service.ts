@@ -39,7 +39,6 @@ import {
   ILogger,
   IMessage,
   IMessageConsumer,
-  IMessageProducer,
   MessageTypes
 } from "common-types-lib";
 
@@ -75,7 +74,7 @@ export class PalLedgerCommandHandlerService {
   private static _logger: ILogger;
   private static _ledgerAggregate: LedgerAggregate;
   private static _esRepo: KafkaLedgerEventSourcingRepository;
-  private static _producer: IMessageProducer;
+
   private static _consumer: IMessageConsumer;
 
   static async start(
@@ -126,7 +125,7 @@ export class PalLedgerCommandHandlerService {
     await this._consumer.connect();
     await this._consumer.startAndWaitForRebalance();
 
-    this._logger.info(`${this.constructor.name} ready to receive commands`);
+    this._logger.info(`${PalLedgerCommandHandlerService.name} ready to receive commands`);
   }
 
   static async stop(): Promise<void> {}

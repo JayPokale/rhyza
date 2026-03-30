@@ -17,17 +17,17 @@ import {
   IPalClientWalletAddress
 } from './local-types';
 import {
-  CreateAssetRequest,
-  CreateWalletAddressAliasRequest,
-  CreateWalletAddressRequest,
-  CreateWalletAddressResponse,
-  GetAssetRequest,
-  GetAssetResponse,
-  GetWalletAddressesRequest,
-  GetWalletAddressesResponse,
+  PbCreateAssetRequest,
+  PbCreateWalletAddressAliasRequest,
+  PbCreateWalletAddressRequest,
+  PbCreateWalletAddressResponse,
+  PbGetAssetRequest,
+  PbGetAssetResponse,
+  PbGetWalletAddressesRequest,
+  PbGetWalletAddressesResponse,
   PalGrpcClient,
-  ResolveWalletAddressAliasRequest,
-  ResolveWalletAddressAliasResponse
+  PbResolveWalletAddressAliasRequest,
+  PbResolveWalletAddressAliasResponse
 } from 'pal-public-types-lib';
 
 export class PalClient {
@@ -78,7 +78,7 @@ export class PalClient {
     liquidityLowThreshold?: bigint,
     liquidityHighThreshold?: bigint
   ): Promise<void> {
-    const request = new CreateAssetRequest();
+    const request = new PbCreateAssetRequest();
     request.setCode(code);
     request.setScale(scale);
 
@@ -102,13 +102,13 @@ export class PalClient {
   }
 
   async getAsset(code: string): Promise<IPalClientAsset | null> {
-    const request = new GetAssetRequest();
+    const request = new PbGetAssetRequest();
     request.setCode(code);
 
     return new Promise((resolve, reject) => {
       this._grpcClient.getAsset(
         request,
-        (error: ServiceError | null, response: GetAssetResponse) => {
+        (error: ServiceError | null, response: PbGetAssetResponse) => {
           if (error) {
             console.error(error);
             return reject(error);
@@ -150,7 +150,7 @@ export class PalClient {
     assetCode: string,
     isActive?: boolean
   ): Promise<IPalClientWalletAddress> {
-    const request = new CreateWalletAddressRequest();
+    const request = new PbCreateWalletAddressRequest();
     if (domain) {
       request.setDomain(domain);
     }
@@ -164,7 +164,7 @@ export class PalClient {
     return new Promise((resolve, reject) => {
       this._grpcClient.createWalletAddress(
         request,
-        (error: ServiceError | null, response: CreateWalletAddressResponse) => {
+        (error: ServiceError | null, response: PbCreateWalletAddressResponse) => {
           if (error) {
             console.error(error);
             return reject(error);
@@ -186,13 +186,13 @@ export class PalClient {
   async getWalletAddresses(
     ids: string[]
   ): Promise<IGetWalletAddressResponse[]> {
-    const request = new GetWalletAddressesRequest();
+    const request = new PbGetWalletAddressesRequest();
     request.setIdsList(ids);
 
     return new Promise((resolve, reject) => {
       this._grpcClient.getWalletAddresses(
         request,
-        (error: ServiceError | null, response: GetWalletAddressesResponse) => {
+        (error: ServiceError | null, response: PbGetWalletAddressesResponse) => {
           if (error) {
             console.error(error);
             return reject(error);
@@ -228,7 +228,7 @@ export class PalClient {
     pathName: string,
     walletAddressId: string
   ): Promise<void> {
-    const request = new CreateWalletAddressAliasRequest();
+    const request = new PbCreateWalletAddressAliasRequest();
     if (domain) request.setDomain(domain);
     request.setPathName(pathName);
     request.setWalletAddressId(walletAddressId);
@@ -256,7 +256,7 @@ export class PalClient {
     pathName: string;
     walletAddressId: string;
   } | null> {
-    const request = new ResolveWalletAddressAliasRequest();
+    const request = new PbResolveWalletAddressAliasRequest();
     if (domain) request.setDomain(domain);
     request.setPathName(pathName);
 
@@ -265,7 +265,7 @@ export class PalClient {
         request,
         (
           error: ServiceError | null,
-          response: ResolveWalletAddressAliasResponse
+          response: PbResolveWalletAddressAliasResponse
         ) => {
           if (error) {
             console.error(error);

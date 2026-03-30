@@ -27,25 +27,25 @@ import {
   WalletDomainService
 } from 'pal-domain-lib';
 import {
-  CreateAssetRequest,
-  CreateAssetResponse,
-  CreateWalletAddressRequest,
-  CreateWalletAddressResponse,
-  GetAssetRequest,
-  GetAssetResponse,
-  GetNonEmptyAssetResponse,
-  GetWalletAddressesRequest,
-  GetWalletAddressesResponse,
+  PbCreateAssetRequest,
+  PbCreateAssetResponse,
+  PbCreateWalletAddressRequest,
+  PbCreateWalletAddressResponse,
+  PbGetAssetRequest,
+  PbGetAssetResponse,
+  PbGetNonEmptyAssetResponse,
+  PbGetWalletAddressesRequest,
+  PbGetWalletAddressesResponse,
   HealthCheckRequest,
   HealthCheckResponse,
   HealthService,
   PalGrpcService,
-  ResolveWalletAddressAliasResponse,
-  ResolveWalletAddressNonEmptyResponse,
-  SingleWalletAddressResponse
+  PbResolveWalletAddressAliasResponse,
+  PbResolveWalletAddressNonEmptyResponse,
+  PbSingleWalletAddressResponse
 } from 'pal-public-types-lib';
-import { ResolveWalletAddressAliasRequest } from 'pal-public-types-lib';
-import { CreateWalletAddressAliasRequest } from 'pal-public-types-lib';
+import { PbResolveWalletAddressAliasRequest } from 'pal-public-types-lib';
+import { PbCreateWalletAddressAliasRequest } from 'pal-public-types-lib';
 import { Empty } from 'google-protobuf/google/protobuf/empty_pb';
 
 const PUBLIC_TYPES_LIB_PATH = require.resolve('pal-public-types-lib');
@@ -190,19 +190,19 @@ export class PalServiceServer {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ) => Promise<any>;
 
-    if (call.request instanceof CreateAssetRequest) {
+    if (call.request instanceof PbCreateAssetRequest) {
       specificRequestHandler = this._handleAssetCreateRequest.bind(this);
-    } else if (call.request instanceof GetAssetRequest) {
+    } else if (call.request instanceof PbGetAssetRequest) {
       specificRequestHandler = this._handleGetAssetRequest.bind(this);
-    } else if (call.request instanceof CreateWalletAddressRequest) {
+    } else if (call.request instanceof PbCreateWalletAddressRequest) {
       specificRequestHandler =
         this._handleCreateWalletAddressRequest.bind(this);
-    } else if (call.request instanceof GetWalletAddressesRequest) {
+    } else if (call.request instanceof PbGetWalletAddressesRequest) {
       specificRequestHandler = this._handleGetWalletAddressesRequest.bind(this);
-    } else if (call.request instanceof ResolveWalletAddressAliasRequest) {
+    } else if (call.request instanceof PbResolveWalletAddressAliasRequest) {
       specificRequestHandler =
         this._handleResolveWalletAddressAliasRequest.bind(this);
-    } else if (call.request instanceof CreateWalletAddressAliasRequest) {
+    } else if (call.request instanceof PbCreateWalletAddressAliasRequest) {
       specificRequestHandler =
         this._handleCreateWalletAddressAliasRequest.bind(this);
     } else {
@@ -232,8 +232,8 @@ export class PalServiceServer {
    * */
 
   private async _handleAssetCreateRequest(
-    call: ServerUnaryCall<CreateAssetRequest, CreateAssetResponse>
-  ): Promise<CreateAssetResponse> {
+    call: ServerUnaryCall<PbCreateAssetRequest, PbCreateAssetResponse>
+  ): Promise<PbCreateAssetResponse> {
     const lowThreshold = call.request.getLiquidityLowThreshold();
     const highThreshold = call.request.getLiquidityHighThreshold();
 
@@ -244,7 +244,7 @@ export class PalServiceServer {
       highThreshold ? BigInt(highThreshold) : undefined
     );
 
-    const resp = new CreateAssetResponse();
+    const resp = new PbCreateAssetResponse();
     resp.setCode(call.request.getCode());
     resp.setScale(call.request.getScale());
 
@@ -256,13 +256,13 @@ export class PalServiceServer {
   }
 
   private async _handleGetAssetRequest(
-    call: ServerUnaryCall<GetAssetRequest, GetAssetResponse>
-  ): Promise<GetAssetResponse> {
+    call: ServerUnaryCall<PbGetAssetRequest, PbGetAssetResponse>
+  ): Promise<PbGetAssetResponse> {
     const asset = await this._assetAggregate.getAsset(call.request.getCode());
-    const resp = new GetAssetResponse();
+    const resp = new PbGetAssetResponse();
 
     if (asset) {
-      const assetResp = new GetNonEmptyAssetResponse();
+      const assetResp = new PbGetNonEmptyAssetResponse();
       assetResp.setCode(asset.code);
       assetResp.setScale(asset.scale);
       if (asset.liquidityLowThreshold !== null) {
@@ -285,10 +285,10 @@ export class PalServiceServer {
 
   private async _handleCreateWalletAddressRequest(
     call: ServerUnaryCall<
-      CreateWalletAddressRequest,
-      CreateWalletAddressResponse
+      PbCreateWalletAddressRequest,
+      PbCreateWalletAddressResponse
     >
-  ): Promise<CreateWalletAddressResponse> {
+  ): Promise<PbCreateWalletAddressResponse> {
     const asset = await this._assetAggregate.getAsset(
       call.request.getAssetCode()
     );
@@ -315,7 +315,7 @@ export class PalServiceServer {
       isActive
     );
 
-    const response = new CreateWalletAddressResponse()
+    const response = new PbCreateWalletAddressResponse()
       .setPathName(call.request.getPathName())
       .setPublicName(call.request.getPublicName())
       .setAssetCode(asset.code)
@@ -329,15 +329,15 @@ export class PalServiceServer {
   }
 
   private async _handleGetWalletAddressesRequest(
-    call: ServerUnaryCall<GetWalletAddressesRequest, GetWalletAddressesResponse>
-  ): Promise<GetWalletAddressesResponse> {
+    call: ServerUnaryCall<PbGetWalletAddressesRequest, PbGetWalletAddressesResponse>
+  ): Promise<PbGetWalletAddressesResponse> {
     const wallets = await this._walletAggregate.getWalletAddresses(
       call.request.getIdsList()
     );
-    const resp = new GetWalletAddressesResponse();
+    const resp = new PbGetWalletAddressesResponse();
 
     const walletList = wallets.map((item) => {
-      const wallet = new SingleWalletAddressResponse();
+      const wallet = new PbSingleWalletAddressResponse();
       wallet.setId(item.id);
       wallet.setPublicName(item.publicName);
       wallet.setAssetCode(item.assetCode);
@@ -357,10 +357,10 @@ export class PalServiceServer {
 
   private async _handleResolveWalletAddressAliasRequest(
     call: ServerUnaryCall<
-      ResolveWalletAddressAliasRequest,
-      ResolveWalletAddressAliasResponse
+      PbResolveWalletAddressAliasRequest,
+      PbResolveWalletAddressAliasResponse
     >
-  ): Promise<ResolveWalletAddressAliasResponse> {
+  ): Promise<PbResolveWalletAddressAliasResponse> {
     const domain = call.request.hasDomain()
       ? call.request.getDomain() || null
       : null;
@@ -372,13 +372,13 @@ export class PalServiceServer {
         pathName
       );
 
-    const resp = new ResolveWalletAddressAliasResponse();
+    const resp = new PbResolveWalletAddressAliasResponse();
 
     if (walletAddressId == null) {
       return resp;
     }
 
-    const aliasResp = new ResolveWalletAddressNonEmptyResponse();
+    const aliasResp = new PbResolveWalletAddressNonEmptyResponse();
     if (domain) aliasResp.setDomain(domain);
     aliasResp.setPathName(pathName);
     aliasResp.setWalletAddressId(walletAddressId);
@@ -388,7 +388,7 @@ export class PalServiceServer {
   }
 
   private async _handleCreateWalletAddressAliasRequest(
-    call: ServerUnaryCall<CreateWalletAddressAliasRequest, Empty>
+    call: ServerUnaryCall<PbCreateWalletAddressAliasRequest, Empty>
   ): Promise<Empty> {
     const domain = call.request.hasDomain()
       ? call.request.getDomain() || null
