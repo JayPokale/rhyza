@@ -64,4 +64,4 @@ COPY --from=build /workspace/packages/pal-implementations-lib/dist ./packages/pa
 COPY --from=build /workspace/packages/implementations-lib/dist ./packages/implementations-lib/dist
 COPY --from=build /workspace/packages/pal-api-service/dist ./packages/pal-api-service/dist
 
-CMD ["node", "--require", "./packages/pal-api-service/dist/telemetry.js", "packages/pal-api-service/dist/index.js"]
+CMD ["node", "--require", "packages/pal-api-service/dist/telemetry.js", "packages/pal-api-service/dist/index.js"]
