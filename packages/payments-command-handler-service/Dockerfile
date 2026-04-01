@@ -74,4 +74,4 @@ COPY --from=build /workspace/packages/payments-domain-lib/dist ./packages/paymen
 COPY --from=build /workspace/packages/payments-implementations-lib/dist ./packages/payments-implementations-lib/dist
 COPY --from=build /workspace/packages/payments-command-handler-service/dist ./packages/payments-command-handler-service/dist
 
-CMD ["node", "--require", "./packages/payments-command-handler-service/dist/telemetry.js", "packages/payments-command-handler-service/dist/index.js"]
+CMD ["node", "--require", "packages/payments-command-handler-service/dist/telemetry.js", "packages/payments-command-handler-service/dist/index.js"]
