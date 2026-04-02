@@ -68,4 +68,4 @@ COPY --from=build /workspace/packages/payments-public-types-lib/dist ./packages/
 COPY --from=build /workspace/packages/payments-domain-lib/dist ./packages/payments-domain-lib/dist
 COPY --from=build /workspace/packages/payments-api-service/dist ./packages/payments-api-service/dist
 
-CMD ["node", "--require", "packages/payments-api-service/dist/telemetry.js", "packages/payments-api-service/dist/index.js"]
+CMD ["node", "--require", "./packages/payments-api-service/dist/telemetry.js", "packages/payments-api-service/dist/index.js"]

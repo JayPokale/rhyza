@@ -70,4 +70,4 @@ COPY --from=build /workspace/packages/payments-client-lib/dist ./packages/paymen
 COPY --from=build /workspace/packages/implementations-lib/dist ./packages/implementations-lib/dist
 COPY --from=build /workspace/packages/admin-api-service/dist ./packages/admin-api-service/dist
 
-CMD ["node", "packages/admin-api-service/dist/index.js"]
+CMD ["node", "--require", "./packages/admin-api-service/dist/telemetry.js", "packages/admin-api-service/dist/index.js"]
