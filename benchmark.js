@@ -7,15 +7,14 @@ import { uuidv4 } from 'https://jslib.k6.io/k6-utils/1.4.0/index.js';
 import { sleep } from 'k6';
 
 export const options = {
-  // discardResponseBodies: true,
   scenarios: {
     contacts: {
       executor: 'ramping-vus',
       startVUs: 0,
       stages: [
-        { duration: '15s', target: 100 },
-        { duration: '15s', target: 100 },
-        { duration: '15s', target: 0 }
+        { duration: '60s', target: 100 },
+        { duration: '60s', target: 100 },
+        { duration: '60s', target: 100 }
       ]
       // gracefulRampDown: "30s",
     }
@@ -65,24 +64,11 @@ export function setup() {
   });
   const sender = JSON.parse(senderRes.body);
 
-  return {
-    receiverWalletAddress: receiver.address || 'test.com/receiver',
-    senderWalletAddress: sender.address || 'test.com/sender'
-  };
-}
-
-export default function (data) {
   const incomingPaymentId = uuidv4();
-  const incomingPaymentRes = request(
-    `${ADMIN_API_URL}/incoming-payments`,
-    {
-      id: incomingPaymentId,
-      walletAddress: data.receiverWalletAddress
-    },
-    'createIncomingPayment'
-  );
-
-  console.log(`incoming payment response: ${incomingPaymentRes.body}`);
+  const incomingPaymentRes = request(`${ADMIN_API_URL}/incoming-payments`, {
+    id: incomingPaymentId,
+    walletAddress: receiver.address || 'test.com/receiver'
+  });
 
   check(incomingPaymentRes, {
     'incoming payment created': (r) => r.status === 201,
@@ -90,32 +76,39 @@ export default function (data) {
       JSON.parse(r.body).id === incomingPaymentId
   });
 
-  // const incomingPaymentId = JSON.parse(incomingPaymentRes.body).id;
-  //
-  // const quoteRes = request(`${ADMIN_API_URL}/quotes`, {
-  //   debitAmount: {
-  //     assetScale: 2,
-  //     assetCode: 'USD',
-  //     value: 100
-  //   },
-  //   incomingPaymentId,
-  //   senderWalletAddress: data.senderWalletAddress
-  // });
-  //
-  // check(quoteRes, {
-  //   'quote created': (r) => r.status === 201
-  // });
-  //
-  // const quoteId = JSON.parse(quoteRes.body).id;
-  //
-  // const outgoingPaymentRes = request(`${ADMIN_API_URL}/outgoing-payments`, {
-  //   quoteId,
-  //   incomingPaymentId,
-  //   senderWalletAddress: data.senderWalletAddress
-  // });
-  // check(outgoingPaymentRes, {
-  //   'outgoing payment created': (r) => r.status === 201
-  // });
+  return {
+    incomingPaymentId,
+    receiverWalletAddress: receiver.address || 'test.com/receiver',
+    senderWalletAddress: sender.address || 'test.com/sender'
+  };
+}
 
-  // sleep(0.01);
+export default function (data) {
+  const outgoingPaymentRes = request(
+    `${ADMIN_API_URL}/outgoing-payments`,
+    {
+      incomingPaymentId: data.incomingPaymentId,
+      walletAddress: data.senderWalletAddress,
+      debitAmount: 10
+    },
+    'createOutgoingPayment'
+  );
+  check(outgoingPaymentRes, {
+    'outgoing payment created': (r) => r.status === 201
+  });
+
+  const outgoingPaymentId = JSON.parse(outgoingPaymentRes.body).id;
+
+  const approveOutgoingPaymentRes = request(
+    `${ADMIN_API_URL}/outgoing-payments/${outgoingPaymentId}/approve`,
+    {
+      incomingPaymentId: data.incomingPaymentId,
+      walletAddress: data.senderWalletAddress,
+      debitAmount: 10
+    },
+    'approveOutgoingPayment'
+  );
+  check(approveOutgoingPaymentRes, {
+    'outgoing payment approved': (r) => r.status === 200
+  });
 }
