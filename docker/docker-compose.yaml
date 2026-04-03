@@ -195,7 +195,7 @@ services:
     volumes:
       - ./tempo.yaml:/etc/tempo.yaml
       - tempo-data:/var/tempo
-      
+
   grafana:
     image: grafana/grafana:latest
     ports:
