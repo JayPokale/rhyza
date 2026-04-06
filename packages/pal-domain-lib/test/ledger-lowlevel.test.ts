@@ -3,15 +3,22 @@ import * as assert from 'node:assert/strict';
 import {MockLedgerEventSourcingRepository} from "./mocks/mock-ledger-es-repo";
 
 import {
-  CheckBalanceAndReserveCmd, CommitTransferCmd,
+  CheckBalanceAndReserveTransferCmd, CommitTransferCmd,
   CreateLedgerAccountCmd, CreateLedgerCmd,
   LedgerAccountCreatedStateEvent, LedgerAccountCreatedStatePayload, LedgerAggregate, LedgerCreatedStateEvent,
   LedgerTransactionRecordedStateEvent, LedgerTransactionRecordedStatePayload,
   PostTransactionCmd
 } from "../src";
-import { ConsoleLogger } from "common-types-lib";
+import {ConsoleLogger, DomainEvent} from "common-types-lib";
+import {MockMessageProducer} from "./mocks/mock-msg-publisher";
+import {
+  LegerAccountCreatedEvent,
+  LegerTransactionPostedEvent,
+  LegerTransferInsufficientFundsErrorEvent
+} from "pal-public-types-lib";
 
 let mockRepo:MockLedgerEventSourcingRepository;
+let mockProducer: MockMessageProducer;
 let aggregate:LedgerAggregate;
 
 const EUR_LEDGER_ID = "EUR";
@@ -20,7 +27,9 @@ const EUR_ACCOUNT_TWO_ID = "elsa";
 
 before(() => {
   mockRepo = new MockLedgerEventSourcingRepository();
-  aggregate = new LedgerAggregate(mockRepo, new ConsoleLogger());
+  mockProducer = new MockMessageProducer();
+  aggregate = new LedgerAggregate(mockRepo, mockProducer, new ConsoleLogger());
+
   assert.ok(aggregate.verify());
 });
 
@@ -29,11 +38,11 @@ test("PAL Ledger - create ledger", async () => {
 
   await aggregate.processCommands(cmd);
 
-  const lastEvents = await mockRepo.fetchStateEvents(EUR_LEDGER_ID);
-  assert.ok(lastEvents.length > 0);
-  assert.equal(lastEvents[lastEvents.length-1].msgName, LedgerCreatedStateEvent.name);
-  assert.equal(lastEvents[lastEvents.length-1].aggregateId, EUR_LEDGER_ID);
-  assert.equal(lastEvents[lastEvents.length-1].aggregateVersion, "1");
+  const lastStateEvents = await mockRepo.fetchStateEvents(EUR_LEDGER_ID);
+  assert.ok(lastStateEvents.length > 0);
+  assert.equal(lastStateEvents[lastStateEvents.length-1].msgName, LedgerCreatedStateEvent.name);
+  assert.equal(lastStateEvents[lastStateEvents.length-1].aggregateId, EUR_LEDGER_ID);
+  assert.equal(lastStateEvents[lastStateEvents.length-1].aggregateVersion, "1");
 
   assert.ok(aggregate.verify());
 });
@@ -71,6 +80,15 @@ test("PAL Ledger - create account", async () => {
   assert.equal(acc[0].debitedAmount, BigInt(0));
 
   assert.ok(aggregate.verify());
+
+  // check domain/integration events
+  const lastDomainEvent = mockProducer.messages[mockProducer.messages.length -1] as DomainEvent;
+  assert.equal(lastDomainEvent.msgName, LegerAccountCreatedEvent.name);
+  assert.equal(lastDomainEvent.aggregateId, EUR_LEDGER_ID);
+  assert.equal(lastDomainEvent.payload.id, EUR_ACCOUNT_ONE_ID );
+  assert.equal(lastDomainEvent.payload.name, EUR_ACCOUNT_ONE_ID );
+  assert.equal(lastDomainEvent.payload.assetCode, EUR_LEDGER_ID );
+  assert.equal(lastDomainEvent.payload.assetDisplayScale, 2 );
 });
 
 
@@ -106,6 +124,15 @@ test("PAL Ledger - create a second account", async () => {
   assert.equal(acc[0].debitedAmount, BigInt(0));
 
   assert.ok(aggregate.verify());
+
+  // check domain/integration events
+  const lastDomainEvent = mockProducer.messages[mockProducer.messages.length -1] as DomainEvent;
+  assert.equal(lastDomainEvent.msgName, LegerAccountCreatedEvent.name);
+  assert.equal(lastDomainEvent.aggregateId, EUR_LEDGER_ID);
+  assert.equal(lastDomainEvent.payload.id, EUR_ACCOUNT_TWO_ID );
+  assert.equal(lastDomainEvent.payload.name, EUR_ACCOUNT_TWO_ID );
+  assert.equal(lastDomainEvent.payload.assetCode, EUR_LEDGER_ID );
+  assert.equal(lastDomainEvent.payload.assetDisplayScale, 2 );
 });
 
 
@@ -147,4 +174,13 @@ test("PAL Ledger - post transaction", async () => {
   assert.equal(creditedAcc.debitedAmount, BigInt(0));
 
   assert.ok(aggregate.verify());
+
+  // check domain/integration events
+  const lastDomainEvent = mockProducer.messages[mockProducer.messages.length -1] as DomainEvent;
+  assert.equal(lastDomainEvent.msgName, LegerTransactionPostedEvent.name);
+  assert.equal(lastDomainEvent.aggregateId, EUR_LEDGER_ID);
+  assert.equal(lastDomainEvent.payload.id, "1" );
+  assert.equal(lastDomainEvent.payload.amount,  "123" );
+  assert.equal(lastDomainEvent.payload.debitedAccountId, EUR_ACCOUNT_ONE_ID );
+  assert.equal(lastDomainEvent.payload.creditedAccountId, EUR_ACCOUNT_TWO_ID );
 });

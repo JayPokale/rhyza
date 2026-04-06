@@ -3,15 +3,22 @@ import * as assert from 'node:assert/strict';
 import {MockLedgerEventSourcingRepository} from "./mocks/mock-ledger-es-repo";
 
 import {
-  CheckBalanceAndReserveCmd, CommitTransferCmd,
+  CheckBalanceAndReserveTransferCmd, CommitTransferCmd,
   CreateLedgerAccountCmd, CreateLedgerCmd, InsufficientFundsError,
   LedgerAccountCreatedStateEvent, LedgerAccountCreatedStatePayload, LedgerAggregate, LedgerCreatedStateEvent,
   LedgerTransactionRecordedStateEvent, LedgerTransactionRecordedStatePayload,
   PostTransactionCmd, RejectTransferCmd, ReserveTransferCmd,
 } from "../src";
-import { ConsoleLogger } from "common-types-lib";
+import {ConsoleLogger, DomainEvent} from "common-types-lib";
+import {MockMessageProducer} from "./mocks/mock-msg-publisher";
+import {
+  LegerAccountCreatedEvent,
+  LegerTransactionPostedEvent, LegerTransferCommitedEvent,
+  LegerTransferInsufficientFundsErrorEvent, LegerTransferRejectedEvent, LegerTransferReservedEvent
+} from "pal-public-types-lib";
 
 let mockRepo:MockLedgerEventSourcingRepository;
+let mockProducer: MockMessageProducer;
 let aggregate:LedgerAggregate;
 
 const EUR_LEDGER_ID = "EUR";
@@ -26,7 +33,8 @@ const AMOUNT = BigInt(1000);
 
 before(() => {
   mockRepo = new MockLedgerEventSourcingRepository();
-  aggregate = new LedgerAggregate(mockRepo, new ConsoleLogger());
+  mockProducer = new MockMessageProducer();
+  aggregate = new LedgerAggregate(mockRepo, mockProducer, new ConsoleLogger());
 
   assert.ok(aggregate.verify());
 });
@@ -41,6 +49,8 @@ test("PAL Ledger HighLevel API - Create ledger", async () => {
   assert.equal(lastEvents[lastEvents.length-1].msgName, LedgerCreatedStateEvent.name);
   assert.equal(lastEvents[lastEvents.length-1].aggregateId, EUR_LEDGER_ID);
   assert.equal(lastEvents[lastEvents.length-1].aggregateVersion, "1");
+
+  assert.ok(mockProducer.messages.length ==  0);
 });
 
 test("PAL Ledger HighLevel API - Create accounts", async () => {
@@ -95,12 +105,24 @@ test("PAL Ledger HighLevel API - Create accounts", async () => {
   assert.equal(accounts[4].id, EUR_CASH_ACCOUNT_ID);
 
   assert.ok(aggregate.verify());
+
+  // check domain/integration events
+  assert.ok(mockProducer.messages.length ==  5);
+  assert.ok(mockProducer.messages[0].msgName ==  LegerAccountCreatedEvent.name);
+  assert.equal(mockProducer.messages[0].payload.id, EUR_PAYER_CLEARING_ACCOUNT_ID);
+  assert.ok(mockProducer.messages[1].msgName ==  LegerAccountCreatedEvent.name);
+  assert.equal(mockProducer.messages[1].payload.id, EUR_PAYER_LIQUIDITY_ACCOUNT_ID);
+  assert.ok(mockProducer.messages[2].msgName ==  LegerAccountCreatedEvent.name);
+  assert.equal(mockProducer.messages[2].payload.id, EUR_PAYEE_CLEARING_ACCOUNT_ID);
+  assert.ok(mockProducer.messages[3].msgName ==  LegerAccountCreatedEvent.name);
+  assert.equal(mockProducer.messages[3].payload.id, EUR_SUSPENSE_ACCOUNT_ID);
+  assert.ok(mockProducer.messages[4].msgName ==  LegerAccountCreatedEvent.name);
+  assert.equal(mockProducer.messages[4].payload.id, EUR_CASH_ACCOUNT_ID);
+
 });
 
-
-
-test("PAL Ledger HighLevel API - CheckBalanceAndReserveCmd should fail before deposit", async () => {
-  const cmd: CheckBalanceAndReserveCmd = new CheckBalanceAndReserveCmd(EUR_LEDGER_ID, {
+test("PAL Ledger HighLevel API - Check Balance And Reserve Transfer cmd should fail before deposit", async () => {
+  const cmd: CheckBalanceAndReserveTransferCmd = new CheckBalanceAndReserveTransferCmd(EUR_LEDGER_ID, {
     requestId: "req1",
     transactionId: "1",
     amount: AMOUNT.toString(),
@@ -110,15 +132,17 @@ test("PAL Ledger HighLevel API - CheckBalanceAndReserveCmd should fail before de
     suspenseAccountId: EUR_SUSPENSE_ACCOUNT_ID
   });
 
-  try{
     await aggregate.processCommands(cmd);
-    assert.fail("Should have failed");
-  }catch(e) {
-    assert.ok(e);
-    assert.ok(e instanceof InsufficientFundsError);
 
     assert.ok(aggregate.verify());
-  }
+
+  // check domain/integration events
+    const lastDomainEvent = mockProducer.messages[mockProducer.messages.length -1] as DomainEvent;
+    assert.equal(lastDomainEvent.msgName, LegerTransferInsufficientFundsErrorEvent.name);
+    assert.equal(lastDomainEvent.aggregateId, EUR_LEDGER_ID);
+    assert.equal(lastDomainEvent.payload.requestId, "req1");
+    assert.equal(lastDomainEvent.payload.transactionId, "1");
+    assert.equal(lastDomainEvent.payload.isError, true);
 });
 
 
@@ -152,20 +176,29 @@ test("PAL Ledger HighLevel API - Deposit payer liquidity", async () => {
   assert.equal(payerLiqAcc.creditedAmount, depositAmount);
 
   assert.ok(aggregate.verify());
+
+  // check domain/integration events
+  const lastDomainEvent = mockProducer.messages[mockProducer.messages.length -1] as DomainEvent;
+  assert.equal(lastDomainEvent.msgName, LegerTransactionPostedEvent.name);
+  assert.equal(lastDomainEvent.aggregateId, EUR_LEDGER_ID);
+  assert.equal(lastDomainEvent.payload.amount, depositAmount.toString());
+  assert.equal(lastDomainEvent.payload.debitedAccountId, EUR_CASH_ACCOUNT_ID);
+  assert.equal(lastDomainEvent.payload.creditedAccountId, EUR_PAYER_LIQUIDITY_ACCOUNT_ID);
 });
 
 
-test("PAL Ledger HighLevel API - CheckBalanceAndReserve", async () => {
-  const cmd: CheckBalanceAndReserveCmd = new CheckBalanceAndReserveCmd(EUR_LEDGER_ID, {
-    requestId: "req1",
-    transactionId: "1",
+test("PAL Ledger HighLevel API - Check Balance And Reserve Transfer", async () => {
+  const reqId = "req1";
+  const txId = "1";
+  const cmd: CheckBalanceAndReserveTransferCmd = new CheckBalanceAndReserveTransferCmd(EUR_LEDGER_ID, {
+    requestId: reqId,
+    transactionId: txId,
     amount: AMOUNT.toString(),
     amountScale: 2,
     payerClearingAccountId: EUR_PAYER_CLEARING_ACCOUNT_ID,
     payerLiquidityAccountId: EUR_PAYER_LIQUIDITY_ACCOUNT_ID,
     suspenseAccountId: EUR_SUSPENSE_ACCOUNT_ID
   });
-
 
   await aggregate.processCommands(cmd);
 
@@ -192,12 +225,24 @@ test("PAL Ledger HighLevel API - CheckBalanceAndReserve", async () => {
   assert.equal(suspense.creditedAmount, AMOUNT);
 
   assert.ok(aggregate.verify());
+
+  // check domain/integration events
+  const lastDomainEvent = mockProducer.messages[mockProducer.messages.length -1] as DomainEvent;
+  assert.equal(lastDomainEvent.msgName, LegerTransferReservedEvent.name);
+  assert.equal(lastDomainEvent.aggregateId, EUR_LEDGER_ID);
+  assert.equal(lastDomainEvent.requestId, reqId);
+  assert.equal(lastDomainEvent.payload.requestId, reqId);
+  assert.equal(lastDomainEvent.payload.transactionId, txId);
+  assert.equal(lastDomainEvent.payload.isError, false);
 });
 
-test("PAL Ledger HighLevel API - Commit transfer", async () => {
+test("PAL Ledger HighLevel API - Commit Transfer", async () => {
+  const reqId = "req1";
+  const txId = "1";
+
   const cmd: CommitTransferCmd = new CommitTransferCmd(EUR_LEDGER_ID, {
-    requestId: "req1",
-    transactionId: "1",
+    requestId: reqId,
+    transactionId: txId,
     amount: AMOUNT.toString(),
     amountScale: 2,
     payerClearingAccountId: EUR_PAYER_CLEARING_ACCOUNT_ID,
@@ -237,13 +282,25 @@ test("PAL Ledger HighLevel API - Commit transfer", async () => {
   assert.equal(payee_clearing.creditedAmount, AMOUNT);
 
   assert.ok(aggregate.verify());
+
+  // check domain/integration events
+  const lastDomainEvent = mockProducer.messages[mockProducer.messages.length -1] as DomainEvent;
+  assert.equal(lastDomainEvent.msgName, LegerTransferCommitedEvent.name);
+  assert.equal(lastDomainEvent.aggregateId, EUR_LEDGER_ID);
+  assert.equal(lastDomainEvent.requestId, reqId);
+  assert.equal(lastDomainEvent.payload.requestId, reqId);
+  assert.equal(lastDomainEvent.payload.transactionId, txId);
+  assert.equal(lastDomainEvent.payload.isError, false);
 });
 
 
-test("PAL Ledger HighLevel API - CheckBalanceAndReserve transfer to reject", async () => {
-  const cmd: CheckBalanceAndReserveCmd = new CheckBalanceAndReserveCmd(EUR_LEDGER_ID, {
-    requestId: "req1",
-    transactionId: "1",
+test("PAL Ledger HighLevel API - Check Balance And Reserve Transfer to reject", async () => {
+  const reqId = "req1";
+  const txId = "1";
+
+  const cmd: CheckBalanceAndReserveTransferCmd = new CheckBalanceAndReserveTransferCmd(EUR_LEDGER_ID, {
+    requestId: reqId,
+    transactionId: txId,
     amount: AMOUNT.toString(),
     amountScale: 2,
     payerClearingAccountId: EUR_PAYER_CLEARING_ACCOUNT_ID,
@@ -277,12 +334,23 @@ test("PAL Ledger HighLevel API - CheckBalanceAndReserve transfer to reject", asy
   assert.equal(suspense.creditedAmount, AMOUNT * BigInt(2));
 
   assert.ok(aggregate.verify());
+
+  // check domain/integration events
+  const lastDomainEvent = mockProducer.messages[mockProducer.messages.length -1] as DomainEvent;
+  assert.equal(lastDomainEvent.msgName, LegerTransferReservedEvent.name);
+  assert.equal(lastDomainEvent.aggregateId, EUR_LEDGER_ID);
+  assert.equal(lastDomainEvent.requestId, reqId);
+  assert.equal(lastDomainEvent.payload.requestId, reqId);
+  assert.equal(lastDomainEvent.payload.transactionId, txId);
+  assert.equal(lastDomainEvent.payload.isError, false);
 });
 
-test("PAL Ledger HighLevel API - Reject transfer", async () => {
+test("PAL Ledger HighLevel API - Reject Transfer", async () => {
+  const reqId = "req1";
+  const txId = "1";
   const cmd: RejectTransferCmd = new RejectTransferCmd(EUR_LEDGER_ID, {
-    requestId: "req1",
-    transactionId: "1",
+    requestId: reqId,
+    transactionId: txId,
     amount: AMOUNT.toString(),
     amountScale: 2,
     payerClearingAccountId: EUR_PAYER_CLEARING_ACCOUNT_ID,
@@ -321,14 +389,25 @@ test("PAL Ledger HighLevel API - Reject transfer", async () => {
   assert.equal(payee_clearing.creditedAmount, AMOUNT); // still the same
 
   assert.ok(aggregate.verify());
+
+  // check domain/integration events
+  const lastDomainEvent = mockProducer.messages[mockProducer.messages.length -1] as DomainEvent;
+  assert.equal(lastDomainEvent.msgName, LegerTransferRejectedEvent.name);
+  assert.equal(lastDomainEvent.aggregateId, EUR_LEDGER_ID);
+  assert.equal(lastDomainEvent.requestId, reqId);
+  assert.equal(lastDomainEvent.payload.requestId, reqId);
+  assert.equal(lastDomainEvent.payload.transactionId, txId);
+  assert.equal(lastDomainEvent.payload.isError, false);
 });
 
 
 
-test("PAL Ledger HighLevel API - ReserveTransfer", async () => {
+test("PAL Ledger HighLevel API - Reserve Transfer", async () => {
+  const reqId = "req3";
+  const txId = "1";
   const cmd: ReserveTransferCmd = new ReserveTransferCmd(EUR_LEDGER_ID, {
-    requestId: "req1",
-    transactionId: "1",
+    requestId: reqId,
+    transactionId: txId,
     amount: AMOUNT.toString(),
     amountScale: 2,
     payerClearingAccountId: EUR_PAYER_CLEARING_ACCOUNT_ID,
@@ -368,4 +447,13 @@ test("PAL Ledger HighLevel API - ReserveTransfer", async () => {
   assert.equal(payee_clearing.creditedAmount, AMOUNT); // still the same
 
   assert.ok(aggregate.verify());
+
+  // check domain/integration events
+  const lastDomainEvent = mockProducer.messages[mockProducer.messages.length -1] as DomainEvent;
+  assert.equal(lastDomainEvent.msgName, LegerTransferReservedEvent.name);
+  assert.equal(lastDomainEvent.aggregateId, EUR_LEDGER_ID);
+  assert.equal(lastDomainEvent.requestId, reqId);
+  assert.equal(lastDomainEvent.payload.requestId, reqId);
+  assert.equal(lastDomainEvent.payload.transactionId, txId);
+  assert.equal(lastDomainEvent.payload.isError, false);
 });

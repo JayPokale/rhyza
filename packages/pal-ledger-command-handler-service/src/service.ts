@@ -13,7 +13,7 @@
 import {
   PinoLogger,
   RafikiKafkaJsonConsumer,
-  RafikiKafkaJsonConsumerOptions,
+  RafikiKafkaJsonConsumerOptions, RafikiKafkaJsonProducer,
   RafikiKafkaJsonProducerOptions,
   SnapshotEventSerializer,
   StateEventSerializer
@@ -38,7 +38,7 @@ import {
   CommandTopics,
   ILogger,
   IMessage,
-  IMessageConsumer,
+  IMessageConsumer, IMessageProducer,
   MessageTypes
 } from "common-types-lib";
 
@@ -74,12 +74,14 @@ export class PalLedgerCommandHandlerService {
   private static _logger: ILogger;
   private static _ledgerAggregate: LedgerAggregate;
   private static _esRepo: KafkaLedgerEventSourcingRepository;
-
+  private static _producer: IMessageProducer;
   private static _consumer: IMessageConsumer;
 
   static async start(
     logger?: ILogger,
-    esRepo?: KafkaLedgerEventSourcingRepository
+    esRepo?: KafkaLedgerEventSourcingRepository,
+    producer?: IMessageProducer,
+    consumer?: IMessageConsumer
   ): Promise<void> {
     if(!logger){
       logger = new PinoLogger();
@@ -109,16 +111,29 @@ export class PalLedgerCommandHandlerService {
     }
     this._esRepo = esRepo;
 
-    this._ledgerAggregate = new LedgerAggregate(this._esRepo, this._logger);
+    if(!producer){
+      producer = new RafikiKafkaJsonProducer(kafkaProducerCommonOptions, this._logger);
+      await producer.connect();
+    }
+    this._producer = producer;
+
+    this._ledgerAggregate = new LedgerAggregate(this._esRepo, this._producer, this._logger);
 
     this._ledgerAggregate.printStats();
     this._logger.info("Ledger initialized");
 
-    this._consumer = new RafikiKafkaJsonConsumer(kafkaConsumerCommonOptions, this._logger);
-    this._consumer.setTopics([CommandTopics.LedgerCommands]);
+    if(!consumer){
+      this._consumer = new RafikiKafkaJsonConsumer(kafkaConsumerCommonOptions, this._logger);
+      consumer = this._consumer;
+    }
+    this._consumer = consumer;
 
+    this._consumer.setTopics([CommandTopics.LedgerCommands]);
     this._consumer.setBatchCallbackFn(async (messages:IMessage[]) => {
+      // filter out only commands (sort of redundant but good practice)
       const cmds = messages.filter(m => m.msgType === MessageTypes.COMMAND);
+      if(cmds.length === 0) return;
+      // TODO hook telemetry here
       await this._ledgerAggregate.processCommands(cmds as CommandMsg[]);
     });
 

@@ -1,10 +1,10 @@
 import {
   IEventSourcingRepository,
   ILogger,
-  IMessage,
-  IRawMessage,
+  IMessage, IMessageProducer,
+  IRawMessage, IRawMessageConsumer,
   MessageTypes,
-  StateEvent
+  StateEvent, StateEventTopics
 } from "common-types-lib";
 import {ILedgerEventSourcingRepository, LedgerAggregate, LedgerSnapshotEvent, LedgerStateEvent} from "pal-domain-lib";
 import {SnapshotEventSerializer, StateEventSerializer} from "implementations-lib";
@@ -21,17 +21,21 @@ export class Snapshotter {
     private readonly _aggregate: LedgerAggregate;
     private readonly _uncommittedSnapshots: LedgerSnapshotEvent[];
     private readonly _stateEventSerializer: StateEventSerializer;
+    private readonly _rawMessageConsumer: IRawMessageConsumer;
+    private readonly _msgProducer: IMessageProducer;
 
     constructor(
       configs:SnapshotterConfigs, esRepo: ILedgerEventSourcingRepository,
-      stateEventSerializer: StateEventSerializer,
-      logger: ILogger
+      stateEventSerializer: StateEventSerializer, rawMessageConsumer: IRawMessageConsumer,
+      msgProducer: IMessageProducer, logger: ILogger
     ){
         this._logger = logger;
         this._configs = configs;
         this._esRepo = esRepo;
         this._stateEventSerializer = stateEventSerializer;
-        this._aggregate = new LedgerAggregate(this._esRepo, logger);
+        this._rawMessageConsumer = rawMessageConsumer;
+        this._msgProducer = msgProducer;
+        this._aggregate = new LedgerAggregate(this._esRepo, this._msgProducer, logger);
         this._uncommittedSnapshots = [];
     }
 
@@ -64,19 +68,25 @@ export class Snapshotter {
             };
         }
 
-        const snapshot = ledger.snapshot(lastEventIndex);
+        const snapshot = ledger.executeSnapshot(lastEventIndex);
         this._uncommittedSnapshots.push(snapshot);
     }
 
     async init():Promise<void>{
-        this._logger.info(`${this.constructor.name} initialized`);
+      this._rawMessageConsumer.setTopics([StateEventTopics.LedgerStateEvents]);
+      this._rawMessageConsumer.setBatchCallbackFn(this._handleStateMessages.bind(this));
+      await this._rawMessageConsumer.connect();
+      await this._rawMessageConsumer.startAndWaitForRebalance();
+
+      this._logger.info(`${this.constructor.name} initialized`);
     }
 
     async destroy():Promise<void>{
-        return;
+      await this._rawMessageConsumer.stop();
+      return;
     }
 
-    async handleStateMessages(rawMessages: IRawMessage[]): Promise<void> {
+    private async _handleStateMessages(rawMessages: IRawMessage[]): Promise<void> {
         const startTs = Date.now();
         const map = new Map<string, LedgerStateEvent[]>();
 

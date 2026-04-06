@@ -9,21 +9,26 @@
 
 "use strict";
 
-import {ILedgerAccount, LedgerAccountSerializer} from "./entities/ledger-account";
-import {ILedgerTransaction, TransactionSerializer} from "./entities/transaction";
+import {ILedgerAccount, LedgerAccountDtoSerializer} from "./entities/ledger-account";
+import {ILedgerTransaction, TransactionDtoSerializer} from "./entities/transaction";
 import {
   LedgerAccountCreatedStateEvent, LedgerCreatedStateEvent,
   LedgerSnapshotEvent, LedgerSnapshotPayload, LedgerStateEvent,
   LedgerTransactionRecordedStateEvent,
 } from "./messages/events";
 import {
-  CheckBalanceAndReserveCmd, CommitTransferCmd,
+  CheckBalanceAndReserveTransferCmd, CommitTransferCmd,
   CreateLedgerAccountCmd, LedgerCommand,
   PostTransactionCmd, RejectTransferCmd, ReserveTransferCmd
 } from "./messages/commands";
 import * as console from "node:console";
-import {ILogger, MessageTypes, SnapshotEvent } from "common-types-lib";
+import {ILogger, MessageTypes, } from "common-types-lib";
 import {InsufficientFundsError} from "./errors";
+import {
+  LedgerDomainEvent, LegerAccountCreatedEvent, LegerTransactionPostedEvent,
+  LegerTransferCommitedEvent,
+  LegerTransferInsufficientFundsErrorEvent, LegerTransferRejectedEvent, LegerTransferReservedEvent,
+} from "pal-public-types-lib";
 
 export class Ledger {
     private readonly _id: string;   // ledger id is the asset code
@@ -34,7 +39,8 @@ export class Ledger {
     private _transactionCount: bigint;
     private _lastSnapshotVersion: bigint;
 
-    private readonly _uncommittedEvents: LedgerStateEvent[];
+    private readonly _uncommittedStateEvents: LedgerStateEvent[];
+    private readonly _uncommittedDomainEvents: LedgerDomainEvent[];
 
     //private _esRepo: IEventSourcingRepository;
 
@@ -43,7 +49,8 @@ export class Ledger {
         this._version = 0n; // we start at version 1 because there is already the LedgerCreatedStateEvent
         this._lastSnapshotVersion = 0n;
         this._accounts = [];
-        this._uncommittedEvents = [];
+        this._uncommittedStateEvents = [];
+        this._uncommittedDomainEvents = [];
         this._transactionCount = 0n;
 
         this._id = id;
@@ -94,8 +101,12 @@ export class Ledger {
         return this._lastSnapshotVersion;
     }
 
-    get uncommittedEvents(): LedgerStateEvent[] {
-        return this._uncommittedEvents;
+    get uncommittedStateEvents(): LedgerStateEvent[] {
+        return this._uncommittedStateEvents;
+    }
+
+    get uncommittedDomainEvents(): LedgerDomainEvent[] {
+        return this._uncommittedDomainEvents;
     }
 
     get accountsCount(): number {
@@ -114,6 +125,14 @@ export class Ledger {
       return (clearingAcc.creditedAmount - clearingAcc.debitedAmount) + (liquidityAcc.creditedAmount - liquidityAcc.debitedAmount) >= amount;
     }
 
+    private _recordStateEvents(events: LedgerStateEvent[]): void {
+      events.forEach(event => {
+        this._version++;
+        event.aggregateVersion = this._version.toString();
+        this._uncommittedStateEvents.push(event);
+      });
+    }
+
     private _postTransaction(debitedAccount: ILedgerAccount, creditedAccount: ILedgerAccount, transaction:ILedgerTransaction):void{
       debitedAccount.debitedAmount += transaction.amount;
       creditedAccount.creditedAmount += transaction.amount;
@@ -124,7 +143,7 @@ export class Ledger {
         new LedgerTransactionRecordedStateEvent(
           this._id,
           this._version.toString(),
-          { transaction: TransactionSerializer.toDTO(transaction) }
+          { transaction: TransactionDtoSerializer.toDTO(transaction) }
         )
       ]);
     }
@@ -140,7 +159,7 @@ export class Ledger {
         after the snapshot is applied.
         */
 
-        this._accounts = snapshot.payload.accounts.map(LedgerAccountSerializer.fromDTO);
+        this._accounts = snapshot.payload.accounts.map(LedgerAccountDtoSerializer.fromDTO);
         this._lastSnapshotVersion = this._version = BigInt(snapshot.aggregateVersion);
         this._transactionCount = BigInt(snapshot.payload.transactionCount);
 
@@ -150,7 +169,7 @@ export class Ledger {
         }
     }
 
-    private _applyEvent(event: LedgerStateEvent, replayed: boolean = false) {
+    private _applyEvent(event: LedgerStateEvent, replayed: boolean = false): void {
         if (event.msgType !== MessageTypes.STATE_EVENT) throw new Error("Invalid event type");
 
         if (BigInt(event.aggregateVersion) !== this._version + 1n) {
@@ -181,7 +200,7 @@ export class Ledger {
         if (existingAccount) {
             throw new Error("Account with that ID already exists, cannot apply event");
         }
-        this._accounts.push(LedgerAccountSerializer.fromDTO(event.payload.account));
+        this._accounts.push(LedgerAccountDtoSerializer.fromDTO(event.payload.account));
     }
 
     private _applyLedgerTransactionRecordedStateEvent(event: LedgerTransactionRecordedStateEvent): void {
@@ -195,14 +214,6 @@ export class Ledger {
         crAccount.creditedAmount += amount;
 
         this._transactionCount++;
-    }
-
-    private _recordStateEvents(events: LedgerStateEvent[]): void {
-        events.forEach(event => {
-            this._version++;
-            event.aggregateVersion = this._version.toString();
-            this._uncommittedEvents.push(event);
-        });
     }
 
     private async _processCreateLedgerAccountCmd(cmd: CreateLedgerAccountCmd): Promise<void> {
@@ -229,9 +240,19 @@ export class Ledger {
         this._recordStateEvents([
             new LedgerAccountCreatedStateEvent(
                 this._id, this._version.toString(),
-                {account: LedgerAccountSerializer.toDTO(acc)}
+                {account: LedgerAccountDtoSerializer.toDTO(acc)}
             )
         ]);
+
+      this._uncommittedDomainEvents.push(new LegerAccountCreatedEvent(
+        this._id,
+        {
+          id: acc.id,
+          name: acc.name,
+          assetCode: acc.assetCode,
+          assetDisplayScale: acc.assetDisplayScale
+        }
+      ));
     }
 
     private async _processPostTransactionCmd(cmd: PostTransactionCmd): Promise<void> {
@@ -253,10 +274,25 @@ export class Ledger {
 
         // TODO validate amount and convert to ledger scale
 
+
         this._postTransaction(debitedAccount, creditedAccount, transaction);
+
+        this._uncommittedDomainEvents.push(
+          new LegerTransactionPostedEvent(
+            this._id,
+            {
+              id: transaction.id,
+              debitedAccountId: transaction.debitedAccountId,
+              creditedAccountId: transaction.creditedAccountId,
+              amount: transaction.amount.toString(),
+              amountScale: transaction.amountScale,
+              timestamp: transaction.timestamp,
+            }
+          )
+        );
     }
 
-  private async _processReserveTransferCmd(cmd:ReserveTransferCmd): Promise<void> {
+    private async _processReserveTransferCmd(cmd:ReserveTransferCmd): Promise<void> {
     const payerClearingAccount: ILedgerAccount | undefined = this._accounts.find(a => a.id === cmd.payload.payerClearingAccountId);
     const suspenseAccount = this._accounts.find(a => a.id === cmd.payload.suspenseAccountId);
     if (!payerClearingAccount || !suspenseAccount) {
@@ -277,9 +313,20 @@ export class Ledger {
       timestamp: Date.now(),
       externalId: cmd.payload.transactionId,
     });
+
+    this._uncommittedDomainEvents.push(
+      new LegerTransferReservedEvent(
+        this._id,
+        {
+          requestId: cmd.payload.requestId,
+          transactionId: cmd.payload.transactionId,
+          isError: false
+        }
+      )
+    );
   }
 
-    private async _processCheckBalanceAndReserveCmd(cmd:CheckBalanceAndReserveCmd): Promise<void> {
+    private async _processCheckBalanceAndReserveCmd(cmd:CheckBalanceAndReserveTransferCmd): Promise<void> {
       const payerClearingAccount: ILedgerAccount | undefined = this._accounts.find(a => a.id === cmd.payload.payerClearingAccountId);
       const payerLiquidityAccount = this._accounts.find(a => a.id === cmd.payload.payerLiquidityAccountId);
       const suspenseAccount = this._accounts.find(a => a.id === cmd.payload.suspenseAccountId);
@@ -294,7 +341,13 @@ export class Ledger {
       const hasLiquidity = this._checkLiquidity(payerClearingAccount, payerLiquidityAccount, amount);
 
       if(!hasLiquidity) {
-        throw new InsufficientFundsError();
+        this._logger.warn(`Ledger ${this._id} - check balance and reserve transfer failed, insufficient liquidity`);
+        this._uncommittedDomainEvents.push(
+          new LegerTransferInsufficientFundsErrorEvent(
+            this._id, cmd.payload.requestId, cmd.payload.transactionId,
+          )
+        );
+        return;
       }
 
       // TODO validate amount and convert to ledger scale
@@ -308,6 +361,17 @@ export class Ledger {
         timestamp: Date.now(),
         externalId: cmd.payload.transactionId,
       });
+
+      this._uncommittedDomainEvents.push(
+        new LegerTransferReservedEvent(
+          this._id,
+          {
+            requestId: cmd.payload.requestId,
+            transactionId: cmd.payload.transactionId,
+            isError: false
+          }
+        )
+      );
     }
 
     private async _processCommitTransferCmd(cmd:CommitTransferCmd): Promise<void> {
@@ -340,7 +404,19 @@ export class Ledger {
         timestamp: now,
         externalId: cmd.payload.transactionId,
       });
+
+      this._uncommittedDomainEvents.push(
+        new LegerTransferCommitedEvent(
+          this._id,
+          {
+            requestId: cmd.payload.requestId,
+            transactionId: cmd.payload.transactionId,
+            isError: false
+          }
+        )
+      );
     }
+
     private async _processRejectTransferCmd(cmd:RejectTransferCmd): Promise<void> {
       const suspenseAccount = this._accounts.find(a => a.id === cmd.payload.suspenseAccountId);
       const payerClearingAccount: ILedgerAccount | undefined = this._accounts.find(a => a.id === cmd.payload.payerClearingAccountId);
@@ -356,7 +432,18 @@ export class Ledger {
         amountScale: cmd.payload.amountScale,
         timestamp: Date.now(),
         externalId: cmd.payload.transactionId
-      })
+      });
+
+      this._uncommittedDomainEvents.push(
+        new LegerTransferRejectedEvent(
+          this._id,
+          {
+            requestId: cmd.payload.requestId,
+            transactionId: cmd.payload.transactionId,
+            isError: false
+          }
+        )
+      );
     }
 
     /*
@@ -395,7 +482,7 @@ export class Ledger {
             await this._processPostTransactionCmd(ledgerCmd);
         }else if(LedgerCommand.isReserveTransferCmd(ledgerCmd)) {
           await this._processReserveTransferCmd(ledgerCmd);
-        }else if(LedgerCommand.isCheckBalanceAndReserveCmd(ledgerCmd)) {
+        }else if(LedgerCommand.isCheckBalanceAndReserveTransferCmd(ledgerCmd)) {
           await this._processCheckBalanceAndReserveCmd(ledgerCmd);
         }else if(LedgerCommand.isCommitTransferCmd(ledgerCmd)) {
           await this._processCommitTransferCmd(ledgerCmd);
@@ -408,12 +495,12 @@ export class Ledger {
         //this._logger.debug(`Ledger ${this.id} - processed command: ${cmd.msgName}`);
     }
 
-    snapshot(lastEventIndex?: {partition: number, offset: number}): LedgerSnapshotEvent {
+    executeSnapshot(lastEventIndex?: {partition: number, offset: number}): LedgerSnapshotEvent {
         this._lastSnapshotVersion = this._version;
 
         const snapshotPayload: LedgerSnapshotPayload = {
             assetScale: this._assetScale,
-            accounts: this._accounts.map(LedgerAccountSerializer.toDTO),
+            accounts: this._accounts.map(LedgerAccountDtoSerializer.toDTO),
             transactionCount: this._transactionCount.toString()
         };
 
@@ -427,7 +514,11 @@ export class Ledger {
     }
 
     clearUncommittedEvents(): void {
-        this._uncommittedEvents.length = 0;
+        this._uncommittedStateEvents.length = 0;
+    }
+
+    clearUncommittedDomainEvents(): void {
+        this._uncommittedDomainEvents.length = 0;
     }
 
     getAccounts(ids: string[]): ReadonlyArray<ILedgerAccount> {

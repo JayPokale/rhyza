@@ -21,7 +21,8 @@ import {LedgerCreatedStateEvent, LedgerStateEvent} from "./messages/events";
 import console from "node:console";
 import {ILedgerAccount} from "./entities/ledger-account";
 import {ILedgerEventSourcingRepository} from "./interfaces";
-import {CommandMsg, ILogger, MessageTypes } from "common-types-lib";
+import {CommandMsg, ILogger, IMessageProducer, MessageTypes} from "common-types-lib";
+import {LedgerDomainEvent} from "pal-public-types-lib";
 
 const INTERNAL_ASSET_SCALE = 20;
 
@@ -30,17 +31,21 @@ export class LedgerAggregate {
     private readonly _logger: ILogger;
     private readonly _ledgers: Map<string, Ledger>;
     private readonly _esRepo: ILedgerEventSourcingRepository;
-    private readonly _uncommittedEvents: LedgerStateEvent[];
+    private readonly _msgProducer: IMessageProducer;
+    private readonly _uncommittedStateEvents: LedgerStateEvent[];
+    private readonly _uncommittedDomainEvents: LedgerDomainEvent[];
 
-    constructor(esRepo: ILedgerEventSourcingRepository, logger: ILogger) {
+    constructor(esRepo: ILedgerEventSourcingRepository, msgProducer: IMessageProducer, logger: ILogger) {
         this._esRepo = esRepo;
+        this._msgProducer = msgProducer;
         this._logger = logger;
         this._ledgers = new Map<string, Ledger>();
-        this._uncommittedEvents = [];
+        this._uncommittedStateEvents = [];
+        this._uncommittedDomainEvents = [];
     }
 
     private async _processSingleCommand(command: LedgerCommand): Promise<void> {
-        // detect commands for the aggregate (ie, not for a specific ledger)
+        // detect commands for the aggregate (i.e., not for a specific ledger)
         if(LedgerCommand.isCreateLedgerCmd(command)) {
             await this._processCreateLedgerCmd(command);
         }else{
@@ -50,8 +55,10 @@ export class LedgerAggregate {
                 throw new Error("Ledger not found"); // TODO make error event
             }
             await ledger.processCommand(command);
-            this._uncommittedEvents.push(...ledger.uncommittedEvents);
+            this._uncommittedStateEvents.push(...ledger.uncommittedStateEvents);
             ledger.clearUncommittedEvents();
+            this._uncommittedDomainEvents.push(...ledger.uncommittedDomainEvents);
+            ledger.clearUncommittedDomainEvents();
         }
     }
 
@@ -66,7 +73,7 @@ export class LedgerAggregate {
 
         this._ledgers.set( cmd.aggregateId, newLedger);
 
-        this._uncommittedEvents.push(event);
+        this._uncommittedStateEvents.push(event);
     }
 
     async processCommands(commands: CommandMsg | CommandMsg[]): Promise<void> {
@@ -87,9 +94,11 @@ export class LedgerAggregate {
         }
 
         // publish and clear uncommited events
-        const eventsCount = this._uncommittedEvents.length;
-        await this._esRepo.publishEvents(this._uncommittedEvents);
-        this._uncommittedEvents.length = 0;
+        const eventsCount = this._uncommittedStateEvents.length;
+        await this._esRepo.publishEvents(this._uncommittedStateEvents);
+        this._uncommittedStateEvents.length = 0;
+        await this._msgProducer.send(this._uncommittedDomainEvents);
+        this._uncommittedDomainEvents.length = 0;
 
         this._logger.debug(`LedgerAggregate: processed ${commands.length} commands and published ${eventsCount} events in ${Date.now() - startTs}ms`);
     }

@@ -22,8 +22,8 @@ service PalGrpc {
   rpc ResolveWalletAddressAlias(PbResolveWalletAddressAliasRequest) returns (PbResolveWalletAddressAliasResponse);
   rpc CreateWalletAddressAlias(PbCreateWalletAddressAliasRequest) returns (google.protobuf.Empty);
 
-  // high level liquidity API
-  rpc LedgerProcessHighLevelRequests(PbLedgerHighLevelRequestList) returns (PbLedgerHighLevelResponseList);
+  // high-level liquidity API uses event driven, not client called, so we only implement low-level
+  // rpc LedgerProcessHighLevelRequests(PbLedgerHighLevelRequestList) returns (PbLedgerHighLevelResponseList);
 
   // TODO low level liquidity API
   //rpc LedgerProcessHighLevelRequests(PbLedgerHighLevelRequestList) returns (PbLedgerHighLevelResponseList);
@@ -120,6 +120,7 @@ message PbCreateWalletAddressAliasRequest {
 Liquidity messages
 */
 
+/*
 // High level requests
 message PbLedgerHighLevelRequestList{
   repeated PbLedgerHighLevelRequest requests = 1;
@@ -171,5 +172,6 @@ message PbLedgerHighLevelResponse {
   bool success = 3;
   optional string error_message = 4;
 }
+*/
 
 // Low level requests

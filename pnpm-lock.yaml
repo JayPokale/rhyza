@@ -192,6 +192,9 @@ importers:
       common-types-lib:
         specifier: 'workspace: *'
         version: link:../common-types-lib
+      pal-public-types-lib:
+        specifier: 'workspace: *'
+        version: link:../pal-public-types-lib
     devDependencies:
       tslib:
         specifier: ~2.8.1
@@ -325,6 +328,9 @@ importers:
       '@grpc/proto-loader':
         specifier: ~0.8.0
         version: 0.8.0
+      common-types-lib:
+        specifier: 'workspace: *'
+        version: link:../common-types-lib
       google-protobuf:
         specifier: ~4.0.1
         version: 4.0.1

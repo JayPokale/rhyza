@@ -18,6 +18,7 @@ export abstract class LedgerCommand extends CommandMsg{
         this.msgKey = aggId;
     }
 
+    // Low level commands
     static isCreateLedgerCmd(cmd:CommandMsg):cmd is CreateLedgerCmd {
         return cmd.msgName === CreateLedgerCmd.name;
     }
@@ -27,11 +28,13 @@ export abstract class LedgerCommand extends CommandMsg{
     static isPostTransactionCmd(cmd:CommandMsg):cmd is PostTransactionCmd {
         return cmd.msgName === PostTransactionCmd.name;
     }
+
+    // High level commands
     static isReserveTransferCmd(cmd:CommandMsg):cmd is ReserveTransferCmd {
         return cmd.msgName === ReserveTransferCmd.name;
     }
-    static isCheckBalanceAndReserveCmd(cmd:CommandMsg):cmd is CheckBalanceAndReserveCmd {
-        return cmd.msgName === CheckBalanceAndReserveCmd.name;
+    static isCheckBalanceAndReserveTransferCmd(cmd:CommandMsg):cmd is CheckBalanceAndReserveTransferCmd {
+        return cmd.msgName === CheckBalanceAndReserveTransferCmd.name;
     }
     static isCommitTransferCmd(cmd:CommandMsg):cmd is CommitTransferCmd {
         return cmd.msgName === CommitTransferCmd.name;
@@ -45,7 +48,7 @@ export abstract class LedgerCommand extends CommandMsg{
 * Lowlevel commands
 * */
 
-export interface CreateLedgerCmdPayload {
+export type CreateLedgerCmdPayload = {
     id: string;
 }
 export class CreateLedgerCmd extends LedgerCommand{
@@ -57,7 +60,7 @@ export class CreateLedgerCmd extends LedgerCommand{
 }
 
 
-export interface CreateLedgerAccountCmdPayload {
+export type CreateLedgerAccountCmdPayload = {
     id: string;
     assetCode: string;
     assetDisplayScale: number;
@@ -72,7 +75,7 @@ export class CreateLedgerAccountCmd extends LedgerCommand{
 }
 
 
-export interface PostTransactionCmdPayload {
+export type PostTransactionCmdPayload = {
     id: string;
     debitedAccountId: string;
     creditedAccountId: string;
@@ -92,7 +95,7 @@ export class PostTransactionCmd extends LedgerCommand{
 * High level commands
 * */
 
-export interface CheckBalanceAndReserveCmdPayload {
+export type CheckBalanceAndReserveTransferCmdPayload = {
   requestId: string;
   transactionId: string;
   payerClearingAccountId: string;
@@ -101,16 +104,15 @@ export interface CheckBalanceAndReserveCmdPayload {
   amount: string;
   amountScale: number;
 }
-export class CheckBalanceAndReserveCmd extends LedgerCommand{
-  payload: CheckBalanceAndReserveCmdPayload;
-  constructor(aggId:string, payload: CheckBalanceAndReserveCmdPayload) {
+export class CheckBalanceAndReserveTransferCmd extends LedgerCommand{
+  payload: CheckBalanceAndReserveTransferCmdPayload;
+  constructor(aggId:string, payload: CheckBalanceAndReserveTransferCmdPayload) {
     super(aggId);
     this.payload = payload;
   }
 }
 
-
-export interface ReserveTransferCmdPayload {
+export type ReserveTransferCmdPayload = {
   requestId: string;
   transactionId: string;
   payerClearingAccountId: string;
@@ -127,7 +129,7 @@ export class ReserveTransferCmd extends LedgerCommand{
 }
 
 
-export interface CommitTransferCmdPayload {
+export type CommitTransferCmdPayload = {
   requestId: string;
   transactionId: string;
   payerClearingAccountId: string;
@@ -144,7 +146,7 @@ export class CommitTransferCmd extends LedgerCommand{
   }
 }
 
-export interface RejectTransferCmdPayload {
+export type RejectTransferCmdPayload = {
   requestId: string;
   transactionId: string;
   payerClearingAccountId: string;

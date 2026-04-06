@@ -27,7 +27,7 @@ export interface ILedgerAccount{
     creditedAmount: bigint;
 }
 
-export class LedgerAccountSerializer{
+export class LedgerAccountDtoSerializer {
     static toDTO(ledgerAccount:ILedgerAccount):ILedgerAccountStateDTO{
         return {
             id: ledgerAccount.id,

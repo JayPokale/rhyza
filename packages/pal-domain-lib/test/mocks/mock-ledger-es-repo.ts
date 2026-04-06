@@ -6,7 +6,7 @@ export class MockLedgerEventSourcingRepository implements ILedgerEventSourcingRe
 
     publishEvents(events: LedgerStateEvent[]): Promise<void> {
         this._events.push(...events);
-      return Promise.resolve();
+        return Promise.resolve();
     }
     publishSnapshotEvent(events: LedgerSnapshotEvent[]): Promise<void> {
         this._snapshots.push(...events);

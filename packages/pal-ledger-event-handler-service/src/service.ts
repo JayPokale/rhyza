@@ -1,8 +1,8 @@
 import crypto from 'crypto';
 import process from 'process';
 import {
-  PinoLogger,
-  RafikiKafkaJsonConsumerOptions,
+  PinoLogger, RafikiKafkaJsonConsumer,
+  RafikiKafkaJsonConsumerOptions, RafikiKafkaJsonProducer,
   RafikiKafkaJsonProducerOptions, RafikiKafkaRawConsumer, RafikiKafkaRawConsumerOptions,
   RafikiKafkaRawConsumerOutputType,
   SnapshotEventSerializer,
@@ -32,6 +32,7 @@ import {
 } from "common-types-lib";
 import {Snapshotter, SnapshotterConfigs} from "./handlers/snapshotter";
 import {StatementSync} from "node:sqlite";
+import {IntegrationEventHandler} from "./handlers/integration-event-handler";
 
 
 
@@ -69,17 +70,21 @@ export class PalLedgerEventHandlerService {
   private static _esRepo: ILedgerEventSourcingRepository;
   private static _producer: IMessageProducer;
   private static _rawMessageConsumer: IRawMessageConsumer;
+  private static _messageConsumer: IMessageConsumer;
   private static _stateEventSerializer: StateEventSerializer;
   private static _snapshotEventSerializer: SnapshotEventSerializer;
 
-
   private static _snapshotter: Snapshotter;
+  private static _integrationEventHandler: IntegrationEventHandler;
 
   static async start(
     logger?: ILogger,
     stateEventSerializer?: StateEventSerializer,
     snapshotEventSerializer?: SnapshotEventSerializer,
-    esRepo?: ILedgerEventSourcingRepository
+    esRepo?: ILedgerEventSourcingRepository,
+    rawMessageConsumer?: IRawMessageConsumer,
+    messageConsumer?: IMessageConsumer,
+    producer?: IMessageProducer,
   ): Promise<void> {
     if(!logger){
       logger = new PinoLogger();
@@ -118,7 +123,28 @@ export class PalLedgerEventHandlerService {
     }
     this._esRepo = esRepo;
 
+    if(!producer){
+      producer = new RafikiKafkaJsonProducer(kafkaProducerCommonOptions, this._logger);
+      await producer.connect();
+    }
+    this._producer = producer;
 
+
+    if(!rawMessageConsumer){
+      this._rawMessageConsumer = new RafikiKafkaRawConsumer(kafkaConsumerCommonOptions, this._logger);
+      const rawConsumerOpts: RafikiKafkaRawConsumerOptions = {
+        ...kafkaConsumerCommonOptions,
+        outputType: RafikiKafkaRawConsumerOutputType.Raw
+      }
+      this._rawMessageConsumer = new RafikiKafkaRawConsumer(rawConsumerOpts, this._logger);
+      rawMessageConsumer = this._rawMessageConsumer;
+    }
+    this._rawMessageConsumer = rawMessageConsumer;
+
+
+    /*
+    * Instantiate the snapshotter
+    */
     const configs:SnapshotterConfigs = {
       maxStateEventsBetweenSnapshots: MAX_EVENTS_PER_SNAPSHOT,
       maxTimeBetweenSnapshotsMs: MAX_SECS_SINCE_LAST_SNAPSHOT * 1000
@@ -128,25 +154,38 @@ export class PalLedgerEventHandlerService {
       configs,
       this._esRepo,
       this._stateEventSerializer,
+      this._rawMessageConsumer,
+      this._producer,
       this._logger
     );
 
     await this._snapshotter.init();
+    this._logger.info(`${this._snapshotter.constructor.name} ready to receive state events`);
 
-    const rawConsumerOpts: RafikiKafkaRawConsumerOptions = {
-      ...kafkaConsumerCommonOptions,
-      outputType: RafikiKafkaRawConsumerOutputType.Raw
+    if(!messageConsumer){
+      messageConsumer = new RafikiKafkaJsonConsumer(kafkaConsumerCommonOptions, this._logger);
+      messageConsumer = messageConsumer;
     }
-    this._rawMessageConsumer = new RafikiKafkaRawConsumer(rawConsumerOpts, this._logger);
-    this._rawMessageConsumer.setTopics([StateEventTopics.LedgerStateEvents]);
-    this._rawMessageConsumer.setBatchCallbackFn(this._snapshotter.handleStateMessages.bind(this._snapshotter));
-    await this._rawMessageConsumer.connect();
-    await this._rawMessageConsumer.startAndWaitForRebalance();
+    this._messageConsumer = messageConsumer;
 
-    this._logger.info(`${this.constructor.name} ready to receive events`);
+    /*
+    * Instantiate the integration event handler
+    */
+    this._integrationEventHandler = new IntegrationEventHandler(
+      this._messageConsumer,
+      this._producer,
+      this._logger
+    );
+    await this._integrationEventHandler.init();
+    this._logger.info(`${this._integrationEventHandler.constructor.name} ready to receive integration events`);
+
+    this._logger.info(`${this.constructor} started successfully`);
   }
 
   static async stop(): Promise<void> {
+    if(this._snapshotter){
+      await this._snapshotter.destroy() ;
+    }
     if(this._rawMessageConsumer){
       await this._rawMessageConsumer.stop();
       await this._rawMessageConsumer.disconnect(false);

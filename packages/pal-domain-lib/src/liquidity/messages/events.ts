@@ -106,28 +106,3 @@ export class LedgerSnapshotEvent extends BaseLedgerSnapshotEvent{
         this.payload = payload;
     };
 }
-
-
-/*
-
-/!*
-* Domain Events
-**!/
-
-export class LegerAccountCreatedEvent extends DomainEvent{
-    declare assetCode: string;
-    declare assetDisplayScale: number;
-    declare name: string;
-    declare debitedAmount: bigint;
-    declare creditedAmount: bigint;
-}
-
-export class LegerTransactionPostedEvent extends DomainEvent{
-    declare debitedAccountId: string;
-    declare creditedAccountId: string;
-    declare amount: bigint;
-    declare amountScale: number;
-    declare timestamp: number;
-}
-
-*/

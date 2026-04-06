@@ -16,6 +16,7 @@ export interface ILedgerTransactionStateDTO {
     amount: string;
     amountScale: number;
     timestamp: number;
+    externalId?: string;
 }
 
 export interface ILedgerTransaction {
@@ -28,7 +29,7 @@ export interface ILedgerTransaction {
     externalId?: string;
 }
 
-export class TransactionSerializer {
+export class TransactionDtoSerializer {
     static toDTO(transaction: ILedgerTransaction): ILedgerTransactionStateDTO {
         return {
             id: transaction.id,
@@ -36,7 +37,8 @@ export class TransactionSerializer {
             creditedAccountId: transaction.creditedAccountId,
             amount: transaction.amount.toString(),
             amountScale: transaction.amountScale,
-            timestamp: transaction.timestamp
+            timestamp: transaction.timestamp,
+            externalId: transaction.externalId
         }
     }
     static fromDTO(dto: ILedgerTransactionStateDTO): ILedgerTransaction {
@@ -46,8 +48,8 @@ export class TransactionSerializer {
             creditedAccountId: dto.creditedAccountId,
             amount: BigInt(dto.amount),
             amountScale: dto.amountScale,
-            timestamp: dto.timestamp
+            timestamp: dto.timestamp,
+            externalId: dto.externalId
         }
     }
-
 }

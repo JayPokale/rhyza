@@ -228,14 +228,15 @@ export class RafikiKafkaRawConsumer
       )}`
     );
 
+    this._logger?.debug('RafikiRawKafkaConsumer - event.ready - metadata');
     // this a huge
-    this._logger?.debug(
+    /*this._logger?.debug(
       `RafikiRawKafkaConsumer - event.ready - metadata: ${JSON.stringify(
         metadata,
         null,
         2
       )}`
-    );
+    );*/
     setImmediate(() => {
       this.emit('ready', info, metadata);
     });
@@ -573,7 +574,7 @@ export class RafikiKafkaRawConsumer
                 `RafikiRawKafkaConsumer - checking if topic '${topicName}' exists in kafka...`,
                 metadata
               );
-              this._logger?.debug(metadata);
+              //this._logger?.debug(metadata);
 
               if (!metadata || !metadata.topics) {
                 this._logger?.error('Fetching Meta-Data:');
