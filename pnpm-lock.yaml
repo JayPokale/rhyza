@@ -56,6 +56,16 @@ importers:
         specifier: ^4.19.3
         version: 4.21.0
 
+  packages/auth-domain-lib:
+    dependencies:
+      common-types-lib:
+        specifier: workspace:*
+        version: link:../common-types-lib
+    devDependencies:
+      tsx:
+        specifier: ^4.19.3
+        version: 4.19.3
+
   packages/common-types-lib:
     devDependencies:
       tsx:
