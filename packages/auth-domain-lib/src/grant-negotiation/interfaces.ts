@@ -1,11 +1,18 @@
-// export const AccessType = {
-//   INCOMING_PAYMENT: 'INCOMING_PAYMENT',
-//   OUTGOING_PAYMENT: 'OUTGOING_PAYMENT',
-//   QUOTE: 'QUOTE'
-// } as const;
-// export type AccessType = keyof typeof AccessType;
+export interface SubjectId {
+  format: string;
+  id: string;
+}
 
-// TODO: why use const definition and then coercing into type?
+export interface Subject {
+  sub_ids: SubjectId[];
+}
+
+
+export enum InteractionState {
+  PENDING = 'pending',
+  APPROVED = 'approved',
+  DENIED = 'denied'
+}
 
 export interface GrantContinuation {
   accessToken: {

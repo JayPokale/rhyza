@@ -1,10 +1,10 @@
 import { CommandMsg, CommandTopics } from 'common-types-lib';
-import { AccessItem, AccessToken } from './access-token/interfaces';
-import { GrantInteractionMethod } from './grant/interfaces';
-import { Subject } from './subject/interfaces';
+import { AccessItem, AccessToken } from './authorization-management/interfaces';
+import { GrantInteractionMethod, Subject } from './grant-negotiation/interfaces';
 
 const BOUNDED_CONTEXT_NAME = 'auth';
-const AUTH_INTENT_NAME = 'auth-intents';
+const GRANT_NEGOTIATION_INTENT_NAME = 'grant-negotiation';
+const AUTH_MANAGEMENT_INTENT_NAME = 'authorization-management';
 
 export interface CreateGrantPayload {
   id: string;
@@ -18,7 +18,7 @@ export interface CreateGrantPayload {
 export class CreateGrantCmd extends CommandMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateId: string;
-  aggregateName: string = AUTH_INTENT_NAME;
+  aggregateName: string = GRANT_NEGOTIATION_INTENT_NAME;
   msgKey: string;
   msgTopic: string = CommandTopics.AuthCommands;
   payload: CreateGrantPayload;
@@ -41,7 +41,7 @@ export interface ContinueGrantPayload {
 export class ContinueGrantCmd extends CommandMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateId: string;
-  aggregateName: string = AUTH_INTENT_NAME;
+  aggregateName: string = GRANT_NEGOTIATION_INTENT_NAME;
   msgKey: string;
   msgTopic: string = CommandTopics.AuthCommands;
   payload: ContinueGrantPayload;
@@ -64,7 +64,7 @@ export interface RevokeGrantPayload {
 export class RevokeGrantCmd extends CommandMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateId: string;
-  aggregateName: string = AUTH_INTENT_NAME;
+  aggregateName: string = GRANT_NEGOTIATION_INTENT_NAME;
   msgKey: string;
   msgTopic: string = CommandTopics.AuthCommands;
   payload: RevokeGrantPayload;
@@ -86,7 +86,7 @@ export interface IntrospectTokenPayload {
 export class IntrospectTokenCmd extends CommandMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateId: string;
-  aggregateName: string = AUTH_INTENT_NAME;
+  aggregateName: string = AUTH_MANAGEMENT_INTENT_NAME;
   msgKey: string;
   msgTopic: string = CommandTopics.AuthCommands;
   payload: IntrospectTokenPayload;
@@ -107,7 +107,7 @@ export interface RotateTokenPayload {
 export class RotateTokenCmd extends CommandMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateId: string;
-  aggregateName: string = AUTH_INTENT_NAME;
+  aggregateName: string = AUTH_MANAGEMENT_INTENT_NAME;
   msgKey: string;
   msgTopic: string = CommandTopics.AuthCommands;
   payload: RotateTokenPayload;
@@ -131,7 +131,7 @@ export interface StartInteractionPayload {
 export class StartInteractionCmd extends CommandMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateId: string;
-  aggregateName: string = AUTH_INTENT_NAME;
+  aggregateName: string = GRANT_NEGOTIATION_INTENT_NAME;
   msgKey: string;
   msgTopic: string = CommandTopics.AuthCommands;
   payload: StartInteractionPayload;
@@ -154,7 +154,7 @@ export interface FinishInteractionPayload {
 export class FinishInteractionCmd extends CommandMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateId: string;
-  aggregateName: string = AUTH_INTENT_NAME;
+  aggregateName: string = GRANT_NEGOTIATION_INTENT_NAME;
   msgKey: string;
   msgTopic: string = CommandTopics.AuthCommands;
   payload: FinishInteractionPayload;
@@ -168,7 +168,7 @@ export class FinishInteractionCmd extends CommandMsg {
 }
 
 export interface GetGrantDetailsPayload {
-  id: string;
+  id: string; // ID of the associated grant.
   interactId: string;
   nonce: string;
 }
@@ -176,7 +176,7 @@ export interface GetGrantDetailsPayload {
 export class GetGrantDetailsCmd extends CommandMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateId: string;
-  aggregateName: string = AUTH_INTENT_NAME;
+  aggregateName: string = GRANT_NEGOTIATION_INTENT_NAME;
   msgKey: string;
   msgTopic: string = CommandTopics.AuthCommands;
   payload: GetGrantDetailsPayload;
@@ -198,7 +198,7 @@ export interface MakeInteractionChoicePayload {
 export class MakeInteractionChoiceCommand extends CommandMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateId: string;
-  aggregateName: string = AUTH_INTENT_NAME;
+  aggregateName: string = GRANT_NEGOTIATION_INTENT_NAME;
   msgKey: string;
   msgTopic: string = CommandTopics.AuthCommands;
   payload: MakeInteractionChoicePayload;
