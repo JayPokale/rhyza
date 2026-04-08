@@ -1,3 +1,5 @@
+import { AccessAction } from "../shared/interfaces";
+
 export interface SubjectId {
   format: string;
   id: string;
@@ -43,4 +45,9 @@ export interface GrantFinishMethod {
 export interface GrantInteractionMethod {
   start: StartMethod[];
   finish: GrantFinishMethod;
+}
+
+export interface AccessRequest {
+  actions: AccessAction[];
+  identifier?: string;
 }
