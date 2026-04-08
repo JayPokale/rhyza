@@ -135,3 +135,8 @@ export interface IAccessToken {
   expiresIn: number;
   revokedAt?: Date;
 }
+
+export interface AccessRequest {
+  actions: AccessAction[];
+  identifier?: string;
+}
