@@ -1,16 +1,7 @@
 import { CommandMsg, CommandTopics } from 'common-types-lib';
-<<<<<<< HEAD
 
 const BOUNDED_CONTEXT_NAME = 'auth';
 const GRANT_AGGREGATE_NAME = 'grant';
-=======
-import { AccessItem, AccessToken } from './authorization-management/interfaces';
-import { GrantInteractionMethod, Subject } from './grant-negotiation/interfaces';
-
-const BOUNDED_CONTEXT_NAME = 'auth';
-const GRANT_NEGOTIATION_INTENT_NAME = 'grant-negotiation';
-const AUTH_MANAGEMENT_INTENT_NAME = 'authorization-management';
->>>>>>> c9b7145 (feat: switch to two main aggregates)
 
 interface LimitPayload {
   reciever: string;
@@ -57,12 +48,7 @@ export interface CreateGrantCmdPayload {
 
 export class CreateGrantCmd extends CommandMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
-<<<<<<< HEAD
   aggregateName: string = GRANT_AGGREGATE_NAME;
-=======
-  aggregateId: string;
-  aggregateName: string = GRANT_NEGOTIATION_INTENT_NAME;
->>>>>>> c9b7145 (feat: switch to two main aggregates)
   msgKey: string;
   msgTopic: string = CommandTopics.AuthCommands;
   payload: CreateGrantCmdPayload;
@@ -75,34 +61,7 @@ export class CreateGrantCmd extends CommandMsg {
   }
 }
 
-<<<<<<< HEAD
 export interface RevokeGrantCmdPayload {
-=======
-export interface ContinueGrantPayload {
-  id: string;
-  continueId: string;
-  continueToken: string;
-  interactRef: string;
-}
-
-export class ContinueGrantCmd extends CommandMsg {
-  contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
-  aggregateName: string = GRANT_NEGOTIATION_INTENT_NAME;
-  msgKey: string;
-  msgTopic: string = CommandTopics.AuthCommands;
-  payload: ContinueGrantPayload;
-
-  constructor(payload: ContinueGrantPayload, requestId: string) {
-    super();
-    this.requestId = requestId;
-    this.aggregateId = this.msgKey = payload.id;
-    this.payload = payload;
-  }
-}
-
-export interface RevokeGrantPayload {
->>>>>>> c9b7145 (feat: switch to two main aggregates)
   id: string;
   tenantId: string;
   continueId: string;
@@ -111,12 +70,7 @@ export interface RevokeGrantPayload {
 
 export class RevokeGrantCmd extends CommandMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
-<<<<<<< HEAD
   aggregateName: string = GRANT_AGGREGATE_NAME;
-=======
-  aggregateId: string;
-  aggregateName: string = GRANT_NEGOTIATION_INTENT_NAME;
->>>>>>> c9b7145 (feat: switch to two main aggregates)
   msgKey: string;
   msgTopic: string = CommandTopics.AuthCommands;
   payload: RevokeGrantCmdPayload;
