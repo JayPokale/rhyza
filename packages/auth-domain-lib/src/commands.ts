@@ -1,6 +1,9 @@
 import { CommandMsg, CommandTopics } from 'common-types-lib';
 import { AccessItem, AccessToken } from './authorization-management/interfaces';
-import { GrantInteractionMethod, Subject } from './grant-negotiation/interfaces';
+import {
+  GrantInteractionMethod,
+  Subject
+} from './grant-negotiation/interfaces';
 
 const BOUNDED_CONTEXT_NAME = 'auth';
 const GRANT_NEGOTIATION_INTENT_NAME = 'grant-negotiation';

@@ -7,7 +7,6 @@ export interface Subject {
   sub_ids: SubjectId[];
 }
 
-
 export enum InteractionState {
   PENDING = 'pending',
   APPROVED = 'approved',
