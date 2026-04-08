@@ -1,4 +1,4 @@
-import { AccessAction } from "../shared/interfaces";
+import { AccessAction } from '../shared/interfaces';
 
 export interface SubjectId {
   format: string;

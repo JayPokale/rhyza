@@ -4,7 +4,7 @@ import {
   GrantInteractionMethod,
   Subject
 } from './grant-negotiation/interfaces';
-import { AccessItem } from './shared/interfaces'
+import { AccessItem } from './shared/interfaces';
 
 const BOUNDED_CONTEXT_NAME = 'auth';
 const GRANT_NEGOTIATION_AGGREGATE_NAME = 'grant-negotiation';
@@ -45,7 +45,7 @@ export interface ContinueGrantPayload {
 export class ContinueGrantCmd extends CommandMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateId: string;
-  aggregateName: string = GRANT_NEGOTIATION_INTENT_NAME;
+  aggregateName: string = GRANT_NEGOTIATION_AGGREGATE_NAME;
   msgKey: string;
   msgTopic: string = CommandTopics.AuthCommands;
   payload: ContinueGrantPayload;
