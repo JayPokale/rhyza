@@ -158,3 +158,8 @@ export interface IJsonWebKey {
   crv: string;
   x: string;
 }
+
+export interface AccessRequest {
+  actions: AccessAction[];
+  identifier?: string;
+}

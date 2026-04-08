@@ -1,7 +1,20 @@
 import { CommandMsg, CommandTopics } from 'common-types-lib';
+<<<<<<< HEAD
 
 const BOUNDED_CONTEXT_NAME = 'auth';
 const GRANT_AGGREGATE_NAME = 'grant';
+=======
+import { AccessToken } from './authorization-management/interfaces';
+import {
+  GrantInteractionMethod,
+  Subject
+} from './grant-negotiation/interfaces';
+import { AccessItem } from './shared/interfaces'
+
+const BOUNDED_CONTEXT_NAME = 'auth';
+const GRANT_NEGOTIATION_AGGREGATE_NAME = 'grant-negotiation';
+const AUTH_MANAGEMENT_AGGREGATE_NAME = 'authorization-management';
+>>>>>>> 32339d8 (feat: use shared interfaces)
 
 interface LimitPayload {
   reciever: string;
@@ -48,7 +61,12 @@ export interface CreateGrantCmdPayload {
 
 export class CreateGrantCmd extends CommandMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
+<<<<<<< HEAD
   aggregateName: string = GRANT_AGGREGATE_NAME;
+=======
+  aggregateId: string;
+  aggregateName: string = GRANT_NEGOTIATION_AGGREGATE_NAME;
+>>>>>>> 32339d8 (feat: use shared interfaces)
   msgKey: string;
   msgTopic: string = CommandTopics.AuthCommands;
   payload: CreateGrantCmdPayload;
@@ -70,7 +88,12 @@ export interface RevokeGrantCmdPayload {
 
 export class RevokeGrantCmd extends CommandMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
+<<<<<<< HEAD
   aggregateName: string = GRANT_AGGREGATE_NAME;
+=======
+  aggregateId: string;
+  aggregateName: string = GRANT_NEGOTIATION_AGGREGATE_NAME;
+>>>>>>> 32339d8 (feat: use shared interfaces)
   msgKey: string;
   msgTopic: string = CommandTopics.AuthCommands;
   payload: RevokeGrantCmdPayload;
@@ -92,7 +115,12 @@ export interface ContinueGrantCmdPayload {
 
 export class ContinueGrantCommand extends CommandMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
+<<<<<<< HEAD
   aggregateName: string = GRANT_AGGREGATE_NAME;
+=======
+  aggregateId: string;
+  aggregateName: string = AUTH_MANAGEMENT_AGGREGATE_NAME;
+>>>>>>> 32339d8 (feat: use shared interfaces)
   msgKey: string;
   msgTopic: string = CommandTopics.AuthCommands;
   payload: ContinueGrantCmdPayload;
@@ -113,7 +141,12 @@ export interface RotateAccessTokenCmdPayload {
 
 export class RotateAccessTokenCmd extends CommandMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
+<<<<<<< HEAD
   aggregateName: string = GRANT_AGGREGATE_NAME;
+=======
+  aggregateId: string;
+  aggregateName: string = AUTH_MANAGEMENT_AGGREGATE_NAME;
+>>>>>>> 32339d8 (feat: use shared interfaces)
   msgKey: string;
   msgTopic: string = CommandTopics.AuthCommands;
   payload: RotateAccessTokenCmdPayload;
@@ -134,7 +167,12 @@ export interface RevokeAccessTokenCmdPayload {
 
 export class RevokeAccessTokenCommand extends CommandMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
+<<<<<<< HEAD
   aggregateName: string = GRANT_AGGREGATE_NAME;
+=======
+  aggregateId: string;
+  aggregateName: string = GRANT_NEGOTIATION_AGGREGATE_NAME;
+>>>>>>> 32339d8 (feat: use shared interfaces)
   msgKey: string;
   msgTopic: string = CommandTopics.AuthCommands;
   payload: RevokeAccessTokenCmdPayload;
@@ -147,7 +185,56 @@ export class RevokeAccessTokenCommand extends CommandMsg {
   }
 }
 
+<<<<<<< HEAD
 export interface InteractionChoiceCmdPayload {
+=======
+export interface FinishInteractionPayload {
+  id: string; // ID of the associated grant.
+  interactId: string;
+  nonce: string;
+  sessionNonce: string;
+}
+
+export class FinishInteractionCmd extends CommandMsg {
+  contextName: string = BOUNDED_CONTEXT_NAME;
+  aggregateId: string;
+  aggregateName: string = GRANT_NEGOTIATION_AGGREGATE_NAME;
+  msgKey: string;
+  msgTopic: string = CommandTopics.AuthCommands;
+  payload: FinishInteractionPayload;
+
+  constructor(payload: FinishInteractionPayload, requestId: string) {
+    super();
+    this.requestId = requestId;
+    this.aggregateId = this.msgKey = payload.id;
+    this.payload = payload;
+  }
+}
+
+export interface GetGrantDetailsPayload {
+  id: string; // ID of the associated grant.
+  interactId: string;
+  nonce: string;
+}
+
+export class GetGrantDetailsCmd extends CommandMsg {
+  contextName: string = BOUNDED_CONTEXT_NAME;
+  aggregateId: string;
+  aggregateName: string = GRANT_NEGOTIATION_AGGREGATE_NAME;
+  msgKey: string;
+  msgTopic: string = CommandTopics.AuthCommands;
+  payload: GetGrantDetailsPayload;
+
+  constructor(payload: GetGrantDetailsPayload, requestId: string) {
+    super();
+    this.requestId = requestId;
+    this.aggregateId = this.msgKey = payload.id;
+    this.payload = payload;
+  }
+}
+
+export interface MakeInteractionChoicePayload {
+>>>>>>> 32339d8 (feat: use shared interfaces)
   id: string;
   interactId: string;
   nonce: string;
@@ -155,7 +242,12 @@ export interface InteractionChoiceCmdPayload {
 
 class InteractionChoiceCommand extends CommandMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
+<<<<<<< HEAD
   aggregateName: string = GRANT_AGGREGATE_NAME;
+=======
+  aggregateId: string;
+  aggregateName: string = GRANT_NEGOTIATION_AGGREGATE_NAME;
+>>>>>>> 32339d8 (feat: use shared interfaces)
   msgKey: string;
   msgTopic: string = CommandTopics.AuthCommands;
   payload: InteractionChoiceCmdPayload;
