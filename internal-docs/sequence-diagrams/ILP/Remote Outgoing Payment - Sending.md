@@ -22,25 +22,27 @@ sequenceDiagram
     end
 
     box ILP BC
+    participant ILPC as ILP BC Client
+    participant ILPAPI as ILP BC API
     participant ILPET as ILP Events Topic
     participant ILPEH as ILP Event Handler
 	participant ILP as ILP Command Handler
-    participant ILPC as ILP Peering Client
-    participant ILPAPI as ILP Connector API
+    participant ILPPC as ILP peer to peer client
+    participant ILPCAPI as ILP Connector API
     end
 
 
     AGW ->> PC: Approve outgoing payment
     PC ->> PAPI: Approve outgoing payment
 	PCH ->> PCH: Determine whether payment is local or <br> remote
-    PCH ->> PALC: Fetch peer
+    PCH ->> ILPC: Determine peer based on destination address
+    ILPC ->> ILPAPI: Determine peer based on destination address
     PCH -->> PET: Remote outgoing payment approved <br> (with ILP destination details <br> on incoming payment + any additional <br>quote information)
-    PALEH -->> PET: Read outgoing payment approved event
-    PALEH -->> PALCH: Process outgoing payment liquidity command
-    PALCH ->>PALCH: Determine peer based on destination address
-    PALCH ->>PALCH: Reserve amount in liquidity service <br> Transfer: wallet address > (asset >) peer account
-    PALCH -->>PALET: wallet address to peer transfer reserved event
-    PEH -->> PALET: Read wallet address to peer transfer reserved event
+    PALEH -->> PET: Read remote outgoing payment approved event
+    PALEH -->> PALCH: Process reserve funds command
+    PALCH ->>PALCH: Reserve amount for peer account
+    PALCH -->>PALET: peer transfer reserved event
+    PEH -->> PALET: Read peer transfer reserved event
 	PEH -->> PCH: Prepare outgoing payment command
     PCH ->> PET: Outgoing payment prepared event
     ILPEH -->> PET: Read Outgoing payment prepared event
@@ -48,8 +50,8 @@ sequenceDiagram
     ILP ->> ILP: Fetch peer connector details
     ILP ->> ILP: Store packet & its expiry (put it on a worker and handle expiries separately)
 
-    ILP ->> ILPC: Send prepare packet
-    ILPC -->> ILPC: Send prepare packet to peer
+    ILP ->> ILPPC: Send prepare packet
+    ILPPC -->> ILPPC: Send prepare packet to peer
     alt Fulfill packet received
     ILPAPI ->> ILPAPI: Receive fulfill packet
     ILPAPI -->> ILP: Process fulfill packet received command
