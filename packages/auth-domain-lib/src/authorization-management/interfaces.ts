@@ -1,4 +1,4 @@
-import { AccessItem } from "../shared/interfaces";
+import { AccessItem } from '../shared/interfaces';
 
 export interface AccessToken {
   value: string;
