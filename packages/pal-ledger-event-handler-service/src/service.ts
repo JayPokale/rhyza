@@ -11,10 +11,12 @@ import {
   ILedgerEventSourcingRepository,
 } from 'pal-domain-lib';
 import {
+  CreateLedgerAccountCmdSerde,
+  CreateLedgerCmdSerde,
   KafkaLedgerEventSourcingRepository,
   LedgerAccountCreatedStateEventSerde,
   LedgerCreatedStateEventSerde,
-  LedgerSnapshotSerde, LedgerTransactionRecordedStateEventSerde
+  LedgerSnapshotSerde, LedgerTransactionRecordedStateEventSerde, PostTransactionCmdSerde
 } from 'pal-implementations-lib';
 
 import {
@@ -85,10 +87,16 @@ export class PalLedgerEventHandlerService {
 
     if(!msgSerializationFactory){
       MessageSerializationFactory.instance()
+        // snapshots
         .register(new LedgerSnapshotSerde())
+        // state events
         .register(new LedgerCreatedStateEventSerde())
         .register(new LedgerAccountCreatedStateEventSerde())
-        .register(new LedgerTransactionRecordedStateEventSerde());
+        .register(new LedgerTransactionRecordedStateEventSerde())
+        // commands
+        .register(new CreateLedgerCmdSerde())
+        .register(new CreateLedgerAccountCmdSerde())
+        .register(new PostTransactionCmdSerde());
 
       msgSerializationFactory = MessageSerializationFactory.instance();
     }

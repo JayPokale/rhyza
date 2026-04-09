@@ -53,6 +53,19 @@ message PbSnapshotEvent {
     google.protobuf.Any payload = 5;
 }
 
+message PbCommandMsg {
+  PbKafkaMessageTypes msgType = 1;
+  string msg_id = 2;
+  string msg_name = 3;
+  int64 msg_timestamp = 4;
+
+  string aggregate_id = 10;
+  string request_id = 11;
+
+  google.protobuf.Any payload = 5;
+}
+
+
 // event payloads
 
 message PbLedgerAccountState{
@@ -86,4 +99,24 @@ message PbLedgerTransactionRecordedStatePayload{
     string amount =4;
     uint32 amount_scale = 5;
     uint64 timestamp = 6;
+}
+
+// commands
+message PbCreateLedgerCmdPayload{
+    string ledger_id = 1;
+}
+
+message PbCreateLedgerAccountCmdPayload{
+    string ledger_id = 1;
+    string name = 2;
+    string asset_code = 3;
+    uint32 asset_display_scale = 4;
+}
+
+message PbPostTransactionCmdPayload{
+    string id = 1;
+    string debited_account_id = 2;
+    string credited_account_id = 3;
+    string amount =4;
+    uint32 amount_scale = 5;
 }

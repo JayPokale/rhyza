@@ -13,7 +13,7 @@
 import {Any as PbAny} from "google-protobuf/google/protobuf/any_pb";
 import { ProtoBufBaseStateEventSerializer} from "implementations-lib";
 import { LedgerCreatedStatePayload } from "pal-domain-lib";
-import { PbLedgerCreatedStatePayload } from "../../proto_generated";
+import { PbLedgerCreatedStatePayload } from "../../../proto_generated";
 
 export class LedgerCreatedStateEventSerde extends ProtoBufBaseStateEventSerializer<LedgerCreatedStatePayload>{
     protected _payloadPbClassName = "PbLedgerCreatedStatePayload";

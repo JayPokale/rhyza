@@ -12,7 +12,7 @@
 
 import {Any as PbAny} from "google-protobuf/google/protobuf/any_pb";
 import { LedgerAccountCreatedStatePayload } from 'pal-domain-lib';
-import { PbLedgerAccountCreatedStatePayload, PbLedgerAccountState } from '../../proto_generated';
+import { PbLedgerAccountCreatedStatePayload, PbLedgerAccountState } from '../../../proto_generated';
 import { ProtoBufBaseStateEventSerializer} from "implementations-lib";
 
 

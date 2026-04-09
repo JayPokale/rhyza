@@ -12,7 +12,7 @@
 import {CommandMsg, CommandTopics, MessageDataFormats} from 'common-types-lib';
 
 export abstract class LedgerCommand extends CommandMsg{
-  msgDataFormat:MessageDataFormats = MessageDataFormats.JSON;
+  msgDataFormat:MessageDataFormats = MessageDataFormats.PROTOBUF;
   msgTopic:string = CommandTopics.LedgerCommands;
     protected constructor(aggId:string) {
         super(aggId);
@@ -106,6 +106,7 @@ export type CheckBalanceAndReserveTransferCmdPayload = {
   amountScale: number;
 }
 export class CheckBalanceAndReserveTransferCmd extends LedgerCommand{
+  msgDataFormat:MessageDataFormats = MessageDataFormats.JSON;
   payload: CheckBalanceAndReserveTransferCmdPayload;
   constructor(aggId:string, payload: CheckBalanceAndReserveTransferCmdPayload) {
     super(aggId);
@@ -122,6 +123,7 @@ export type ReserveTransferCmdPayload = {
   amountScale: number;
 }
 export class ReserveTransferCmd extends LedgerCommand{
+  msgDataFormat:MessageDataFormats = MessageDataFormats.JSON;
   payload: ReserveTransferCmdPayload;
   constructor(aggId:string, payload: ReserveTransferCmdPayload) {
     super(aggId);
@@ -140,6 +142,7 @@ export type CommitTransferCmdPayload = {
   amountScale: number;
 }
 export class CommitTransferCmd extends LedgerCommand{
+  msgDataFormat:MessageDataFormats = MessageDataFormats.JSON;
   payload: CommitTransferCmdPayload;
   constructor(aggId:string, payload: CommitTransferCmdPayload) {
     super(aggId);
@@ -156,6 +159,7 @@ export type RejectTransferCmdPayload = {
   amountScale: number;
 }
 export class RejectTransferCmd extends LedgerCommand{
+  msgDataFormat:MessageDataFormats = MessageDataFormats.JSON;
   payload: RejectTransferCmdPayload;
   constructor(aggId:string, payload: RejectTransferCmdPayload) {
     super(aggId);

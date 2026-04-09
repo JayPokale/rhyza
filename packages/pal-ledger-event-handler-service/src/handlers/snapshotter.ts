@@ -70,20 +70,6 @@ export class Snapshotter {
         this._uncommittedSnapshots.push(snapshot);
     }
 
-    async init():Promise<void>{
-      this._rawMessageConsumer.setTopics([StateEventTopics.LedgerStateEvents]);
-      this._rawMessageConsumer.setBatchCallbackFn(this._handleStateMessages.bind(this));
-      await this._rawMessageConsumer.connect();
-      await this._rawMessageConsumer.startAndWaitForRebalance();
-
-      this._logger.info(`${this.constructor.name} initialized`);
-    }
-
-    async destroy():Promise<void>{
-      await this._rawMessageConsumer.stop();
-      return;
-    }
-
     private async _handleStateMessages(rawMessages: IRawMessage[]): Promise<void> {
         const startTs = Date.now();
         const map = new Map<string, LedgerStateEvent[]>();
@@ -119,6 +105,20 @@ export class Snapshotter {
 
         this._logger.info(`Received ${messages.length} state events, created ${this._uncommittedSnapshots.length} snapshots - in ${Date.now() - startTs}ms`);
         this._uncommittedSnapshots.length = 0; //reset state
+    }
+
+    async init():Promise<void>{
+        this._rawMessageConsumer.setTopics([StateEventTopics.LedgerStateEvents]);
+        this._rawMessageConsumer.setBatchCallbackFn(this._handleStateMessages.bind(this));
+        await this._rawMessageConsumer.connect();
+        await this._rawMessageConsumer.startAndWaitForRebalance();
+
+        this._logger.info(`${this.constructor.name} initialized`);
+    }
+
+    async destroy():Promise<void>{
+        await this._rawMessageConsumer.stop();
+        return;
     }
 
 }

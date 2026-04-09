@@ -20,10 +20,12 @@ import {
 import {CommandMsg, ConsoleLogger, IMessageProducer} from "common-types-lib";
 import {CreateLedgerAccountCmd, CreateLedgerCmd, PostTransactionCmd} from "pal-domain-lib";
 import {
+  CreateLedgerAccountCmdSerde,
+  CreateLedgerCmdSerde,
   LedgerAccountCreatedStateEventSerde,
   LedgerCreatedStateEventSerde,
   LedgerSnapshotSerde,
-  LedgerTransactionRecordedStateEventSerde
+  LedgerTransactionRecordedStateEventSerde, PostTransactionCmdSerde
 } from "pal-implementations-lib";
 
 const INSTANCE_ID = `ES_LEDGER_POC_TEST__${crypto.randomUUID()}`;
@@ -34,7 +36,7 @@ const KAFKA_URL = process.env["KAFKA_URL"] || "127.0.0.1:19092,127.0.0.1:29092,1
 const kafkaProducerCommonOptions:KafkaProducerOptions = {
     kafkaBrokerList: KAFKA_URL,
     producerClientId: `${INSTANCE_ID}`,
-    compressionCodec: KafkaProducerCompressionCodecs.LZ4,
+    compressionCodec: KafkaProducerCompressionCodecs.GZIP,
     queueBufferingMaxMessages: 500_000,
     messageMaxBytes: 20971520
 };
@@ -85,6 +87,10 @@ async function main() {
       .register(new LedgerCreatedStateEventSerde())
       .register(new LedgerAccountCreatedStateEventSerde())
       .register(new LedgerTransactionRecordedStateEventSerde())
+      // commands
+      .register(new CreateLedgerCmdSerde())
+      .register(new CreateLedgerAccountCmdSerde())
+      .register(new PostTransactionCmdSerde());
 
     producer = new KafkaProducer(kafkaProducerCommonOptions, MessageSerializationFactory.instance(), new ConsoleLogger());
     await producer.connect();
@@ -109,9 +115,12 @@ async function main() {
         }));
 
     }
+
+    const startTs = Date.now();
+
     await producer.sendWithAck(cmds);
 
-    console.log("Transactions posted.");
+    console.log(`Transactions posted, publishing took: ${Date.now() - startTs} ms`);
 
 }
 
