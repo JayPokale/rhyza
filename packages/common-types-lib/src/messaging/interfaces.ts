@@ -1,4 +1,5 @@
-import {IMessage, SnapshotEvent, StateEvent} from "./messages";
+import {IMessage, MessageDataFormats, SnapshotEvent, StateEvent} from "./messages";
+import {IRawMessage} from "./raw/messages";
 
 
 export interface IStateMessageFetcher{
@@ -50,3 +51,8 @@ export interface IMessageConsumer {
 }
 
 
+
+export interface IRawMessageSerializerFactory {
+  serialize(msg: IMessage): IRawMessage;
+  deserialize(rawMsg: IRawMessage): IMessage;
+}

@@ -1,17 +1,16 @@
-import {KafkaJS} from "@confluentinc/kafka-javascript";
+import {KafkaJS, TopicPartition} from "@confluentinc/kafka-javascript";
 import { ILogger, IRawMessage, IRawMessageConsumer } from 'common-types-lib';
 import {
   RafikiKafkaRawConsumerOptions,
   RafikiKafkaRawConsumerOutputType
 } from '../node-rdkafka-raw/rdkafka-raw-consumer';
-import { TopicPartition } from 'node-rdkafka';
+
 
 const defaultOptions = {
     useSyncCommit: false,
     batchSize: 1,
     batchTimeoutMs: 200,
 };
-
 
 export class KafkaJavascriptProtobufConsumer implements IRawMessageConsumer {
     private readonly _logger: ILogger | null;

@@ -1,6 +1,7 @@
-import {DomainEvent, DomainEventTopics} from "common-types-lib";
+import {DomainEvent, DomainEventTopics, MessageDataFormats} from "common-types-lib";
 
 export abstract class LedgerDomainEvent extends DomainEvent {
+  msgDataFormat:MessageDataFormats = MessageDataFormats.JSON;
   msgTopic: string = DomainEventTopics.LedgerEvents;
   protected constructor(aggId: string) {
     super(aggId);

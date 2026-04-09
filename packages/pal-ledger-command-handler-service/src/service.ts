@@ -13,15 +13,10 @@
 import {
   PinoLogger,
   RafikiKafkaJsonConsumer,
-  RafikiKafkaJsonConsumerOptions, RafikiKafkaJsonProducer,
-  RafikiKafkaJsonProducerOptions,
-  SnapshotEventSerializer,
-  StateEventSerializer
+  RafikiKafkaJsonConsumerOptions,
+  MessageSerializationFactory, KafkaProducer, KafkaProducerOptions, KafkaProducerCompressionCodecs
 } from 'implementations-lib';
-import {
-  LedgerAccountCreatedStateEvent, LedgerAggregate, LedgerCreatedStateEvent, LedgerSnapshotEvent,
-  LedgerTransactionRecordedStateEvent
-} from 'pal-domain-lib';
+import { LedgerAggregate } from 'pal-domain-lib';
 import {
   KafkaLedgerEventSourcingRepository,
   LedgerAccountCreatedStateEventSerde,
@@ -29,8 +24,8 @@ import {
   LedgerSnapshotSerde
 } from 'pal-implementations-lib';
 import {
-  LedgerTransactionRecordedStateEventSerde
-} from 'pal-implementations-lib/dist/serde/payload-serdes/ledger-transaction-recorded-serde';
+  LedgerTransactionRecordedStateEventSerde,
+} from 'pal-implementations-lib';
 import crypto from 'crypto';
 import process from 'process';
 import {
@@ -57,16 +52,18 @@ const KAFKA_URL =
 // const KAFKA_AUTH_PASSWORD = process.env["KAFKA_AUTH_PASSWORD"] || "password";
 
 // kafka common options
-const kafkaProducerCommonOptions: RafikiKafkaJsonProducerOptions = {
+const kafkaProducerCommonOptions: KafkaProducerOptions = {
   kafkaBrokerList: KAFKA_URL,
   producerClientId: `${INSTANCE_ID}`,
-  queueBufferingMaxMessages: 500_000
+  queueBufferingMaxMessages: 10000,
+  compressionCodec: KafkaProducerCompressionCodecs.LZ4,
+  messageMaxBytes: 20971520
 };
 const kafkaConsumerCommonOptions: RafikiKafkaJsonConsumerOptions = {
   kafkaBrokerList: KAFKA_URL,
   kafkaGroupId: 'ES_LEDGER_POC_COMMAND_SVC',
   batchTimeoutMs: 25,
-  batchSize: 100_000
+  batchSize: 10000
 };
 
 
@@ -91,20 +88,19 @@ export class PalLedgerCommandHandlerService {
     this._logger.info(`Starting ${this.constructor.name}...`);
 
     if(!esRepo){
-      const snapshotSerde = SnapshotEventSerializer.instance();
-      snapshotSerde.setSerde(LedgerSnapshotEvent.name, new LedgerSnapshotSerde());
-
-      const eventSerde = StateEventSerializer.instance();
-      eventSerde.setSerde(LedgerCreatedStateEvent.name, new LedgerCreatedStateEventSerde());
-      eventSerde.setSerde(LedgerAccountCreatedStateEvent.name, new LedgerAccountCreatedStateEventSerde());
-      eventSerde.setSerde(LedgerTransactionRecordedStateEvent.name, new LedgerTransactionRecordedStateEventSerde());
+      MessageSerializationFactory.instance()
+        // snapshots
+        .register(new LedgerSnapshotSerde())
+        // state events
+        .register(new LedgerCreatedStateEventSerde())
+        .register(new LedgerAccountCreatedStateEventSerde())
+        .register(new LedgerTransactionRecordedStateEventSerde())
 
       esRepo = new KafkaLedgerEventSourcingRepository(
         kafkaProducerCommonOptions,
         kafkaConsumerCommonOptions,
         REDIS_URL,
-        snapshotSerde,
-        eventSerde,
+        MessageSerializationFactory.instance(),
         this._logger
       );
       await esRepo.init();
@@ -112,7 +108,7 @@ export class PalLedgerCommandHandlerService {
     this._esRepo = esRepo;
 
     if(!producer){
-      producer = new RafikiKafkaJsonProducer(kafkaProducerCommonOptions, this._logger);
+      producer = new KafkaProducer(kafkaProducerCommonOptions, MessageSerializationFactory.instance(), this._logger);
       await producer.connect();
     }
     this._producer = producer;
@@ -143,5 +139,16 @@ export class PalLedgerCommandHandlerService {
     this._logger.info(`${PalLedgerCommandHandlerService.name} ready to receive commands`);
   }
 
-  static async stop(): Promise<void> {}
+  static async stop(): Promise<void> {
+    // first stop consuming
+    if(this._consumer){
+      await this._consumer.stop();
+      await this._consumer.disconnect(false);
+    }
+
+    // now stop the publisher, disconnect with flush any pending messages
+    if(this._producer){
+      await this._producer.disconnect();
+    }
+  }
 }

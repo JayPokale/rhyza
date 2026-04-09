@@ -1,7 +1,7 @@
 import { after, before, test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {PalLedgerCommandHandlerService as Service} from '../src/service';
-import {SnapshotEventSerializer, StateEventSerializer } from "implementations-lib";
+import {ProtoBufBaseSnapshotEventSerializer, ProtoBufBaseStateEventSerializer } from "implementations-lib";
 import {KafkaLedgerEventSourcingRepository, LedgerSnapshotSerde } from "pal-implementations-lib";
 import { LedgerSnapshotEvent, LedgerCreatedStateEvent, LedgerAccountCreatedStateEvent, LedgerTransactionRecordedStateEvent } from "pal-domain-lib";
 

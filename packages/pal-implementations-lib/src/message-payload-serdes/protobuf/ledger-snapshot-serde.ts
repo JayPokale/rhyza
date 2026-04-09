@@ -10,15 +10,16 @@
 "use strict";
 
 import {Any as PbAny} from "google-protobuf/google/protobuf/any_pb";
-import { ISerdeDefinition } from 'implementations-lib';
-import { LedgerSnapshotPayload } from "pal-domain-lib";
+import {ProtoBufBaseSnapshotEventSerializer} from 'implementations-lib';
+import {LedgerSnapshotPayload} from "pal-domain-lib";
 import {PbLedgerAccountState, PbLedgerSnapshotPayload} from "../../proto_generated";
 
 
-export class LedgerSnapshotSerde implements ISerdeDefinition{
-    payloadPbClassName = "PbLedgerSnapshotPayload";
+export class LedgerSnapshotSerde extends ProtoBufBaseSnapshotEventSerializer<LedgerSnapshotPayload>{
+    protected _payloadPbClassName = "PbLedgerSnapshotPayload";
+    msgName = "LedgerSnapshotEvent";
 
-    serialize(payload:LedgerSnapshotPayload):Uint8Array{
+    protected _serializePayload(payload:LedgerSnapshotPayload):Uint8Array{
         const typedPayload = payload as LedgerSnapshotPayload;
 
         const pbPayload = new PbLedgerSnapshotPayload();
@@ -38,7 +39,7 @@ export class LedgerSnapshotSerde implements ISerdeDefinition{
         return pbPayload.serializeBinary();
     }
 
-    deserialize(pbAny:PbAny, msgName:string):LedgerSnapshotPayload{
+    protected _deserializePayload(pbAny:PbAny, msgName:string):LedgerSnapshotPayload{
         const pbPayload = pbAny.unpack<PbLedgerSnapshotPayload>(PbLedgerSnapshotPayload.deserializeBinary, msgName);
         if(!pbPayload) throw new Error("No payload found in message");
 

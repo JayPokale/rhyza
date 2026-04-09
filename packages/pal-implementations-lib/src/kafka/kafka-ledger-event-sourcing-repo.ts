@@ -2,16 +2,14 @@ import { Redis } from 'ioredis';
 import {
   CommandTopics,
   DomainEventTopics,
-  ILogger,
+  ILogger, IMessageProducer,
   IRawMessage,
-  IRawMessageProducer,
+  IRawMessageProducer, IRawMessageSerializerFactory, MessageDataFormats,
   SnapshotEvent,
   SnapshotEventTopics, StateEventTopics
 } from 'common-types-lib';
 import {
-  SnapshotEventSerializer, StateEventSerializer,
-  KafkaJavascriptProtobufFetcher,
-  KafkaJavascriptProtobufProducer,
+  KafkaJavascriptProtobufFetcher, KafkaProducer, KafkaProducerOptions,
   RafikiKafkaJsonFetcherOptions,
   RafikiKafkaJsonProducerOptions
 } from 'implementations-lib';
@@ -27,22 +25,22 @@ type SnapshotCacheData = {
 
 export class KafkaLedgerEventSourcingRepository implements ILedgerEventSourcingRepository {
     private readonly _logger:ILogger
-    private readonly _producer: IRawMessageProducer;
+    private readonly _producer: IMessageProducer;
     private readonly _consumerOptions: RafikiKafkaJsonFetcherOptions;
     private readonly _redisClient: Redis;
-    private readonly _snapshotSerializer: SnapshotEventSerializer;
-    private readonly _eventSerializer: StateEventSerializer;
+    private readonly _serializerFactory: IRawMessageSerializerFactory;
+
+    private readonly _msgFormat: MessageDataFormats = MessageDataFormats.PROTOBUF;
 
     constructor(
-        producerOptions: RafikiKafkaJsonProducerOptions, consumerOptions: RafikiKafkaJsonFetcherOptions,
-        redisConnStr:string, snapshotSerializer: SnapshotEventSerializer, eventSerializer: StateEventSerializer,
-        logger:ILogger
+      producerOptions: KafkaProducerOptions, consumerOptions: RafikiKafkaJsonFetcherOptions,
+      redisConnStr:string, serializerFactory: IRawMessageSerializerFactory,
+      logger:ILogger
     ) {
         this._logger = logger;
         this._consumerOptions = consumerOptions;
-        this._producer = new KafkaJavascriptProtobufProducer(producerOptions, logger);
-        this._snapshotSerializer = snapshotSerializer;
-        this._eventSerializer = eventSerializer;
+        this._producer = new KafkaProducer(producerOptions, serializerFactory, logger);
+        this._serializerFactory = serializerFactory;
 
         this._redisClient = new Redis(redisConnStr, {
             lazyConnect: true
@@ -53,19 +51,11 @@ export class KafkaLedgerEventSourcingRepository implements ILedgerEventSourcingR
         return `${CACHE_PREFIX}_${aggregateId}`;
     }
 
-    get eventSerializer(): StateEventSerializer {
-        return this._eventSerializer;
-    }
-
-    get snapshotSerializer(): SnapshotEventSerializer {
-        return this._snapshotSerializer;
-    }
-
     async init(): Promise<void> {
         await this._producer.connect();
 
         // TODO remove
-        await (this._producer as KafkaJavascriptProtobufProducer).createTopics([
+        await (this._producer as KafkaProducer).createTopics([
           SnapshotEventTopics.LedgerSnapshotEvents,
           StateEventTopics.LedgerStateEvents,
           DomainEventTopics.LedgerEvents,
@@ -79,8 +69,8 @@ export class KafkaLedgerEventSourcingRepository implements ILedgerEventSourcingR
 
     async publishEvents(events:LedgerStateEvent[]):Promise<void> {
         // const rawMsgs:IRawMessage[] = events.map(this._getRawMessageFromIMessage);
-        const rawMsgs:IRawMessage[] = events.map(this._eventSerializer.serialize.bind(this._eventSerializer));
-        await this._producer.sendWithAck(rawMsgs);
+        // const rawMsgs:IRawMessage[] = events.map(this._serializerFactory.serialize.bind(this._serializerFactory));
+        await this._producer.sendWithAck(events);
     }
 
     async publishSnapshotEvent(events:LedgerSnapshotEvent[]):Promise<void>{
@@ -88,8 +78,8 @@ export class KafkaLedgerEventSourcingRepository implements ILedgerEventSourcingR
 
         for(const evt of events) {
             // const rawEvt = this._getRawMessageFromIMessage(evt);
-            const rawEvt = this._snapshotSerializer.serialize(evt);
-            const ack = await this._producer.sendWithAck([rawEvt]);
+            //const rawEvt = this._serializerFactory.serialize(evt);
+            const ack = await this._producer.sendWithAck([evt]);
 
             const cache: SnapshotCacheData = {
                 topic: ack[0].topic,
@@ -141,7 +131,7 @@ export class KafkaLedgerEventSourcingRepository implements ILedgerEventSourcingR
         }
 
         // convert message
-        const snapShotMsg = this._snapshotSerializer.deserialize(snapShot) as SnapshotEvent;
+        const snapShotMsg = this._serializerFactory.deserialize(snapShot) as SnapshotEvent;
         return snapShotMsg;
     }
 
@@ -156,7 +146,7 @@ export class KafkaLedgerEventSourcingRepository implements ILedgerEventSourcingR
             return [];
         }
 
-        const stateEvents = rawEvents.map(this._eventSerializer.deserialize.bind(this._eventSerializer)) as LedgerStateEvent[];
+        const stateEvents = rawEvents.map(this._serializerFactory.deserialize.bind(this._serializerFactory)) as LedgerStateEvent[];
         return stateEvents;
     }
 

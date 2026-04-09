@@ -1,4 +1,4 @@
-import { DomainEvent, DomainEventTopics } from 'common-types-lib';
+import {DomainEvent, DomainEventTopics, MessageDataFormats} from 'common-types-lib';
 
 const BOUNDED_CONTEXT_NAME = 'payment';
 const AGGREGATE_NAME = 'payment-intents';
@@ -8,6 +8,7 @@ export interface PaymentIntentCreatedPayload {
 }
 
 export class PaymentIntentCreatedEvent extends DomainEvent {
+  msgDataFormat:MessageDataFormats = MessageDataFormats.JSON;
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateId: string;
   aggregateName: string = AGGREGATE_NAME;
@@ -29,6 +30,7 @@ export interface PaymentIntentCreateFailedPayload {
 }
 
 export class PaymentIntentCreateFailedEvent extends DomainEvent {
+  msgDataFormat:MessageDataFormats = MessageDataFormats.JSON;
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateId: string;
   aggregateName: string = AGGREGATE_NAME;
@@ -50,6 +52,7 @@ export interface QuoteCompletedPayload {
 }
 
 export class QuoteCompletedEvent extends DomainEvent {
+  msgDataFormat:MessageDataFormats = MessageDataFormats.JSON;
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateId: string;
   aggregateName: string = AGGREGATE_NAME;
@@ -71,6 +74,7 @@ export interface QuoteCreateFailedPayload {
 }
 
 export class QuoteCreateFailedEvent extends DomainEvent {
+  msgDataFormat:MessageDataFormats = MessageDataFormats.JSON;
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateId: string;
   aggregateName: string = AGGREGATE_NAME;
@@ -92,6 +96,7 @@ export interface PaymentCreatedPayload {
 }
 
 export class PaymentCreatedEvent extends DomainEvent {
+  msgDataFormat:MessageDataFormats = MessageDataFormats.JSON;
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateId: string;
   aggregateName: string = AGGREGATE_NAME;
@@ -113,6 +118,7 @@ export interface PaymentCreateFailedPayload {
 }
 
 export class PaymentCreateFailedEvent extends DomainEvent {
+  msgDataFormat:MessageDataFormats = MessageDataFormats.JSON;
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateId: string;
   aggregateName: string = AGGREGATE_NAME;

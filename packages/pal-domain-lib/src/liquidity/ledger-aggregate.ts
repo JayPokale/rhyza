@@ -94,7 +94,7 @@ export class LedgerAggregate {
         }
 
         // publish and clear uncommited events
-        const eventsCount = this._uncommittedStateEvents.length;
+        const eventsCount = this._uncommittedStateEvents.length + this._uncommittedDomainEvents.length;
         await this._esRepo.publishEvents(this._uncommittedStateEvents);
         this._uncommittedStateEvents.length = 0;
         await this._msgProducer.send(this._uncommittedDomainEvents);

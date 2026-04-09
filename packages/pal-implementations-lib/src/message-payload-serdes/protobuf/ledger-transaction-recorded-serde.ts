@@ -1,24 +1,13 @@
-/*****
- Copyright © 2026 & Interledger Foundation
- ----------------------------------------------
- Contributors
-
- * Cyberbones Digital Solutions
- - Pedro Sousa Barreto <pedrosousabarreto@gmail.com>
- ******/
-
-"use strict";
-
-
 import {Any as PbAny} from "google-protobuf/google/protobuf/any_pb";
-import { ISerdeDefinition } from "implementations-lib";
+import { ProtoBufBaseStateEventSerializer} from "implementations-lib";
 import { LedgerTransactionRecordedStatePayload } from "pal-domain-lib";
 import {PbLedgerTransactionRecordedStatePayload} from "../../proto_generated";
 
-export class LedgerTransactionRecordedStateEventSerde implements ISerdeDefinition{
-    payloadPbClassName = "LedgerAccountCreatedStatePayload";
+export class LedgerTransactionRecordedStateEventSerde extends ProtoBufBaseStateEventSerializer<LedgerTransactionRecordedStatePayload>{
+    protected _payloadPbClassName = "PbLedgerTransactionRecordedStatePayload";
+    msgName = "LedgerTransactionRecordedStateEvent";
 
-    serialize(payload:LedgerTransactionRecordedStatePayload):Uint8Array{
+    protected _serializePayload(payload:LedgerTransactionRecordedStatePayload):Uint8Array{
         const typedPayload = payload as LedgerTransactionRecordedStatePayload;
 
         const pbPayload = new PbLedgerTransactionRecordedStatePayload();
@@ -33,7 +22,7 @@ export class LedgerTransactionRecordedStateEventSerde implements ISerdeDefinitio
         return pbPayload.serializeBinary();
     }
 
-    deserialize(pbAny:PbAny, msgName:string):LedgerTransactionRecordedStatePayload{
+    protected _deserializePayload(pbAny:PbAny, msgName:string):LedgerTransactionRecordedStatePayload{
         const pbPayload = pbAny.unpack<PbLedgerTransactionRecordedStatePayload>(PbLedgerTransactionRecordedStatePayload.deserializeBinary, msgName);
         if(!pbPayload) throw new Error("No payload found in message");
 

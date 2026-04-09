@@ -10,7 +10,7 @@
 "use strict";
 
 import crypto from "crypto";
-import * as RDKafka from "node-rdkafka";
+import {RdKafka as RDKafka} from '@confluentinc/kafka-javascript';
 import { RafikiKafkaRawConsumerOutputType } from './rdkafka-raw-consumer';
 import { ILogger, IRawMessage, IRawMessageFetcher } from 'common-types-lib';
 import { IRawAuthenticationOptions } from '../raw-types';

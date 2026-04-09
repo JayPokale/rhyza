@@ -2,36 +2,27 @@ import crypto from 'crypto';
 import process from 'process';
 import {
   PinoLogger, RafikiKafkaJsonConsumer,
-  RafikiKafkaJsonConsumerOptions, RafikiKafkaJsonProducer,
-  RafikiKafkaJsonProducerOptions, RafikiKafkaRawConsumer, RafikiKafkaRawConsumerOptions,
+  RafikiKafkaJsonConsumerOptions,
+  RafikiKafkaRawConsumer, RafikiKafkaRawConsumerOptions,
   RafikiKafkaRawConsumerOutputType,
-  SnapshotEventSerializer,
-  StateEventSerializer
+  MessageSerializationFactory, KafkaProducerOptions, KafkaProducer
 } from 'implementations-lib';
 import {
   ILedgerEventSourcingRepository,
-  LedgerAccountCreatedStateEvent, LedgerAggregate, LedgerCreatedStateEvent, LedgerSnapshotEvent,
-  LedgerTransactionRecordedStateEvent
 } from 'pal-domain-lib';
 import {
   KafkaLedgerEventSourcingRepository,
   LedgerAccountCreatedStateEventSerde,
   LedgerCreatedStateEventSerde,
-  LedgerSnapshotSerde
+  LedgerSnapshotSerde, LedgerTransactionRecordedStateEventSerde
 } from 'pal-implementations-lib';
+
 import {
-  LedgerTransactionRecordedStateEventSerde
-} from 'pal-implementations-lib/dist/serde/payload-serdes/ledger-transaction-recorded-serde';
-import {
-  CommandTopics,
   ILogger,
-  IMessage,
   IMessageConsumer,
-  IMessageProducer, IRawMessageConsumer,
-  MessageTypes, StateEventTopics
+  IMessageProducer, IRawMessageConsumer, IRawMessageSerializerFactory,
 } from "common-types-lib";
 import {Snapshotter, SnapshotterConfigs} from "./handlers/snapshotter";
-import {StatementSync} from "node:sqlite";
 import {IntegrationEventHandler} from "./handlers/integration-event-handler";
 
 
@@ -52,16 +43,17 @@ const KAFKA_URL =
 // const KAFKA_AUTH_PASSWORD = process.env["KAFKA_AUTH_PASSWORD"] || "password";
 
 // kafka common options
-const kafkaProducerCommonOptions: RafikiKafkaJsonProducerOptions = {
+const kafkaProducerCommonOptions: KafkaProducerOptions = {
   kafkaBrokerList: KAFKA_URL,
   producerClientId: `${INSTANCE_ID}`,
-  queueBufferingMaxMessages: 500_000
+  queueBufferingMaxMessages: 500_000,
+  messageMaxBytes: 20971520
 };
 const kafkaConsumerCommonOptions: RafikiKafkaJsonConsumerOptions = {
   kafkaBrokerList: KAFKA_URL,
   kafkaGroupId: 'ES_LEDGER_POC_SNAPSHOTTER_SVC',
-  batchTimeoutMs: 50,
-  batchSize: 100_000
+  batchTimeoutMs: 5000,
+  batchSize: 500_000
 };
 
 
@@ -71,16 +63,14 @@ export class PalLedgerEventHandlerService {
   private static _producer: IMessageProducer;
   private static _rawMessageConsumer: IRawMessageConsumer;
   private static _messageConsumer: IMessageConsumer;
-  private static _stateEventSerializer: StateEventSerializer;
-  private static _snapshotEventSerializer: SnapshotEventSerializer;
+  private static _msgSerializationFactory: IRawMessageSerializerFactory
 
   private static _snapshotter: Snapshotter;
   private static _integrationEventHandler: IntegrationEventHandler;
 
   static async start(
     logger?: ILogger,
-    stateEventSerializer?: StateEventSerializer,
-    snapshotEventSerializer?: SnapshotEventSerializer,
+    msgSerializationFactory?: IRawMessageSerializerFactory,
     esRepo?: ILedgerEventSourcingRepository,
     rawMessageConsumer?: IRawMessageConsumer,
     messageConsumer?: IMessageConsumer,
@@ -91,31 +81,25 @@ export class PalLedgerEventHandlerService {
     }
     this._logger = logger;
 
-    this._logger.info(`Starting ${this.constructor.name}...`);
+    this._logger.info(`Starting ${PalLedgerEventHandlerService.name}...`);
 
-    if(!stateEventSerializer){
-      const serde = StateEventSerializer.instance();
-      serde.setSerde(LedgerCreatedStateEvent.name, new LedgerCreatedStateEventSerde());
-      serde.setSerde(LedgerAccountCreatedStateEvent.name, new LedgerAccountCreatedStateEventSerde());
-      serde.setSerde(LedgerTransactionRecordedStateEvent.name, new LedgerTransactionRecordedStateEventSerde());
-      stateEventSerializer = serde;
-    }
-    this._stateEventSerializer = stateEventSerializer;
+    if(!msgSerializationFactory){
+      MessageSerializationFactory.instance()
+        .register(new LedgerSnapshotSerde())
+        .register(new LedgerCreatedStateEventSerde())
+        .register(new LedgerAccountCreatedStateEventSerde())
+        .register(new LedgerTransactionRecordedStateEventSerde());
 
-    if(!snapshotEventSerializer){
-      const serde = SnapshotEventSerializer.instance();
-      serde.setSerde(LedgerSnapshotEvent.name, new LedgerSnapshotSerde());
-      snapshotEventSerializer = serde;
+      msgSerializationFactory = MessageSerializationFactory.instance();
     }
-    this._snapshotEventSerializer = snapshotEventSerializer;
+    this._msgSerializationFactory = msgSerializationFactory;
 
     if(!esRepo){
       const kafkaEsRepo = new KafkaLedgerEventSourcingRepository(
         kafkaProducerCommonOptions,
         kafkaConsumerCommonOptions,
         REDIS_URL,
-        this._snapshotEventSerializer,
-        this._stateEventSerializer,
+        this._msgSerializationFactory,
         this._logger
       );
       await kafkaEsRepo.init();
@@ -124,14 +108,13 @@ export class PalLedgerEventHandlerService {
     this._esRepo = esRepo;
 
     if(!producer){
-      producer = new RafikiKafkaJsonProducer(kafkaProducerCommonOptions, this._logger);
+      producer = new KafkaProducer(kafkaProducerCommonOptions, this._msgSerializationFactory, this._logger);
       await producer.connect();
     }
     this._producer = producer;
 
 
     if(!rawMessageConsumer){
-      this._rawMessageConsumer = new RafikiKafkaRawConsumer(kafkaConsumerCommonOptions, this._logger);
       const rawConsumerOpts: RafikiKafkaRawConsumerOptions = {
         ...kafkaConsumerCommonOptions,
         outputType: RafikiKafkaRawConsumerOutputType.Raw
@@ -153,7 +136,7 @@ export class PalLedgerEventHandlerService {
     this._snapshotter = new Snapshotter(
       configs,
       this._esRepo,
-      this._stateEventSerializer,
+      this._msgSerializationFactory,
       this._rawMessageConsumer,
       this._producer,
       this._logger
@@ -179,7 +162,7 @@ export class PalLedgerEventHandlerService {
     await this._integrationEventHandler.init();
     this._logger.info(`${this._integrationEventHandler.constructor.name} ready to receive integration events`);
 
-    this._logger.info(`${this.constructor} started successfully`);
+    this._logger.info(`${PalLedgerEventHandlerService.name} started successfully`);
   }
 
   static async stop(): Promise<void> {
@@ -189,6 +172,11 @@ export class PalLedgerEventHandlerService {
     if(this._rawMessageConsumer){
       await this._rawMessageConsumer.stop();
       await this._rawMessageConsumer.disconnect(false);
+    }
+
+    if(this._messageConsumer){
+      await this._messageConsumer.stop();
+      await this._messageConsumer.disconnect(false);
     }
 
     if(this._producer){

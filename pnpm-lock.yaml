@@ -108,9 +108,6 @@ importers:
       ioredis:
         specifier: ^5.6.0
         version: 5.6.0
-      node-rdkafka:
-        specifier: ~3.3.0
-        version: 3.3.1
       pg:
         specifier: ^8.13.1
         version: 8.13.3
@@ -223,6 +220,9 @@ importers:
       pal-domain-lib:
         specifier: 'workspace: *'
         version: link:../pal-domain-lib
+      pal-public-types-lib:
+        specifier: 'workspace: *'
+        version: link:../pal-public-types-lib
     devDependencies:
       '@types/google-protobuf':
         specifier: ~3.15.12
@@ -1691,10 +1691,6 @@ packages:
     peerDependenciesMeta:
       encoding:
         optional: true
-
-  node-rdkafka@3.3.1:
-    resolution: {integrity: sha512-dx4vHvt1RkoGsOVqGQBpu72WRx/7+1FyeZMB+f3frQODRlAFnUgFhK+h+dWuL9Majx0FFdgVx8VehOgJT6vGrw==}
-    engines: {node: '>=16'}
 
   nopt@8.1.0:
     resolution: {integrity: sha512-ieGu42u/Qsa4TFktmaKEwM6MQH0pOWnaB3htzh0JRtx84+Mebc0cbZYN5bC+6WTZ4+77xrL9Pn5m7CV6VIkV7A==}
@@ -3366,11 +3362,6 @@ snapshots:
   node-fetch@2.7.0:
     dependencies:
       whatwg-url: 5.0.0
-
-  node-rdkafka@3.3.1:
-    dependencies:
-      bindings: 1.5.0
-      nan: 2.22.2
 
   nopt@8.1.0:
     dependencies:

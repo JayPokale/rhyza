@@ -1,6 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import * as Crypto from 'crypto';
 
+export const MessageDataFormats = {
+  JSON: "JSON",
+  PROTOBUF: "PROTOBUF"
+} as const;
+export type MessageDataFormats = keyof typeof MessageDataFormats;
+
 export const MessageTypes = {
   STATE_EVENT: 'STATE_EVENT', // for private event-sourcing events
   SNAPSHOT_EVENT: 'SNAPSHOT_EVENT', // for private event-sourcing snapshot events
@@ -10,6 +16,7 @@ export const MessageTypes = {
 export type MessageTypes = keyof typeof MessageTypes;
 
 export interface IMessage {
+  msgDataFormat: MessageDataFormats;
   msgType: MessageTypes;
   msgId: string;
   msgName: string;
@@ -39,6 +46,7 @@ export abstract class BaseMessage implements IMessage {
   payload: any;
 
   abstract msgTopic: string;
+  abstract msgDataFormat: MessageDataFormats;
   abstract msgType: MessageTypes;
 
   requestId?: string;

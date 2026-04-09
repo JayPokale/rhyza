@@ -1,13 +1,11 @@
 import {
-  IEventSourcingRepository,
   ILogger,
-  IMessage, IMessageProducer,
-  IRawMessage, IRawMessageConsumer,
+  IMessageProducer,
+  IRawMessage, IRawMessageConsumer, IRawMessageSerializerFactory,
   MessageTypes,
   StateEvent, StateEventTopics
 } from "common-types-lib";
 import {ILedgerEventSourcingRepository, LedgerAggregate, LedgerSnapshotEvent, LedgerStateEvent} from "pal-domain-lib";
-import {SnapshotEventSerializer, StateEventSerializer} from "implementations-lib";
 
 export type SnapshotterConfigs = {
     maxStateEventsBetweenSnapshots: number;
@@ -20,19 +18,19 @@ export class Snapshotter {
     private readonly _esRepo: ILedgerEventSourcingRepository;
     private readonly _aggregate: LedgerAggregate;
     private readonly _uncommittedSnapshots: LedgerSnapshotEvent[];
-    private readonly _stateEventSerializer: StateEventSerializer;
+    private readonly _msgSerializationFactory: IRawMessageSerializerFactory;
     private readonly _rawMessageConsumer: IRawMessageConsumer;
     private readonly _msgProducer: IMessageProducer;
 
     constructor(
       configs:SnapshotterConfigs, esRepo: ILedgerEventSourcingRepository,
-      stateEventSerializer: StateEventSerializer, rawMessageConsumer: IRawMessageConsumer,
+      msgSerializationFactory: IRawMessageSerializerFactory, rawMessageConsumer: IRawMessageConsumer,
       msgProducer: IMessageProducer, logger: ILogger
     ){
         this._logger = logger;
         this._configs = configs;
         this._esRepo = esRepo;
-        this._stateEventSerializer = stateEventSerializer;
+        this._msgSerializationFactory = msgSerializationFactory;
         this._rawMessageConsumer = rawMessageConsumer;
         this._msgProducer = msgProducer;
         this._aggregate = new LedgerAggregate(this._esRepo, this._msgProducer, logger);
@@ -91,7 +89,7 @@ export class Snapshotter {
         const map = new Map<string, LedgerStateEvent[]>();
 
         // deserialize
-        const messages = rawMessages.map(this._stateEventSerializer.deserialize.bind(this._stateEventSerializer));
+        const messages = rawMessages.map(this._msgSerializationFactory.deserialize.bind(this._msgSerializationFactory));
 
         // sort by ledger
         for (const msg of messages) {

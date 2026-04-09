@@ -1,8 +1,9 @@
 /* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any */
 import { EventEmitter } from 'events';
-import { TopicPartition } from 'node-rdkafka';
-import * as RDKafka from 'node-rdkafka';
-import { LibrdKafkaError, Metadata } from 'node-rdkafka';
+// import { TopicPartition } from 'node-rdkafka';
+// import * as RDKafka from 'node-rdkafka';
+// //import { LibrdKafkaError, Metadata } from 'node-rdkafka';
+import {RdKafka as RDKafka, Metadata, TopicPartition} from '@confluentinc/kafka-javascript';
 import {IRawAuthenticationOptions} from '../raw-types';
 import * as crypto from 'crypto';
 import {ILogger, IRawMessage, IRawMessageConsumer } from 'common-types-lib';
@@ -683,7 +684,7 @@ export class RafikiKafkaRawConsumer
     return new Promise<RDKafka.Metadata>((resolve, reject) => {
       this._client.getMetadata(
         { allTopics: true },
-        (err: LibrdKafkaError, data: Metadata) => {
+        (err: RDKafka.LibrdKafkaError, data: Metadata) => {
           if (err) {
             this._logger?.error(
               `RafikiRawKafkaConsumer - error requesting metadata from RDKafka client - error-no: ${err.errno} message: ${err.message}`,

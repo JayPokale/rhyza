@@ -1,7 +1,7 @@
 import { after, before, test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {PalLedgerCommandHandlerService as Service} from '../src/service';
-import {SnapshotEventSerializer, StateEventSerializer } from "implementations-lib";
+import {ProtoBufBaseSnapshotEventSerializer, ProtoBufBaseStateEventSerializer } from "implementations-lib";
 import {KafkaLedgerEventSourcingRepository, LedgerSnapshotSerde } from "pal-implementations-lib";
 import { LedgerSnapshotEvent, LedgerCreatedStateEvent, LedgerAccountCreatedStateEvent, LedgerTransactionRecordedStateEvent } from "pal-domain-lib";
 
@@ -9,13 +9,13 @@ import { LedgerSnapshotEvent, LedgerCreatedStateEvent, LedgerAccountCreatedState
 
 before(async () => {
 
-  const snapshotSerde = SnapshotEventSerializer.instance();
-  snapshotSerde.setSerde(LedgerSnapshotEvent.name, new LedgerSnapshotSerde());
+  const snapshotSerde = ProtoBufBaseSnapshotEventSerializer.instance();
+  snapshotSerde.addSerde(LedgerSnapshotEvent.name, new LedgerSnapshotSerde());
 
-  const eventSerde = StateEventSerializer.instance();
-  eventSerde.setSerde(LedgerCreatedStateEvent.name, new LedgerCreatedStateEventSerde());
-  eventSerde.setSerde(LedgerAccountCreatedStateEvent.name, new LedgerAccountCreatedStateEventSerde());
-  eventSerde.setSerde(LedgerTransactionRecordedStateEvent.name, new LedgerTransactionRecordedStateEventSerde());
+  const eventSerde = ProtoBufBaseStateEventSerializer.instance();
+  eventSerde.addSerde(LedgerCreatedStateEvent.name, new LedgerCreatedStateEventSerde());
+  eventSerde.addSerde(LedgerAccountCreatedStateEvent.name, new LedgerAccountCreatedStateEventSerde());
+  eventSerde.addSerde(LedgerTransactionRecordedStateEvent.name, new LedgerTransactionRecordedStateEventSerde());
 
   const esRepo = new KafkaLedgerEventSourcingRepository(
     kafkaProducerCommonOptions,

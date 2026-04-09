@@ -17,6 +17,7 @@
     "google-protobuf": "~4.0.2",
     "pal-domain-lib": "workspace: *",
     "common-types-lib": "workspace: *",
+    "pal-public-types-lib": "workspace: *",
     "implementations-lib": "workspace: *"
   },
   "devDependencies": {

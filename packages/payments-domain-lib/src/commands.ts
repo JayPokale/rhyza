@@ -1,7 +1,8 @@
-import { CommandMsg, CommandTopics } from 'common-types-lib';
+import {CommandMsg, CommandTopics, MessageDataFormats} from 'common-types-lib';
 
 const BOUNDED_CONTEXT_NAME = 'payment';
 const PAYMENT_INTENT_AGG_NAME = 'payment-intents';
+
 
 export interface CreatePaymentIntentCmdPayload {
   id: string;
@@ -13,6 +14,7 @@ export interface CreatePaymentIntentCmdPayload {
 }
 
 export class CreatePaymentIntentCmd extends CommandMsg {
+  msgDataFormat:MessageDataFormats = MessageDataFormats.JSON;
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateName: string = PAYMENT_INTENT_AGG_NAME;
   msgTopic: string = CommandTopics.PaymentCommands;
@@ -36,6 +38,7 @@ export interface CreateQuoteCmdPayload {
 }
 
 export class CreateQuoteCmd extends CommandMsg {
+  msgDataFormat:MessageDataFormats = MessageDataFormats.JSON;
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateName: string = PAYMENT_INTENT_AGG_NAME;
   msgTopic: string = CommandTopics.PaymentCommands;
@@ -59,6 +62,7 @@ export interface CreatePaymentCmdPayload {
 }
 
 export class CreatePaymentCmd extends CommandMsg {
+  msgDataFormat:MessageDataFormats = MessageDataFormats.JSON;
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateName: string = PAYMENT_INTENT_AGG_NAME;
   msgTopic: string = CommandTopics.PaymentCommands;

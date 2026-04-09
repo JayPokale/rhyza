@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any */
 import { EventEmitter } from 'events';
-import * as RDKafka from 'node-rdkafka';
-import { NumberNullUndefined } from 'node-rdkafka';
+import {RdKafka as RDKafka} from '@confluentinc/kafka-javascript';
 import {
   IRawAuthenticationOptions,
 } from '../raw-types';
@@ -244,10 +243,10 @@ export class RafikiKafkaRawProducer
 
   private _toRDKafkaProduceParams(msg: IRawMessage): {
     topic: string;
-    partition: NumberNullUndefined;
+    partition: RDKafka.NumberNullUndefined;
     message: Buffer;
     key: Buffer;
-    timestamp: NumberNullUndefined;
+    timestamp: RDKafka.NumberNullUndefined;
     headers: IRawMessageHeader[];
   } {
     const topic: string = msg.topic;

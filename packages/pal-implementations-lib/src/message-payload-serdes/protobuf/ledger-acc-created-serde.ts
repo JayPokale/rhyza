@@ -11,15 +11,16 @@
 
 
 import {Any as PbAny} from "google-protobuf/google/protobuf/any_pb";
-import { ISerdeDefinition } from 'implementations-lib';
 import { LedgerAccountCreatedStatePayload } from 'pal-domain-lib';
 import { PbLedgerAccountCreatedStatePayload, PbLedgerAccountState } from '../../proto_generated';
+import { ProtoBufBaseStateEventSerializer} from "implementations-lib";
 
 
-export class LedgerAccountCreatedStateEventSerde implements ISerdeDefinition{
-    payloadPbClassName = "LedgerAccountCreatedStatePayload";
+export class LedgerAccountCreatedStateEventSerde extends ProtoBufBaseStateEventSerializer<LedgerAccountCreatedStatePayload>{
+    protected _payloadPbClassName = "PbLedgerAccountCreatedStatePayload";
+    msgName = "LedgerAccountCreatedStateEvent";
 
-    serialize(payload:LedgerAccountCreatedStatePayload):Uint8Array{
+    protected _serializePayload(payload:LedgerAccountCreatedStatePayload):Uint8Array{
         const typedPayload = payload as LedgerAccountCreatedStatePayload;
 
         const pbAccount = new  PbLedgerAccountState();
@@ -36,7 +37,7 @@ export class LedgerAccountCreatedStateEventSerde implements ISerdeDefinition{
         return pbPayload.serializeBinary();
     }
 
-    deserialize(pbAny:PbAny, msgName:string):LedgerAccountCreatedStatePayload{
+    protected _deserializePayload(pbAny:PbAny, msgName:string):LedgerAccountCreatedStatePayload{
         const pbPayload = pbAny.unpack<PbLedgerAccountCreatedStatePayload>(PbLedgerAccountCreatedStatePayload.deserializeBinary, msgName);
         if(!pbPayload) throw new Error("No payload found in message");
 

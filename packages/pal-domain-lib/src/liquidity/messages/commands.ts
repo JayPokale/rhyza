@@ -9,10 +9,11 @@
 
 "use strict";
 
-import { CommandMsg, CommandTopics } from 'common-types-lib';
+import {CommandMsg, CommandTopics, MessageDataFormats} from 'common-types-lib';
 
 export abstract class LedgerCommand extends CommandMsg{
-    msgTopic:string = CommandTopics.LedgerCommands;
+  msgDataFormat:MessageDataFormats = MessageDataFormats.JSON;
+  msgTopic:string = CommandTopics.LedgerCommands;
     protected constructor(aggId:string) {
         super(aggId);
         this.msgKey = aggId;

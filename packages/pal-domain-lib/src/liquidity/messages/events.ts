@@ -9,12 +9,13 @@
 
 "use strict";
 
-import { StateEvent, SnapshotEvent, SnapshotEventTopics, StateEventTopics } from 'common-types-lib';
+import {StateEvent, SnapshotEvent, SnapshotEventTopics, StateEventTopics, MessageDataFormats} from 'common-types-lib';
 import {ILedgerAccountStateDTO} from "../entities/ledger-account";
 import {ILedgerTransactionStateDTO} from "../entities/transaction";
 
 
 export abstract class LedgerStateEvent extends StateEvent {
+  msgDataFormat:MessageDataFormats = MessageDataFormats.PROTOBUF;
   msgTopic: string = StateEventTopics.LedgerStateEvents;
   protected constructor(aggId: string) {
     super(aggId);
@@ -31,7 +32,8 @@ export abstract class LedgerStateEvent extends StateEvent {
   }
 }
 export abstract class BaseLedgerSnapshotEvent extends SnapshotEvent{
-    msgTopic:string = SnapshotEventTopics.LedgerSnapshotEvents;
+  msgDataFormat:MessageDataFormats = MessageDataFormats.PROTOBUF;
+  msgTopic:string = SnapshotEventTopics.LedgerSnapshotEvents;
     protected constructor(aggId:string, aggVersion:string) {
         super(aggId, aggVersion);
     }
