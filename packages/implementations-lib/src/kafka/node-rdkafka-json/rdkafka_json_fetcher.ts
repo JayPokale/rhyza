@@ -1,5 +1,5 @@
 import { IRawAuthenticationOptions } from '../raw-types';
-import { ILogger, IMessage, IRawMessage, IStateMessageFetcher } from 'common-types-lib';
+import { ILogger, IMessage, IRawMessage, IMessageFetcher } from 'common-types-lib';
 import { RafikiKafkaRawFetcher } from '../node-rdkafka-raw/rdkafka_raw_fetcher';
 
 
@@ -11,7 +11,7 @@ export class RafikiKafkaJsonFetcherOptions {
     authentication?: IRawAuthenticationOptions;
 }
 
-export class RafikiKafkaJsonFetcher implements IStateMessageFetcher {
+export class RafikiKafkaJsonFetcher implements IMessageFetcher {
     private readonly _logger: ILogger | null;
     private readonly _fetcher: RafikiKafkaRawFetcher;
 

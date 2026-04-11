@@ -21,12 +21,12 @@ This strategy of separating message content from metadata (enveloping) is a fund
 
 Serialization happens immediately before sending messages to the broker, the framework uses the `msgDataFormat`, `msgType` and `msgName` properties of the message being serialized to determine the serizalition implementation to use.
 
-Conversely, deserialization happens immediately after receiving messages from the broker, and before passing the messages to our consumer code.
+Conversely, deserialization happens immediately after receiving messages from the broker and before passing the messages to our consumer code.
 
 Three important fields are added as headers in every message sent to the brokers:
-- msgDataFormat - which indicates the type of serialization used on the message (JSON, ProtoBuf, etc);
-- msgType - which indicates the type of message being sent (command, event, etc);
-- msgName - which indicates the name of the message class;
+- **msgDataFormat** - which indicates the type of serialization used on the message (JSON, ProtoBuf, etc.);
+- **msgType** - which indicates the type of message being sent (command, event, etc.);
+- **msgName** - which indicates the name of the message class;
 
 The framework uses the contents of these fields to determine the deserialization implementation to use.
 
@@ -48,7 +48,7 @@ The framework will automatically serialize the metadata portion according to the
 
 For commands, developers have to implement a payload serialization class that implements `IRawMessageSerializer`, for Protocol Buffers data format, developers can extend prebuilt base classes.
 
-For command messages, for example, we can extend the abstract class `ProtoBufBaseCommandSerializer<P>` where `P` is the type of the payload class, located in _implementations-lib/serde/protobuf_ , and implement the following members:
+For command messages, for example, we can extend the abstract class `ProtoBufBaseCommandSerializer<P>` where `P` is the type of the payload class, located in _implementations-lib/serde/protobuf_, and implement the following members:
 ``` Typescript
 class MyProtobufCommandSerde extends ProtoBufBaseCommandSerializer<MyCommandPayload>{
     // typescript class name of the protocol buffers payload definition
@@ -76,15 +76,15 @@ Once the required serialization classes are implemented, they must be registered
 - **Protocol Buffers Serialization Classes (to be extended)**: Located in _implementations-lib/serde/protobuf_
 
 ### Specific message serialization components
-Per message serialization implementation should be placed in the correspondent Bounded Context, this includes any specific format files, like protocol buffer definition files.
+Per message serialization implementation should be placed in the correspondent Bounded Context packages; this includes any specific format files, like protocol buffer definition files.
 
 Using the following logic:
 - **For private messages (ex: cmds, state evts)** - implementation should be in _bc-implemenations-lib/serde/_
-- **For public messages (** - implementation should be in _bc-public-types-lib/serde/_
+- **For public messages (ex: domain events)** - implementation should be in _bc-public-types-lib/serde/_
 
 # Unit Tests and Serialization
 
-For simpler unit tests, a mock implementation of the `IMessageSerializationFactory` is provided, which ignores data format of messages and always changes them to JSON prior to serialization. This allows unit tests to be executed for non-JSON format messages before specific serialization implementations are ready.
+For simpler unit tests, a mock implementation of the `IMessageSerializationFactory` is provided, which ignores messages' data format and always changes them to JSON prior to serialization. This allows unit tests to be executed for non-JSON format messages before specific serialization implementations are ready.
 
 **TBC - TODO add the mock class and examples**
 

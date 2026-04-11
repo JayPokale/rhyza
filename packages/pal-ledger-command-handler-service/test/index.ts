@@ -11,6 +11,7 @@
 
 
 import {
+  KafkaBuilder,
   KafkaProducer,
   KafkaProducerCompressionCodecs,
   KafkaProducerOptions,
@@ -34,8 +35,6 @@ const KAFKA_URL = process.env["KAFKA_URL"] || "127.0.0.1:19092,127.0.0.1:29092,1
 
 // kafka common options
 const kafkaProducerCommonOptions:KafkaProducerOptions = {
-    kafkaBrokerList: KAFKA_URL,
-    producerClientId: `${INSTANCE_ID}`,
     compressionCodec: KafkaProducerCompressionCodecs.GZIP,
     queueBufferingMaxMessages: 500_000,
     messageMaxBytes: 20971520
@@ -52,6 +51,11 @@ let producer: IMessageProducer;
 
 const CREATE_LEDGER_AND_ACCOUNTS = false;
 const TRANSACTION_COUNT = process.env["TRANSACTION_COUNT"] ? parseInt(process.env["TRANSACTION_COUNT"]) : 10;
+
+const logger = new ConsoleLogger();
+
+
+
 
 function getRandomPair(array: string[]): [string, string] | undefined {
   if (array.length < 2) return undefined;
@@ -92,7 +96,16 @@ async function main() {
       .register(new CreateLedgerAccountCmdSerde())
       .register(new PostTransactionCmdSerde());
 
-    producer = new KafkaProducer(kafkaProducerCommonOptions, MessageSerializationFactory.instance(), new ConsoleLogger());
+     KafkaBuilder.instance()
+       // .withLogger(logger)
+       // .withSerializerFactory(MessageSerializationFactory.instance())
+       .withBrokerList(KAFKA_URL)
+       .withClientId(`${INSTANCE_ID}`);
+
+
+
+    producer = KafkaBuilder.instance().buildProducer(kafkaProducerCommonOptions);
+
     await producer.connect();
 
     const cmds: CommandMsg[] = [];

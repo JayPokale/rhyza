@@ -1,5 +1,5 @@
 import {
-  ILogger,
+  ILogger, IMessage, IMessageConsumer,
   IMessageProducer,
   IRawMessage, IRawMessageConsumer, IRawMessageSerializerFactory,
   MessageTypes,
@@ -19,19 +19,19 @@ export class Snapshotter {
     private readonly _aggregate: LedgerAggregate;
     private readonly _uncommittedSnapshots: LedgerSnapshotEvent[];
     private readonly _msgSerializationFactory: IRawMessageSerializerFactory;
-    private readonly _rawMessageConsumer: IRawMessageConsumer;
+    private readonly _messageConsumer: IMessageConsumer;
     private readonly _msgProducer: IMessageProducer;
 
     constructor(
       configs:SnapshotterConfigs, esRepo: ILedgerEventSourcingRepository,
-      msgSerializationFactory: IRawMessageSerializerFactory, rawMessageConsumer: IRawMessageConsumer,
+      msgSerializationFactory: IRawMessageSerializerFactory, rawMessageConsumer: IMessageConsumer,
       msgProducer: IMessageProducer, logger: ILogger
     ){
         this._logger = logger;
         this._configs = configs;
         this._esRepo = esRepo;
         this._msgSerializationFactory = msgSerializationFactory;
-        this._rawMessageConsumer = rawMessageConsumer;
+        this._messageConsumer = rawMessageConsumer;
         this._msgProducer = msgProducer;
         this._aggregate = new LedgerAggregate(this._esRepo, this._msgProducer, logger);
         this._uncommittedSnapshots = [];
@@ -70,12 +70,9 @@ export class Snapshotter {
         this._uncommittedSnapshots.push(snapshot);
     }
 
-    private async _handleStateMessages(rawMessages: IRawMessage[]): Promise<void> {
+    private async _handleStateMessages(messages: IMessage[]): Promise<void> {
         const startTs = Date.now();
         const map = new Map<string, LedgerStateEvent[]>();
-
-        // deserialize
-        const messages = rawMessages.map(this._msgSerializationFactory.deserialize.bind(this._msgSerializationFactory));
 
         // sort by ledger
         for (const msg of messages) {
@@ -108,16 +105,16 @@ export class Snapshotter {
     }
 
     async init():Promise<void>{
-        this._rawMessageConsumer.setTopics([StateEventTopics.LedgerStateEvents]);
-        this._rawMessageConsumer.setBatchCallbackFn(this._handleStateMessages.bind(this));
-        await this._rawMessageConsumer.connect();
-        await this._rawMessageConsumer.startAndWaitForRebalance();
+        this._messageConsumer.setTopics([StateEventTopics.LedgerStateEvents]);
+        this._messageConsumer.setBatchCallbackFn(this._handleStateMessages.bind(this));
+        await this._messageConsumer.connect();
+        await this._messageConsumer.startAndWaitForRebalance();
 
         this._logger.info(`${this.constructor.name} initialized`);
     }
 
     async destroy():Promise<void>{
-        await this._rawMessageConsumer.stop();
+        await this._messageConsumer.stop();
         return;
     }
 

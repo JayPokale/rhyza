@@ -1,8 +1,8 @@
-import { ILogger, IMessage, IStateMessageFetcher } from 'common-types-lib';
+import { ILogger, IMessage, IMessageFetcher } from 'common-types-lib';
 import { RafikiKafkaJsonFetcherOptions } from '../node-rdkafka-json/rdkafka_json_fetcher';
 import { KafkaJS } from '@confluentinc/kafka-javascript';
 
-export class RafikiKafkaJsonFetcher implements IStateMessageFetcher {
+export class RafikiKafkaJsonFetcher implements IMessageFetcher {
     private readonly _logger: ILogger | null;
     private readonly _config: RafikiKafkaJsonFetcherOptions;
 

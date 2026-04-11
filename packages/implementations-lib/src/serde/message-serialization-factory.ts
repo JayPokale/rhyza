@@ -3,7 +3,7 @@ import {
   IRawMessage,
   IRawMessageHeader,
   IRawMessageSerializerFactory,
-  MessageDataFormats
+  MessageDataFormats, MissingSerializerError
 } from "common-types-lib";
 import {IRawMessageSerializer, MSG_HEADER_MSG_DATA_FORMAT, MSG_HEADER_MSG_NAME, MSG_HEADER_MSG_TYPE} from "./types";
 import {JsonCommandSerializer} from "./json/json-command-serializer";
@@ -66,7 +66,7 @@ export class MessageSerializationFactory implements IRawMessageSerializerFactory
   serialize(msg: IMessage): IRawMessage{
     const serializer = this._getSerializer(msg.msgDataFormat, msg.msgType, msg.msgName);
     if(!serializer){
-      throw new Error(`No serializer found for dataFormat: ${msg.msgDataFormat}, type: ${msg.msgType} and message: ${msg.msgName}`);
+      throw new MissingSerializerError(`No serializer found for dataFormat: ${msg.msgDataFormat}, type: ${msg.msgType} and message: ${msg.msgName}`);
     }
 
     const payloadData = serializer.serializeMsg(msg);
@@ -104,7 +104,7 @@ export class MessageSerializationFactory implements IRawMessageSerializerFactory
 
     const serializer = this._getSerializer(msgFormat, msgType, msgName);
     if(!serializer){
-      throw new Error(`No serializer found for dataFormat: ${msgFormat}, msgType: ${msgType} and message: ${msgName}`);
+      throw new MissingSerializerError(`No serializer found for dataFormat: ${msgFormat}, msgType: ${msgType} and message: ${msgName}`);
     }
 
     const msg = serializer.deserializeMsg(rawMsg.value as Uint8Array);

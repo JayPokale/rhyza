@@ -2,10 +2,9 @@ import crypto from 'crypto';
 import process from 'process';
 import {
   PinoLogger, RafikiKafkaJsonConsumer,
-  RafikiKafkaJsonConsumerOptions,
   RafikiKafkaRawConsumer, RafikiKafkaRawConsumerOptions,
   RafikiKafkaRawConsumerOutputType,
-  MessageSerializationFactory, KafkaProducerOptions, KafkaProducer
+  MessageSerializationFactory, KafkaProducerOptions, IKafkaBuilder, KafkaBuilder, KafkaConsumerOptions
 } from 'implementations-lib';
 import {
   ILedgerEventSourcingRepository,
@@ -27,8 +26,6 @@ import {
 import {Snapshotter, SnapshotterConfigs} from "./handlers/snapshotter";
 import {IntegrationEventHandler} from "./handlers/integration-event-handler";
 
-
-
 const INSTANCE_ID = `ES_LEDGER_POC_SVC__${crypto.randomUUID()}`;
 const REDIS_URL = process.env["REDIS_URL"] || "redis://localhost:6379";
 
@@ -46,14 +43,11 @@ const KAFKA_URL =
 
 // kafka common options
 const kafkaProducerCommonOptions: KafkaProducerOptions = {
-  kafkaBrokerList: KAFKA_URL,
-  producerClientId: `${INSTANCE_ID}`,
   queueBufferingMaxMessages: 500_000,
   messageMaxBytes: 20971520
 };
-const kafkaConsumerCommonOptions: RafikiKafkaJsonConsumerOptions = {
-  kafkaBrokerList: KAFKA_URL,
-  kafkaGroupId: 'ES_LEDGER_POC_SNAPSHOTTER_SVC',
+const kafkaConsumerCommonOptions: KafkaConsumerOptions = {
+  consumerGroupId: 'ES_LEDGER_POC_SNAPSHOTTER_SVC',
   batchTimeoutMs: 5000,
   batchSize: 500_000
 };
@@ -63,9 +57,10 @@ export class PalLedgerEventHandlerService {
   private static _logger: ILogger;
   private static _esRepo: ILedgerEventSourcingRepository;
   private static _producer: IMessageProducer;
-  private static _rawMessageConsumer: IRawMessageConsumer;
-  private static _messageConsumer: IMessageConsumer;
-  private static _msgSerializationFactory: IRawMessageSerializerFactory
+  private static _snapshoterConsumer: IMessageConsumer;
+  private static _domainEventsConsumer: IMessageConsumer;
+  private static _kafkaBuilder: IKafkaBuilder;
+  private static _msgSerializationFactory: IRawMessageSerializerFactory;
 
   private static _snapshotter: Snapshotter;
   private static _integrationEventHandler: IntegrationEventHandler;
@@ -73,9 +68,10 @@ export class PalLedgerEventHandlerService {
   static async start(
     logger?: ILogger,
     msgSerializationFactory?: IRawMessageSerializerFactory,
+    kafkaBuilder?: IKafkaBuilder,
     esRepo?: ILedgerEventSourcingRepository,
-    rawMessageConsumer?: IRawMessageConsumer,
-    messageConsumer?: IMessageConsumer,
+    snapshoterConsumer?: IMessageConsumer,
+    domainEventsConsumer?: IMessageConsumer,
     producer?: IMessageProducer,
   ): Promise<void> {
     if(!logger){
@@ -102,12 +98,30 @@ export class PalLedgerEventHandlerService {
     }
     this._msgSerializationFactory = msgSerializationFactory;
 
+    if(!kafkaBuilder){
+      KafkaBuilder.instance()
+        .withLogger(this._logger)
+        .withBrokerList(KAFKA_URL)
+        .withClientId(INSTANCE_ID)
+        .withSerializerFactory(MessageSerializationFactory.instance())
+      kafkaBuilder = KafkaBuilder.instance();
+    }
+    this._kafkaBuilder = kafkaBuilder;
+
     if(!esRepo){
+      // TODO remove
+      // const admin = this._kafkaBuilder.buildAdmin();
+      // await admin.createTopics([
+      //   SnapshotEventTopics.LedgerSnapshotEvents,
+      //   StateEventTopics.LedgerStateEvents,
+      //   DomainEventTopics.LedgerEvents,
+      //   CommandTopics.LedgerCommands
+      // ]);
+
       const kafkaEsRepo = new KafkaLedgerEventSourcingRepository(
+        this._kafkaBuilder,
         kafkaProducerCommonOptions,
-        kafkaConsumerCommonOptions,
         REDIS_URL,
-        this._msgSerializationFactory,
         this._logger
       );
       await kafkaEsRepo.init();
@@ -116,21 +130,16 @@ export class PalLedgerEventHandlerService {
     this._esRepo = esRepo;
 
     if(!producer){
-      producer = new KafkaProducer(kafkaProducerCommonOptions, this._msgSerializationFactory, this._logger);
+      producer = this._kafkaBuilder.buildProducer(kafkaProducerCommonOptions);
       await producer.connect();
     }
     this._producer = producer;
 
 
-    if(!rawMessageConsumer){
-      const rawConsumerOpts: RafikiKafkaRawConsumerOptions = {
-        ...kafkaConsumerCommonOptions,
-        outputType: RafikiKafkaRawConsumerOutputType.Raw
-      }
-      this._rawMessageConsumer = new RafikiKafkaRawConsumer(rawConsumerOpts, this._logger);
-      rawMessageConsumer = this._rawMessageConsumer;
+    if(!snapshoterConsumer){
+      snapshoterConsumer = this._kafkaBuilder.buildConsumer(kafkaConsumerCommonOptions);
     }
-    this._rawMessageConsumer = rawMessageConsumer;
+    this._snapshoterConsumer = snapshoterConsumer;
 
 
     /*
@@ -145,7 +154,7 @@ export class PalLedgerEventHandlerService {
       configs,
       this._esRepo,
       this._msgSerializationFactory,
-      this._rawMessageConsumer,
+      this._snapshoterConsumer,
       this._producer,
       this._logger
     );
@@ -153,17 +162,17 @@ export class PalLedgerEventHandlerService {
     await this._snapshotter.init();
     this._logger.info(`${this._snapshotter.constructor.name} ready to receive state events`);
 
-    if(!messageConsumer){
-      messageConsumer = new RafikiKafkaJsonConsumer(kafkaConsumerCommonOptions, this._logger);
-      messageConsumer = messageConsumer;
+
+    if(!domainEventsConsumer){
+      domainEventsConsumer = this._kafkaBuilder.buildConsumer(kafkaConsumerCommonOptions);
     }
-    this._messageConsumer = messageConsumer;
+    this._domainEventsConsumer = domainEventsConsumer;
 
     /*
     * Instantiate the integration event handler
     */
     this._integrationEventHandler = new IntegrationEventHandler(
-      this._messageConsumer,
+      this._domainEventsConsumer,
       this._producer,
       this._logger
     );
@@ -177,14 +186,15 @@ export class PalLedgerEventHandlerService {
     if(this._snapshotter){
       await this._snapshotter.destroy() ;
     }
-    if(this._rawMessageConsumer){
-      await this._rawMessageConsumer.stop();
-      await this._rawMessageConsumer.disconnect(false);
+
+    if(this._snapshoterConsumer){
+      await this._snapshoterConsumer.stop();
+      await this._snapshoterConsumer.disconnect(false);
     }
 
-    if(this._messageConsumer){
-      await this._messageConsumer.stop();
-      await this._messageConsumer.disconnect(false);
+    if(this._domainEventsConsumer){
+      await this._domainEventsConsumer.stop();
+      await this._domainEventsConsumer.disconnect(false);
     }
 
     if(this._producer){

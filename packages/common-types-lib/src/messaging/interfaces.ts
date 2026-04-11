@@ -1,22 +1,22 @@
-import {IMessage, MessageDataFormats, SnapshotEvent, StateEvent} from "./messages";
+import {IMessage} from "./messages";
 import {IRawMessage} from "./raw/messages";
 
-
-export interface IStateMessageFetcher{
+export interface IMessageFetcher {
     fetchLast(msgKey: string, topic: string, partitionAndOffset?: { partition: number, offset: number }): Promise<IMessage | null>;
     fetchAll(msgKey: string, topic: string, partitionAndOffset?: { partition: number, offset: number }): Promise<IMessage[]>;
 }
 
-export interface IEventSourcingRepository{
-    // for any events other than snapshot events
-    publishEvents(events:IMessage[]):Promise<void>
-
-    // specific for snapshot events
-    publishSnapshotEvent(events:SnapshotEvent[]):Promise<void>;
-
-    fetchLastSnapshot(aggId:string):Promise<SnapshotEvent | null>;
-    fetchStateEvents(aggId:string, partitionAndOffset?: { partition: number, offset: number }):Promise<StateEvent[]>;
-}
+//
+// export interface IEventSourcingRepository{
+//     // for any events other than snapshot events
+//     publishEvents(events:IMessage[]):Promise<void>
+//
+//     // specific for snapshot events
+//     publishSnapshotEvent(events:SnapshotEvent[]):Promise<void>;
+//
+//     fetchLastSnapshot(aggId:string):Promise<SnapshotEvent | null>;
+//     fetchStateEvents(aggId:string, partitionAndOffset?: { partition: number, offset: number }):Promise<StateEvent[]>;
+// }
 
 export interface IMessageProducerAcks {
     topic: string;

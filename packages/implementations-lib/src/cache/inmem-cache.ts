@@ -49,7 +49,12 @@ export class InMemoryCache<T> implements ICache<T> {
   }
 
   async set(key: string, value: T): Promise<boolean> {
-    this.map.set(key, { expiry: Date.now() + this.keyTtlMs, data: value });
+    this.map.set(key, { expiry: Infinity, data: value });
+    return true;
+  }
+
+  async setWithTtl(key: string, value: T, ttlMs: number): Promise<boolean> {
+    this.map.set(key, { expiry: Date.now() + ttlMs, data: value });
     return true;
   }
 }

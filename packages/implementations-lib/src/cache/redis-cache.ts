@@ -1,12 +1,10 @@
 import type { Redis } from 'ioredis';
-import type { Logger } from 'pino';
-import { ICache } from 'common-types-lib';
+import { ICache, ILogger } from 'common-types-lib';
 
 export class RedisCache<T> implements ICache<T> {
   constructor(
     private redisClient: Redis,
-    private keyTtlMs: number,
-    private logger: Logger,
+    private logger: ILogger,
     private parseFn?: (value: string) => T
   ) {}
 
@@ -45,9 +43,25 @@ export class RedisCache<T> implements ICache<T> {
     return (
       (await this.redisClient.set(
         key,
+        stringifiedValue
+      )) === 'OK'
+    );
+  }
+
+  async setWithTtl(key: string, value: T, ttlMs:number): Promise<boolean> {
+    const stringifiedValue = JSON.stringify(value, (key, val) => {
+      if (typeof val === 'bigint') {
+        return val.toString();
+      }
+      return val;
+    });
+
+    return (
+      (await this.redisClient.set(
+        key,
         stringifiedValue,
         'PX',
-        this.keyTtlMs
+        ttlMs
       )) === 'OK'
     );
   }

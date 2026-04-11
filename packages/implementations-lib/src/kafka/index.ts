@@ -15,4 +15,4 @@ export * from "./kafka-javascript/kafka-javascript-protobuf-consumer";
 export * from "./kafka-javascript/kafka-javascript-protobuf-fetcher";
 
 
-export * from "./new/kafka-producer";
+export * from "./new";

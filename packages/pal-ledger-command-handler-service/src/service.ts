@@ -9,14 +9,13 @@
 
 'use strict';
 
-
 import {
   PinoLogger,
-  RafikiKafkaJsonConsumerOptions,
-  MessageSerializationFactory, KafkaProducer, KafkaProducerOptions, KafkaProducerCompressionCodecs,
-  RafikiKafkaRawConsumer, RafikiKafkaRawConsumerOptions, RafikiKafkaRawConsumerOutputType
+  MessageSerializationFactory, KafkaProducerOptions, KafkaProducerCompressionCodecs,
+   KafkaBuilder,
+  IKafkaBuilder, KafkaConsumerOptions
 } from 'implementations-lib';
-import { LedgerAggregate } from 'pal-domain-lib';
+import {ILedgerEventSourcingRepository, LedgerAggregate} from 'pal-domain-lib';
 import {
   CreateLedgerAccountCmdSerde, CreateLedgerCmdSerde,
   KafkaLedgerEventSourcingRepository,
@@ -32,7 +31,7 @@ import process from 'process';
 import {
   CommandMsg,
   CommandTopics,
-  ILogger,
+  ILogger, IMessage, IMessageConsumer,
   IMessageProducer, IRawMessage, IRawMessageConsumer, IRawMessageSerializerFactory,
   MessageTypes
 } from "common-types-lib";
@@ -53,35 +52,33 @@ const KAFKA_URL =
 
 // kafka common options
 const kafkaProducerCommonOptions: KafkaProducerOptions = {
-  kafkaBrokerList: KAFKA_URL,
-  producerClientId: `${INSTANCE_ID}`,
   queueBufferingMaxMessages: 100_000,
   compressionCodec: KafkaProducerCompressionCodecs.GZIP,
   messageMaxBytes: 20971520
 };
-const kafkaConsumerCommonOptions: RafikiKafkaJsonConsumerOptions = {
-  kafkaBrokerList: KAFKA_URL,
-  kafkaGroupId: 'ES_LEDGER_POC_COMMAND_SVC',
-  batchTimeoutMs: 25,
+const kafkaConsumerCommonOptions: KafkaConsumerOptions = {
+  consumerGroupId: 'ES_LEDGER_POC_COMMAND_SVC',
+  batchTimeoutMs: 50,
   batchSize: 100_000
 };
 
 
 export class PalLedgerCommandHandlerService {
   private static _logger: ILogger;
-  private static _ledgerAggregate: LedgerAggregate;
-  private static _esRepo: KafkaLedgerEventSourcingRepository;
-  private static _producer: IMessageProducer;
-  private static _consumer: IRawMessageConsumer;
   private static _msgSerializationFactory: IRawMessageSerializerFactory;
-
+  private static _ledgerAggregate: LedgerAggregate;
+  private static _esRepo: ILedgerEventSourcingRepository;
+  private static _producer: IMessageProducer;
+  private static _consumer: IMessageConsumer;
+  private static _kafkaBuilder: IKafkaBuilder;
 
   static async start(
     logger?: ILogger,
     msgSerializationFactory?: IRawMessageSerializerFactory,
-    esRepo?: KafkaLedgerEventSourcingRepository,
+    kafkaBuilder?: IKafkaBuilder,
+    esRepo?: ILedgerEventSourcingRepository,
     producer?: IMessageProducer,
-    consumer?: IRawMessageConsumer
+    consumer?: IMessageConsumer
   ): Promise<void> {
     if(!logger){
       logger = new PinoLogger();
@@ -107,20 +104,39 @@ export class PalLedgerCommandHandlerService {
     }
     this._msgSerializationFactory = msgSerializationFactory;
 
+    if(!kafkaBuilder){
+      KafkaBuilder.instance()
+        .withLogger(this._logger)
+        .withBrokerList(KAFKA_URL)
+        .withClientId(INSTANCE_ID)
+        .withSerializerFactory(MessageSerializationFactory.instance())
+      kafkaBuilder = KafkaBuilder.instance();
+    }
+    this._kafkaBuilder = kafkaBuilder;
+
     if(!esRepo){
-      esRepo = new KafkaLedgerEventSourcingRepository(
+      // TODO remove
+      // const admin = this._kafkaBuilder.buildAdmin();
+      // await admin.createTopics([
+      //   SnapshotEventTopics.LedgerSnapshotEvents,
+      //   StateEventTopics.LedgerStateEvents,
+      //   DomainEventTopics.LedgerEvents,
+      //   CommandTopics.LedgerCommands
+      // ]);
+
+      const kafkaEsRepo = new KafkaLedgerEventSourcingRepository(
+        this._kafkaBuilder,
         kafkaProducerCommonOptions,
-        kafkaConsumerCommonOptions,
         REDIS_URL,
-        this._msgSerializationFactory,
         this._logger
       );
-      await esRepo.init();
+      await kafkaEsRepo.init();
+      esRepo = kafkaEsRepo;
     }
     this._esRepo = esRepo;
 
     if(!producer){
-      producer = new KafkaProducer(kafkaProducerCommonOptions, MessageSerializationFactory.instance(), this._logger);
+      producer = this._kafkaBuilder.buildProducer(kafkaProducerCommonOptions);
       await producer.connect();
     }
     this._producer = producer;
@@ -130,20 +146,16 @@ export class PalLedgerCommandHandlerService {
     this._ledgerAggregate.printStats();
     this._logger.info("Ledger initialized");
 
+    // TODO confirm topics exist using admin client?
+
     if(!consumer){
-      const rawConsumerOpts: RafikiKafkaRawConsumerOptions = {
-        ...kafkaConsumerCommonOptions,
-        outputType: RafikiKafkaRawConsumerOutputType.Raw
-      }
-      this._consumer = new RafikiKafkaRawConsumer(rawConsumerOpts, this._logger);
-      consumer = this._consumer;
+      consumer = this._kafkaBuilder.buildConsumer(kafkaConsumerCommonOptions);
     }
     this._consumer = consumer;
 
     this._consumer.setTopics([CommandTopics.LedgerCommands]);
-    this._consumer.setBatchCallbackFn(async (rawMessages:IRawMessage[]) => {
+    this._consumer.setBatchCallbackFn(async (messages:IMessage[]) => {
       // filter out only commands (sort of redundant but good practice)
-      const messages = rawMessages.map(this._msgSerializationFactory.deserialize.bind(this._msgSerializationFactory));
       const cmds = messages.filter(m => m.msgType === MessageTypes.COMMAND);
       if(cmds.length === 0) return;
       // TODO hook telemetry here

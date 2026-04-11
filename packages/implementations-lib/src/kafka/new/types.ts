@@ -1,0 +1,86 @@
+import {
+  ILogger,
+  IMessage,
+  IMessageConsumer,
+  IMessageFetcher,
+  IMessageProducer,
+  SnapshotEvent,
+  StateEvent
+} from "common-types-lib";
+import {KafkaJS} from "@confluentinc/kafka-javascript";
+import {IRawAuthenticationOptions} from "../raw-types";
+import {KafkaFetcher} from "./kafka-fetcher";
+
+
+//
+// export class KafkaOptions {
+//   kafkaBrokerList!: string;
+//   clientId?: string;
+//   authentication?: IRawAuthenticationOptions;
+// }
+
+export class KafkaConsumerOptions {
+  consumerGroupId?: string;
+  autoOffsetReset?: 'earliest' | 'latest' | 'error'; // default is latest
+  batchSize?: number;
+  batchTimeoutMs?: number;
+  autoCommit?: boolean;
+}
+
+export const KafkaConsumerDefaults = {
+  // useSyncCommit: false,
+  batchSize: 1,
+  batchTimeoutMs: 1000
+};
+
+export enum KafkaProducerCompressionCodecs {
+  NONE = 'none',
+  GZIP = 'gzip',
+  SNAPPY = 'snappy',
+  LZ4 = 'lz4',
+  ZSTD = 'zstd'
+}
+
+export enum KafkaProducerPartitioner {
+  RANDOM = 'random',
+  MURMUR2 = 'murmur2',
+  MURMUR2_RANDOM = 'murmur2_random'
+  // We'll only use these for now, so no need to add others and couple it even further
+  // Better to use "murmur2*" algorithms family instead of the "consistent*" for consistency across stacks
+}
+
+export class KafkaProducerOptions {
+  skipAcknowledgements?: boolean;
+  messageMaxBytes?: number;
+  compressionCodec?: KafkaProducerCompressionCodecs;
+  partitioner?: KafkaProducerPartitioner;
+  queueBufferingMaxMs?: number;
+  queueBufferingMaxMessages?: number;
+}
+
+export interface IKafkaBuilder {
+  buildAdmin(): IKafkaAdmin;
+  buildConsumer(consumerOptions: KafkaConsumerOptions): IMessageConsumer;
+  buildProducer(producerOptions: KafkaProducerOptions): IMessageProducer;
+  buildFetcher(consumerIdPrefix?:string): IMessageFetcher;
+}
+
+export interface IKafkaSourcingRepository<S extends StateEvent, T extends SnapshotEvent> {
+  // for any events other than snapshot events
+  publishEvents(events: IMessage[]): Promise<void>;
+
+  // specific for snapshot events
+  publishSnapshotEvent(events: T[]): Promise<void>;
+
+  fetchLastSnapshot(aggId: string): Promise<T | null>;
+
+  fetchStateEvents(
+    aggId: string,
+    partitionAndOffset?: { partition: number; offset: number }
+  ): Promise<S[]>;
+}
+
+
+export interface IKafkaAdmin{
+  createTopics(topics: {topic:string, numPartitions: number, replicationFactor: number}[]): Promise<void>;
+}
