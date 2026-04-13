@@ -147,28 +147,6 @@ export class RevokeAccessTokenCommand extends CommandMsg {
   }
 }
 
-export interface RevokeAccessTokenCmdPayload {
-  id: string;
-  value: string;
-  managementId: string;
-}
-
-export class RevokeAccessTokenCommand extends CommandMsg {
-  contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
-  aggregateName: string = GRANT_AGGREGATE_NAME;
-  msgKey: string;
-  msgTopic: string = CommandTopics.AuthCommands;
-  payload: RevokeAccessTokenCmdPayload;
-
-  constructor(payload: RevokeAccessTokenCmdPayload, requestId: string) {
-    super();
-    this.requestId = requestId;
-    this.aggregateId = this.msgKey = payload.id;
-    this.payload = payload;
-  }
-}
-
 export interface InteractionChoiceCmdPayload {
   id: string;
   interactId: string;
@@ -190,5 +168,5 @@ class InteractionChoiceCommand extends CommandMsg {
   }
 }
 
-export class InteractionApprovedCommand extends InteractionChoiceCommand {}
-export class InteractionDeniedCommand extends InteractionChoiceCommand {}
+export class InteractionApprovedCommand extends InteractionChoiceCommand { }
+export class InteractionDeniedCommand extends InteractionChoiceCommand { }
