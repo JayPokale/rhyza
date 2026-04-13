@@ -1,4 +1,13 @@
 import { CommandMsg, CommandTopics } from 'common-types-lib';
+<<<<<<< HEAD
+=======
+import {
+  AccessItem,
+  AccessToken,
+  GrantInteractionMethod,
+  Subject
+} from './grant-negotiation/interfaces';
+>>>>>>> eddb7aa (feat: remove authorization-management aggregate)
 
 const BOUNDED_CONTEXT_NAME = 'auth';
 const GRANT_AGGREGATE_NAME = 'grant';
