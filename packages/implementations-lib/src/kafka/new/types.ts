@@ -10,14 +10,14 @@ import {
 import {KafkaJS} from "@confluentinc/kafka-javascript";
 import {IRawAuthenticationOptions} from "../raw-types";
 import {KafkaFetcher} from "./kafka-fetcher";
+import {KafkaLowLevelConsumer} from "./kafka-lowlevel-consumer";
 
-
-//
-// export class KafkaOptions {
-//   kafkaBrokerList!: string;
-//   clientId?: string;
-//   authentication?: IRawAuthenticationOptions;
-// }
+export declare interface KafkaAuthenticationOptions {
+  protocol: 'plaintext' | 'ssl' | 'sasl_plaintext' | 'sasl_ssl';
+  mechanism: 'PLAIN' | 'GSSAPI' | 'SCRAM-SHA-256' | 'SCRAM-SHA-512';
+  username: string;
+  password: string;
+}
 
 export class KafkaConsumerOptions {
   consumerGroupId?: string;
@@ -61,6 +61,7 @@ export class KafkaProducerOptions {
 export interface IKafkaBuilder {
   buildAdmin(): IKafkaAdmin;
   buildConsumer(consumerOptions: KafkaConsumerOptions): IMessageConsumer;
+  buildLowLevelConsumer(consumerOptions: KafkaLowLevelConsumerOptions): KafkaLowLevelConsumer;
   buildProducer(producerOptions: KafkaProducerOptions): IMessageProducer;
   buildFetcher(consumerIdPrefix?:string): IMessageFetcher;
 }
@@ -83,4 +84,8 @@ export interface IKafkaSourcingRepository<S extends StateEvent, T extends Snapsh
 
 export interface IKafkaAdmin{
   createTopics(topics: {topic:string, numPartitions: number, replicationFactor: number}[]): Promise<void>;
+}
+
+export class KafkaLowLevelConsumerOptions extends KafkaConsumerOptions {
+  useSyncCommit?: boolean;
 }

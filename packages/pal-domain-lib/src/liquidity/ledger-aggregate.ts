@@ -97,7 +97,7 @@ export class LedgerAggregate {
         const eventsCount = this._uncommittedStateEvents.length + this._uncommittedDomainEvents.length;
         await this._esRepo.publishEvents(this._uncommittedStateEvents);
         this._uncommittedStateEvents.length = 0;
-        await this._msgProducer.send(this._uncommittedDomainEvents);
+        await this._msgProducer.sendWithAck(this._uncommittedDomainEvents);
         this._uncommittedDomainEvents.length = 0;
 
         this._logger.debug(`LedgerAggregate: processed ${commands.length} commands and published ${eventsCount} events in ${Date.now() - startTs}ms`);

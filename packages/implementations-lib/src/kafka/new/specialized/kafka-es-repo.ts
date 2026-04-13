@@ -45,7 +45,7 @@ export class KafkaEventSourcingRepo<S extends StateEvent, T extends SnapshotEven
   }
 
   async publishSnapshotEvent(events: T[]): Promise<void> {
-    // not efficient, but we don't expect to have many snapshots at the same time'
+    // not efficient, but we don't expect to have many snapshots at the same time
     for(const evt of events) {
       const ack = await this._producer.sendWithAck([evt]);
 

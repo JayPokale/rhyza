@@ -4,7 +4,8 @@ import {
   PinoLogger, RafikiKafkaJsonConsumer,
   RafikiKafkaRawConsumer, RafikiKafkaRawConsumerOptions,
   RafikiKafkaRawConsumerOutputType,
-  MessageSerializationFactory, KafkaProducerOptions, IKafkaBuilder, KafkaBuilder, KafkaConsumerOptions
+  MessageSerializationFactory, KafkaProducerOptions, IKafkaBuilder, KafkaBuilder, KafkaConsumerOptions,
+  KafkaLowLevelConsumer, KafkaLowLevelConsumerOptions
 } from 'implementations-lib';
 import {
   ILedgerEventSourcingRepository,
@@ -30,7 +31,8 @@ const INSTANCE_ID = `ES_LEDGER_POC_SVC__${crypto.randomUUID()}`;
 const REDIS_URL = process.env["REDIS_URL"] || "redis://localhost:6379";
 
 const MAX_EVENTS_PER_SNAPSHOT = 10;
-const MAX_SECS_SINCE_LAST_SNAPSHOT = 60;
+const MAX_SECS_SINCE_LAST_SNAPSHOT = 600;
+const MIN_SECS_SINCE_LAST_SNAPSHOT = 10;
 
 // Message Consumer/Publisher
 const KAFKA_URL =
@@ -48,7 +50,7 @@ const kafkaProducerCommonOptions: KafkaProducerOptions = {
 };
 const kafkaConsumerCommonOptions: KafkaConsumerOptions = {
   consumerGroupId: 'ES_LEDGER_POC_SNAPSHOTTER_SVC',
-  batchTimeoutMs: 5000,
+  batchTimeoutMs: 10000,
   batchSize: 500_000
 };
 
@@ -137,7 +139,16 @@ export class PalLedgerEventHandlerService {
 
 
     if(!snapshoterConsumer){
-      snapshoterConsumer = this._kafkaBuilder.buildConsumer(kafkaConsumerCommonOptions);
+      // snapshoterConsumer = this._kafkaBuilder.buildConsumer(kafkaConsumerCommonOptions);
+
+      const consumerOpts:KafkaLowLevelConsumerOptions ={
+        consumerGroupId: kafkaConsumerCommonOptions.consumerGroupId,
+        batchSize: kafkaConsumerCommonOptions.batchSize,
+        batchTimeoutMs: kafkaConsumerCommonOptions.batchTimeoutMs,
+        autoOffsetReset: kafkaConsumerCommonOptions.autoOffsetReset
+      }
+
+      snapshoterConsumer = this._kafkaBuilder.buildLowLevelConsumer(consumerOpts);
     }
     this._snapshoterConsumer = snapshoterConsumer;
 
@@ -147,7 +158,8 @@ export class PalLedgerEventHandlerService {
     */
     const configs:SnapshotterConfigs = {
       maxStateEventsBetweenSnapshots: MAX_EVENTS_PER_SNAPSHOT,
-      maxTimeBetweenSnapshotsMs: MAX_SECS_SINCE_LAST_SNAPSHOT * 1000
+      maxTimeBetweenSnapshotsMs: MAX_SECS_SINCE_LAST_SNAPSHOT * 1000,
+      minTimeBetweenSnapshotsMs: MIN_SECS_SINCE_LAST_SNAPSHOT * 1000
     }
 
     this._snapshotter = new Snapshotter(

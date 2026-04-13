@@ -10,6 +10,7 @@ import {ILedgerEventSourcingRepository, LedgerAggregate, LedgerSnapshotEvent, Le
 export type SnapshotterConfigs = {
     maxStateEventsBetweenSnapshots: number;
     maxTimeBetweenSnapshotsMs: number;
+    minTimeBetweenSnapshotsMs: number;
 }
 
 export class Snapshotter {
@@ -44,13 +45,8 @@ export class Snapshotter {
             return;
         }
 
-        // filter out events prior to current version
-        const eventsToLoad = stateEvents.filter(e => BigInt(e.aggregateVersion) > ledger.version);
-
-        if(eventsToLoad.length > 0) {
-            await ledger.load(null, eventsToLoad, true);
-        }
-
+        // load state events, already loaded evts/versions will be ignored
+        await ledger.load(null, stateEvents, true);
 
         // do we need to take a snapshot now?
         if (ledger.version <= ledger.lastSnapshotVersion + BigInt(this._configs.maxStateEventsBetweenSnapshots)) {

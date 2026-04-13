@@ -1,27 +1,27 @@
-import {KafkaJS} from "@confluentinc/kafka-javascript";
+import {KafkaJS, RdKafka} from "@confluentinc/kafka-javascript";
 import {
   ConsoleLogger,
-  ICache,
+
   ILogger,
   IRawMessageSerializerFactory,
-  SnapshotEvent,
-  StateEvent
+
 } from "common-types-lib";
 import crypto from "crypto";
 import {KafkaConsumer} from "./kafka-consumer";
 import {
   IKafkaAdmin,
   IKafkaBuilder,
-  IKafkaSourcingRepository,
-  KafkaConsumerOptions,
+  IKafkaSourcingRepository, KafkaAuthenticationOptions,
+  KafkaConsumerOptions, KafkaLowLevelConsumerOptions,
   KafkaProducerOptions
 } from "./types";
-import {IRawAuthenticationOptions} from "../raw-types";
+
 import {MessageSerializationFactory} from "../../serde";
 import {KafkaProducer} from "./kafka-producer";
 import {KafkaFetcher} from "./kafka-fetcher";
-import {KafkaEventSourcingRepo} from "./specialized/kafka-es-repo";
+
 import {KafkaAdmin} from "./kafka-admin";
+import {KafkaLowLevelConsumer} from "./kafka-lowlevel-consumer";
 
 export class KafkaBuilder implements IKafkaBuilder {
   private static _instance: KafkaBuilder;
@@ -85,7 +85,7 @@ export class KafkaBuilder implements IKafkaBuilder {
     return this;
   }
 
-  withAuthentication(authentication: IRawAuthenticationOptions):KafkaBuilder{
+  withAuthentication(authentication: KafkaAuthenticationOptions):KafkaBuilder{
     this._globalConfig["security.protocol"] = authentication.protocol;
     this._globalConfig["sasl.mechanism"] = authentication.mechanism;
     this._globalConfig["sasl.username"] = authentication.username;
@@ -115,12 +115,14 @@ export class KafkaBuilder implements IKafkaBuilder {
 
     if (consumerOptions.batchTimeoutMs !== undefined && consumerOptions.batchTimeoutMs > 0) {
       consumerConfig['fetch.wait.max.ms'] = consumerOptions.batchTimeoutMs;
+      consumerConfig['js.consumer.max.cache.size.per.worker.ms'] = consumerOptions.batchTimeoutMs;
     }
 
     if(consumerOptions.batchSize !== undefined) {
       consumerConfig['js.consumer.max.batch.size'] = consumerOptions.batchSize;
     }
 
+    consumerConfig['max.partition.fetch.bytes'] = 50*1024*1024;
 
     return new KafkaConsumer(
       this._kafka,
@@ -175,6 +177,49 @@ export class KafkaBuilder implements IKafkaBuilder {
       this._logger
     );
   }
+
+  buildLowLevelConsumer(consumerOptions: KafkaLowLevelConsumerOptions): KafkaLowLevelConsumer {
+    this._buildBasics();
+
+    const globalConfig: RdKafka.ConsumerGlobalConfig = this._globalConfig;
+    globalConfig['group.id'] = consumerOptions.consumerGroupId || crypto.randomUUID();
+
+    if(consumerOptions.batchTimeoutMs !== undefined && consumerOptions.batchTimeoutMs > 0) {
+      globalConfig['fetch.wait.max.ms'] = consumerOptions.batchTimeoutMs;
+    }
+
+    const topicConfig: RdKafka.ConsumerTopicConfig = {};
+    topicConfig['auto.offset.reset'] = consumerOptions.autoOffsetReset ?? 'latest';
+
+
+    return new KafkaLowLevelConsumer(
+      globalConfig, consumerOptions,
+      this._serializerFactory,
+      this._logger
+    );
+  }
+  // buildLowLevelConsumer(consumerOptions: KafkaLowLevelConsumerOptions): KafkaLowLevelConsumer {
+  //   this._buildBasics();
+  //
+  //   const globalConfig: RdKafka.ConsumerGlobalConfig = this._globalConfig;
+  //   globalConfig['group.id'] = consumerOptions.consumerGroupId || crypto.randomUUID();
+  //
+  //   if(consumerOptions.batchTimeoutMs !== undefined && consumerOptions.batchTimeoutMs > 0) {
+  //     globalConfig['fetch.wait.max.ms'] = consumerOptions.batchTimeoutMs;
+  //   }
+  //
+  //   const topicConfig: RdKafka.ConsumerTopicConfig = {};
+  //   topicConfig['auto.offset.reset'] = consumerOptions.autoOffsetReset ?? 'latest';
+  //
+  //
+  //   return new KafkaLowLevelConsumer(
+  //     globalConfig, topicConfig,
+  //     this._serializerFactory,
+  //     consumerOptions.useSyncCommit, consumerOptions.batchSize,
+  //     this._logger
+  //   );
+  // }
+
 
   // buildEventSourcingRepo<S extends StateEvent, T extends SnapshotEvent>(cache:ICache<SnapshotEvent>): IKafkaSourcingRepository{
   //   this._buildBasics();

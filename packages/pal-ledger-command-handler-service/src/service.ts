@@ -12,8 +12,8 @@
 import {
   PinoLogger,
   MessageSerializationFactory, KafkaProducerOptions, KafkaProducerCompressionCodecs,
-   KafkaBuilder,
-  IKafkaBuilder, KafkaConsumerOptions
+  KafkaBuilder,
+  IKafkaBuilder, KafkaConsumerOptions, KafkaLowLevelConsumerOptions,
 } from 'implementations-lib';
 import {ILedgerEventSourcingRepository, LedgerAggregate} from 'pal-domain-lib';
 import {
@@ -32,7 +32,7 @@ import {
   CommandMsg,
   CommandTopics,
   ILogger, IMessage, IMessageConsumer,
-  IMessageProducer, IRawMessage, IRawMessageConsumer, IRawMessageSerializerFactory,
+  IMessageProducer , IRawMessageSerializerFactory,
   MessageTypes
 } from "common-types-lib";
 
@@ -149,7 +149,25 @@ export class PalLedgerCommandHandlerService {
     // TODO confirm topics exist using admin client?
 
     if(!consumer){
-      consumer = this._kafkaBuilder.buildConsumer(kafkaConsumerCommonOptions);
+      // consumer = this._kafkaBuilder.buildConsumer(kafkaConsumerCommonOptions);
+
+      const consumerOpts:KafkaLowLevelConsumerOptions ={
+        consumerGroupId: kafkaConsumerCommonOptions.consumerGroupId,
+        batchSize: kafkaConsumerCommonOptions.batchSize,
+        batchTimeoutMs: kafkaConsumerCommonOptions.batchTimeoutMs,
+        autoOffsetReset: kafkaConsumerCommonOptions.autoOffsetReset
+      }
+
+      consumer = this._kafkaBuilder.buildLowLevelConsumer(consumerOpts);
+
+      // const lowLevelConsumerOptions:KafkaLowLevelConsumerOptions ={
+      //   ...kafkaConsumerCommonOptions,
+      //   kafkaBrokerList: KAFKA_URL,
+      //   kafkaGroupId: INSTANCE_ID
+      // }
+      // consumer = new KafkaLowLevelConsumer(
+      //   lowLevelConsumerOptions, MessageSerializationFactory.instance(), this._logger
+      // );
     }
     this._consumer = consumer;
 

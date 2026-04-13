@@ -1,7 +1,9 @@
 import {KafkaJS} from "@confluentinc/kafka-javascript";
 import {ILogger, IMessage, IMessageFetcher, IRawMessage, IRawMessageSerializerFactory,} from 'common-types-lib';
-import { RafikiKafkaJsonFetcherOptions } from '../node-rdkafka-json/rdkafka_json_fetcher';
 import {randomBytes} from "node:crypto";
+
+const DEFAULT_BATCH_SIZE = 20000;
+const DEFAULT_BATCH_TIMEOUT_MS = 1000;
 
 export class KafkaFetcher implements IMessageFetcher {
     private readonly _logger: ILogger | null;
@@ -66,7 +68,10 @@ export class KafkaFetcher implements IMessageFetcher {
                 fromBeginning: true,
                 partitionAssigners: [KafkaJS.PartitionAssigners.roundRobin],
                 autoCommit: false,
-            }
+
+            },
+            "js.consumer.max.batch.size": DEFAULT_BATCH_SIZE,
+            "fetch.wait.max.ms": DEFAULT_BATCH_TIMEOUT_MS
         });
         await consumer.connect();
         await consumer.subscribe({topic: topic });
@@ -91,7 +96,7 @@ export class KafkaFetcher implements IMessageFetcher {
                     if(partitionsReading.length > 0) return;
 
                     consumer.disconnect().then(() => {
-                        this._logger?.debug(`Fetched ${msgsRead} messages from topic ${topic} partition ${partitionAndOffset?.partition || 0} first offset ${partitionAndOffset?.offset || 0} last offset ${lastMsgOffset-1}`);
+                        this._logger?.debug(`Fetched ${msgsRead} messages from topic ${topic} partition ${partitionAndOffset?.partition || 0} first offset ${partitionAndOffset?.offset || 0} last offset ${lastMsgOffset}`);
                         return resolve(retMsgs);
                     });
                 }

@@ -451,6 +451,8 @@ export class Ledger {
     * */
 
     async load(snapshot:LedgerSnapshotEvent | null, events:LedgerStateEvent[], replayed: boolean = false): Promise<boolean> {
+        this._logger.debug(`Ledger ${this.id} at version ${this._version} - going to load from ${snapshot ? "1" : "none"} snapshot and ${events.length} events - replayed: ${replayed}`);
+
         if(!snapshot && !events.length){
             return false;
         }
@@ -460,7 +462,12 @@ export class Ledger {
         }
         if (!events.length) {
             // return true/ok if no events found but a snapshot exists
-            return !!snapshot;
+            if(snapshot){
+              this._logger.debug(`Ledger ${this.id} - loaded from snapshot at version: ${this.version}, last snapshot version: ${this.lastSnapshotVersion}, accounts count: ${this.accountsCount}, transactions count: ${this.transactionsCount}`);
+              return true;
+            }
+            this._logger.warn(`Ledger ${this.id} - not loaded - no snapshots or events provided`);
+            return false;
         }
 
         for (const event of events) {
