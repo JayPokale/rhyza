@@ -140,3 +140,10 @@ export interface AccessRequest {
   actions: AccessAction[];
   identifier?: string;
 }
+
+export interface Interaction {
+  interactRef: string;
+  clientNonce: string;
+  state: InteractionState;
+  expiresIn: number;
+}
