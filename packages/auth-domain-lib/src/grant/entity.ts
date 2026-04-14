@@ -7,7 +7,7 @@ import {
   AccessItem,
   FinishMethod,
   GrantState,
-  IGrantNegotiationIntent,
+  GrantIntent,
   Interaction,
   InteractionState,
   InteractionChoice,
@@ -18,7 +18,7 @@ import {
   NewAccessToken
 } from './interfaces';
 
-interface IGrantNegotiationIntentInput {
+interface IGrantNegotiationInput {
   id: string;
   tenantId: string;
   startMethod: StartMethod[];
@@ -36,7 +36,7 @@ interface IGrantNegotiationIntentInput {
   accessTokens: Map<string, AccessToken>;
 }
 
-export class GrantNegotiationIntent implements IGrantNegotiationIntent {
+export class GrantNegotiationIntent implements GrantIntent {
   private _id: string;
   private _tenantId: string;
   private _startMethod: StartMethod[];
@@ -56,7 +56,7 @@ export class GrantNegotiationIntent implements IGrantNegotiationIntent {
     AccessToken
   >();
 
-  private constructor(input: IGrantNegotiationIntentInput) {
+  private constructor(input: IGrantNegotiationInput) {
     this._id = input.id;
     this._tenantId = input.tenantId;
     this._startMethod = input.startMethod;
@@ -74,15 +74,15 @@ export class GrantNegotiationIntent implements IGrantNegotiationIntent {
     this._lastContinuedAt = input.lastContinuedAt;
   }
 
-  static create(input: IGrantNegotiationIntentInput): GrantNegotiationIntent {
+  static create(input: IGrantNegotiationInput): GrantNegotiationIntent {
     return new GrantNegotiationIntent(input);
   }
 
-  static fromObject(obj: IGrantNegotiationIntent): GrantNegotiationIntent {
+  static fromObject(obj: GrantIntent): GrantNegotiationIntent {
     return new GrantNegotiationIntent(obj);
   }
 
-  toObject(): IGrantNegotiationIntent {
+  toObject(): GrantIntent {
     return {
       id: this._id,
       tenantId: this._tenantId,
