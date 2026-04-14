@@ -36,7 +36,7 @@ interface IGrantNegotiationInput {
   accessTokens: Map<string, AccessToken>;
 }
 
-export class GrantNegotiationIntent implements GrantIntent {
+export class GrantNegotiation implements GrantIntent {
   private _id: string;
   private _tenantId: string;
   private _startMethod: StartMethod[];
@@ -74,12 +74,12 @@ export class GrantNegotiationIntent implements GrantIntent {
     this._lastContinuedAt = input.lastContinuedAt;
   }
 
-  static create(input: IGrantNegotiationInput): GrantNegotiationIntent {
-    return new GrantNegotiationIntent(input);
+  static create(input: IGrantNegotiationInput): GrantNegotiation {
+    return new GrantNegotiation(input);
   }
 
-  static fromObject(obj: GrantIntent): GrantNegotiationIntent {
-    return new GrantNegotiationIntent(obj);
+  static fromObject(obj: GrantIntent): GrantIntent {
+    return new GrantNegotiation(obj);
   }
 
   toObject(): GrantIntent {
