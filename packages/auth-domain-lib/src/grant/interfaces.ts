@@ -133,6 +133,7 @@ export interface IGrant {
   finishUri?: string;
   interaction?: IInteraction;
   lastContinuedAt?: Date;
+  accessTokens: Map<string, IAccessToken>;
 }
 
 export type NewAccessToken = Omit<IAccessToken, 'revokedAt'>;
