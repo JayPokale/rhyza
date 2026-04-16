@@ -9,7 +9,7 @@
 
 "use strict";
 
-export interface ILedgerTransactionStateDTO {
+export interface ILedgerTransactionDTO {
     id: string;
     debitedAccountId: string;
     creditedAccountId: string;
@@ -29,8 +29,8 @@ export interface ILedgerTransaction {
     externalId?: string;
 }
 
-export class TransactionDtoSerializer {
-    static toDTO(transaction: ILedgerTransaction): ILedgerTransactionStateDTO {
+export class LedgerTransactionDtoSerializer {
+    static toDTO(transaction: ILedgerTransaction): ILedgerTransactionDTO {
         return {
             id: transaction.id,
             debitedAccountId: transaction.debitedAccountId,
@@ -41,7 +41,7 @@ export class TransactionDtoSerializer {
             externalId: transaction.externalId
         }
     }
-    static fromDTO(dto: ILedgerTransactionStateDTO): ILedgerTransaction {
+    static fromDTO(dto: ILedgerTransactionDTO): ILedgerTransaction {
         return {
             id: dto.id,
             debitedAccountId: dto.debitedAccountId,

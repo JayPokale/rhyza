@@ -30,10 +30,10 @@ import crypto from 'crypto';
 import process from 'process';
 import {
   CommandMsg,
-  CommandTopics,
+  CommandTopics, DomainEventTopics,
   ILogger, IMessage, IMessageConsumer,
-  IMessageProducer , IRawMessageSerializerFactory,
-  MessageTypes
+  IMessageProducer, IRawMessageSerializerFactory,
+  MessageTypes, StateEventTopics
 } from "common-types-lib";
 
 
@@ -43,7 +43,7 @@ const REDIS_URL = process.env["REDIS_URL"] || "redis://localhost:6379";
 
 // Message Consumer/Publisher
 const KAFKA_URL =
-  process.env['KAFKA_URL'] || '127.0.0.1:19092,127.0.0.1:29092,127.0.0.1:39092';
+  process.env['KAFKA_URL'] || '127.0.0.1:29092,127.0.0.1:39092,127.0.0.1:49092';
 // const KAFKA_AUTH_ENABLED = process.env["KAFKA_AUTH_ENABLED"] && process.env["KAFKA_AUTH_ENABLED"].toUpperCase()==="TRUE" || false;
 // const KAFKA_AUTH_PROTOCOL = process.env["KAFKA_AUTH_PROTOCOL"] || "sasl_plaintext";
 // const KAFKA_AUTH_MECHANISM = process.env["KAFKA_AUTH_MECHANISM"] || "plain";
@@ -58,8 +58,8 @@ const kafkaProducerCommonOptions: KafkaProducerOptions = {
 };
 const kafkaConsumerCommonOptions: KafkaConsumerOptions = {
   consumerGroupId: 'ES_LEDGER_POC_COMMAND_SVC',
-  batchTimeoutMs: 50,
-  batchSize: 100_000
+  batchTimeoutMs: 250,
+  batchSize: 50_000
 };
 
 
@@ -141,6 +141,19 @@ export class PalLedgerCommandHandlerService {
     }
     this._producer = producer;
 
+    // before continuing, we need to ensure that the topics exist
+    const requiredTopics = [
+      CommandTopics.LedgerCommands, StateEventTopics.LedgerStateEvents,
+      DomainEventTopics.LedgerEvents
+    ];
+    const admin = this._kafkaBuilder.buildAdmin();
+    await admin.connect();
+    if(!await admin.hasAllTopics(requiredTopics)){
+      throw new Error("Kafka topics do not exist. Please create them before starting the service.");
+    }
+    await admin.disconnect();
+
+
     this._ledgerAggregate = new LedgerAggregate(this._esRepo, this._producer, this._logger);
 
     this._ledgerAggregate.printStats();
@@ -197,5 +210,7 @@ export class PalLedgerCommandHandlerService {
     if(this._producer){
       await this._producer.disconnect();
     }
+
+
   }
 }

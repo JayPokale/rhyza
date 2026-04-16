@@ -10,7 +10,7 @@
 "use strict";
 
 import {ILedgerAccount, LedgerAccountDtoSerializer} from "./entities/ledger-account";
-import {ILedgerTransaction, TransactionDtoSerializer} from "./entities/transaction";
+import {ILedgerTransaction, LedgerTransactionDtoSerializer} from "./entities/transaction";
 import {
   LedgerAccountCreatedStateEvent, LedgerCreatedStateEvent,
   LedgerSnapshotEvent, LedgerSnapshotPayload, LedgerStateEvent,
@@ -29,8 +29,9 @@ import {
   LegerTransferCommitedEvent,
   LegerTransferInsufficientFundsErrorEvent, LegerTransferRejectedEvent, LegerTransferReservedEvent,
 } from "pal-public-types-lib";
+import {ILedger} from "./entities/ledger";
 
-export class Ledger {
+export class Ledger implements ILedger {
     private readonly _id: string;   // ledger id is the asset code
     private readonly _logger:ILogger;
     private _version: bigint;
@@ -97,6 +98,10 @@ export class Ledger {
         return this._version;
     }
 
+    get assetScale(): number {
+        return this._assetScale;
+    }
+
     get lastSnapshotVersion(): bigint {
         return this._lastSnapshotVersion;
     }
@@ -143,7 +148,7 @@ export class Ledger {
         new LedgerTransactionRecordedStateEvent(
           this._id,
           this._version.toString(),
-          { transaction: TransactionDtoSerializer.toDTO(transaction) }
+          { transaction: LedgerTransactionDtoSerializer.toDTO(transaction) }
         )
       ]);
     }
@@ -167,6 +172,7 @@ export class Ledger {
         if (this._version !== BigInt(snapshot.aggregateVersion)) {
             throw new Error("Version mismatch");
         }
+        this._logger.debug(`Ledger ${this.id} - loaded from snapshot at version: ${this.version}, last snapshot version: ${this.lastSnapshotVersion}, accounts count: ${this.accountsCount}, transactions count: ${this.transactionsCount}`);
     }
 
     private _applyEvent(event: LedgerStateEvent, replayed: boolean = false): void {
@@ -450,8 +456,9 @@ export class Ledger {
     * public
     * */
 
+    // load the aggregate from the snapshot and events
     async load(snapshot:LedgerSnapshotEvent | null, events:LedgerStateEvent[], replayed: boolean = false): Promise<boolean> {
-        this._logger.debug(`Ledger ${this.id} at version ${this._version} - going to load from ${snapshot ? "1" : "none"} snapshot and ${events.length} events - replayed: ${replayed}`);
+        this._logger.debug(`Ledger ${this.id} at version ${this._version} - going to load from ${snapshot ? "1" : "(no)"} snapshot and ${events.length} events - replayed: ${replayed} ...`);
 
         if(!snapshot && !events.length){
             return false;
@@ -470,19 +477,31 @@ export class Ledger {
             return false;
         }
 
-        for (const event of events) {
-            this._applyEvent(event, replayed);
-        }
-
-        if (this._version !== BigInt(events[events.length - 1].aggregateVersion)) {
-            throw new Error("Version mismatch");
-        }
-
-        this._logger.debug(`Ledger ${this.id} - loaded from ${snapshot ? "one snapshot and" :""} ${events.length} event(s) at version: ${this.version}, last snapshot version: ${this.lastSnapshotVersion}, accounts count: ${this.accountsCount}, transactions count: ${this.transactionsCount}`);
+        await this.applyEvents(events, replayed);
         return true;
     }
 
-    async processCommand(ledgerCmd: LedgerCommand): Promise<void> {
+    async applyEvents(events:LedgerStateEvent[], replayed: boolean): Promise<void> {
+      // if replaying and last event is older than the current version, ignore it
+      if(replayed && this._version > BigInt(events[events.length - 1].aggregateVersion)) {
+        this._logger.debug(`Ledger ${this.id} - ignoring older events when replaying, last has version ${events[events.length - 1].aggregateVersion} and ledger is at version ${this._version}`);
+        return;
+      }
+
+      for (const event of events) {
+        this._applyEvent(event, replayed);
+      }
+
+      if (this._version !== BigInt(events[events.length - 1].aggregateVersion)) {
+        throw new Error("Version mismatch");
+      }
+
+      this._logger.debug(`Ledger ${this.id} - applied ${events.length} event(s), current version is: ${this.version}, last snapshot version: ${this.lastSnapshotVersion}, accounts count: ${this.accountsCount}, transactions count: ${this.transactionsCount}`);
+      return;
+    }
+
+
+  async processCommand(ledgerCmd: LedgerCommand): Promise<void> {
         if(LedgerCommand.isCreateLedgerAccountCmd(ledgerCmd)) {
             await this._processCreateLedgerAccountCmd(ledgerCmd);
         }else if(LedgerCommand.isPostTransactionCmd(ledgerCmd)) {

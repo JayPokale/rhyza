@@ -1,30 +1,29 @@
 import crypto from 'crypto';
 import process from 'process';
 import {
-  PinoLogger, RafikiKafkaJsonConsumer,
-  RafikiKafkaRawConsumer, RafikiKafkaRawConsumerOptions,
-  RafikiKafkaRawConsumerOutputType,
+  PinoLogger,
   MessageSerializationFactory, KafkaProducerOptions, IKafkaBuilder, KafkaBuilder, KafkaConsumerOptions,
-  KafkaLowLevelConsumer, KafkaLowLevelConsumerOptions
+   KafkaLowLevelConsumerOptions
 } from 'implementations-lib';
 import {
   ILedgerEventSourcingRepository,
+  LedgerAggregate,
 } from 'pal-domain-lib';
 import {
   CreateLedgerAccountCmdSerde,
-  CreateLedgerCmdSerde,
+  CreateLedgerCmdSerde, ILedgerReadSideRepository,
   KafkaLedgerEventSourcingRepository,
   LedgerAccountCreatedStateEventSerde,
   LedgerCreatedStateEventSerde,
-  LedgerSnapshotSerde, LedgerTransactionRecordedStateEventSerde, PostTransactionCmdSerde
+  LedgerSnapshotSerde, LedgerTransactionRecordedStateEventSerde, MongoDbLedgerReadSideRepo, PostTransactionCmdSerde
 } from 'pal-implementations-lib';
 
 import {
   ILogger,
   IMessageConsumer,
-  IMessageProducer, IRawMessageConsumer, IRawMessageSerializerFactory,
+  IMessageProducer, IRawMessageSerializerFactory,
 } from "common-types-lib";
-import {Snapshotter, SnapshotterConfigs} from "./handlers/snapshotter";
+import {LedgerStateEventHandler, LedgerStateEventHandlerConfigs} from "./handlers/ledger-state-event-handler";
 import {IntegrationEventHandler} from "./handlers/integration-event-handler";
 
 const INSTANCE_ID = `ES_LEDGER_POC_SVC__${crypto.randomUUID()}`;
@@ -36,7 +35,7 @@ const MIN_SECS_SINCE_LAST_SNAPSHOT = 10;
 
 // Message Consumer/Publisher
 const KAFKA_URL =
-  process.env['KAFKA_URL'] || '127.0.0.1:19092,127.0.0.1:29092,127.0.0.1:39092';
+  process.env['KAFKA_URL'] || '127.0.0.1:29092,127.0.0.1:39092,127.0.0.1:49092';
 // const KAFKA_AUTH_ENABLED = process.env["KAFKA_AUTH_ENABLED"] && process.env["KAFKA_AUTH_ENABLED"].toUpperCase()==="TRUE" || false;
 // const KAFKA_AUTH_PROTOCOL = process.env["KAFKA_AUTH_PROTOCOL"] || "sasl_plaintext";
 // const KAFKA_AUTH_MECHANISM = process.env["KAFKA_AUTH_MECHANISM"] || "plain";
@@ -49,22 +48,30 @@ const kafkaProducerCommonOptions: KafkaProducerOptions = {
   messageMaxBytes: 20971520
 };
 const kafkaConsumerCommonOptions: KafkaConsumerOptions = {
-  consumerGroupId: 'ES_LEDGER_POC_SNAPSHOTTER_SVC',
-  batchTimeoutMs: 10000,
-  batchSize: 500_000
+  consumerGroupId: 'ES_LEDGER_POC_STATE_EVENTHANDLER_SVC',
+  batchTimeoutMs: 500,
+  batchSize: 50_000
 };
+const MONGO_URL = process.env['MONGO_URL'] || 'mongodb://localhost:27017/';
 
+/**
+ * This service behaves as 3 separate services for now:
+ * 1. Snapshotter - takes snapshots of the ledger state when needed
+ * 2. Projector - updates the read side projections of the ledger state
+ * 3. Integration event handler - handles integration events from the payments domain
+ */
 
 export class PalLedgerEventHandlerService {
   private static _logger: ILogger;
   private static _esRepo: ILedgerEventSourcingRepository;
   private static _producer: IMessageProducer;
-  private static _snapshoterConsumer: IMessageConsumer;
+  private static _stateEventsConsumer: IMessageConsumer;
   private static _domainEventsConsumer: IMessageConsumer;
   private static _kafkaBuilder: IKafkaBuilder;
   private static _msgSerializationFactory: IRawMessageSerializerFactory;
+  private static _readSideRepo: ILedgerReadSideRepository;
 
-  private static _snapshotter: Snapshotter;
+  private static _stateEventHandler: LedgerStateEventHandler;
   private static _integrationEventHandler: IntegrationEventHandler;
 
   static async start(
@@ -72,7 +79,8 @@ export class PalLedgerEventHandlerService {
     msgSerializationFactory?: IRawMessageSerializerFactory,
     kafkaBuilder?: IKafkaBuilder,
     esRepo?: ILedgerEventSourcingRepository,
-    snapshoterConsumer?: IMessageConsumer,
+    readSideRepo?: ILedgerReadSideRepository,
+    stateEventsConsumer?: IMessageConsumer,
     domainEventsConsumer?: IMessageConsumer,
     producer?: IMessageProducer,
   ): Promise<void> {
@@ -131,6 +139,14 @@ export class PalLedgerEventHandlerService {
     }
     this._esRepo = esRepo;
 
+    if(!readSideRepo){
+      const repo = new MongoDbLedgerReadSideRepo(MONGO_URL);
+      await repo.init()
+      readSideRepo = repo;
+    }
+    this._readSideRepo = readSideRepo;
+
+
     if(!producer){
       producer = this._kafkaBuilder.buildProducer(kafkaProducerCommonOptions);
       await producer.connect();
@@ -138,8 +154,8 @@ export class PalLedgerEventHandlerService {
     this._producer = producer;
 
 
-    if(!snapshoterConsumer){
-      // snapshoterConsumer = this._kafkaBuilder.buildConsumer(kafkaConsumerCommonOptions);
+    if(!stateEventsConsumer){
+      // stateEventsConsumer = this._kafkaBuilder.buildConsumer(kafkaConsumerCommonOptions);
 
       const consumerOpts:KafkaLowLevelConsumerOptions ={
         consumerGroupId: kafkaConsumerCommonOptions.consumerGroupId,
@@ -148,35 +164,55 @@ export class PalLedgerEventHandlerService {
         autoOffsetReset: kafkaConsumerCommonOptions.autoOffsetReset
       }
 
-      snapshoterConsumer = this._kafkaBuilder.buildLowLevelConsumer(consumerOpts);
+      stateEventsConsumer = this._kafkaBuilder.buildLowLevelConsumer(consumerOpts);
     }
-    this._snapshoterConsumer = snapshoterConsumer;
+    this._stateEventsConsumer = stateEventsConsumer;
 
+
+    /*
+    * Instantiate the aggregate to be used by the snapshotter and read side projections
+    */
+    const aggregate = new LedgerAggregate(this._esRepo, this._producer, logger);
 
     /*
     * Instantiate the snapshotter
     */
-    const configs:SnapshotterConfigs = {
+    const configs:LedgerStateEventHandlerConfigs = {
       maxStateEventsBetweenSnapshots: MAX_EVENTS_PER_SNAPSHOT,
       maxTimeBetweenSnapshotsMs: MAX_SECS_SINCE_LAST_SNAPSHOT * 1000,
       minTimeBetweenSnapshotsMs: MIN_SECS_SINCE_LAST_SNAPSHOT * 1000
     }
 
-    this._snapshotter = new Snapshotter(
+    this._stateEventHandler = new LedgerStateEventHandler(
       configs,
+      aggregate,
       this._esRepo,
       this._msgSerializationFactory,
-      this._snapshoterConsumer,
+      this._stateEventsConsumer,
+      this._readSideRepo,
       this._producer,
       this._logger
     );
 
-    await this._snapshotter.init();
-    this._logger.info(`${this._snapshotter.constructor.name} ready to receive state events`);
+    await this._stateEventHandler.init();
+    this._logger.info(`${this._stateEventHandler.constructor.name} ready to receive state events`);
+
+    /*
+    * Instantiate the read side projector svc
+    */
 
 
     if(!domainEventsConsumer){
-      domainEventsConsumer = this._kafkaBuilder.buildConsumer(kafkaConsumerCommonOptions);
+      //domainEventsConsumer = this._kafkaBuilder.buildConsumer(kafkaConsumerCommonOptions);
+
+      const consumerOpts:KafkaLowLevelConsumerOptions ={
+        consumerGroupId: kafkaConsumerCommonOptions.consumerGroupId,
+        batchSize: kafkaConsumerCommonOptions.batchSize,
+        batchTimeoutMs: kafkaConsumerCommonOptions.batchTimeoutMs,
+        autoOffsetReset: kafkaConsumerCommonOptions.autoOffsetReset
+      }
+
+      domainEventsConsumer = this._kafkaBuilder.buildLowLevelConsumer(consumerOpts);
     }
     this._domainEventsConsumer = domainEventsConsumer;
 
@@ -195,13 +231,13 @@ export class PalLedgerEventHandlerService {
   }
 
   static async stop(): Promise<void> {
-    if(this._snapshotter){
-      await this._snapshotter.destroy() ;
+    if(this._stateEventHandler){
+      await this._stateEventHandler.destroy() ;
     }
 
-    if(this._snapshoterConsumer){
-      await this._snapshoterConsumer.stop();
-      await this._snapshoterConsumer.disconnect(false);
+    if(this._stateEventsConsumer){
+      await this._stateEventsConsumer.stop();
+      await this._stateEventsConsumer.disconnect(false);
     }
 
     if(this._domainEventsConsumer){

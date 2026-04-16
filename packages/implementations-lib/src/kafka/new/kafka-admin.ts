@@ -15,10 +15,29 @@ export class KafkaAdmin implements IKafkaAdmin {
     this._admin = kafka.admin();
   }
 
+  async connect(): Promise<void> {
+    this._logger?.debug("RafikiKafkaAdmin - connect called...");
+      await this._admin.connect();
+      this._logger?.info("RafikiKafkaAdmin - connected");
+  }
+
+  async disconnect(): Promise<void> {
+    this._logger?.debug("RafikiKafkaAdmin - disconnect called...");
+    await this._admin.disconnect();
+    this._logger?.info("RafikiKafkaAdmin - disconnected");
+  }
+
+
+
   async createTopics(topics: {topic:string, numPartitions: number, replicationFactor: number}[]): Promise<void> {
     await this._admin.createTopics({
       timeout: DEFAULT_TIMEOUT_MS,
       topics: topics
     });
+  }
+
+  async hasAllTopics(topics: string[]): Promise<boolean> {
+    const existingTopics = await this._admin.listTopics();
+    return topics.every(topic => existingTopics.includes(topic));
   }
 }

@@ -95,3 +95,11 @@ services:
       KAFKA_GROUP_CONSUMER_SESSION_TIMEOUT_MS: 10000
       KAFKA_GROUP_CONSUMER_MIN_SESSION_TIMEOUT_MS: 10000
       KAFKA_GROUP_CONSUMER_MAX_HEARTBEAT_INTERVAL_MS: 5000
+
+  redpanda-console:
+    image: redpandadata/console
+    restart: unless-stopped
+    environment:
+      - KAFKA_BROKERS=kafka-1:19092
+    ports:
+      - 8080:8080

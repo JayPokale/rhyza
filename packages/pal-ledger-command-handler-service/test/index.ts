@@ -28,6 +28,7 @@ import {
   LedgerSnapshotSerde,
   LedgerTransactionRecordedStateEventSerde, PostTransactionCmdSerde
 } from "pal-implementations-lib";
+import {randomBytes} from "node:crypto";
 
 const INSTANCE_ID = `ES_LEDGER_POC_TEST__${crypto.randomUUID()}`;
 // Message Consumer/Publisher
@@ -37,7 +38,7 @@ const KAFKA_URL = process.env["KAFKA_URL"] || "127.0.0.1:19092,127.0.0.1:29092,1
 const kafkaProducerCommonOptions:KafkaProducerOptions = {
     compressionCodec: KafkaProducerCompressionCodecs.GZIP,
     queueBufferingMaxMessages: 500_000,
-    messageMaxBytes: 20971520
+    messageMaxBytes: 20971520*2
 };
 const kafkaConsumerCommonOptions:RafikiKafkaJsonConsumerOptions ={
     kafkaBrokerList: KAFKA_URL
@@ -114,13 +115,15 @@ async function main() {
         cmds.push(...createLedgerAndAccounts());
     }
 
+    const transactionIdPrefix = `txn_${randomBytes(3).toString('hex')}_`;
+
     for(let i = 0; i < TRANSACTION_COUNT; i++){
         //let amount = "1"; //BigInt(Math.round(Math.random() * 1000));
         let amount = BigInt(Math.round(Math.random() * 1000)).toString();
         const [sender, receiver] = getRandomPair([pedroAccId, elsaAccId]) || [pedroAccId, elsaAccId];
 
         cmds.push(new PostTransactionCmd(assetCode, {
-            id: i.toString(),
+            id: transactionIdPrefix + i.toString(),
             amount:amount,
             amountScale: 2,
             debitedAccountId: sender,

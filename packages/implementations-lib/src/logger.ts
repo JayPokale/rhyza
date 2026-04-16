@@ -19,6 +19,10 @@ export class PinoLogger implements ILogger {
     }
   }
 
+  setLogLevel(logLevel: any):void{
+    this._logger.level = logLevel;
+  }
+
   fatal(...args:any[]): void {
     this._log(this._logger.fatal.bind(this._logger), ...args);
   }

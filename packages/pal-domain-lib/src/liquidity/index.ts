@@ -3,6 +3,7 @@ export * from './ledger-aggregate';
 export * from './interfaces';
 export * from './entities/transaction';
 export * from './entities/ledger-account';
+export * from './entities/ledger';
 export * from './messages/events';
 export * from './messages/commands';
 export * from './errors';

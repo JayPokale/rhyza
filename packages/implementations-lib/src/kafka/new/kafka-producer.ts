@@ -9,43 +9,20 @@ import {
   IRawMessageSerializerFactory,
 } from 'common-types-lib';
 import {KafkaProducerOptions} from "./types";
+import {KafkaUtil} from "./kafka-util";
 
 export class KafkaProducer implements IMessageProducer {
   private readonly _logger: ILogger;
-  private readonly _options: KafkaProducerOptions;
   private readonly _producer: KafkaJS.Producer;
   private readonly _kafka:KafkaJS.Kafka;
   private readonly _serializerFactory: IRawMessageSerializerFactory;
 
-  constructor(kafka: KafkaJS.Kafka, producer: KafkaJS.Producer, options: KafkaProducerOptions, serializerFactory: IRawMessageSerializerFactory, logger: ILogger) {
+  constructor(kafka: KafkaJS.Kafka, producer: KafkaJS.Producer, serializerFactory: IRawMessageSerializerFactory, logger: ILogger) {
     this._logger = logger;
     this._serializerFactory = serializerFactory;
-    this._options = options;
 
     this._kafka = kafka;
     this._producer = producer;
-  }
-
-  private _convertIMessageToKafkaJSMessage(msg: IMessage): KafkaJS.Message{
-    const rawMessage = this._serializerFactory.serialize(msg);
-    const outpuMsg: KafkaJS.Message = {
-      key: rawMessage.key,
-      timestamp: rawMessage.timestamp ? rawMessage.timestamp.toString() : undefined,
-      partition: rawMessage.partition || undefined,
-      value: rawMessage.value as Buffer<ArrayBufferLike>,
-      headers: undefined
-    }
-
-    if(rawMessage.headers){
-      outpuMsg.headers = {};
-      for(const header of rawMessage.headers){
-        for(const k of Object.keys(header)){
-          outpuMsg.headers![k] = header[k];
-        }
-      }
-    }
-
-    return outpuMsg;
   }
 
   private _convertIMessageArrayToTopicMessages(messages: IMessage | IMessage[]): KafkaJS.TopicMessages[]{
@@ -54,7 +31,7 @@ export class KafkaProducer implements IMessageProducer {
     const retTopicMessages: KafkaJS.TopicMessages[] = [];
 
     for (const msg of messages) {
-      let topicMsg = this._convertIMessageToKafkaJSMessage(msg);
+      let topicMsg = KafkaUtil.convertToKafkaMsg(this._serializerFactory.serialize(msg));
       let topic = retTopicMessages.find(tp => tp.topic === msg.msgTopic);
       if(!topic){
         topic = {topic: msg.msgTopic, messages: [topicMsg]};
@@ -96,18 +73,7 @@ export class KafkaProducer implements IMessageProducer {
     return resIMessageProducerSendAcks;
   }
 
-  async createTopics(topics:string[]): Promise<void>{
-    const admin = this._producer.dependentAdmin();
-    await admin.connect();
-
-    const res = await admin.createTopics({
-      topics: topics.map(t=>({topic: t, numPartitions: 3, replicationFactor:2}))
-    });
-    this._logger?.debug(`${this.constructor.name} - createTopics completed - result: ${JSON.stringify(res, null, 2)}`);
-  }
-
-
-  async destroy(): Promise<void> {
+   async destroy(): Promise<void> {
     this._logger?.info(`${this.constructor.name} - destroy called...`);
     return await this.disconnect();
   }

@@ -1,6 +1,7 @@
 import {Metadata, RdKafka, TopicPartition} from "@confluentinc/kafka-javascript";
 import {IMessageConsumer, IRawMessage, ILogger, IRawMessageSerializerFactory, IMessage} from 'common-types-lib';
 import {KafkaConsumerOptions} from "./types";
+import {KafkaUtil} from "./kafka-util";
 
 const DEFAULT_BATCH_SIZE = 1;
 const DEFAULT_BATCH_TIMEOUT_MS = 50;
@@ -38,10 +39,12 @@ export class KafkaLowLevelConsumer implements IMessageConsumer{
         ...globalConfigs,
         "group.id": consumerConfigs.consumerGroupId,
         "enable.auto.commit": false, // we do it manually
-        "fetch.wait.max.ms": this._batchTimeoutMs
+        "fetch.wait.max.ms": this._batchTimeoutMs,
+        rebalance_cb: true,
+        event_cb: true,
       },
       {
-        "auto.offset.reset": consumerConfigs.autoOffsetReset ?? 'earliest',
+        "auto.offset.reset": consumerConfigs.autoOffsetReset ?? 'earliest'
 
       }
     );
@@ -49,6 +52,7 @@ export class KafkaLowLevelConsumer implements IMessageConsumer{
 
     this._consumer.on('rebalance', this._onRebalance.bind(this));
     this._consumer.on('rebalance.error', this._onRebalanceError.bind(this));
+    this._consumer.on("event.event", this._onEvent.bind(this));
     this._consumer.on('event.error', this._onError.bind(this));
     this._consumer.on('disconnected', this._onDisconnect.bind(this));
   }
@@ -56,6 +60,12 @@ export class KafkaLowLevelConsumer implements IMessageConsumer{
   /* istanbul ignore next */
   private _onError(error: RdKafka.LibrdKafkaError): void {
     this._logger?.error(error.message, error);
+  }
+
+  /* istanbul ignore next */
+  private _onEvent(eventData: any): void {
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    this._logger?.debug(`KafkaLowLevelConsumer - event.event - ${JSON.stringify(eventData, null, 2)}`);
   }
 
   /* istanbul ignore next */
@@ -129,7 +139,9 @@ export class KafkaLowLevelConsumer implements IMessageConsumer{
   private async _fetchBatch(): Promise<RdKafka.Message[]> {
     return new Promise((resolve, reject) => {
       this._consumer.consume(this._batchSize, (err, messages) => {
-        if (err) return reject(err);
+        if (err) {
+          return reject(err);
+        }
         resolve(messages);
       });
     });
@@ -156,15 +168,18 @@ export class KafkaLowLevelConsumer implements IMessageConsumer{
       const afterFetch = Date.now();
 
       if (kafkaMessages.length <= 0) {
-        // No messages? Wait a bit before polling again to save CPU
-        const waitMs = this._batchTimeoutMs - (Date.now() - afterFetch);
-        if(waitMs > 0) {
-          await new Promise((resolve) => setTimeout(resolve, waitMs));
-        }
+        // // No messages? Wait a bit before polling again to save CPU
+        // const waitMs = this._batchTimeoutMs - (Date.now() - afterFetch);
+        // if(waitMs > 0) {
+        //   await new Promise((resolve) => setTimeout(resolve, waitMs));
+        // }
         continue;
       }
 
-      const msgs = kafkaMessages.map(this._toIMessage.bind(this));
+      // const msgs = kafkaMessages.map(this._toIMessage.bind(this));
+      const msgs = kafkaMessages.map(msg => this._serializerFactory.deserialize(
+        KafkaUtil.convertFromKafkaMsg(msg, msg.topic, msg.partition)
+      ));
       const beforeHander = Date.now();
       await this._batchHandlerCallback(msgs);
       const handlerTook = Date.now()-beforeHander;
@@ -175,32 +190,6 @@ export class KafkaLowLevelConsumer implements IMessageConsumer{
       const afterCommit = Date.now();
       this._logger?.debug(`Consume cycle took:  ${afterCommit - start}ms - fetch: ${afterFetch - start}ms - handler: ${handlerTook}ms - commit: ${afterCommit - beforeCommit}ms`);
     }
-  }
-
-  private _toIMessage(kafkaMsg: RdKafka.Message): IMessage {
-    let retMsg:IRawMessage = {
-      topic: kafkaMsg.topic,
-      partition: kafkaMsg.partition,
-      offset: kafkaMsg.offset,
-      key: kafkaMsg.key ? kafkaMsg.key.toString() : null,
-      timestamp: kafkaMsg.timestamp ?? null,
-      value: kafkaMsg.value || null,
-      headers: null
-    }
-
-    // parse msg headers
-    if (kafkaMsg.headers != null) {
-      retMsg.headers = [];
-      kafkaMsg.headers.forEach((kafkaHeader: RdKafka.MessageHeader) => {
-        // NOTE: kafka headers are key/value pairs, only one pair will ever exist per header rec
-        for (const key in kafkaHeader) {
-          if (!Object.prototype.hasOwnProperty.call(kafkaHeader, key)) continue;
-          retMsg.headers!.push({ [key]: kafkaHeader[key].toString()});
-        }
-      });
-    }
-
-    return this._serializerFactory.deserialize(retMsg);
   }
 
   setCallbackFn(handlerCallback: (message: IMessage) => Promise<void>): void {
@@ -222,44 +211,20 @@ export class KafkaLowLevelConsumer implements IMessageConsumer{
 
   async connect(): Promise<void> {
     return new Promise((resolve, reject) => {
-      this._consumer.connect(
-        {
-          // topic: this._topics[0],
-          // allTopics: false
-        },
-        (err: RdKafka.LibrdKafkaError, metadata: RdKafka.Metadata) => {
+      this._consumer.connect({}, async (err: RdKafka.LibrdKafkaError, metadata: RdKafka.Metadata) => {
           /* istanbul ignore if */
           if (err) {
-            this._logger?.error(
-              'KafkaLowLevelConsumer - error connecting to cluster',
-              err
-            );
-            return reject(
-              new Error(
-                `KafkaLowLevelConsumer - error connecting to cluster: ${err.message}`
-              )
-            );
+            this._logger?.error('KafkaLowLevelConsumer - error connecting to cluster',err);
+            return reject(new Error(`KafkaLowLevelConsumer - error connecting to cluster: ${err.message}`));
           }
 
-          // throw if topics not found in metadata
-          if(!this._topics.length) {
+           if(!this._topics.length) {
             throw new Error('No topics specified for Kafka consumer');
           }
 
+          // throw if topics not found in metadata
           this._topics.forEach((topicName) => {
-            this._logger?.debug(
-              `KafkaLowLevelConsumer - checking if topic '${topicName}' exists in kafka...`,
-              metadata
-            );
-
-            if (!metadata || !metadata.topics) {
-              this._logger?.error('Fetching Meta-Data:');
-              const fetchedMetaData = this._getMetadata();
-              this._logger?.error(fetchedMetaData);
-              throw new Error(
-                `Topic '${topicName}' not found in kafka, no topics found in metadata. MetaData[${metadata}]`
-              );
-            }
+            this._logger?.debug(`KafkaLowLevelConsumer - checking if topic '${topicName}' exists in kafka...`, metadata);
             const found = metadata.topics.find(
               (value) => value.name.toUpperCase() === topicName.toUpperCase()
             );
@@ -280,11 +245,10 @@ export class KafkaLowLevelConsumer implements IMessageConsumer{
     return new Promise((resolve, reject) => {
       this._logger?.info('KafkaLowLevelConsumer - disconnect called...');
       if (!this._consumer.isConnected()) {
-        this._logger?.warn(
-          'KafkaLowLevelConsumer - disconnect called but consumer is not connected'
-        );
+        this._logger?.warn('KafkaLowLevelConsumer - disconnect called but consumer is not connected');
         return resolve();
       }
+
       this._consumer.disconnect((err: any, _data: RdKafka.ClientMetrics) => {
         /* istanbul ignore if */
         if (err) {
@@ -298,7 +262,24 @@ export class KafkaLowLevelConsumer implements IMessageConsumer{
   }
 
   startAndWaitForRebalance(): Promise<void> {
-    return this.start();
+    // eslint-disable-next-line no-async-promise-executor
+    return new Promise(async (resolve, reject) => {
+      this._consumer.prependOnceListener("rebalance", (error: RdKafka.LibrdKafkaError, assignments: TopicPartition[]) => {
+        if (error.code != RdKafka.CODES.ERRORS.ERR__ASSIGN_PARTITIONS || !assignments || assignments.length == 0) {
+          throw new Error("KafkaLowLevelConsumer - didnt get an assign on first rebalance event (startAndWaitForRebalance)");
+        }
+
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+        this._logger?.info("KafkaLowLevelConsumer - got rebalance on startAndWaitForRebalance()");
+        setImmediate(() => {
+          this._consumeLoop();
+        });
+        resolve();
+      });
+
+    // manually reject (so we don't lose this because of the async executor function
+      await this.start().catch(reason => reject(reason));
+    });
   }
 
   start(): Promise<void> {
@@ -309,7 +290,7 @@ export class KafkaLowLevelConsumer implements IMessageConsumer{
         return;
       }
 
-      this._consumer.once('subscribed', async (topics) => {
+      this._consumer.prependOnceListener('subscribed', async (topics) => {
         this._logger?.info('KafkaLowLevelConsumer - subscribed');
         setImmediate(() => {
           this._consumeLoop();
@@ -317,20 +298,14 @@ export class KafkaLowLevelConsumer implements IMessageConsumer{
         resolve();
       });
 
-      this._logger?.info(
-        `KafkaLowLevelConsumer - Subscribing to topics ${JSON.stringify(
-          this._topics
-        )}`
-      );
+      this._logger?.info(`KafkaLowLevelConsumer - Subscribing to topics ${JSON.stringify(this._topics)}`);
       this._consumer.subscribe(this._topics);
     });
   }
 
   async stop(): Promise<void> {
     this._consumer.unsubscribe();
-    this._logger?.info(
-      'KafkaLowLevelConsumer - stop called, unsubscribed from previously subscribed topics'
-    );
+    this._logger?.info('KafkaLowLevelConsumer - stop called, unsubscribed from previously subscribed topics');
   }
 
   setFilteringFn(filterFn: (message: IMessage) => boolean): void {

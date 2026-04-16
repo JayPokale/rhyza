@@ -1,18 +1,13 @@
 import {KafkaJS, RdKafka} from "@confluentinc/kafka-javascript";
-import {
-  ConsoleLogger,
-
-  ILogger,
-  IRawMessageSerializerFactory,
-
-} from "common-types-lib";
+import {ConsoleLogger, ILogger, IRawMessageSerializerFactory,} from "common-types-lib";
 import crypto from "crypto";
 import {KafkaConsumer} from "./kafka-consumer";
 import {
   IKafkaAdmin,
   IKafkaBuilder,
-  IKafkaSourcingRepository, KafkaAuthenticationOptions,
-  KafkaConsumerOptions, KafkaLowLevelConsumerOptions,
+  KafkaAuthenticationOptions,
+  KafkaConsumerOptions,
+  KafkaLowLevelConsumerOptions,
   KafkaProducerOptions
 } from "./types";
 
@@ -22,6 +17,7 @@ import {KafkaFetcher} from "./kafka-fetcher";
 
 import {KafkaAdmin} from "./kafka-admin";
 import {KafkaLowLevelConsumer} from "./kafka-lowlevel-consumer";
+import {KafkaLoggerWrapper} from "./kafka-logger-wrapper";
 
 export class KafkaBuilder implements IKafkaBuilder {
   private static _instance: KafkaBuilder;
@@ -38,10 +34,10 @@ export class KafkaBuilder implements IKafkaBuilder {
   }
 
   private _logger!: ILogger;
+  private _kafkaLogger!: KafkaJS.Logger;
   private _serializerFactory!: IRawMessageSerializerFactory;
   private _kafka!: KafkaJS.Kafka;
   private _globalConfig: KafkaJS.CommonConstructorConfig;
-
 
   private _buildBasics(){
     if (!this._logger) {
@@ -56,6 +52,13 @@ export class KafkaBuilder implements IKafkaBuilder {
       throw new Error("KafkaBuilder - minimal kafka options (broker list) is required");
     }
 
+    //
+    //
+    // this._globalConfig["KafkaJS"] = {
+    //   brokers: this._globalConfig["metadata.broker.list"].split(','),
+    //   "logger": this._kafkaLogger
+    // };
+
     // create the main kafka client if not already created
     if(!this._kafka) {
       this._kafka = new KafkaJS.Kafka(this._globalConfig);
@@ -67,6 +70,8 @@ export class KafkaBuilder implements IKafkaBuilder {
    */
   withLogger(logger: ILogger): KafkaBuilder {
     this._logger = logger;
+    this._kafkaLogger = new KafkaLoggerWrapper(logger);
+    //this._kafkaLogger.setLogLevel(KafkaJS.logLevel.DEBUG);
     return this;
   }
 
@@ -110,7 +115,7 @@ export class KafkaBuilder implements IKafkaBuilder {
     const consumerConfig: KafkaJS.ConsumerConstructorConfig = {};
 
     // group.id is required, if not provided, use a random one
-    consumerConfig['group.id'] = consumerOptions.consumerGroupId || crypto.randomUUID();
+    // consumerConfig['group.id'] = consumerOptions.consumerGroupId || crypto.randomUUID();
     consumerConfig['auto.offset.reset'] = consumerOptions.autoOffsetReset || 'latest';
 
     if (consumerOptions.batchTimeoutMs !== undefined && consumerOptions.batchTimeoutMs > 0) {
@@ -123,6 +128,12 @@ export class KafkaBuilder implements IKafkaBuilder {
     }
 
     consumerConfig['max.partition.fetch.bytes'] = 50*1024*1024;
+    if(!consumerConfig.kafkaJS){
+      consumerConfig.kafkaJS = {
+        logger: this._kafkaLogger,
+        groupId: consumerOptions.consumerGroupId || crypto.randomUUID()
+      };
+    }
 
     return new KafkaConsumer(
       this._kafka,
@@ -135,7 +146,7 @@ export class KafkaBuilder implements IKafkaBuilder {
   buildProducer(producerOptions: KafkaProducerOptions): KafkaProducer {
     this._buildBasics();
 
-    // consumer configs
+    // producer configs
     const producerConfig: KafkaJS.ProducerConstructorConfig = {};
 
     if (producerOptions.skipAcknowledgements !== undefined) {
@@ -149,6 +160,7 @@ export class KafkaBuilder implements IKafkaBuilder {
     }
 
     if (producerOptions.queueBufferingMaxMs !== undefined) {
+      // same as linger.ms
       producerConfig['queue.buffering.max.ms'] = producerOptions.queueBufferingMaxMs;
     }
 
@@ -163,8 +175,8 @@ export class KafkaBuilder implements IKafkaBuilder {
     return new KafkaProducer(
       this._kafka,
       this._kafka.producer(producerConfig),
-      producerOptions,
-      this._serializerFactory, this._logger
+      this._serializerFactory,
+      this._logger
     );
   }
 
@@ -181,7 +193,8 @@ export class KafkaBuilder implements IKafkaBuilder {
   buildLowLevelConsumer(consumerOptions: KafkaLowLevelConsumerOptions): KafkaLowLevelConsumer {
     this._buildBasics();
 
-    const globalConfig: RdKafka.ConsumerGlobalConfig = this._globalConfig;
+    const globalConfig: RdKafka.ConsumerGlobalConfig = {};
+    Object.assign(globalConfig, this._globalConfig);
     globalConfig['group.id'] = consumerOptions.consumerGroupId || crypto.randomUUID();
 
     if(consumerOptions.batchTimeoutMs !== undefined && consumerOptions.batchTimeoutMs > 0) {

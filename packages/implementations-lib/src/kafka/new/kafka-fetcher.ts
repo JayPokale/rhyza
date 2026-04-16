@@ -2,7 +2,7 @@ import {KafkaJS} from "@confluentinc/kafka-javascript";
 import {ILogger, IMessage, IMessageFetcher, IRawMessage, IRawMessageSerializerFactory,} from 'common-types-lib';
 import {randomBytes} from "node:crypto";
 
-const DEFAULT_BATCH_SIZE = 20000;
+const DEFAULT_BATCH_SIZE = 5000;
 const DEFAULT_BATCH_TIMEOUT_MS = 1000;
 
 export class KafkaFetcher implements IMessageFetcher {
@@ -68,7 +68,6 @@ export class KafkaFetcher implements IMessageFetcher {
                 fromBeginning: true,
                 partitionAssigners: [KafkaJS.PartitionAssigners.roundRobin],
                 autoCommit: false,
-
             },
             "js.consumer.max.batch.size": DEFAULT_BATCH_SIZE,
             "fetch.wait.max.ms": DEFAULT_BATCH_TIMEOUT_MS

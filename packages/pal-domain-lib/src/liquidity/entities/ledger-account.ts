@@ -9,7 +9,7 @@
 
 "use strict";
 
-export interface ILedgerAccountStateDTO{
+export interface ILedgerAccountDTO {
     id: string;
     name: string;
     assetCode: string;
@@ -28,7 +28,7 @@ export interface ILedgerAccount{
 }
 
 export class LedgerAccountDtoSerializer {
-    static toDTO(ledgerAccount:ILedgerAccount):ILedgerAccountStateDTO{
+    static toDTO(ledgerAccount:ILedgerAccount):ILedgerAccountDTO{
         return {
             id: ledgerAccount.id,
             name: ledgerAccount.name,
@@ -38,7 +38,7 @@ export class LedgerAccountDtoSerializer {
             creditedAmount: ledgerAccount.creditedAmount.toString()
         }
     }
-    static fromDTO(dto:ILedgerAccountStateDTO):ILedgerAccount{
+    static fromDTO(dto:ILedgerAccountDTO):ILedgerAccount{
         return {
             id: dto.id,
             name: dto.name,

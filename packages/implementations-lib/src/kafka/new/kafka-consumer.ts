@@ -1,6 +1,7 @@
 import {KafkaJS, TopicPartition} from "@confluentinc/kafka-javascript";
 import {ILogger, IMessage, IMessageConsumer, IRawMessage, IRawMessageSerializerFactory} from "common-types-lib";
 import {KafkaConsumerDefaults, KafkaConsumerOptions} from "./types";
+import {KafkaUtil} from "./kafka-util";
 
 
 export class KafkaConsumer implements IMessageConsumer{
@@ -49,30 +50,6 @@ export class KafkaConsumer implements IMessageConsumer{
       return this._rebalanceCallback(assignment);
     }
     return Promise.resolve();
-  }
-
-  private _formatMessage(kafkaMsg: KafkaJS.KafkaMessage, topic: string, partition: number): IMessage {
-    let retMsg:IRawMessage = {
-      topic: topic,
-      partition: partition,
-      offset: Number(kafkaMsg.offset),
-      key: kafkaMsg.key ? kafkaMsg.key.toString() : null,
-      timestamp: Number(kafkaMsg.timestamp),
-      value: kafkaMsg.value || null,
-      headers: null
-    }
-
-    // parse headers
-    if(kafkaMsg.headers != null && Object.keys(kafkaMsg.headers).length > 0){
-      retMsg.headers = [];
-      for(const k of Object.keys(kafkaMsg.headers)){
-        if(kafkaMsg.headers[k] != null) {
-          retMsg.headers.push({[k]: kafkaMsg.headers[k].toString()});
-        }
-      }
-    }
-
-    return this._serializerFactory.deserialize(retMsg);
   }
 
   // IMessageConsumer members
@@ -130,7 +107,9 @@ export class KafkaConsumer implements IMessageConsumer{
         }
 
         const msgs = batchPayload.batch.messages.map(
-          m=>this._formatMessage(m, batchPayload.batch.topic, batchPayload.batch.partition)
+          m => this._serializerFactory.deserialize(
+            KafkaUtil.convertFromKafkaMsg(m, batchPayload.batch.topic, batchPayload.batch.partition)
+          )
         );
 
         // call the provided handler and then commit

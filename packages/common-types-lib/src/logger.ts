@@ -12,6 +12,8 @@ export interface ILogger {
   info: ILoggerParams;
   debug: ILoggerParams;
   trace: ILoggerParams;
+
+  setLogLevel: (logLevel: any) => void;
 }
 
 // default implementation of ILogger which uses the console (no ext dependencies)
@@ -53,4 +55,6 @@ export class ConsoleLogger implements ILogger {
   isFatalEnabled(): boolean {
     return true;
   }
+
+  setLogLevel(logLevel: any):void{}
 }

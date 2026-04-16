@@ -1,5 +1,4 @@
 import {
-  ILogger,
   IMessage,
   IMessageConsumer,
   IMessageFetcher,
@@ -7,9 +6,6 @@ import {
   SnapshotEvent,
   StateEvent
 } from "common-types-lib";
-import {KafkaJS} from "@confluentinc/kafka-javascript";
-import {IRawAuthenticationOptions} from "../raw-types";
-import {KafkaFetcher} from "./kafka-fetcher";
 import {KafkaLowLevelConsumer} from "./kafka-lowlevel-consumer";
 
 export declare interface KafkaAuthenticationOptions {
@@ -83,9 +79,14 @@ export interface IKafkaSourcingRepository<S extends StateEvent, T extends Snapsh
 
 
 export interface IKafkaAdmin{
+  connect(): Promise<void>;
+  disconnect():Promise<void>;
+
   createTopics(topics: {topic:string, numPartitions: number, replicationFactor: number}[]): Promise<void>;
+  hasAllTopics(topics: string[]): Promise<boolean>;
 }
 
 export class KafkaLowLevelConsumerOptions extends KafkaConsumerOptions {
   useSyncCommit?: boolean;
 }
+

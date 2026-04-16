@@ -10,8 +10,8 @@
 "use strict";
 
 import {StateEvent, SnapshotEvent, SnapshotEventTopics, StateEventTopics, MessageDataFormats} from 'common-types-lib';
-import {ILedgerAccountStateDTO} from "../entities/ledger-account";
-import {ILedgerTransactionStateDTO} from "../entities/transaction";
+import {ILedgerAccountDTO} from "../entities/ledger-account";
+import {ILedgerTransactionDTO} from "../entities/transaction";
 
 
 export abstract class LedgerStateEvent extends StateEvent {
@@ -62,7 +62,7 @@ export class LedgerCreatedStateEvent extends LedgerStateEvent {
 
 
 export type LedgerAccountCreatedStatePayload = {
-    account:ILedgerAccountStateDTO;
+    account:ILedgerAccountDTO;
 }
 export class LedgerAccountCreatedStateEvent extends LedgerStateEvent {
   payload: LedgerAccountCreatedStatePayload;
@@ -79,7 +79,7 @@ export class LedgerAccountCreatedStateEvent extends LedgerStateEvent {
 }
 
 export type LedgerTransactionRecordedStatePayload = {
-    transaction: ILedgerTransactionStateDTO;
+    transaction: ILedgerTransactionDTO;
 }
 export class LedgerTransactionRecordedStateEvent extends LedgerStateEvent{
     payload: LedgerTransactionRecordedStatePayload;
@@ -95,7 +95,7 @@ export class LedgerTransactionRecordedStateEvent extends LedgerStateEvent{
 * Snapshot Events
 * */
 export type LedgerSnapshotPayload = {
-    accounts: ILedgerAccountStateDTO[];
+    accounts: ILedgerAccountDTO[];
     transactionCount: string;
     assetScale: number;
 }
