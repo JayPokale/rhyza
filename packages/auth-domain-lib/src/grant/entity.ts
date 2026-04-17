@@ -4,59 +4,59 @@ import {
   UnknownInteractionError
 } from './errors';
 import {
-  AccessItem,
-  FinishMethod,
+  IAccessItem,
+  IFinishMethod,
   GrantState,
-  GrantIntent,
-  Interaction,
+  IGrant,
+  IInteraction,
   InteractionState,
   InteractionChoice,
-  StartMethod,
-  Subject,
-  AccessToken,
+  IStartMethod,
+  ISubject,
+  IAccessToken,
   RevokedAccessToken,
   NewAccessToken
 } from './interfaces';
 
-interface IGrantNegotiationInput {
+interface IGrantInput {
   id: string;
   tenantId: string;
-  startMethod: StartMethod[];
+  startMethod: IStartMethod[];
   identifier: string;
   continueToken: string;
   continueId: string;
   state: GrantState;
-  interaction?: Interaction;
+  interaction?: IInteraction;
   client?: string;
-  subject?: Subject;
-  access?: AccessItem[];
-  finishMethod?: FinishMethod;
+  subject?: ISubject;
+  access?: IAccessItem[];
+  finishMethod?: IFinishMethod;
   finishUri?: string;
   lastContinuedAt?: Date;
-  accessTokens: Map<string, AccessToken>;
+  accessTokens: Map<string, IAccessToken>;
 }
 
-export class GrantNegotiation implements GrantIntent {
+export class GrantEntity implements IGrant {
   private _id: string;
   private _tenantId: string;
-  private _startMethod: StartMethod[];
+  private _startMethod: IStartMethod[];
   private _identifier: string;
   private _continueToken: string;
   private _continueId: string;
   private _state: GrantState;
   private _client?: string;
-  private _subject?: Subject;
-  private _access?: AccessItem[];
-  private _finishMethod?: FinishMethod;
+  private _subject?: ISubject;
+  private _access?: IAccessItem[];
+  private _finishMethod?: IFinishMethod;
   private _finishUri?: string;
-  private _interaction?: Interaction;
+  private _interaction?: IInteraction;
   private _lastContinuedAt?: Date;
-  private _accessTokens: Map<string, AccessToken> = new Map<
+  private _accessTokens: Map<string, IAccessToken> = new Map<
     string,
-    AccessToken
+    IAccessToken
   >();
 
-  private constructor(input: IGrantNegotiationInput) {
+  private constructor(input: IGrantInput) {
     this._id = input.id;
     this._tenantId = input.tenantId;
     this._startMethod = input.startMethod;
@@ -74,15 +74,15 @@ export class GrantNegotiation implements GrantIntent {
     this._lastContinuedAt = input.lastContinuedAt;
   }
 
-  static create(input: IGrantNegotiationInput): GrantNegotiation {
-    return new GrantNegotiation(input);
+  static create(input: IGrantInput): GrantEntity {
+    return new GrantEntity(input);
   }
 
-  static fromObject(obj: GrantIntent): GrantIntent {
-    return new GrantNegotiation(obj);
+  static fromObject(obj: IGrant): GrantEntity {
+    return new GrantEntity(obj);
   }
 
-  toObject(): GrantIntent {
+  toObject(): IGrant {
     return {
       id: this._id,
       tenantId: this._tenantId,
@@ -102,7 +102,7 @@ export class GrantNegotiation implements GrantIntent {
     };
   }
 
-  addInteraction(interaction: Interaction) {
+  addInteraction(interaction: IInteraction) {
     if (!this._startMethod) {
       throw new NonInteractiveGrantError();
     }
@@ -131,7 +131,7 @@ export class GrantNegotiation implements GrantIntent {
 
   rotateAccessToken(
     oldAccessToken: RevokedAccessToken,
-    newAccessToken: AccessToken
+    newAccessToken: IAccessToken
   ) {
     this._accessTokens.set(oldAccessToken.id, oldAccessToken);
     this._accessTokens.set(newAccessToken.id, newAccessToken);
@@ -149,7 +149,7 @@ export class GrantNegotiation implements GrantIntent {
     return this._tenantId;
   }
 
-  get startMethod(): StartMethod[] {
+  get startMethod(): IStartMethod[] {
     return this._startMethod;
   }
 
@@ -173,19 +173,19 @@ export class GrantNegotiation implements GrantIntent {
     return this._client;
   }
 
-  get subject(): Subject | undefined {
+  get subject(): ISubject | undefined {
     return this._subject;
   }
 
-  get access(): AccessItem[] | undefined {
+  get access(): IAccessItem[] | undefined {
     return this._access;
   }
 
-  get finishMethod(): FinishMethod | undefined {
+  get finishMethod(): IFinishMethod | undefined {
     return this._finishMethod;
   }
 
-  get interaction(): Interaction | undefined {
+  get interaction(): IInteraction | undefined {
     return this._interaction;
   }
 
@@ -193,7 +193,7 @@ export class GrantNegotiation implements GrantIntent {
     return this._lastContinuedAt;
   }
 
-  get accessTokens(): Map<string, AccessToken> {
+  get accessTokens(): Map<string, IAccessToken> {
     return this._accessTokens;
   }
 }

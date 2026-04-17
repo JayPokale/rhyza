@@ -61,6 +61,29 @@ export class CreateGrantCmd extends CommandMsg {
   }
 }
 
+export interface ContinueGrantPayload {
+  id: string;
+  continueId: string;
+  continueToken: string;
+  interactRef: string;
+}
+
+export class ContinueGrantCmd extends CommandMsg {
+  contextName: string = BOUNDED_CONTEXT_NAME;
+  aggregateId: string;
+  aggregateName: string = GRANT_AGGREGATE_NAME;
+  msgKey: string;
+  msgTopic: string = CommandTopics.AuthCommands;
+  payload: ContinueGrantPayload;
+
+  constructor(payload: ContinueGrantPayload, requestId: string) {
+    super();
+    this.requestId = requestId;
+    this.aggregateId = this.msgKey = payload.id;
+    this.payload = payload;
+  }
+}
+
 export interface RevokeGrantCmdPayload {
   id: string;
   tenantId: string;
