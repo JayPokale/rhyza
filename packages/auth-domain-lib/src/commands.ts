@@ -60,7 +60,6 @@ export class CreateGrantCmd extends CommandMsg {
     this.payload = payload;
   }
 }
-
 export interface RevokeGrantCmdPayload {
   id: string;
   tenantId: string;
