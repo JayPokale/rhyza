@@ -126,7 +126,7 @@ export class GrantEntity implements IGrantEntity {
     this._lastContinuedAt = input.lastContinuedAt;
   }
 
-  static fromObject(obj: IGrantInput): GrantEntity {
+  static fromObject(obj: IGrant): GrantEntity {
     return new GrantEntity(obj);
   }
 
