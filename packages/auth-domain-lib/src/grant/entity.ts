@@ -37,11 +37,12 @@ interface IGrantInput {
   state: GrantState;
   finalizationReason?: GrantFinalization;
   interaction?: IInteraction;
-  client?: string;
+  client?: string | IJsonWebKey;
   subject?: ISubject;
   accesses?: IAccessItem[];
   finishMethod?: IFinishMethod;
   finishUri?: string;
+  interactionNonce?: string;
   lastContinuedAt?: Date;
 }
 
