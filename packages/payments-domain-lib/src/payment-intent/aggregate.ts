@@ -14,7 +14,9 @@ import {
   CreatePaymentIntentCmd,
   CreateQuoteCmd,
   CreatePaymentCmd,
-  ApprovePaymentCmd
+  ApprovePaymentCmd,
+  FinalizeRemoteQuoteCmd,
+  FailRemoteQuoteCmd
 } from '../commands';
 import {
   CannotCreateDuplicatePaymentIntentError,
@@ -32,7 +34,9 @@ import {
   PaymentCreateFailedEvent,
   LocalPaymentCompletedEvent,
   LocalPaymentCompleteFailedEvent,
-  PaymentCreatedEvent
+  PaymentCreatedEvent,
+  RemoteQuoteRequestedEvent,
+  RemoteQuoteFailedEvent
 } from './events';
 
 export class PaymentIntentAggregate {
@@ -71,6 +75,12 @@ export class PaymentIntentAggregate {
       } else if (cmd.msgName === ApprovePaymentCmd.name) {
         const payload = (cmd as ApprovePaymentCmd).payload;
         paymentIntentIdsSet.add(payload.paymentIntentId);
+      } else if (cmd.msgName === FinalizeRemoteQuoteCmd.name) {
+        const payload = (cmd as FinalizeRemoteQuoteCmd).payload;
+        paymentIntentIdsSet.add(payload.paymentIntentId);
+      } else if (cmd.msgName === FailRemoteQuoteCmd.name) {
+        const payload = (cmd as FailRemoteQuoteCmd).payload;
+        paymentIntentIdsSet.add(payload.paymentIntentId);
       }
     }
 
@@ -101,6 +111,12 @@ export class PaymentIntentAggregate {
         event = await this.handleApprovePaymentCommand(
           cmd as ApprovePaymentCmd
         );
+      } else if (cmd.msgName === FinalizeRemoteQuoteCmd.name) {
+        event = this.handleFinalizeRemoteQuoteCommand(
+          cmd as FinalizeRemoteQuoteCmd
+        );
+      } else if (cmd.msgName === FailRemoteQuoteCmd.name) {
+        event = this.handleFailRemoteQuoteCommand(cmd as FailRemoteQuoteCmd);
       } else {
         throw new Error('Unexpected command');
       }
@@ -140,16 +156,21 @@ export class PaymentIntentAggregate {
       }
 
       // NOTE: Should we validate asset match if incomingAmount provided?
-      // Currently incomingAmount on the command is currently a bare number.
+      // Currently incomingAmount on the command is a bare number.
       // Keep and use wallet address asset? Or require as means of confirming
       // the sender understands the asset to be used?
       // - v1 Rafiki requires it to be passed in
+
+      // TODO: determine from peer lookup (should probably move this to prefetch phase)
+      // const peer = await this._palClient.getPeerByWalletAddress(receiverWalletAddress)
+      // - lookup by receiverWalletAddress or receiverWalletAddressId? And what will peer be?
+      const destination = PaymentIntentDestination.LOCAL;
 
       const entity = PaymentIntent.create(
         id,
         receiverWalletAddressId,
         receiverWalletAddress,
-        PaymentIntentDestination.LOCAL, // TODO: determine from peer lookup
+        destination,
         walletAddress.assetCode,
         walletAddress.assetScale,
         expiresAt ?? null,
@@ -211,6 +232,8 @@ export class PaymentIntentAggregate {
 
       const paymentIntent = PaymentIntent.fromObject(paymentIntentObj);
 
+      // TODO (FX): for local quotes, the exchange rate is fetched here and used to compute amounts.
+      // Unclear what service backs _ratesService and whether this is the correct/authoritative FX source.
       const exchangeRate = await this._ratesService.getRate(
         walletAddress.assetCode,
         paymentIntent.assetCode
@@ -220,34 +243,70 @@ export class PaymentIntentAggregate {
         throw new RatesError('Could not get rates during quoting');
       }
 
-      // TODO: handle ILP quotes
-      if (paymentIntent.destination !== 'LOCAL') {
-        throw new PaymentIntentInvalidState(
-          'Payment intent destination must be local'
+      if (paymentIntent.destination === 'LOCAL') {
+        paymentIntent.addLocalQuote({
+          id: quoteId,
+          senderWalletAddress: {
+            id: senderWalletAddressId,
+            address: senderWalletAddress,
+            assetScale: walletAddress.assetScale,
+            assetCode: walletAddress.assetCode
+          },
+          debitAmount: debitAmount ? BigInt(debitAmount) : undefined,
+          receiveAmount: receiveAmount ? BigInt(receiveAmount) : undefined,
+          exchangeRate
+        });
+
+        this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
+        this.appendToMap(
+          this.newPaymentIntentQuotes,
+          paymentIntent.id,
+          quoteId
         );
+
+        return new QuoteCompletedEvent({ id: quoteId }, cmd.requestId);
       }
 
-      paymentIntent.addLocalQuote({
+      // TODO: Diagram shows "Determine peer based on destination address" using ILP BC.
+      // rafiki-poc/internal-docs/sequence-diagrams/ILP/Remote Quote - Sending.md
+      // Unclear what this is signifying. Kinda looks async (no response) but seems
+      // to indicate we are getting the peer, except surely we would ge this from PAL?
+
+      // REMOTE: create pending quote, emit event for ILP BC to initiate quoting
+      // TODO: debitAmount/receiveAmount on RemoteQuoteRequestedEvent sufficient for auditing or
+      // should we store on quote as well? requestedDebitAmount etc.
+      // - FWIW, Rafiki v1 does not persist requested (nor has event to trace)
+      paymentIntent.addPendingRemoteQuote({
         id: quoteId,
         senderWalletAddress: {
           id: senderWalletAddressId,
-          address: senderWalletAddress,
-          assetScale: walletAddress.assetScale,
-          assetCode: walletAddress.assetCode
-        },
-        debitAmount: debitAmount ? BigInt(debitAmount) : undefined,
-        receiveAmount: receiveAmount ? BigInt(receiveAmount) : undefined,
-        exchangeRate
+          address: senderWalletAddress
+        }
       });
 
       this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
       this.appendToMap(this.newPaymentIntentQuotes, paymentIntent.id, quoteId);
 
-      const quoteCompletedEvent = new QuoteCompletedEvent(
-        { id: quoteId },
+      // TODO:
+      // - include peer/ilp details. What exactly?
+      // - does ILP BC need receiver asset code/scale. I believe rafiki v1 does not include
+      //   because ILP pay discovers internally.
+      return new RemoteQuoteRequestedEvent(
+        {
+          quoteId,
+          paymentIntentId,
+          senderWalletAddress,
+          senderWalletAddressId,
+          receiverWalletAddress: paymentIntent.receiverWalletAddress,
+          senderAssetCode: walletAddress.assetCode,
+          senderAssetScale: walletAddress.assetScale,
+          receiverAssetCode: paymentIntent.assetCode,
+          receiverAssetScale: paymentIntent.assetScale,
+          debitAmount: debitAmount ? BigInt(debitAmount) : undefined,
+          receiveAmount: receiveAmount ? BigInt(receiveAmount) : undefined
+        },
         cmd.requestId
       );
-      return quoteCompletedEvent;
     } catch (err) {
       const event = new QuoteCreateFailedEvent(
         {
@@ -336,6 +395,59 @@ export class PaymentIntentAggregate {
 
       return event;
     }
+  }
+
+  private handleFinalizeRemoteQuoteCommand(cmd: FinalizeRemoteQuoteCmd) {
+    const {
+      quoteId,
+      paymentIntentId,
+      debitAmount,
+      receiveAmount,
+      exchangeRate
+    } = cmd.payload;
+
+    try {
+      const paymentIntentObj = this.paymentIntentMap.get(paymentIntentId);
+      if (!paymentIntentObj) {
+        throw new PaymentIntentNotFoundError(
+          `Payment intent ${paymentIntentId} not found`
+        );
+      }
+
+      const paymentIntent = PaymentIntent.fromObject(paymentIntentObj);
+
+      // TODO (FX): exchange rate is provided by ILP BC via FinalizeRemoteQuoteCmd.
+      // Should Payments BC validate or cross-check this rate against its own FX source?
+      paymentIntent.completeRemoteQuote({
+        id: quoteId,
+        debitAmount: BigInt(debitAmount),
+        receiveAmount: BigInt(receiveAmount),
+        exchangeRate
+      });
+
+      this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
+      this.appendToMap(this.newPaymentIntentQuotes, paymentIntent.id, quoteId);
+
+      // TODO: include exchange rate per Max's slack comment? Kinda breaks pattern of just returning id's
+      // and looking up where we care to. Clarify this idea.
+      return new QuoteCompletedEvent({ id: quoteId }, cmd.requestId);
+    } catch (err) {
+      return new QuoteCreateFailedEvent(
+        {
+          errorName: (err as Error).constructor.name,
+          message: (err as Error).message
+        },
+        cmd.requestId
+      );
+    }
+  }
+
+  private handleFailRemoteQuoteCommand(cmd: FailRemoteQuoteCmd) {
+    // TODO: should we change from PENDING to a new FAILED QuoteState? Could it ever be retried? Anything else?
+    return new QuoteCreateFailedEvent(
+      { errorName: cmd.payload.errorName, message: cmd.payload.message },
+      cmd.requestId
+    );
   }
 
   private async handleApprovePaymentCommand(cmd: ApprovePaymentCmd) {

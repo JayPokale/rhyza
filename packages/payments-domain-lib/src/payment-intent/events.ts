@@ -129,6 +129,58 @@ export class PaymentCreateFailedEvent extends DomainEventMsg {
   }
 }
 
+export interface RemoteQuoteRequestedPayload {
+  quoteId: string;
+  paymentIntentId: string;
+  senderWalletAddress: string;
+  senderWalletAddressId: string;
+  receiverWalletAddress: string;
+  senderAssetCode: string;
+  senderAssetScale: number;
+  receiverAssetCode: string;
+  receiverAssetScale: number;
+  debitAmount?: bigint;
+  receiveAmount?: bigint;
+}
+
+export class RemoteQuoteRequestedEvent extends DomainEventMsg {
+  contextName: string = BOUNDED_CONTEXT_NAME;
+  aggregateId: string;
+  aggregateName: string = AGGREGATE_NAME;
+  msgKey: string;
+  msgTopic: string = EventTopics.PaymentEvents;
+  payload: RemoteQuoteRequestedPayload;
+
+  constructor(payload: RemoteQuoteRequestedPayload, requestId?: string) {
+    super();
+    this.aggregateId = this.msgKey = payload.paymentIntentId;
+    this.payload = payload;
+    this.requestId = requestId;
+  }
+}
+
+export interface RemoteQuoteFailedPayload {
+  errorName: string;
+  message: string;
+}
+
+export class RemoteQuoteFailedEvent extends DomainEventMsg {
+  contextName: string = BOUNDED_CONTEXT_NAME;
+  aggregateId: string;
+  aggregateName: string = AGGREGATE_NAME;
+  msgKey: string;
+  msgTopic: string = EventTopics.PaymentEvents;
+  isErrorEvent: boolean = true;
+  payload: RemoteQuoteFailedPayload;
+
+  constructor(payload: RemoteQuoteFailedPayload, requestId?: string) {
+    super();
+    this.aggregateId = this.msgKey = requestId ?? '';
+    this.payload = payload;
+    this.requestId = requestId;
+  }
+}
+
 export interface LocalPaymentCompletedPayload {
   id: string;
 }

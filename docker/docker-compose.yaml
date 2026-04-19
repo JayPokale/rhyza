@@ -68,6 +68,19 @@ services:
     networks:
       - rafiki-v2
 
+  payments-event-handler-service:
+    build:
+      context: ../
+      dockerfile: ./packages/payments-event-handler-service/Dockerfile
+    restart: always
+    environment:
+      KAFKA_URL: kafka:19092
+    depends_on:
+      init-kafka:
+        condition: service_completed_successfully
+    networks:
+      - rafiki-v2
+
   mongodb:
     image: mongo
     restart: unless-stopped
@@ -143,6 +156,7 @@ services:
       ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --topic logs
       ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 24 --topic payment-commands
       ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 24 --topic payment-events
+      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 24 --topic ilp-events
       echo -e '\nSuccessfully created the following topics:'
       ./kafka-topics.sh --bootstrap-server kafka:19092 --list
       "

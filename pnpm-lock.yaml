@@ -320,6 +320,16 @@ importers:
         version: 4.19.3
 
   packages/payments-event-handler-service:
+    dependencies:
+      common-types-lib:
+        specifier: workspace:*
+        version: link:../common-types-lib
+      implementations-lib:
+        specifier: workspace:*
+        version: link:../implementations-lib
+      payments-domain-lib:
+        specifier: workspace:*
+        version: link:../payments-domain-lib
     devDependencies:
       tsx:
         specifier: ^4.19.3

@@ -313,6 +313,88 @@ export class PaymentIntent implements IPaymentIntent {
     this._quotes.push(quote);
   }
 
+  addPendingRemoteQuote(args: {
+    id: string;
+    senderWalletAddress: {
+      id: string;
+      address: string;
+    };
+  }): void {
+    const { id, senderWalletAddress } = args;
+
+    if (this.state !== 'CREATED') {
+      throw new PaymentIntentInvalidState(
+        `Payment intent is in an invalid state for quoting: ${this.state}`
+      );
+    }
+
+    if (this.isExpired) {
+      throw new PaymentIntentExpired(
+        `Payment intent is expired at: ${this.expiresAt.toISOString()}`
+      );
+    }
+
+    if (this.quotes.find((quote) => quote.id === id)) {
+      throw new InvalidQuoteIdError(
+        `Duplicate quote id ${id} exists for ${this.id} payment intent`
+      );
+    }
+
+    const quote: Quote = {
+      id,
+      state: 'PENDING',
+      senderWalletAddress: senderWalletAddress.address,
+      senderWalletAddressId: senderWalletAddress.id
+    };
+
+    this._quotes.push(quote);
+  }
+
+  completeRemoteQuote(args: {
+    id: string;
+    debitAmount: bigint;
+    receiveAmount: bigint;
+    exchangeRate: number;
+  }): void {
+    const { id, debitAmount, receiveAmount, exchangeRate } = args;
+
+    const quote = this._quotes.find((q) => q.id === id);
+    if (!quote) {
+      throw new InvalidQuoteIdError(
+        `Quote ${id} not found for ${this.id} payment intent`
+      );
+    }
+
+    if (quote.state !== 'PENDING') {
+      throw new InvalidQuoteStateError(
+        `Quote ${id} is not in PENDING state, cannot complete`
+      );
+    }
+
+    if (this.isExpired) {
+      throw new PaymentIntentExpired(
+        `Payment intent is expired at: ${this.expiresAt.toISOString()}`
+      );
+    }
+
+    const quoteDefaultExpiryMs = Date.now() + QUOTE_EXPIRY_MS;
+    const completedQuote: CompletedQuote = {
+      id: quote.id,
+      state: 'COMPLETED',
+      senderWalletAddress: quote.senderWalletAddress,
+      senderWalletAddressId: quote.senderWalletAddressId,
+      debitAmount,
+      receiveAmount,
+      exchangeRate,
+      expiresAt: new Date(
+        Math.min(this.expiresAt.getTime(), quoteDefaultExpiryMs)
+      )
+    };
+
+    const idx = this._quotes.indexOf(quote);
+    this._quotes[idx] = completedQuote;
+  }
+
   addLocalPayment(args: {
     id: string;
     quoteId?: string;

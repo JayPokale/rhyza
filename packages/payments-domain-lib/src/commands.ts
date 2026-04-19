@@ -78,6 +78,53 @@ export class CreatePaymentCmd extends CommandMsg {
   }
 }
 
+export interface FinalizeRemoteQuoteCmdPayload {
+  quoteId: string;
+  paymentIntentId: string;
+  debitAmount: number;
+  receiveAmount: number;
+  exchangeRate: number;
+}
+
+export class FinalizeRemoteQuoteCmd extends CommandMsg {
+  contextName: string = BOUNDED_CONTEXT_NAME;
+  aggregateId: string;
+  aggregateName: string = PAYMENT_INTENT_AGG_NAME;
+  msgKey: string;
+  msgTopic: string = CommandTopics.PaymentCommands;
+  payload: FinalizeRemoteQuoteCmdPayload;
+
+  constructor(payload: FinalizeRemoteQuoteCmdPayload, requestId: string) {
+    super();
+    this.aggregateId = this.msgKey = payload.paymentIntentId;
+    this.requestId = requestId;
+    this.payload = payload;
+  }
+}
+
+export interface FailRemoteQuoteCmdPayload {
+  quoteId: string;
+  paymentIntentId: string;
+  errorName: string;
+  message: string;
+}
+
+export class FailRemoteQuoteCmd extends CommandMsg {
+  contextName: string = BOUNDED_CONTEXT_NAME;
+  aggregateId: string;
+  aggregateName: string = PAYMENT_INTENT_AGG_NAME;
+  msgKey: string;
+  msgTopic: string = CommandTopics.PaymentCommands;
+  payload: FailRemoteQuoteCmdPayload;
+
+  constructor(payload: FailRemoteQuoteCmdPayload, requestId: string) {
+    super();
+    this.aggregateId = this.msgKey = payload.paymentIntentId;
+    this.requestId = requestId;
+    this.payload = payload;
+  }
+}
+
 export interface ApprovePaymentCmdPayload {
   id: string;
   paymentIntentId: string;
