@@ -20,7 +20,7 @@ export interface IPacketCorrelation {
   rejectMessage?: string;
   // Who caused the ILP reject (remote peer, internal or another hop)
   // TODO: Make enum or remove?
-  rejectTriggeredBy?: string; 
+  rejectTriggeredBy?: string;
   fulfilledAt?: Date;
   rejectedAt?: Date;
   expiredAt?: Date;
