@@ -1,0 +1,201 @@
+syntax = "proto3";
+package rafiki.auth.service;
+
+service RafikiAuth {
+	// Grant RPCs
+	rpc CreateGrant(GrantRequest) returns (Grant) {}
+	rpc ContinueGrant(GrantContinuationRequest) returns (Grant) {}
+	rpc RevokeGrant(GrantRevocationRequest) returns (Grant) {}
+	// Access Token RPCs
+	rpc IntrospectToken(TokenIntrospectionRequest) returns (TokenInfo) {}
+	rpc RotateToken(TokenRotationRequest) returns (AccessToken) {}
+	rpc RevokeToken(TokenRevocationRequest) returns (AccessToken) {}
+	// Interaction RPCs
+	rpc StartInteraction(StartInteractionRequest) returns (StartOrFinishInteractionResponse) {}
+	rpc FinishInteraction(FinishInteractionRequest) returns (StartOrFinishInteractionResponse) {}
+	rpc GetGrantDetails(GetGrantDetailsRequest) returns (GrantDetails) {}
+	rpc AcceptInteraction(InteractionChoiceRequest)  returns (InteractionChoiceResponse) {}
+	rpc RejectInteraction(InteractionChoiceRequest) returns (InteractionChoiceResponse) {}
+}
+
+message AccessItem {
+	AccessType type = 1;
+	AccessLimits limits = 2;
+	repeated AccessAction actions = 3;
+	string identifier = 4;
+}
+
+message GrantAccessToken {
+	string value = 1;
+	string manage = 2;
+	int32 expires_in = 3;
+	repeated AccessItem access = 4;
+}
+
+message GrantContinuation {
+	message GrantContinueAccessToken {
+		string value = 1;
+	}
+	GrantContinueAccessToken access_token = 1;
+	string uri = 2;
+	int32 wait = 3;
+}
+
+message Grant {
+	GrantAccessToken access_token = 1;
+	GrantContinuation continue = 2; 
+}
+
+enum AccessType {
+	INCOMING_PAYMENT = 0;
+	OUTGOING_PAYMENT = 1;
+	QUOTE = 2;
+}
+
+enum AccessAction {
+	CREATE = 0;
+	COMPLETE = 1;
+	READ = 2;
+	READ_ALL = 3;
+	LIST = 4;
+	LIST_ALL = 5;
+}
+
+message Amount {
+	string value = 1;
+	string asset_code = 2;
+	int32 asset_scale = 3;	
+}
+
+message AccessLimits {
+	string receiver = 1;
+	Amount debit_amount = 2;
+	Amount send_amount = 3;
+	string interval = 4;
+}
+
+message GrantRequestAccessToken {
+	repeated AccessItem access = 1;
+}
+
+enum StartMethod {
+	START_REDIRECT = 0;
+}
+
+enum FinishMethod {
+	FINISH_REDIRECT = 0;
+}
+
+message GrantRequestFinish {
+	FinishMethod finish = 1;
+	string uri = 2;
+	string nonce = 3;
+}
+
+message GrantRequestInteract {
+	repeated StartMethod start = 1;
+	GrantRequestFinish finish = 2;
+}
+
+message SubjectId {
+	string format = 1;
+	string id = 2;
+}
+
+message Subject {
+	repeated SubjectId sub_ids = 1;
+}
+
+message GrantRequest {
+	string tenant_id = 1;
+	GrantRequestAccessToken access_token = 2;
+	string client = 3;
+	GrantRequestInteract interact = 4;
+	Subject subject = 5;
+}
+
+message GrantContinuationRequest {
+	string continue_id = 1;
+	string continue_token = 2;
+	string interact_ref = 3;
+}
+
+message GrantRevocationRequest {
+	string tenant_id = 1;
+	string continue_id = 2;
+	string continue_token = 3;
+}
+
+message AccessToken {
+	repeated AccessItem access = 1;
+	string tokenvalue = 2;
+	string manage = 3;
+	int32 expires_in = 4;
+}
+
+message TokenInfo {
+	bool active = 1;
+	string grant = 2;
+	repeated AccessItem access = 3;
+	string client = 4;
+}
+
+message TokenIntrospectionRequest {
+	string access_token = 1;
+	repeated AccessItem access = 2;
+}
+
+message TokenRotationRequest {
+	string access_token_id = 1;
+}
+
+message TokenRevocationRequest {
+	string access_token_id = 1;
+}
+
+message StartInteractionRequest {
+	string interact_id = 1;
+	string nonce = 2;
+	string client_name = 3;
+	string client_uri = 4;
+}
+
+enum InteractionState {
+	PENDING = 0;
+	APPROVED = 1;
+	DENIED = 2;
+}
+
+message StartOrFinishInteractionResponse {
+	string redirect_uri = 1;
+}
+
+message FinishInteractionRequest {
+	string interact_id = 1;
+	string nonce = 2;
+	string session_nonce = 3;
+}
+
+message GetGrantDetailsRequest {
+	string interact_id = 1;
+	string nonce = 2;
+}
+
+message GrantDetails {
+	message GrantDetailsSubject {
+		repeated SubjectId sub_ids = 1;
+	}
+	string grant_id = 1;
+	repeated AccessItem access = 2;
+	Subject subject = 3;
+	InteractionState state = 4;
+}
+
+message InteractionChoiceResponse {
+	bool success = 1;
+}
+
+message InteractionChoiceRequest {
+	string interact_id = 1;
+	string nonce = 2;
+}
