@@ -117,7 +117,7 @@ export interface Interaction {
   expiresIn: number;
 }
 
-export interface IGrantNegotiationIntent {
+export interface GrantIntent {
   id: string;
   tenantId: string;
   startMethod: StartMethod[];
