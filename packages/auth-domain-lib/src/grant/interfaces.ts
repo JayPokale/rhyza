@@ -12,9 +12,9 @@ export interface Amount {
 
 export interface AccessLimit {
   receiver: string;
-  debitAmount: Amount;
-  sendAmount: Amount;
-  interval: string;
+  debitAmount?: Amount;
+  sendAmount?: Amount;
+  interval?: string;
 }
 
 export enum AccessAction {
@@ -30,7 +30,7 @@ export interface AccessItem {
   type: AccessType;
   limits: AccessLimit;
   actions: AccessAction[];
-  identifier: string;
+  identifier?: string;
 }
 
 export type NewAccessToken = Omit<AccessToken, 'revokedAt'>;
@@ -88,7 +88,7 @@ export interface SubjectId {
 }
 
 export interface GrantFinishMethod {
-  finish?: FinishMethod;
+  method: FinishMethod;
   uri: string;
   nonce: string;
 }

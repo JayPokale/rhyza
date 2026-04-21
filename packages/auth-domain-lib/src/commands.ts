@@ -1,33 +1,58 @@
 import { CommandMsg, CommandTopics } from 'common-types-lib';
-import {
-  AccessItem,
-  AccessToken,
-  GrantInteractionMethod,
-  Subject
-} from './grant-negotiation/interfaces';
 
 const BOUNDED_CONTEXT_NAME = 'auth';
-const GRANT_NEGOTIATION_AGGREGATE_NAME = 'grant-negotiation';
-const AUTH_MANAGEMENT_AGGREGATE_NAME = 'authorization-management';
+const GRANT_AGGREGATE_NAME = 'grant';
 
-export interface CreateGrantPayload {
+interface AmountPayload {
+  value: string;
+  assetCode: string;
+  assetScale: number;
+}
+
+interface LimitPayload {
+  reciever: string;
+  debitAmount?: AmountPayload;
+  sendAmount?: AmountPayload;
+  interval?: string;
+}
+
+export interface CreateGrantCmdPayload {
   id: string;
   tenantId: string;
-  accessToken?: AccessToken;
+  accessToken?: {
+    access: {
+      identifier?: string;
+      type: string;
+      actions: string[];
+      limits?: LimitPayload;
+    }[];
+  };
   client?: string;
-  interact?: GrantInteractionMethod;
-  subject?: Subject;
+  interact?: {
+    start: string[];
+    finish?: {
+      method: string;
+      uri: string;
+      nonce: string;
+    };
+  };
+  subject?: {
+    sub_ids: {
+      format: string;
+      id: string;
+    }[];
+  };
 }
 
 export class CreateGrantCmd extends CommandMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateId: string;
-  aggregateName: string = GRANT_NEGOTIATION_AGGREGATE_NAME;
+  aggregateName: string = GRANT_AGGREGATE_NAME;
   msgKey: string;
   msgTopic: string = CommandTopics.AuthCommands;
-  payload: CreateGrantPayload;
+  payload: CreateGrantCmdPayload;
 
-  constructor(payload: CreateGrantPayload, requestId: string) {
+  constructor(payload: CreateGrantCmdPayload, requestId: string) {
     super();
     this.requestId = requestId;
     this.aggregateId = this.msgKey = payload.id;
@@ -35,30 +60,7 @@ export class CreateGrantCmd extends CommandMsg {
   }
 }
 
-export interface ContinueGrantPayload {
-  id: string;
-  continueId: string;
-  continueToken: string;
-  interactRef: string;
-}
-
-export class ContinueGrantCmd extends CommandMsg {
-  contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
-  aggregateName: string = GRANT_NEGOTIATION_AGGREGATE_NAME;
-  msgKey: string;
-  msgTopic: string = CommandTopics.AuthCommands;
-  payload: ContinueGrantPayload;
-
-  constructor(payload: ContinueGrantPayload, requestId: string) {
-    super();
-    this.requestId = requestId;
-    this.aggregateId = this.msgKey = payload.id;
-    this.payload = payload;
-  }
-}
-
-export interface RevokeGrantPayload {
+export interface RevokeGrantCmdPayload {
   id: string;
   tenantId: string;
   continueId: string;
@@ -68,12 +70,12 @@ export interface RevokeGrantPayload {
 export class RevokeGrantCmd extends CommandMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateId: string;
-  aggregateName: string = GRANT_NEGOTIATION_AGGREGATE_NAME;
+  aggregateName: string = GRANT_AGGREGATE_NAME;
   msgKey: string;
   msgTopic: string = CommandTopics.AuthCommands;
-  payload: RevokeGrantPayload;
+  payload: RevokeGrantCmdPayload;
 
-  constructor(payload: RevokeGrantPayload, requestId: string) {
+  constructor(payload: RevokeGrantCmdPayload, requestId: string) {
     super();
     this.requestId = requestId;
     this.aggregateId = this.msgKey = payload.id;
@@ -81,21 +83,27 @@ export class RevokeGrantCmd extends CommandMsg {
   }
 }
 
-export interface IntrospectTokenPayload {
+export interface FinalizeGrantCmdPayload {
   id: string; // ID of associated grant.
-  accessToken: string;
-  access: AccessItem[];
+  finalizationReason: string;
+  accessToken?: {
+    id: string;
+    value: string;
+    managementId: string;
+    expiresIn: number;
+    revokedAt?: string;
+  };
 }
 
-export class IntrospectTokenCmd extends CommandMsg {
+export class FinalizeGrantCommand extends CommandMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateId: string;
-  aggregateName: string = AUTH_MANAGEMENT_AGGREGATE_NAME;
+  aggregateName: string = GRANT_AGGREGATE_NAME;
   msgKey: string;
   msgTopic: string = CommandTopics.AuthCommands;
-  payload: IntrospectTokenPayload;
+  payload: FinalizeGrantCmdPayload;
 
-  constructor(payload: IntrospectTokenPayload, requestId: string) {
+  constructor(payload: FinalizeGrantCmdPayload, requestId: string) {
     super();
     this.requestId = requestId;
     this.aggregateId = this.msgKey = payload.id;
@@ -103,7 +111,7 @@ export class IntrospectTokenCmd extends CommandMsg {
   }
 }
 
-export interface RotateTokenPayload {
+export interface RotateTokenCmdPayload {
   id: string; // ID of the associated grant.
   accessTokenId: string;
 }
@@ -111,12 +119,12 @@ export interface RotateTokenPayload {
 export class RotateTokenCmd extends CommandMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateId: string;
-  aggregateName: string = AUTH_MANAGEMENT_AGGREGATE_NAME;
+  aggregateName: string = GRANT_AGGREGATE_NAME;
   msgKey: string;
   msgTopic: string = CommandTopics.AuthCommands;
-  payload: RotateTokenPayload;
+  payload: RotateTokenCmdPayload;
 
-  constructor(payload: RotateTokenPayload, requestId: string) {
+  constructor(payload: RotateTokenCmdPayload, requestId: string) {
     super();
     this.requestId = requestId;
     this.aggregateId = this.msgKey = payload.id;
@@ -124,90 +132,21 @@ export class RotateTokenCmd extends CommandMsg {
   }
 }
 
-export interface StartInteractionPayload {
-  id: string; // ID of the associated grant.
-  interactId: string;
-  nonce: string;
-  clientName: string;
-  clientUri: string;
-}
-
-export class StartInteractionCmd extends CommandMsg {
-  contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
-  aggregateName: string = GRANT_NEGOTIATION_AGGREGATE_NAME;
-  msgKey: string;
-  msgTopic: string = CommandTopics.AuthCommands;
-  payload: StartInteractionPayload;
-
-  constructor(payload: StartInteractionPayload, requestId: string) {
-    super();
-    this.requestId = requestId;
-    this.aggregateId = this.msgKey = payload.id;
-    this.payload = payload;
-  }
-}
-
-export interface FinishInteractionPayload {
-  id: string; // ID of the associated grant.
-  interactId: string;
-  nonce: string;
-  sessionNonce: string;
-}
-
-export class FinishInteractionCmd extends CommandMsg {
-  contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
-  aggregateName: string = GRANT_NEGOTIATION_AGGREGATE_NAME;
-  msgKey: string;
-  msgTopic: string = CommandTopics.AuthCommands;
-  payload: FinishInteractionPayload;
-
-  constructor(payload: FinishInteractionPayload, requestId: string) {
-    super();
-    this.requestId = requestId;
-    this.aggregateId = this.msgKey = payload.id;
-    this.payload = payload;
-  }
-}
-
-export interface GetGrantDetailsPayload {
-  id: string; // ID of the associated grant.
-  interactId: string;
-  nonce: string;
-}
-
-export class GetGrantDetailsCmd extends CommandMsg {
-  contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
-  aggregateName: string = GRANT_NEGOTIATION_AGGREGATE_NAME;
-  msgKey: string;
-  msgTopic: string = CommandTopics.AuthCommands;
-  payload: GetGrantDetailsPayload;
-
-  constructor(payload: GetGrantDetailsPayload, requestId: string) {
-    super();
-    this.requestId = requestId;
-    this.aggregateId = this.msgKey = payload.id;
-    this.payload = payload;
-  }
-}
-
-export interface MakeInteractionChoicePayload {
+export interface InteractionChoiceCmdPayload {
   id: string;
   interactId: string;
   nonce: string;
 }
 
-export class MakeInteractionChoiceCommand extends CommandMsg {
+export class InteractionChoiceCommand extends CommandMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateId: string;
-  aggregateName: string = GRANT_NEGOTIATION_AGGREGATE_NAME;
+  aggregateName: string = GRANT_AGGREGATE_NAME;
   msgKey: string;
   msgTopic: string = CommandTopics.AuthCommands;
-  payload: MakeInteractionChoicePayload;
+  payload: InteractionChoiceCmdPayload;
 
-  constructor(payload: MakeInteractionChoicePayload, requestId: string) {
+  constructor(payload: InteractionChoiceCmdPayload, requestId: string) {
     super();
     this.requestId = requestId;
     this.aggregateId = this.msgKey = payload.id;
