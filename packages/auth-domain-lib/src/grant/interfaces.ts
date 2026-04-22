@@ -105,7 +105,10 @@ export interface IInteraction {
   expiresIn: number;
 }
 
+export type IGrantEntity = Omit<IGrant, 'id'>;
+
 export interface IGrant {
+  id: string;
   tenantId: string;
   startMethods: IStartMethod[];
   identifier: string;

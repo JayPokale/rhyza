@@ -15,7 +15,8 @@ import {
   ISubject,
   IAccessToken,
   RevokedAccessToken,
-  NewAccessToken
+  NewAccessToken,
+  IGrantEntity
 } from './interfaces';
 
 interface IGrantInput {
@@ -36,7 +37,7 @@ interface IGrantInput {
   accessTokens: Map<string, IAccessToken>;
 }
 
-export class GrantEntity implements IGrant {
+export class GrantEntity implements IGrantEntity {
   private _id: string;
   private _tenantId: string;
   private _startMethods: IStartMethod[];
@@ -74,16 +75,13 @@ export class GrantEntity implements IGrant {
     this._lastContinuedAt = input.lastContinuedAt;
   }
 
-  static create(input: IGrantInput): GrantEntity {
-    return new GrantEntity(input);
-  }
-
-  static fromObject(obj: IGrant): GrantEntity {
+  static fromObject(obj: IGrantInput): GrantEntity {
     return new GrantEntity(obj);
   }
 
   toObject(): IGrant {
     return {
+      id: this._id,
       tenantId: this._tenantId,
       interaction: this._interaction,
       startMethods: this._startMethods,
