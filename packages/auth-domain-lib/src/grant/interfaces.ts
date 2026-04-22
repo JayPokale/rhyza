@@ -4,16 +4,16 @@ export enum AccessType {
   QUOTE = 'QUOTE'
 }
 
-export interface Amount {
+export interface IAmount {
   value: string;
   assetCode: string;
   assetScale: number;
 }
 
-export interface AccessLimit {
+export interface IAccessLimit {
   receiver: string;
-  debitAmount?: Amount;
-  sendAmount?: Amount;
+  debitAmount?: IAmount;
+  sendAmount?: IAmount;
   interval?: string;
 }
 
@@ -26,20 +26,20 @@ export enum AccessAction {
   LIST_ALL = 'list-all'
 }
 
-export interface AccessItem {
+export interface IAccessItem {
   type: AccessType;
-  limits: AccessLimit;
+  limits: IAccessLimit;
   actions: AccessAction[];
   identifier?: string;
 }
 
-export type NewAccessToken = Omit<AccessToken, 'revokedAt'>;
+export type NewAccessToken = Omit<IAccessToken, 'revokedAt'>;
 
-export type RevokedAccessToken = AccessToken & {
+export type RevokedAccessToken = IAccessToken & {
   revokedAt: Date;
 };
 
-export interface AccessToken {
+export interface IAccessToken {
   id: string;
   value: string;
   managementId: string;
@@ -52,7 +52,7 @@ export interface SubjectId {
   id: string;
 }
 
-export interface Subject {
+export interface ISubject {
   sub_ids: SubjectId[];
 }
 
@@ -66,7 +66,7 @@ export enum InteractionState {
   DENIED = 'denied'
 }
 
-export interface GrantContinuation {
+export interface IGrantContinuation {
   accessToken: {
     value: string;
   };
@@ -74,31 +74,31 @@ export interface GrantContinuation {
   wait: number;
 }
 
-export enum StartMethod {
+export enum IStartMethod {
   REDIRECT = 'redirect'
 }
 
-export enum FinishMethod {
+export enum IFinishMethod {
   REDIRECT = 'redirect'
 }
 
-export interface SubjectId {
+export interface ISubjectId {
   format: string;
   id: string;
 }
 
-export interface GrantFinishMethod {
-  method: FinishMethod;
+export interface IGrantFinishMethod {
+  method: IFinishMethod;
   uri: string;
   nonce: string;
 }
 
-export interface GrantInteractionMethod {
-  start: StartMethod[];
-  finish: GrantFinishMethod;
+export interface IGrantInteractionMethod {
+  start: IStartMethod[];
+  finish: IGrantFinishMethod;
 }
 
-export interface AccessRequest {
+export interface IAccessRequest {
   actions: AccessAction[];
   identifier?: string;
 }
@@ -110,28 +110,28 @@ export enum GrantState {
   FINALIZED = 'finalized'
 }
 
-export interface Interaction {
+export interface IInteraction {
   interactRef: string;
   clientNonce: string;
   state: InteractionState;
   expiresIn: number;
 }
 
-export interface GrantIntent {
+export interface IGrantIntent {
   id: string;
   tenantId: string;
-  startMethod: StartMethod[];
+  startMethod: IStartMethod[];
   identifier: string;
   continueToken: string;
   continueId: string;
   state: GrantState;
   client?: string;
-  subject?: Subject;
-  access?: AccessItem[];
-  finishMethod?: FinishMethod;
+  subject?: ISubject;
+  access?: IAccessItem[];
+  finishMethod?: IFinishMethod;
   finishUri?: string;
-  interaction?: Interaction;
+  interaction?: IInteraction;
   lastContinuedAt?: Date;
-  lastIssuedAccessToken?: AccessToken;
-  accessTokens: Map<string, AccessToken>;
+  lastIssuedAccessToken?: IAccessToken;
+  accessTokens: Map<string, IAccessToken>;
 }
