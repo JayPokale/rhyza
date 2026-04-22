@@ -21,7 +21,7 @@ import {
 interface IGrantInput {
   id: string;
   tenantId: string;
-  startMethod: IStartMethod[];
+  startMethods: IStartMethod[];
   identifier: string;
   continueToken: string;
   continueId: string;
@@ -29,7 +29,7 @@ interface IGrantInput {
   interaction?: IInteraction;
   client?: string;
   subject?: ISubject;
-  access?: IAccessItem[];
+  accesses?: IAccessItem[];
   finishMethod?: IFinishMethod;
   finishUri?: string;
   lastContinuedAt?: Date;
@@ -39,14 +39,14 @@ interface IGrantInput {
 export class GrantEntity implements IGrant {
   private _id: string;
   private _tenantId: string;
-  private _startMethod: IStartMethod[];
+  private _startMethods: IStartMethod[];
   private _identifier: string;
   private _continueToken: string;
   private _continueId: string;
   private _state: GrantState;
   private _client?: string;
   private _subject?: ISubject;
-  private _access?: IAccessItem[];
+  private _accesses?: IAccessItem[];
   private _finishMethod?: IFinishMethod;
   private _finishUri?: string;
   private _interaction?: IInteraction;
@@ -59,7 +59,7 @@ export class GrantEntity implements IGrant {
   private constructor(input: IGrantInput) {
     this._id = input.id;
     this._tenantId = input.tenantId;
-    this._startMethod = input.startMethod;
+    this._startMethods = input.startMethods;
     this._identifier = input.identifier;
     this._continueToken = input.continueToken;
     this._continueId = input.continueId;
@@ -67,7 +67,7 @@ export class GrantEntity implements IGrant {
 
     this._client = input.client;
     this._subject = input.subject;
-    this._access = input.access;
+    this._accesses = input.accesses;
     this._finishMethod = input.finishMethod;
     this._finishUri = input.finishUri;
     this._interaction = input.interaction;
@@ -84,17 +84,16 @@ export class GrantEntity implements IGrant {
 
   toObject(): IGrant {
     return {
-      id: this._id,
       tenantId: this._tenantId,
       interaction: this._interaction,
-      startMethod: this._startMethod,
+      startMethods: this._startMethods,
       identifier: this._identifier,
       continueToken: this._continueToken,
       continueId: this._continueId,
       state: this._state,
       client: this._client,
       subject: this._subject,
-      access: this._access,
+      accesses: this._accesses,
       finishMethod: this._finishMethod,
       finishUri: this._finishUri,
       lastContinuedAt: this._lastContinuedAt,
@@ -103,7 +102,7 @@ export class GrantEntity implements IGrant {
   }
 
   addInteraction(interaction: IInteraction) {
-    if (!this._startMethod) {
+    if (!this._startMethods) {
       throw new NonInteractiveGrantError();
     }
 
@@ -141,16 +140,12 @@ export class GrantEntity implements IGrant {
     this._accessTokens.set(accessToken.id, accessToken);
   }
 
-  get id(): string {
-    return this._id;
-  }
-
   get tenantId(): string {
     return this._tenantId;
   }
 
-  get startMethod(): IStartMethod[] {
-    return this._startMethod;
+  get startMethods(): IStartMethod[] {
+    return this._startMethods;
   }
 
   get identifier(): string {
@@ -177,8 +172,8 @@ export class GrantEntity implements IGrant {
     return this._subject;
   }
 
-  get access(): IAccessItem[] | undefined {
-    return this._access;
+  get accesses(): IAccessItem[] | undefined {
+    return this._accesses;
   }
 
   get finishMethod(): IFinishMethod | undefined {

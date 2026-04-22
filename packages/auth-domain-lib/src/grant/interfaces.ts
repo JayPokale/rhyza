@@ -106,16 +106,15 @@ export interface IInteraction {
 }
 
 export interface IGrant {
-  id: string;
   tenantId: string;
-  startMethod: IStartMethod[];
+  startMethods: IStartMethod[];
   identifier: string;
   continueToken: string;
   continueId: string;
   state: GrantState;
   client?: string;
   subject?: ISubject;
-  access?: IAccessItem[];
+  accesses?: IAccessItem[];
   finishMethod?: IFinishMethod;
   finishUri?: string;
   interaction?: IInteraction;
