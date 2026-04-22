@@ -136,7 +136,7 @@ export interface IAccessToken {
   revokedAt?: Date;
 }
 
-export interface AccessRequest {
+export interface IAccessRequest {
   actions: AccessAction[];
   identifier?: string;
 }
