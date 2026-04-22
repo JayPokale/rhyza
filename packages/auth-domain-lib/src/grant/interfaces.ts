@@ -159,7 +159,7 @@ export interface IJsonWebKey {
   x: string;
 }
 
-export interface AccessRequest {
+export interface IAccessRequest {
   actions: AccessAction[];
   identifier?: string;
 }
