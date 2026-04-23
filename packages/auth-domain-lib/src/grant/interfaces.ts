@@ -123,7 +123,7 @@ export interface IInteraction {
   expiresIn: number;
 }
 
-export interface IGrantIntent {
+export interface IGrant {
   id: string;
   tenantId: string;
   startMethod: IStartMethod[];
