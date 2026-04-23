@@ -1,8 +1,9 @@
-export enum AccessType {
-  INCOMING_PAYMENT = 'INCOMING_PAYMENT',
-  OUTGOING_PAYMENT = 'OUTGOING_PAYMENT',
-  QUOTE = 'QUOTE'
-}
+export const AccessType = {
+  INCOMING_PAYMENT: 'INCOMING_PAYMENT',
+  OUTGOING_PAYMENT: 'OUTGOING_PAYMENT',
+  QUOTE: 'QUOTE'
+} as const;
+export type AccessType = keyof typeof AccessType;
 
 export interface IAmount {
   value: string;
@@ -17,14 +18,15 @@ export interface IAccessLimit {
   interval?: string;
 }
 
-export enum AccessAction {
-  CREATE = 'create',
-  COMPLETE = 'complete',
-  READ = 'read',
-  READ_ALL = 'read-all',
-  LIST = 'list',
-  LIST_ALL = 'list-all'
-}
+export const AccessAction = {
+  CREATE: 'CREATE',
+  COMPLETE: 'COMPLETE',
+  READ: 'READ',
+  READ_ALL: 'READ_ALL',
+  LIST: 'LIST',
+  LIST_ALL: 'LIST_ALL'
+} as const;
+export type AccessAction = keyof typeof AccessAction;
 
 export interface IAccessItem {
   type: AccessType;
@@ -57,14 +59,15 @@ export interface ISubject {
 }
 
 export type InteractionChoice =
-  | InteractionState.APPROVED
-  | InteractionState.DENIED;
+  | typeof InteractionState.APPROVED
+  | typeof InteractionState.DENIED;
 
-export enum InteractionState {
-  PENDING = 'pending',
-  APPROVED = 'approved',
-  DENIED = 'denied'
-}
+export const InteractionState = {
+  PENDING: 'PENDING',
+  APPROVED: 'APPROVED',
+  DENIED: 'DENIED'
+} as const;
+export type InteractionState = keyof typeof InteractionState;
 
 export interface IGrantContinuation {
   accessToken: {
@@ -74,13 +77,15 @@ export interface IGrantContinuation {
   wait: number;
 }
 
-export enum IStartMethod {
-  REDIRECT = 'redirect'
-}
+export const IStartMethod = {
+  REDIRECT: 'REDIRECT'
+} as const;
+export type IStartMethod = keyof typeof IStartMethod;
 
-export enum IFinishMethod {
-  REDIRECT = 'redirect'
-}
+export const IFinishMethod = {
+  REDIRECT: 'REDIRECT'
+} as const;
+export type IFinishMethod = keyof typeof IFinishMethod;
 
 export interface ISubjectId {
   format: string;
@@ -103,12 +108,13 @@ export interface IAccessRequest {
   identifier?: string;
 }
 
-export enum GrantState {
-  PROCESSING = 'processing',
-  PENDING = 'pending',
-  APPROVED = 'approved',
-  FINALIZED = 'finalized'
-}
+export const GrantState = {
+  PROCESSING: 'PROCESSING',
+  PENDING: 'PENDING',
+  APPROVED: 'APPROVED',
+  FINALIZED: 'FINALIZED'
+} as const;
+export type GrantState = keyof typeof GrantState;
 
 export interface IInteraction {
   interactRef: string;
