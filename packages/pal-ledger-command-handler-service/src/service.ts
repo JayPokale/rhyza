@@ -58,7 +58,7 @@ const kafkaProducerCommonOptions: KafkaProducerOptions = {
 };
 const kafkaConsumerCommonOptions: KafkaConsumerOptions = {
   consumerGroupId: 'ES_LEDGER_POC_COMMAND_SVC',
-  batchTimeoutMs: 250,
+  batchTimeoutMs: 50,
   batchSize: 50_000
 };
 
@@ -109,7 +109,7 @@ export class PalLedgerCommandHandlerService {
         .withLogger(this._logger)
         .withBrokerList(KAFKA_URL)
         .withClientId(INSTANCE_ID)
-        .withSerializerFactory(MessageSerializationFactory.instance())
+        .withSerializerFactory(this._msgSerializationFactory)
       kafkaBuilder = KafkaBuilder.instance();
     }
     this._kafkaBuilder = kafkaBuilder;

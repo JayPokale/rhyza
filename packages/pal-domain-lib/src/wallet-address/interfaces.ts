@@ -17,6 +17,13 @@ export interface IPalWalletAddress {
   isActive: boolean;
 }
 
+export interface IPalWalletAddressAlias {
+  domain: string | null;
+  pathName: string;
+  walletId: string;
+}
+
+
 export interface IPalWalletAddressRepository {
   store(walletAddress: IPalWalletAddress): Promise<void>;
   fetch(ids: string[]): Promise<IPalWalletAddress[]>;

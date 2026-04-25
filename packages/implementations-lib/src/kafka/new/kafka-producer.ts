@@ -44,7 +44,7 @@ export class KafkaProducer implements IMessageProducer {
     return retTopicMessages;
   }
 
-  async send(message: IMessage | IMessage[]): Promise<void> {
+  async sendWithoutAcks(message: IMessage | IMessage[]): Promise<void> {
     const topicMessages = this._convertIMessageArrayToTopicMessages(message);
 
     // eslint-disable-next-line
@@ -53,7 +53,7 @@ export class KafkaProducer implements IMessageProducer {
     this._logger?.debug(`${this.constructor.name} - send completed`);
   }
 
-  async sendWithAck(message: IMessage | IMessage[]): Promise<IMessageProducerAcks[]>{
+  async send(message: IMessage | IMessage[]): Promise<IMessageProducerAcks[]>{
     const topicMessages = this._convertIMessageArrayToTopicMessages(message);
 
     const acks:KafkaJS.RecordMetadata[]  = await this._producer.sendBatch({topicMessages});

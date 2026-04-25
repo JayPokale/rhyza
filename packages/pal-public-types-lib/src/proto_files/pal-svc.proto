@@ -26,7 +26,8 @@ service PalGrpc {
   // rpc LedgerProcessHighLevelRequests(PbLedgerHighLevelRequestList) returns (PbLedgerHighLevelResponseList);
 
   // TODO low level liquidity API
-  //rpc LedgerProcessHighLevelRequests(PbLedgerHighLevelRequestList) returns (PbLedgerHighLevelResponseList);
+  rpc CreateLedger(PbCreateLedgerRequest) returns (google.protobuf.Empty);
+  rpc CreateLedgerAccount(PbCreateLedgerAccountRequest) returns (google.protobuf.Empty);
 }
 
 /*
@@ -120,8 +121,21 @@ message PbCreateWalletAddressAliasRequest {
 Liquidity messages
 */
 
+
+// Low level requests
+
+
+message PbCreateLedgerRequest{
+  string ledgerAssetCode = 1;
+}
+
+message PbCreateLedgerAccountRequest{
+
+}
+
 /*
-// High level requests
+// High level requests - NOT HERE,  THESE ARE COMMANDS
+
 message PbLedgerHighLevelRequestList{
   repeated PbLedgerHighLevelRequest requests = 1;
 }
@@ -173,5 +187,3 @@ message PbLedgerHighLevelResponse {
   optional string error_message = 4;
 }
 */
-
-// Low level requests

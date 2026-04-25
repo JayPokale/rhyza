@@ -232,33 +232,36 @@ export class Ledger implements ILedger {
             throw new Error("Account with that ID already exists");
         }
 
-        const acc: ILedgerAccount ={
-            id: cmd.payload.id,
-            name: cmd.payload.name,
-            assetCode: cmd.payload.assetCode,
-            assetDisplayScale: cmd.payload.assetDisplayScale,
-            debitedAmount: 0n,
-            creditedAmount: 0n
-        }
+        TODO this should create the state event and apply it, so the apply is the same on commands and loads from stream
 
-        this._accounts.push(acc);
-
-        this._recordStateEvents([
-            new LedgerAccountCreatedStateEvent(
-                this._id, this._version.toString(),
-                {account: LedgerAccountDtoSerializer.toDTO(acc)}
-            )
-        ]);
-
-      this._uncommittedDomainEvents.push(new LegerAccountCreatedEvent(
-        this._id,
-        {
-          id: acc.id,
-          name: acc.name,
-          assetCode: acc.assetCode,
-          assetDisplayScale: acc.assetDisplayScale
-        }
-      ));
+        //
+        // const acc: ILedgerAccount ={
+        //     id: cmd.payload.id,
+        //     name: cmd.payload.name,
+        //     assetCode: cmd.payload.assetCode,
+        //     assetDisplayScale: cmd.payload.assetDisplayScale,
+        //     debitedAmount: 0n,
+        //     creditedAmount: 0n
+        // }
+        //
+        // this._accounts.push(acc);
+        //
+        // this._recordStateEvents([
+        //     new LedgerAccountCreatedStateEvent(
+        //         this._id, this._version.toString(),
+        //         {account: LedgerAccountDtoSerializer.toDTO(acc)}
+        //     )
+        // ]);
+        //
+        // this._uncommittedDomainEvents.push(new LegerAccountCreatedEvent(
+        //   this._id,
+        //   {
+        //     id: acc.id,
+        //     name: acc.name,
+        //     assetCode: acc.assetCode,
+        //     assetDisplayScale: acc.assetDisplayScale
+        //   }
+        // ));
     }
 
     private async _processPostTransactionCmd(cmd: PostTransactionCmd): Promise<void> {

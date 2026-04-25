@@ -25,7 +25,8 @@ export class IntegrationEventHandler {
     // TODO use correct event class names from the payments publict types lib
     //  (right now they are in the payments domain lib)
     for (const msg of messages) {
-      if(msg.msgName === "PaymentIntentCreatedEvent") {
+      // if(msg.msgName === "PaymentIntentCreatedEvent") {
+      if(msg.msgName === "RemotePaymentApprovedEvent") {
         // create a CheckBalanceAndReserveTransferCmd
       }else if(msg.msgName === "PaymentCreatedEvent") {
         // create a CommitTransferCmd

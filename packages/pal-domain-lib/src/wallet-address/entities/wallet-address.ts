@@ -10,6 +10,7 @@
 'use strict';
 
 import { IPalWalletAddress } from './interfaces';
+import {IPalWalletAddressAlias} from "../interfaces";
 
 export class PalWalletAddress implements IPalWalletAddress {
   private readonly _id: string;
@@ -17,6 +18,7 @@ export class PalWalletAddress implements IPalWalletAddress {
   private readonly _assetCode: string;
   private readonly _assetScale: number;
   private readonly _isActive: boolean;
+  private readonly _aliases: IPalWalletAddressAlias[];
 
   constructor(
     id: string,
@@ -31,6 +33,7 @@ export class PalWalletAddress implements IPalWalletAddress {
     this._assetScale = assetScale;
 
     this._isActive = isActive == true || isActive == undefined;
+    this._aliases = [];
   }
 
   static fromObject(json: IPalWalletAddress): PalWalletAddress {
