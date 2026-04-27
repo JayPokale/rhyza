@@ -4,7 +4,8 @@ import {
   ICreateIncomingPaymentResponse,
   ICreateQuoteResponse,
   ICreateOutgoingPaymentResponse,
-  IApproveOutgoingPaymentResponse
+  IApproveOutgoingPaymentResponse,
+  ICreateRemoteIncomingPaymentResponse
 } from './local-types';
 import {
   CreateIncomingPaymentRequest,
@@ -15,7 +16,9 @@ import {
   CreateOutgoingPaymentRequest,
   CreateOutgoingPaymentResponse,
   ApproveOutgoingPaymentRequest,
-  ApproveOutgoingPaymentResponse
+  ApproveOutgoingPaymentResponse,
+  CreateRemoteIncomingPaymentRequest,
+  CreateRemoteIncomingPaymentResponse
 } from 'payments-public-types-lib';
 
 export class PaymentsClient {
@@ -192,6 +195,34 @@ export class PaymentsClient {
         (
           error: ServiceError | null,
           response: ApproveOutgoingPaymentResponse
+        ) => {
+          if (error) {
+            console.error(error);
+            return reject(error);
+          }
+
+          return resolve({
+            id: response.getId()
+          });
+        }
+      );
+    });
+  }
+
+  async createRemoteIncomingPayment(
+    id: string,
+    url: string
+  ): Promise<ICreateRemoteIncomingPaymentResponse> {
+    const request = new CreateRemoteIncomingPaymentRequest();
+    request.setId(id);
+    request.setUrl(url);
+
+    return new Promise((resolve, reject) => {
+      this._grpcClient.createRemoteIncomingPayment(
+        request,
+        (
+          error: ServiceError | null,
+          response: CreateRemoteIncomingPaymentResponse
         ) => {
           if (error) {
             console.error(error);

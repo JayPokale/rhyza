@@ -4,6 +4,7 @@ import {
 } from 'implementations-lib';
 import {
   MongoDbPaymentIntentRepo,
+  RemotePaymentIntentAdapter,
   PalWalletAddressAdapter,
   StaticRatesAdapter
 } from 'payments-implementations-lib';
@@ -38,11 +39,13 @@ export class PaymentsCommandHandlerService {
 
     const walletAddressAdapter = new PalWalletAddressAdapter(palClient);
     const staticRatesAdapter = new StaticRatesAdapter();
+    const remotePaymentIntentAdapter = new RemotePaymentIntentAdapter();
 
     const aggregate = new PaymentIntentAggregate(
       this.repo,
       walletAddressAdapter,
-      staticRatesAdapter
+      staticRatesAdapter,
+      remotePaymentIntentAdapter
     );
 
     this.msgProducer = new RafikiKafkaJsonProducer({

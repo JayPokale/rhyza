@@ -23,8 +23,8 @@ export const options = {
 };
 
 const ADMIN_API_URL = 'http://localhost:3001';
-const RECEIVER_WALLET_ADDRESS = 'https://localhost/receiver';
-const SENDER_WALLET_ADDRESS = 'https://localhost/sender';
+const RECEIVER_WALLET_ADDRESS = 'test.com/receiver';
+const SENDER_WALLET_ADDRESS = 'test.com/sender';
 
 function request(url, data) {
   return http.post(url, JSON.stringify(data), {
@@ -111,6 +111,4 @@ export default function (data) {
   check(outgoingPaymentRes, {
     'outgoing payment created': (r) => r.status === 201
   });
-
-  // sleep(0.01);
 }

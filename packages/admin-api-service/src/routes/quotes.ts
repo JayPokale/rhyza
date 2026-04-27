@@ -5,28 +5,61 @@ import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { PalClient, parseAddressToDomainAndPathName } from 'pal-client-lib';
 import { PaymentsClient } from 'payments-client-lib';
 
-interface IncomingPaymentRouteOptions extends FastifyPluginOptions {
+type QuoteInput =
+  | { kind: 'url'; incomingPaymentUrl: string }
+  | { kind: 'id'; incomingPaymentId: string };
+
+function parseQuoteInput(
+  incomingPaymentId?: string,
+  incomingPaymentUrl?: string
+): QuoteInput | null {
+  if (incomingPaymentUrl) return { kind: 'url', incomingPaymentUrl };
+  if (incomingPaymentId) return { kind: 'id', incomingPaymentId };
+  return null;
+}
+
+interface QuoteRouteOptions extends FastifyPluginOptions {
   palClient: PalClient;
   paymentsClient: PaymentsClient;
+  openPaymentsUrl: string | undefined;
 }
 
 export async function quoteRoutes(
   server: FastifyInstance,
-  opts: IncomingPaymentRouteOptions
+  opts: QuoteRouteOptions
 ): Promise<void> {
-  const { palClient, paymentsClient } = opts;
+  const { palClient, paymentsClient, openPaymentsUrl } = opts;
 
   server.post<{
     Body: {
       walletAddress: string;
       id?: string;
-      incomingPaymentId: string;
+      incomingPaymentId?: string;
+      incomingPaymentUrl?: string;
       debitAmount?: string;
       receiveAmount?: string;
     };
   }>('/quotes', async (request, reply) => {
-    const { incomingPaymentId, walletAddress, debitAmount, receiveAmount } =
-      request.body;
+    const {
+      walletAddress,
+      debitAmount,
+      receiveAmount,
+      incomingPaymentId,
+      incomingPaymentUrl
+    } = request.body;
+
+    const input = parseQuoteInput(incomingPaymentId, incomingPaymentUrl);
+    if (!input) {
+      return reply.status(400).send({
+        error: 'Either incomingPaymentId or incomingPaymentUrl is required'
+      });
+    }
+
+    if (input.kind === 'url' && !openPaymentsUrl) {
+      return reply.status(500).send({
+        error: 'Remote quoting is not configured (OPEN_PAYMENTS_URL is not set)'
+      });
+    }
 
     const id = request.body.id ?? randomUUID();
 
@@ -38,15 +71,33 @@ export async function quoteRoutes(
         .send({ error: `Wallet address '${walletAddress}' not found` });
     }
 
+    let paymentIntentId: string;
+
+    if (
+      input.kind === 'url' &&
+      !input.incomingPaymentUrl.startsWith(openPaymentsUrl!)
+    ) {
+      const localId = randomUUID();
+      await paymentsClient.createRemoteIncomingPayment(
+        localId,
+        input.incomingPaymentUrl
+      );
+      paymentIntentId = localId;
+    } else if (input.kind === 'url') {
+      paymentIntentId = input.incomingPaymentUrl.split('/').at(-1)!;
+    } else {
+      paymentIntentId = input.incomingPaymentId;
+    }
+
     const result = await paymentsClient.createQuote(
       id,
-      incomingPaymentId,
+      paymentIntentId,
       alias.walletAddressId,
       walletAddress,
       Number(debitAmount),
       Number(receiveAmount)
     );
 
-    return reply.status(201).send({ id: `${incomingPaymentId}_${result.id}` }); // Concatenate ids when returning the request
+    return reply.status(201).send({ id: `${paymentIntentId}_${result.id}` }); // Concatenate ids when returning the request
   });
 }

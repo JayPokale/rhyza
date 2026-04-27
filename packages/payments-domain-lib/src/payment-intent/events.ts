@@ -222,3 +222,48 @@ export class LocalPaymentCompleteFailedEvent extends DomainEventMsg {
     this.requestId = requestId;
   }
 }
+
+export interface RemotePaymentIntentFetchedPayload {
+  id: string;
+}
+
+export class RemotePaymentIntentFetchedEvent extends DomainEventMsg {
+  contextName: string = BOUNDED_CONTEXT_NAME;
+  aggregateId: string;
+  aggregateName: string = AGGREGATE_NAME;
+  msgKey: string;
+  msgTopic: string = EventTopics.PaymentEvents;
+  payload: RemotePaymentIntentFetchedPayload;
+
+  constructor(payload: RemotePaymentIntentFetchedPayload, requestId?: string) {
+    super();
+    this.aggregateId = this.msgKey = payload.id;
+    this.payload = payload;
+    this.requestId = requestId;
+  }
+}
+
+export interface RemotePaymentIntentFetchFailedPayload {
+  errorName: string;
+  message: string;
+}
+
+export class RemotePaymentIntentFetchFailedEvent extends DomainEventMsg {
+  contextName: string = BOUNDED_CONTEXT_NAME;
+  aggregateId: string;
+  aggregateName: string = AGGREGATE_NAME;
+  msgKey: string;
+  msgTopic: string = EventTopics.PaymentEvents;
+  isErrorEvent: boolean = true;
+  payload: RemotePaymentIntentFetchFailedPayload;
+
+  constructor(
+    payload: RemotePaymentIntentFetchFailedPayload,
+    requestId?: string
+  ) {
+    super();
+    this.aggregateId = this.msgKey = requestId ?? '';
+    this.payload = payload;
+    this.requestId = requestId;
+  }
+}

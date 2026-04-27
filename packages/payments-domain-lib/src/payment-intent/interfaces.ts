@@ -90,6 +90,18 @@ export interface IRatesService {
   ): Promise<number | undefined>;
 }
 
+export interface RemotePaymentIntentDetails {
+  walletAddress: string;
+  assetCode: string;
+  assetScale: number;
+  incomingAmount?: bigint;
+  expiresAt?: string;
+}
+
+export interface IRemotePaymentIntentPort {
+  fetchIncomingPayment(url: string): Promise<RemotePaymentIntentDetails>;
+}
+
 export interface IPaymentIntentRepository {
   storeMany(paymentIntents: IPaymentIntent[]): Promise<void>;
   fetchByIdsWithPayments(ids: string[]): Promise<IPaymentIntent[]>;

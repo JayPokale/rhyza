@@ -5,7 +5,6 @@ package rafiki.payments.service;
 service PaymentsGrpc {
   // Creates a new incoming payment.
   rpc CreateIncomingPayment(CreateIncomingPaymentRequest) returns (CreateIncomingPaymentResponse);
-  // Retrieves an incoming payment by ID.
 
   // Creates a new quote.
   rpc CreateQuote(CreateQuoteRequest) returns (CreateQuoteResponse);
@@ -15,6 +14,9 @@ service PaymentsGrpc {
 
   // Approves an existing outgoing payment.
   rpc ApproveOutgoingPayment(ApproveOutgoingPaymentRequest) returns (ApproveOutgoingPaymentResponse);
+
+  // Fetches a remote incoming payment and persists it locally as a payment intent.
+  rpc CreateRemoteIncomingPayment(CreateRemoteIncomingPaymentRequest) returns (CreateRemoteIncomingPaymentResponse);
 }
 
 /*
@@ -82,6 +84,21 @@ message ApproveOutgoingPaymentRequest {
 
 // Response confirming the approval of the outgoing payment.
 message ApproveOutgoingPaymentResponse {
+  string id = 1;
+}
+
+/*
+ * Remote Incoming Payment messages
+ */
+
+// Request to fetch a remote incoming payment and persist it locally.
+message CreateRemoteIncomingPaymentRequest {
+  string id = 1;   // local payment intent ID (new UUID)
+  string url = 2;  // full URL of the remote incoming payment
+}
+
+// Response containing the local payment intent ID.
+message CreateRemoteIncomingPaymentResponse {
   string id = 1;
 }
 

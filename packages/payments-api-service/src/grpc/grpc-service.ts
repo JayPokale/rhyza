@@ -19,6 +19,8 @@ import {
   CreateOutgoingPaymentResponse,
   ApproveOutgoingPaymentRequest,
   ApproveOutgoingPaymentResponse,
+  CreateRemoteIncomingPaymentRequest,
+  CreateRemoteIncomingPaymentResponse,
   HealthCheckRequest,
   HealthCheckResponse,
   HealthService,
@@ -45,7 +47,12 @@ import {
   LocalPaymentCompletedEvent,
   LocalPaymentCompletedPayload,
   LocalPaymentCompleteFailedEvent,
-  LocalPaymentCompleteFailedPayload
+  LocalPaymentCompleteFailedPayload,
+  FetchRemotePaymentIntentCmd,
+  RemotePaymentIntentFetchedEvent,
+  RemotePaymentIntentFetchedPayload,
+  RemotePaymentIntentFetchFailedEvent,
+  RemotePaymentIntentFetchFailedPayload
 } from 'payments-domain-lib';
 
 const PUBLIC_TYPES_LIB_PATH = require.resolve('payments-public-types-lib');
@@ -117,7 +124,8 @@ export class PaymentsServiceServer {
       createIncomingPayment: this._handleUnary.bind(this),
       createQuote: this._handleUnary.bind(this),
       createOutgoingPayment: this._handleUnary.bind(this),
-      approveOutgoingPayment: this._handleUnary.bind(this)
+      approveOutgoingPayment: this._handleUnary.bind(this),
+      createRemoteIncomingPayment: this._handleUnary.bind(this)
     });
   }
 
@@ -262,6 +270,21 @@ export class PaymentsServiceServer {
         commandId
       );
       await this._msgProducer.send(cmd);
+    } else if (call.request instanceof CreateRemoteIncomingPaymentRequest) {
+      const commandId = call.request.getId();
+      if (!PaymentsServiceServer.UUID_REGEX.test(commandId)) {
+        callback({
+          code: grpc.status.INVALID_ARGUMENT,
+          message: 'id must be a valid UUID'
+        });
+        return;
+      }
+      this._storePendingResponse(commandId, call, callback);
+      const cmd = new FetchRemotePaymentIntentCmd(
+        { id: commandId, url: call.request.getUrl() },
+        commandId
+      );
+      await this._msgProducer.send(cmd);
     } else {
       callback(
         new Error(`Invalid request type: ${call.request.constructor.name}`)
@@ -372,6 +395,26 @@ export class PaymentsServiceServer {
       case LocalPaymentCompleteFailedEvent.name: {
         const errorPayload =
           message.payload as LocalPaymentCompleteFailedPayload;
+        this._resolvePendingResponse(pending, requestId, {
+          code: grpc.status.INTERNAL,
+          message: errorPayload.message || 'Command processing failed',
+          details: errorPayload.message,
+          name: errorPayload.errorName || 'CommandError',
+          metadata: new grpc.Metadata()
+        });
+        break;
+      }
+      case RemotePaymentIntentFetchedEvent.name: {
+        const payload = message.payload as RemotePaymentIntentFetchedPayload;
+        const response = new CreateRemoteIncomingPaymentResponse().setId(
+          payload.id
+        );
+        this._resolvePendingResponse(pending, requestId, null, response);
+        break;
+      }
+      case RemotePaymentIntentFetchFailedEvent.name: {
+        const errorPayload =
+          message.payload as RemotePaymentIntentFetchFailedPayload;
         this._resolvePendingResponse(pending, requestId, {
           code: grpc.status.INTERNAL,
           message: errorPayload.message || 'Command processing failed',

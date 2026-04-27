@@ -8,13 +8,14 @@ import { PaymentsClient } from 'payments-client-lib';
 interface IncomingPaymentRouteOptions extends FastifyPluginOptions {
   palClient: PalClient;
   paymentsClient: PaymentsClient;
+  openPaymentsUrl: string | undefined;
 }
 
 export async function incomingPaymentRoutes(
   server: FastifyInstance,
   opts: IncomingPaymentRouteOptions
 ): Promise<void> {
-  const { palClient, paymentsClient } = opts;
+  const { palClient, paymentsClient, openPaymentsUrl } = opts;
 
   server.post<{
     Body: {
@@ -48,6 +49,12 @@ export async function incomingPaymentRoutes(
       metadata
     );
 
-    return reply.status(201).send({ id: result.id });
+    const response: { id: string; openPaymentsUrl?: string } = { id: result.id };
+
+    if (openPaymentsUrl) {
+      response.openPaymentsUrl = `${openPaymentsUrl}/incoming-payments/${result.id}`;
+    }
+
+    return reply.status(201).send(response);
   });
 }

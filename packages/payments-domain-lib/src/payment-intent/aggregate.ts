@@ -3,6 +3,7 @@ import {
   IPaymentIntent,
   IPaymentIntentRepository,
   IRatesService,
+  IRemotePaymentIntentPort,
   IWalletAddressService,
   PaymentIntentDestination,
   PaymentIntentState,
@@ -16,7 +17,8 @@ import {
   CreatePaymentCmd,
   ApprovePaymentCmd,
   FinalizeRemoteQuoteCmd,
-  FailRemoteQuoteCmd
+  FailRemoteQuoteCmd,
+  FetchRemotePaymentIntentCmd
 } from '../commands';
 import {
   CannotCreateDuplicatePaymentIntentError,
@@ -36,7 +38,9 @@ import {
   LocalPaymentCompleteFailedEvent,
   PaymentCreatedEvent,
   RemoteQuoteRequestedEvent,
-  RemoteQuoteFailedEvent
+  RemoteQuoteFailedEvent,
+  RemotePaymentIntentFetchedEvent,
+  RemotePaymentIntentFetchFailedEvent
 } from './events';
 
 export class PaymentIntentAggregate {
@@ -50,7 +54,8 @@ export class PaymentIntentAggregate {
   constructor(
     private _repo: IPaymentIntentRepository,
     private _walletAddressService: IWalletAddressService,
-    private _ratesService: IRatesService
+    private _ratesService: IRatesService,
+    private _remotePaymentIntentPort: IRemotePaymentIntentPort
   ) {}
 
   async handleBatch(cmds: Message[]): Promise<{ events: Message[] }> {
@@ -81,6 +86,9 @@ export class PaymentIntentAggregate {
       } else if (cmd.msgName === FailRemoteQuoteCmd.name) {
         const payload = (cmd as FailRemoteQuoteCmd).payload;
         paymentIntentIdsSet.add(payload.paymentIntentId);
+      } else if (cmd.msgName === FetchRemotePaymentIntentCmd.name) {
+        const payload = (cmd as FetchRemotePaymentIntentCmd).payload;
+        paymentIntentIdsSet.add(payload.id);
       }
     }
 
@@ -117,6 +125,10 @@ export class PaymentIntentAggregate {
         );
       } else if (cmd.msgName === FailRemoteQuoteCmd.name) {
         event = this.handleFailRemoteQuoteCommand(cmd as FailRemoteQuoteCmd);
+      } else if (cmd.msgName === FetchRemotePaymentIntentCmd.name) {
+        event = await this.handleFetchRemotePaymentIntentCommand(
+          cmd as FetchRemotePaymentIntentCmd
+        );
       } else {
         throw new Error('Unexpected command');
       }
@@ -480,6 +492,49 @@ export class PaymentIntentAggregate {
       return new LocalPaymentCompletedEvent({ id: paymentId }, cmd.requestId);
     } catch (err) {
       return new LocalPaymentCompleteFailedEvent(
+        {
+          errorName: (err as Error).constructor.name,
+          message: (err as Error).message
+        },
+        cmd.requestId
+      );
+    }
+  }
+
+  private async handleFetchRemotePaymentIntentCommand(
+    cmd: FetchRemotePaymentIntentCmd
+  ) {
+    const { id, url } = cmd.payload;
+
+    try {
+      if (this.paymentIntentMap.has(id)) {
+        return new RemotePaymentIntentFetchedEvent({ id }, cmd.requestId);
+      }
+
+      // TODO: this should be prefetched?
+      const details =
+        await this._remotePaymentIntentPort.fetchIncomingPayment(url);
+
+      // TODO: what should receiverWalletAddressId be? we dont have it for
+      // remote payment intents. Using the remote wallet address URL as a placeholder.
+      // OK? Should it be optional instead?
+      const entity = PaymentIntent.create(
+        id,
+        details.walletAddress,
+        details.walletAddress,
+        PaymentIntentDestination.REMOTE,
+        details.assetCode,
+        details.assetScale,
+        details.expiresAt ?? null,
+        details.incomingAmount ?? null
+      );
+
+      this.paymentIntentMap.set(id, entity.toObject());
+      this.newPaymentIntentIds.push(id);
+
+      return new RemotePaymentIntentFetchedEvent({ id }, cmd.requestId);
+    } catch (err) {
+      return new RemotePaymentIntentFetchFailedEvent(
         {
           errorName: (err as Error).constructor.name,
           message: (err as Error).message
