@@ -1,3 +1,5 @@
+import { IAccessToken } from '../access-token/interfaces';
+
 export const AccessType = {
   INCOMING_PAYMENT: 'INCOMING_PAYMENT',
   OUTGOING_PAYMENT: 'OUTGOING_PAYMENT',
@@ -5,16 +7,12 @@ export const AccessType = {
 } as const;
 export type AccessType = keyof typeof AccessType;
 
-export interface IAmount {
-  value: string;
-  assetCode: string;
-  assetScale: number;
-}
-
 export interface IAccessLimit {
   receiver: string;
-  debitAmount?: IAmount;
-  sendAmount?: IAmount;
+  assetCode: string;
+  assetScale: number;
+  debitAmount?: bigint;
+  sendAmount?: bigint;
   interval?: string;
 }
 
@@ -33,20 +31,6 @@ export interface IAccessItem {
   limits: IAccessLimit;
   actions: AccessAction[];
   identifier?: string;
-}
-
-export type NewAccessToken = Omit<IAccessToken, 'revokedAt'>;
-
-export type RevokedAccessToken = IAccessToken & {
-  revokedAt: Date;
-};
-
-export interface IAccessToken {
-  id: string;
-  value: string;
-  managementId: string;
-  expiresIn: number;
-  revokedAt?: Date;
 }
 
 export interface SubjectId {
@@ -138,6 +122,5 @@ export interface IGrant {
   finishUri?: string;
   interaction?: IInteraction;
   lastContinuedAt?: Date;
-  lastIssuedAccessToken?: IAccessToken;
   accessTokens: Map<string, IAccessToken>;
 }
