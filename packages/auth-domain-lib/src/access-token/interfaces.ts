@@ -5,8 +5,8 @@ export type RevokedAccessToken = IAccessToken & {
 };
 
 export interface IAccessToken {
-  id: string;
   value: string;
+  grantId: string;
   managementId: string;
   expiresIn: number;
   revokedAt?: Date;
