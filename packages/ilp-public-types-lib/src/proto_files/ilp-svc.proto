@@ -7,11 +7,6 @@ service IlpGrpc {
   rpc ListPeers(ListPeersRequest) returns (ListPeersResponse);
   rpc UpdatePeer(UpdatePeerRequest) returns (UpdatePeerResponse);
   rpc ResolvePeerByAddress(ResolvePeerByAddressRequest) returns (ResolvePeerByAddressResponse);
-
-  rpc ProcessPreparePacket(ProcessPreparePacketRequest) returns (ProcessPreparePacketResponse);
-  rpc ProcessFulfillPacket(ProcessFulfillPacketRequest) returns (ProcessFulfillPacketResponse);
-  rpc ProcessRejectPacket(ProcessRejectPacketRequest) returns (ProcessRejectPacketResponse);
-  rpc ExpirePacket(ExpirePacketRequest) returns (ExpirePacketResponse);
 }
 
 message CorrelationIds {
@@ -111,78 +106,4 @@ message ResolvePeerByAddressResponse {
   CorrelationIds correlation = 1;
   string peer_id = 2;
   string matched_prefix = 3;
-}
-
-/* 
-Packet-level value messages
-*/
-
-message PacketPrepare {
-  string destination_ilp_address = 1;
-  uint64 amount = 2;
-  string execution_condition = 3;
-  string expires_at = 4;
-  bytes data = 5;
-}
-
-message PacketFulfill {
-  string fulfillment = 1;
-  string fulfilled_at = 2;
-  bytes data = 3;
-}
-
-message PacketReject {
-  string code = 1;
-  string message = 2;
-  optional string triggered_by = 3;
-  string rejected_at = 4;
-  bytes data = 5;
-}
-
-message PacketExpiry {
-  string expired_at = 1;
-}
-
-/*
-Packet ingress / terminal states messages
-*/
-
-message ProcessPreparePacketRequest {
-  CorrelationIds correlation = 1;
-  PacketPrepare prepare = 2;
-}
-
-message ProcessPreparePacketResponse {
-  CorrelationIds correlation = 1;
-  string packet_id = 2;
-}
-
-message ProcessFulfillPacketRequest {
-  CorrelationIds correlation = 1;
-  PacketFulfill fulfill = 2;
-}
-
-message ProcessFulfillPacketResponse {
-  CorrelationIds correlation = 1;
-  string packet_id = 2;
-}
-
-message ProcessRejectPacketRequest {
-  CorrelationIds correlation = 1;
-  PacketReject reject = 2;
-}
-
-message ProcessRejectPacketResponse {
-  CorrelationIds correlation = 1;
-  string packet_id = 2;
-}
-
-message ExpirePacketRequest {
-  CorrelationIds correlation = 1;
-  PacketExpiry expiry = 2;
-}
-
-message ExpirePacketResponse {
-  CorrelationIds correlation = 1;
-  string packet_id = 2;
 }
