@@ -3,6 +3,7 @@
 import Fastify, { FastifyInstance } from 'fastify';
 import { PalClient } from 'pal-client-lib';
 import { PaymentsClient } from 'payments-client-lib';
+import { MongoDbPaymentIntentRepo } from 'payments-implementations-lib';
 import { assetRoutes } from './routes/assets.js';
 import { walletAddressRoutes } from './routes/wallet-addresses.js';
 import { incomingPaymentRoutes } from './routes/incoming-payments.js';
@@ -14,13 +15,18 @@ const HOST = process.env['HOST'] || '0.0.0.0';
 const PAL_GRPC_URL = process.env['PAL_GRPC_URL'] || 'localhost:50051';
 const PAYMENTS_GRPC_URL = process.env['PAYMENTS_GRPC_URL'] || 'localhost:50052';
 const OPEN_PAYMENTS_URL = process.env['OPEN_PAYMENTS_URL'];
+const MONGODB_URL = process.env['MONGODB_URL'] || 'mongodb://localhost:27017';
 
 export class AdminApiService {
   private static server: FastifyInstance;
   private static palClient: PalClient;
   private static paymentsClient: PaymentsClient;
+  private static repo: MongoDbPaymentIntentRepo;
 
   static async start(): Promise<void> {
+    this.repo = new MongoDbPaymentIntentRepo(MONGODB_URL);
+    await this.repo.init();
+
     this.palClient = new PalClient(PAL_GRPC_URL);
     await this.palClient.init();
     console.log(`Connected to PAL service at ${PAL_GRPC_URL}`);
@@ -42,7 +48,8 @@ export class AdminApiService {
     this.server.register(incomingPaymentRoutes, {
       palClient: this.palClient,
       paymentsClient: this.paymentsClient,
-      openPaymentsUrl: OPEN_PAYMENTS_URL
+      openPaymentsUrl: OPEN_PAYMENTS_URL,
+      repo: this.repo
     });
     this.server.register(quoteRoutes, {
       palClient: this.palClient,
@@ -62,5 +69,6 @@ export class AdminApiService {
     await this.server?.close();
     await this.palClient?.disconnect();
     await this.paymentsClient?.disconnect();
+    await this.repo?.destroy();
   }
 }

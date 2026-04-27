@@ -9,9 +9,12 @@ services:
       PAL_GRPC_URL: pal-api-service:50051
       PAYMENTS_GRPC_URL: payments-api-service:50052
       OPEN_PAYMENTS_URL: http://open-payments-svc:3000
+      MONGODB_URL: mongodb://root:mongoPass@mongodb:27017
     ports:
       - '3001:3001'
     depends_on:
+      mongodb:
+        condition: service_healthy
       pal-api-service:
         condition: service_started
       payments-api-service:
@@ -22,8 +25,8 @@ services:
         # for the purposes of testing remote quoting. 1) Create a quote with an incomingPaymentUrl
         # pointing to this alias (which doesnt match OPEN_PAYMENTS_URL), 2) admin api detects as remote
         # 3) payments domain fetches the "remote" intent from itself via the admin api
-        # aliases:
-        #   - peer-open-payments-svc
+        aliases:
+          - peer-open-payments-svc
 
   pal-api-service:
     build:

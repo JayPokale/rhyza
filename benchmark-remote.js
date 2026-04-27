@@ -23,6 +23,7 @@ export const options = {
 };
 
 const ADMIN_API_URL = 'http://localhost:3001';
+const PEER_OPEN_PAYMENTS_URL = 'http://peer-open-payments-svc:3001';
 const RECEIVER_WALLET_ADDRESS = 'test.com/receiver';
 const SENDER_WALLET_ADDRESS = 'test.com/sender';
 
@@ -87,16 +88,17 @@ export default function (data) {
       JSON.parse(r.body).id === incomingPaymentId
   });
 
-  const incomingPaymentUrl = JSON.parse(
-    incomingPaymentRes.body
-  ).openPaymentsUrl;
-
-  const openPaymentsUrlDefined = check(incomingPaymentRes, {
-    'openPaymentsUrl is defined': (r) =>
-      JSON.parse(r.body).openPaymentsUrl !== undefined
-  });
-
-  if (!openPaymentsUrlDefined) return;
+  // Normally this URL would come from the incoming payment response.
+  // Here we construct it directly using the docker alias to simulate a remote Rafiki instance
+  const incomingPaymentUrl = `${PEER_OPEN_PAYMENTS_URL}/incoming-payments/${incomingPaymentId}`;
+  // const incomingPaymentUrl = JSON.parse(
+  //   incomingPaymentRes.body
+  // ).openPaymentsUrl;
+  // const openPaymentsUrlDefined = check(incomingPaymentRes, {
+  //   'openPaymentsUrl is defined': (r) =>
+  //     JSON.parse(r.body).openPaymentsUrl !== undefined
+  // });
+  // if (!openPaymentsUrlDefined) return;
 
   const quoteRes = request(`${ADMIN_API_URL}/quotes`, {
     walletAddress: data.senderWalletAddress,

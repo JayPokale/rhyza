@@ -139,8 +139,8 @@ export interface RemoteQuoteRequestedPayload {
   senderAssetScale: number;
   receiverAssetCode: string;
   receiverAssetScale: number;
-  debitAmount?: bigint;
-  receiveAmount?: bigint;
+  debitAmount?: string;
+  receiveAmount?: string;
 }
 
 export class RemoteQuoteRequestedEvent extends DomainEventMsg {

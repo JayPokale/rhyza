@@ -314,8 +314,9 @@ export class PaymentIntentAggregate {
           senderAssetScale: walletAddress.assetScale,
           receiverAssetCode: paymentIntent.assetCode,
           receiverAssetScale: paymentIntent.assetScale,
-          debitAmount: debitAmount ? BigInt(debitAmount) : undefined,
-          receiveAmount: receiveAmount ? BigInt(receiveAmount) : undefined
+          debitAmount: debitAmount != null ? String(debitAmount) : undefined,
+          receiveAmount:
+            receiveAmount != null ? String(receiveAmount) : undefined
         },
         cmd.requestId
       );
