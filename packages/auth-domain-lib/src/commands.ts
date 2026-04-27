@@ -152,6 +152,7 @@ export interface CreateAccessTokenCmdPayload {
   value: string;
   managementId: string;
   expiresIn: number;
+  grantId: string;
 }
 
 export class CreateAccessTokenCommand extends CommandMsg {
