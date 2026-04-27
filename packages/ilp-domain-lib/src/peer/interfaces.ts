@@ -30,8 +30,8 @@ export interface IPeer {
 }
 
 export interface IPeerRepository {
-  fetchByIds(peerIds: string[]): Promise<IPeer[]>;
-  fetchByStaticAddresses(staticIlpAddresses: string[]): Promise<IPeer[]>;
-  storeMany(peers: IPeer[]): Promise<void>;
-  updateMany(peers: IPeer[]): Promise<void>;
+  fetchById(peerId: string): Promise<IPeer | undefined>;
+  fetchByStaticAddress(staticIlpAddress: string): Promise<IPeer | undefined>;
+  store(peer: IPeer): Promise<void>;
+  update(peer: IPeer): Promise<void>;
 }
