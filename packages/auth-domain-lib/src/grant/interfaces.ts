@@ -35,13 +35,8 @@ export interface IAccessItem {
   identifier?: string;
 }
 
-export interface SubjectId {
-  format: string;
-  id: string;
-}
-
 export interface ISubject {
-  sub_ids: SubjectId[];
+  subIds?: ISubjectId[];
 }
 
 export type InteractionChoice =

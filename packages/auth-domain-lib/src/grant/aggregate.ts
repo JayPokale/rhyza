@@ -2,8 +2,6 @@ import { Message } from 'common-types-lib';
 import {
   FinalizeGrantCmd,
   CreateGrantCmd,
-  RotateAccessTokenCmd,
-  RevokeAccessTokenCmd,
   InteractionChoiceCommand
 } from '../commands';
 import { DuplicateGrantError, GrantNotFoundError } from './errors';
@@ -13,11 +11,7 @@ import {
   GrantFinalizedEvent,
   GrantFinalizedFailedEvent,
   GrantInteractionChoiceEvent,
-  GrantInteractionChoiceFailureEvent,
-  GrantTokenRevokedEvent,
-  GrantTokenRevokeFailureEvent,
-  GrantTokenRotatedEvent,
-  GrantTokenRotateFailedEvent
+  GrantInteractionChoiceFailureEvent
 } from './events';
 import {
   AccessAction,
@@ -26,15 +20,17 @@ import {
   GrantState,
   IAccessItem,
   IAccessLimit,
-  IAccessToken,
   IFinishMethod,
   IGrant,
-  IGrantService,
   InteractionChoice,
   IStartMethod,
-  ISubject
+  ISubjectId
 } from './interfaces';
 import { GrantEntity } from './entity';
+
+export interface IGrantService {
+  fetchByIds(grantIds: string[]): Promise<IGrant[]>;
+}
 
 export class GrantAggregate {
   private grantMap = new Map<string, IGrant>();
@@ -51,12 +47,6 @@ export class GrantAggregate {
         grantIdSet.add(payload.id);
       } else if (cmd.msgName === FinalizeGrantCmd.name) {
         const payload = (cmd as FinalizeGrantCmd).payload;
-        grantIdSet.add(payload.id);
-      } else if (cmd.msgName === RotateAccessTokenCmd.name) {
-        const payload = (cmd as RotateAccessTokenCmd).payload;
-        grantIdSet.add(payload.id);
-      } else if ((cmd.msgName = RevokeAccessTokenCmd.name)) {
-        const payload = (cmd as RevokeAccessTokenCmd).payload;
         grantIdSet.add(payload.id);
       } else if ((cmd.msgName = InteractionChoiceCommand.name)) {
         const payload = (cmd as InteractionChoiceCommand).payload;
@@ -75,10 +65,6 @@ export class GrantAggregate {
           event = this.handleCreateGrantCommand(cmd as CreateGrantCmd);
         } else if (cmd.msgName === FinalizeGrantCmd.name) {
           event = this.handleFinalizeGrantCommand(cmd as FinalizeGrantCmd);
-        } else if (cmd.msgName === RotateAccessTokenCmd.name) {
-          event = this.handleRotateTokenCommand(cmd as RotateAccessTokenCmd);
-        } else if (cmd.msgName === RevokeAccessTokenCmd.name) {
-          event = this.handleRevokeTokenCommand(cmd as RevokeAccessTokenCmd);
         } else if (cmd.msgName === InteractionChoiceCommand.name) {
           event = this.handleInteractionChoiceCommand(
             cmd as InteractionChoiceCommand
@@ -101,7 +87,6 @@ export class GrantAggregate {
       }
 
       // TODO verify state & start methods are in enum
-      // TODO
 
       const accessItems: IAccessItem[] | undefined = cmd.payload.access?.map(
         (access) => {
@@ -119,9 +104,8 @@ export class GrantAggregate {
         state: cmd.payload.state as GrantState,
         startMethods: cmd.payload.startMethods as IStartMethod[],
         finishMethod: cmd.payload.finishMethod as IFinishMethod,
-        subject: cmd.payload.subject as ISubject,
-        accesses: accessItems,
-        accessTokens: cmd.payload.accessToken ? [cmd.payload.accessToken] : []
+        subjectIds: cmd.payload.subjectIds as ISubjectId[],
+        accesses: accessItems
       });
 
       this.grantMap.set(id, entity.toObject());
@@ -152,7 +136,7 @@ export class GrantAggregate {
       }
 
       const grant = GrantEntity.fromObject(grantObj);
-      grant.finalize(finalizationReason as GrantFinalization, accessToken);
+      grant.finalize(finalizationReason as GrantFinalization);
 
       this.grantMap.set(id, grant.toObject());
       return new GrantFinalizedEvent({
@@ -161,58 +145,6 @@ export class GrantAggregate {
       });
     } catch (err) {
       return new GrantFinalizedFailedEvent({
-        errorName: (err as Error).name,
-        message: (err as Error).message
-      });
-    }
-  }
-
-  private handleRotateTokenCommand(cmd: RotateAccessTokenCmd) {
-    const { id, newAccessToken, oldAccessToken } = cmd.payload;
-
-    try {
-      const grantObj = this.grantMap.get(id);
-      if (!grantObj) {
-        throw new GrantNotFoundError(`Grant ${id} not found`);
-      }
-
-      const grant = GrantEntity.fromObject(grantObj);
-      grant.rotateAccessToken(oldAccessToken, newAccessToken);
-
-      this.grantMap.set(id, grant.toObject());
-
-      return new GrantTokenRotatedEvent({
-        id,
-        newAccessToken: newAccessToken.id
-      });
-    } catch (err) {
-      return new GrantTokenRotateFailedEvent({
-        errorName: (err as Error).name,
-        message: (err as Error).message
-      });
-    }
-  }
-
-  private handleRevokeTokenCommand(cmd: RevokeAccessTokenCmd) {
-    const { id } = cmd.payload;
-
-    try {
-      const grantObj = this.grantMap.get(id);
-      if (!grantObj) {
-        throw new GrantNotFoundError(`Grant ${id} not found`);
-      }
-
-      const grant = GrantEntity.fromObject(grantObj);
-      grant.revokeAccessToken(cmd.payload);
-
-      this.grantMap.set(id, grant.toObject());
-
-      return new GrantTokenRevokedEvent({
-        id,
-        revokedAccessToken: cmd.payload.id
-      });
-    } catch (err) {
-      return new GrantTokenRevokeFailureEvent({
         errorName: (err as Error).name,
         message: (err as Error).message
       });

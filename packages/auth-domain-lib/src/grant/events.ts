@@ -1,5 +1,5 @@
 import { DomainEventMsg, EventTopics } from 'common-types-lib';
-import { GrantFinalization, RevokedAccessToken } from './interfaces';
+import { GrantFinalization } from './interfaces';
 
 const BOUNDED_CONTEXT_NAME = 'auth';
 const AGGREGATE_NAME = 'grant';
@@ -81,86 +81,6 @@ export class GrantFinalizedFailedEvent extends DomainEventMsg {
   payload: GrantFinalizeFailedPayload;
 
   constructor(payload: GrantFinalizeFailedPayload, requestId?: string) {
-    super();
-    this.aggregateId = this.msgKey = requestId ?? '';
-    this.payload = payload;
-  }
-}
-
-export interface GrantTokenRotatedPayload {
-  id: string;
-  newAccessToken: string;
-}
-
-export class GrantTokenRotatedEvent extends DomainEventMsg {
-  contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
-  aggregateName: string = AGGREGATE_NAME;
-  msgKey: string;
-  msgTopic: string = EventTopics.AuthEvents;
-  payload: GrantTokenRotatedPayload;
-
-  constructor(payload: GrantTokenRotatedPayload, requestId?: string) {
-    super();
-    this.aggregateId = this.msgKey = payload.id;
-    this.payload = payload;
-  }
-}
-
-export interface GrantTokenRotateFailedPayload {
-  errorName: string;
-  message: string;
-}
-
-export class GrantTokenRotateFailedEvent extends DomainEventMsg {
-  contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
-  aggregateName: string = AGGREGATE_NAME;
-  msgKey: string;
-  msgTopic: string = EventTopics.AuthEvents;
-  payload: GrantTokenRotateFailedPayload;
-
-  constructor(payload: GrantTokenRotateFailedPayload, requestId?: string) {
-    super();
-    this.aggregateId = this.msgKey = requestId ?? '';
-    this.payload = payload;
-  }
-}
-
-export interface GrantTokenRevokedPayload {
-  id: string;
-  revokedAccessToken: string;
-}
-
-export class GrantTokenRevokedEvent extends DomainEventMsg {
-  contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
-  aggregateName: string = AGGREGATE_NAME;
-  msgKey: string;
-  msgTopic: string = EventTopics.AuthEvents;
-  payload: GrantTokenRevokedPayload;
-
-  constructor(payload: GrantTokenRevokedPayload, requestId?: string) {
-    super();
-    this.aggregateId = this.msgKey = payload.id;
-    this.payload = payload;
-  }
-}
-
-export interface GrantTokenRevokeFailurePayload {
-  errorName: string;
-  message: string;
-}
-
-export class GrantTokenRevokeFailureEvent extends DomainEventMsg {
-  contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
-  aggregateName: string = AGGREGATE_NAME;
-  msgKey: string;
-  msgTopic: string = EventTopics.AuthEvents;
-  payload: GrantTokenRevokeFailurePayload;
-
-  constructor(payload: GrantTokenRevokeFailurePayload, requestId?: string) {
     super();
     this.aggregateId = this.msgKey = requestId ?? '';
     this.payload = payload;

@@ -17,7 +17,6 @@ import {
   InteractionState,
   InteractionChoice,
   IStartMethod,
-  ISubject,
   IGrantEntity,
   IAccessToken,
   NewAccessToken,
@@ -25,7 +24,8 @@ import {
   GrantFinalization,
   InteractiveAccessType,
   IJsonWebKey,
-  AccessAction
+  AccessAction,
+  ISubject
 } from './interfaces';
 
 interface IGrantInput {

@@ -4,7 +4,7 @@ const BOUNDED_CONTEXT_NAME = 'auth';
 const GRANT_AGGREGATE_NAME = 'grant';
 
 interface LimitPayload {
-  reciever: string;
+  receiver: string;
   assetCode: string;
   assetScale: number;
   debitAmount?: bigint;
