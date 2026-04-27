@@ -13,9 +13,6 @@ import {
   InteractionChoice,
   IStartMethod,
   ISubject,
-  IAccessToken,
-  RevokedAccessToken,
-  NewAccessToken,
   IGrantEntity
 } from './interfaces';
 
@@ -34,7 +31,6 @@ interface IGrantInput {
   finishMethod?: IFinishMethod;
   finishUri?: string;
   lastContinuedAt?: Date;
-  accessTokens: Map<string, IAccessToken>;
 }
 
 export class GrantEntity implements IGrantEntity {
@@ -52,10 +48,6 @@ export class GrantEntity implements IGrantEntity {
   private _finishUri?: string;
   private _interaction?: IInteraction;
   private _lastContinuedAt?: Date;
-  private _accessTokens: Map<string, IAccessToken> = new Map<
-    string,
-    IAccessToken
-  >();
 
   private constructor(input: IGrantInput) {
     this._id = input.id;
@@ -95,7 +87,6 @@ export class GrantEntity implements IGrantEntity {
       finishMethod: this._finishMethod,
       finishUri: this._finishUri,
       lastContinuedAt: this._lastContinuedAt,
-      accessTokens: this._accessTokens
     };
   }
 
@@ -120,22 +111,6 @@ export class GrantEntity implements IGrantEntity {
 
   finalizeGrant(state: GrantState) {
     this._state = state;
-  }
-
-  issueAccessToken(accessToken: NewAccessToken) {
-    this._accessTokens.set(accessToken.id, accessToken);
-  }
-
-  rotateAccessToken(
-    oldAccessToken: RevokedAccessToken,
-    newAccessToken: IAccessToken
-  ) {
-    this._accessTokens.set(oldAccessToken.id, oldAccessToken);
-    this._accessTokens.set(newAccessToken.id, newAccessToken);
-  }
-
-  revokeAccessToken(accessToken: RevokedAccessToken) {
-    this._accessTokens.set(accessToken.id, accessToken);
   }
 
   get tenantId(): string {
@@ -184,9 +159,5 @@ export class GrantEntity implements IGrantEntity {
 
   get lastContinuedAt(): Date | undefined {
     return this._lastContinuedAt;
-  }
-
-  get accessTokens(): Map<string, IAccessToken> {
-    return this._accessTokens;
   }
 }
