@@ -1,7 +1,9 @@
 export enum EventTopics {
-  'PaymentEvents' = 'payment-events'
+  'PaymentEvents' = 'payment-events',
+  'NotificationEvents' = 'notification-events'
 }
 
 export enum CommandTopics {
-  'PaymentCommands' = 'payment-commands'
+  'PaymentCommands' = 'payment-commands',
+  'NotificationCommands' = 'notification-commands'
 }

@@ -119,11 +119,63 @@ importers:
         specifier: ^4.19.3
         version: 4.19.3
 
+  packages/notifications-command-handler-service:
+    dependencies:
+      common-types-lib:
+        specifier: workspace:*
+        version: link:../common-types-lib
+      implementations-lib:
+        specifier: workspace:*
+        version: link:../implementations-lib
+      notifications-domain-lib:
+        specifier: workspace:*
+        version: link:../notifications-domain-lib
+      notifications-implementations-lib:
+        specifier: workspace:*
+        version: link:../notifications-implementations-lib
+    devDependencies:
+      tsx:
+        specifier: ^4.19.3
+        version: 4.19.3
+
   packages/notifications-domain-lib:
+    dependencies:
+      common-types-lib:
+        specifier: workspace:*
+        version: link:../common-types-lib
     devDependencies:
       tslib:
         specifier: ~2.8.1
         version: 2.8.1
+      tsx:
+        specifier: ^4.19.3
+        version: 4.19.3
+
+  packages/notifications-event-handler-service:
+    dependencies:
+      common-types-lib:
+        specifier: workspace:*
+        version: link:../common-types-lib
+      implementations-lib:
+        specifier: workspace:*
+        version: link:../implementations-lib
+      notifications-domain-lib:
+        specifier: workspace:*
+        version: link:../notifications-domain-lib
+    devDependencies:
+      tsx:
+        specifier: ^4.19.3
+        version: 4.19.3
+
+  packages/notifications-implementations-lib:
+    dependencies:
+      mongodb:
+        specifier: ~7.1.0
+        version: 7.1.0
+      notifications-domain-lib:
+        specifier: 'workspace: *'
+        version: link:../notifications-domain-lib
+    devDependencies:
       tsx:
         specifier: ^4.19.3
         version: 4.19.3

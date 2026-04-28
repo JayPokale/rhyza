@@ -18,9 +18,11 @@ export class NotificationAggregate {
     this._notificationSenderService = notificationSenderService;
   }
 
-  async createAndSendNotification(): Promise<string> {
+  async createAndSendNotification(
+    data: Record<string, unknown>
+  ): Promise<string> {
     const id = crypto.randomUUID();
-    const notification = new Notification(id);
+    const notification = new Notification(id, data);
     try {
       await this._notificationSenderService.send(notification);
       notification.markAsSent();

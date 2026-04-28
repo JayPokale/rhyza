@@ -19,10 +19,12 @@ describe('notification aggregate', () => {
     mock.restoreAll();
   });
 
+  const data = {};
+
   describe('create and send notification', () => {
     test('creates and sends notification successfully', async () => {
       const notificationId =
-        await notificationAggregate.createAndSendNotification();
+        await notificationAggregate.createAndSendNotification(data);
       assert.ok(notificationId);
     });
 
@@ -32,7 +34,7 @@ describe('notification aggregate', () => {
         throw error;
       });
       await assert.rejects(
-        () => notificationAggregate.createAndSendNotification(),
+        () => notificationAggregate.createAndSendNotification(data),
         error
       );
 
@@ -52,7 +54,7 @@ describe('notification aggregate', () => {
   describe('get notification', () => {
     test('returns notification when exists', async () => {
       const notificationId =
-        await notificationAggregate.createAndSendNotification();
+        await notificationAggregate.createAndSendNotification(data);
       const notification =
         await notificationAggregate.getNotification(notificationId);
       assert.ok(notification);
