@@ -5,6 +5,10 @@ export const AccessType = {
 } as const;
 export type AccessType = keyof typeof AccessType;
 
+export const InteractiveAccessType: AccessType[] = [
+  AccessType.OUTGOING_PAYMENT
+] as const;
+
 export interface IAccessLimit {
   receiver: string;
   assetCode: string;
@@ -98,6 +102,13 @@ export const GrantState = {
 } as const;
 export type GrantState = keyof typeof GrantState;
 
+export const GrantFinalization = {
+  ISSUED: 'ISSUED',
+  REVOKED: 'REVOKED',
+  REJECTED: 'REJECTED'
+} as const;
+export type GrantFinalization = keyof typeof GrantFinalization;
+
 export interface IInteraction {
   interactRef: string;
   clientNonce: string;
@@ -109,12 +120,12 @@ export type IGrantEntity = Omit<IGrant, 'id'>;
 
 export interface IGrant {
   id: string;
-  tenantId: string;
   startMethods: IStartMethod[];
   identifier: string;
-  continueToken: string;
-  continueId: string;
+  continueToken?: string;
+  continueId?: string;
   state: GrantState;
+  finalizationReason?: GrantFinalization;
   client?: string;
   subject?: ISubject;
   accesses?: IAccessItem[];
@@ -122,6 +133,7 @@ export interface IGrant {
   finishUri?: string;
   interaction?: IInteraction;
   lastContinuedAt?: Date;
+  accessTokens: Map<string, IAccessToken>;
 }
 
 export type NewAccessToken = Omit<IAccessToken, 'revokedAt'>;
@@ -132,7 +144,6 @@ export type RevokedAccessToken = IAccessToken & {
 
 export interface IAccessToken {
   value: string;
-  grantId: string;
   managementId: string;
   expiresIn: number;
   revokedAt?: Date;
