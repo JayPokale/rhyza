@@ -43,15 +43,17 @@ export class NotificationsCommandHandler {
 
     for (const msg of messages) {
       switch (msg.msgName) {
-        case CreateNotificationCmd.name:
+        case CreateNotificationCmd.name: {
           const event = await this._createAndSendNotification(
             msg as CreateNotificationCmd
           );
           eventsToPublish.push(event);
           break;
-        default:
+        }
+        default: {
           unhandled.push(msg);
           break;
+        }
       }
     }
 

@@ -20,5 +20,6 @@ export class NotificationCreatedEvent extends DomainEventMsg {
     super();
     this.aggregateId = this.msgKey = payload.id;
     this.payload = payload;
+    this.requestId = requestId;
   }
 }

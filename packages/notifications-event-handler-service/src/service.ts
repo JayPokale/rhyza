@@ -1,4 +1,3 @@
-import { MessageProducer } from 'common-types-lib';
 import { NotificationsEventHandler } from './event-handler';
 import {
   RafikiKafkaJsonConsumer,
