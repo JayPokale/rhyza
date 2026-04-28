@@ -102,6 +102,10 @@ export interface IRemotePaymentIntentPort {
   fetchIncomingPayment(url: string): Promise<RemotePaymentIntentDetails>;
 }
 
+export interface IIlpClientPort {
+  resolvePeerByAddress(destinationIlpAddress: string): Promise<{ peerId: string }>;
+}
+
 export interface IPaymentIntentRepository {
   storeMany(paymentIntents: IPaymentIntent[]): Promise<void>;
   fetchByIdsWithPayments(ids: string[]): Promise<IPaymentIntent[]>;

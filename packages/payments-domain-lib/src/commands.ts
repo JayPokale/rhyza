@@ -81,9 +81,9 @@ export class CreatePaymentCmd extends CommandMsg {
 export interface FinalizeRemoteQuoteCmdPayload {
   quoteId: string;
   paymentIntentId: string;
-  debitAmount: number;
-  receiveAmount: number;
-  exchangeRate: number;
+  maxSourceAmount: number;
+  minDeliveryAmount: number;
+  lowEstimatedExchangeRate: number;
 }
 
 export class FinalizeRemoteQuoteCmd extends CommandMsg {

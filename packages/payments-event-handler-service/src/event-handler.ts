@@ -15,19 +15,17 @@ const ILP_QUOTE_DETERMINED_EVENT = 'QuoteDeterminedEvent';
 const ILP_QUOTE_FAILED_EVENT = 'QuoteFailedEvent';
 
 // TODO: finalize payload shapes with ILP BC
-// - may want to use more ILP pay langauge (lowEstimatedExchangeRate instead of exhangeRate, maxSourceAmount instead of debitAmount etc.)
-// - may want to do more generic `requestId` or similar for correlation instead of paymentIntentId, quoteId etc. then concat them `paymentIntentId:quoteId`
 interface IlpQuoteDeterminedPayload {
-  quoteId: string;
   paymentIntentId: string;
-  debitAmount: number;
-  receiveAmount: number;
-  exchangeRate: number;
+  quoteId: string;
+  maxSourceAmount: number;
+  minDeliveryAmount: number;
+  lowEstimatedExchangeRate: number;
 }
 
 interface IlpQuoteFailedPayload {
-  quoteId: string;
   paymentIntentId: string;
+  quoteId: string;
   errorName: string;
   message: string;
 }
@@ -61,9 +59,9 @@ export class PaymentsEventHandler {
           {
             quoteId: payload.quoteId,
             paymentIntentId: payload.paymentIntentId,
-            debitAmount: payload.debitAmount,
-            receiveAmount: payload.receiveAmount,
-            exchangeRate: payload.exchangeRate
+            maxSourceAmount: payload.maxSourceAmount,
+            minDeliveryAmount: payload.minDeliveryAmount,
+            lowEstimatedExchangeRate: payload.lowEstimatedExchangeRate
           },
           message.requestId ?? ''
         );

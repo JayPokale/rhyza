@@ -1,5 +1,6 @@
 import { Message } from 'common-types-lib';
 import {
+  IIlpClientPort,
   IPaymentIntent,
   IPaymentIntentRepository,
   IRatesService,
@@ -55,7 +56,8 @@ export class PaymentIntentAggregate {
     private _repo: IPaymentIntentRepository,
     private _walletAddressService: IWalletAddressService,
     private _ratesService: IRatesService,
-    private _remotePaymentIntentPort: IRemotePaymentIntentPort
+    private _remotePaymentIntentPort: IRemotePaymentIntentPort,
+    private _ilpClientPort: IIlpClientPort
   ) {}
 
   async handleBatch(cmds: Message[]): Promise<{ events: Message[] }> {
@@ -299,14 +301,16 @@ export class PaymentIntentAggregate {
       this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
       this.appendToMap(this.newPaymentIntentQuotes, paymentIntent.id, quoteId);
 
-      // TODO:
-      // - include peer/ilp details. What exactly?
-      // - does ILP BC need receiver asset code/scale. I believe rafiki v1 does not include
-      //   because ILP pay discovers internally.
+      // TODO: should assume destination ilp address was on fetched remote payment intent. stub that.
+      const destinationIlpAddress = '';
+      const { peerId } = await this._ilpClientPort.resolvePeerByAddress(
+        destinationIlpAddress
+      );
+
       return new RemoteQuoteRequestedEvent(
         {
-          quoteId,
           paymentIntentId,
+          quoteId,
           senderWalletAddress,
           senderWalletAddressId,
           receiverWalletAddress: paymentIntent.receiverWalletAddress,
@@ -316,7 +320,9 @@ export class PaymentIntentAggregate {
           receiverAssetScale: paymentIntent.assetScale,
           debitAmount: debitAmount != null ? String(debitAmount) : undefined,
           receiveAmount:
-            receiveAmount != null ? String(receiveAmount) : undefined
+            receiveAmount != null ? String(receiveAmount) : undefined,
+          peerId,
+          destinationIlpAddress
         },
         cmd.requestId
       );
@@ -414,9 +420,9 @@ export class PaymentIntentAggregate {
     const {
       quoteId,
       paymentIntentId,
-      debitAmount,
-      receiveAmount,
-      exchangeRate
+      maxSourceAmount,
+      minDeliveryAmount,
+      lowEstimatedExchangeRate
     } = cmd.payload;
 
     try {
@@ -433,9 +439,9 @@ export class PaymentIntentAggregate {
       // Should Payments BC validate or cross-check this rate against its own FX source?
       paymentIntent.completeRemoteQuote({
         id: quoteId,
-        debitAmount: BigInt(debitAmount),
-        receiveAmount: BigInt(receiveAmount),
-        exchangeRate
+        debitAmount: BigInt(maxSourceAmount),
+        receiveAmount: BigInt(minDeliveryAmount),
+        exchangeRate: lowEstimatedExchangeRate
       });
 
       this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());

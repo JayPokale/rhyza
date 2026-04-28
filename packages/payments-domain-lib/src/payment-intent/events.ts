@@ -130,8 +130,8 @@ export class PaymentCreateFailedEvent extends DomainEventMsg {
 }
 
 export interface RemoteQuoteRequestedPayload {
-  quoteId: string;
   paymentIntentId: string;
+  quoteId: string;
   senderWalletAddress: string;
   senderWalletAddressId: string;
   receiverWalletAddress: string;
@@ -141,6 +141,8 @@ export interface RemoteQuoteRequestedPayload {
   receiverAssetScale: number;
   debitAmount?: string;
   receiveAmount?: string;
+  peerId: string;
+  destinationIlpAddress: string;
 }
 
 export class RemoteQuoteRequestedEvent extends DomainEventMsg {

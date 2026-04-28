@@ -8,7 +8,7 @@ import {
   PalWalletAddressAdapter,
   StaticRatesAdapter
 } from 'payments-implementations-lib';
-import { PaymentIntentAggregate } from 'payments-domain-lib';
+import { IIlpClientPort, PaymentIntentAggregate } from 'payments-domain-lib';
 import { PalClient } from 'pal-client-lib';
 import { PaymentsCommandHandler } from './cmd-handler';
 import process from 'process';
@@ -24,6 +24,13 @@ const CONSUMER_BATCH_TIMEOUT_MS =
   (process.env['CONSUMER_BATCH_TIMEOUT_MS'] &&
     parseInt(process.env['CONSUMER_BATCH_TIMEOUT_MS'])) ||
   50;
+
+// TODO: replace with real ILP client adapter once ILP BC gRPC interface is defined
+class StubIlpClientAdapter implements IIlpClientPort {
+  async resolvePeerByAddress(_destinationIlpAddress: string): Promise<{ peerId: string }> {
+    return { peerId: '' };
+  }
+}
 
 export class PaymentsCommandHandlerService {
   private static commandHandler: PaymentsCommandHandler;
@@ -41,11 +48,14 @@ export class PaymentsCommandHandlerService {
     const staticRatesAdapter = new StaticRatesAdapter();
     const remotePaymentIntentAdapter = new RemotePaymentIntentAdapter();
 
+    const ilpClientAdapter = new StubIlpClientAdapter();
+
     const aggregate = new PaymentIntentAggregate(
       this.repo,
       walletAddressAdapter,
       staticRatesAdapter,
-      remotePaymentIntentAdapter
+      remotePaymentIntentAdapter,
+      ilpClientAdapter
     );
 
     this.msgProducer = new RafikiKafkaJsonProducer({
