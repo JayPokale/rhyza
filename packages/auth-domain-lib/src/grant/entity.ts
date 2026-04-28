@@ -113,8 +113,10 @@ export class GrantEntity implements IGrantEntity {
     this._id = input.id;
     this._startMethods = input.startMethods;
     this._identifier = input.identifier;
-    this._continueToken = input.continueToken;
-    this._continueId = input.continueId;
+    // TODO: optionally generate continue information for cases where grant is not continuable
+    this._continueToken = crypto.randomBytes(16).toString('hex').toUpperCase();
+    this._continueId = uuid();
+    // TODO: determine state heuristically from inputs, with input.state as override
     this._state = input.state;
     this._finalizationReason = input.finalizationReason;
     this._client = input.client;
