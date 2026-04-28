@@ -2,7 +2,6 @@ import { CommandMsg, CommandTopics } from 'common-types-lib';
 
 const BOUNDED_CONTEXT_NAME = 'auth';
 const GRANT_AGGREGATE_NAME = 'grant';
-const ACCESS_TOKEN_AGGREGATE_NAME = 'access_token';
 
 interface LimitPayload {
   reciever: string;
@@ -78,27 +77,21 @@ export class RevokeGrantCmd extends CommandMsg {
   }
 }
 
-export interface FinalizeGrantCmdPayload {
-  id: string; // ID of associated grant.
-  finalizationReason: string;
-  accessToken?: {
-    id: string;
-    value: string;
-    managementId: string;
-    expiresIn: number;
-    revokedAt?: string;
-  };
+export interface ContinueGrantCmdPayload {
+  id: string;
+  continueId: string;
+  continueToken: string;
 }
 
-export class FinalizeGrantCommand extends CommandMsg {
+export class ContinueGrantCommand extends CommandMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateId: string;
   aggregateName: string = GRANT_AGGREGATE_NAME;
   msgKey: string;
   msgTopic: string = CommandTopics.AuthCommands;
-  payload: FinalizeGrantCmdPayload;
+  payload: ContinueGrantCmdPayload;
 
-  constructor(payload: FinalizeGrantCmdPayload, requestId: string) {
+  constructor(payload: ContinueGrantCmdPayload, requestId: string) {
     super();
     this.requestId = requestId;
     this.aggregateId = this.msgKey = payload.id;
@@ -107,13 +100,15 @@ export class FinalizeGrantCommand extends CommandMsg {
 }
 
 export interface RotateAccessTokenCmdPayload {
+  id: string;
   value: string;
+  managementId: string;
 }
 
 export class RotateAccessTokenCmd extends CommandMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateId: string;
-  aggregateName: string = ACCESS_TOKEN_AGGREGATE_NAME;
+  aggregateName: string = GRANT_AGGREGATE_NAME;
   msgKey: string;
   msgTopic: string = CommandTopics.AuthCommands;
   payload: RotateAccessTokenCmdPayload;
@@ -121,7 +116,7 @@ export class RotateAccessTokenCmd extends CommandMsg {
   constructor(payload: RotateAccessTokenCmdPayload, requestId: string) {
     super();
     this.requestId = requestId;
-    this.aggregateId = this.msgKey = payload.value;
+    this.aggregateId = this.msgKey = payload.id;
     this.payload = payload;
   }
 }
@@ -148,37 +143,19 @@ export class InteractionChoiceCommand extends CommandMsg {
   }
 }
 
-export interface CreateAccessTokenCmdPayload {
-  value: string;
-  managementId: string;
-  expiresIn: number;
-  grantId: string;
-}
-
-export class CreateAccessTokenCommand extends CommandMsg {
-  contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
-  aggregateName: string = ACCESS_TOKEN_AGGREGATE_NAME;
-  msgKey: string;
-  msgTopic: string = CommandTopics.AuthCommands;
-  payload: CreateAccessTokenCmdPayload;
-
-  constructor(payload: CreateAccessTokenCmdPayload, requestId: string) {
-    super();
-    this.requestId = requestId;
-    this.aggregateId = this.msgKey = payload.value;
-    this.payload = payload;
-  }
-}
+export class InteractionApprovedCommand extends InteractionChoiceCommand {}
+export class InteractionDeniedCommand extends InteractionChoiceCommand {}
 
 export interface RevokeAccessTokenCmdPayload {
+  id: string;
   value: string;
+  managementId: string;
 }
 
 export class RevokeAccessTokenCommand extends CommandMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateId: string;
-  aggregateName: string = ACCESS_TOKEN_AGGREGATE_NAME;
+  aggregateName: string = GRANT_AGGREGATE_NAME;
   msgKey: string;
   msgTopic: string = CommandTopics.AuthCommands;
   payload: RevokeAccessTokenCmdPayload;
@@ -186,7 +163,7 @@ export class RevokeAccessTokenCommand extends CommandMsg {
   constructor(payload: RevokeAccessTokenCmdPayload, requestId: string) {
     super();
     this.requestId = requestId;
-    this.aggregateId = this.msgKey = payload.value;
+    this.aggregateId = this.msgKey = payload.id;
     this.payload = payload;
   }
 }

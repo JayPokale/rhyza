@@ -1,5 +1,3 @@
-import { IAccessToken } from '../access-token/interfaces';
-
 export const AccessType = {
   INCOMING_PAYMENT: 'INCOMING_PAYMENT',
   OUTGOING_PAYMENT: 'OUTGOING_PAYMENT',
@@ -122,4 +120,18 @@ export interface IGrant {
   finishUri?: string;
   interaction?: IInteraction;
   lastContinuedAt?: Date;
+}
+
+export type NewAccessToken = Omit<IAccessToken, 'revokedAt'>;
+
+export type RevokedAccessToken = IAccessToken & {
+  revokedAt: Date;
+};
+
+export interface IAccessToken {
+  value: string;
+  grantId: string;
+  managementId: string;
+  expiresIn: number;
+  revokedAt?: Date;
 }
