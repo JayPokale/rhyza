@@ -19,7 +19,6 @@ interface SubjectId {
 
 export interface CreateGrantCmdPayload {
   id: string;
-  tenantId: string;
   access: {
     identifier?: string;
     type: string;
