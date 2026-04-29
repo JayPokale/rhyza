@@ -17,6 +17,15 @@ interface SubjectId {
   id: string;
 }
 
+interface JsonWebKey {
+  kty: string;
+  kid: string;
+  use?: string;
+  alg: string;
+  crv: string;
+  x: string;
+}
+
 export interface CreateGrantCmdPayload {
   id: string;
   access: {
@@ -25,7 +34,7 @@ export interface CreateGrantCmdPayload {
     actions: string[];
     limits?: LimitPayload;
   }[];
-  client?: string;
+  client?: string | JsonWebKey;
   interact?: {
     start: string[];
     finish?: {
@@ -148,7 +157,7 @@ export interface InteractionChoiceCmdPayload {
   nonce: string;
 }
 
-export class InteractionChoiceCommand extends CommandMsg {
+class InteractionChoiceCommand extends CommandMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateId: string;
   aggregateName: string = GRANT_AGGREGATE_NAME;
@@ -164,5 +173,5 @@ export class InteractionChoiceCommand extends CommandMsg {
   }
 }
 
-export class InteractionApprovedCommand extends InteractionChoiceCommand { }
-export class InteractionDeniedCommand extends InteractionChoiceCommand { }
+export class InteractionApprovedCommand extends InteractionChoiceCommand {}
+export class InteractionDeniedCommand extends InteractionChoiceCommand {}
