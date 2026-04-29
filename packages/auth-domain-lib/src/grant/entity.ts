@@ -1,4 +1,5 @@
 import * as crypto from 'crypto';
+import { isDeepStrictEqual } from 'util';
 import { v4 as uuid } from 'uuid';
 import {
   InvalidGrantError,
@@ -22,7 +23,10 @@ import {
   NewAccessToken,
   RevokedAccessToken,
   GrantFinalization,
-  InteractiveAccessType
+  InteractiveAccessType,
+  AccessType,
+  IJsonWebKey,
+  AccessAction
 } from './interfaces';
 
 interface IGrantInput {
@@ -47,6 +51,44 @@ export type CreateGrantInput = Omit<
   'continueToken' | 'continueId' | 'state'
 >;
 
+function generateContinueToken(): string {
+  return crypto.randomBytes(16).toString('hex').toUpperCase();
+}
+
+function generateAccessToken(): string {
+  return crypto.randomBytes(10).toString('hex').toUpperCase();
+}
+
+function compareAccessItems(
+  inputAccessItem: IAccessItem,
+  grantAccessItem: IAccessItem
+): boolean {
+  if (inputAccessItem.type !== grantAccessItem.type) return false;
+
+  for (const inputAction of inputAccessItem.actions) {
+    if (
+      !grantAccessItem.actions.find(
+        (grantAction) =>
+          inputAction === grantAction ||
+          (inputAction === AccessAction.READ &&
+            grantAction === AccessAction.READ_ALL) ||
+          (inputAction === AccessAction.LIST &&
+            grantAction === AccessAction.LIST_ALL)
+      )
+    )
+      return false;
+  }
+
+  if (inputAccessItem.identifier !== grantAccessItem.identifier) return false;
+
+  if (
+    inputAccessItem.limits &&
+    !isDeepStrictEqual(inputAccessItem.limits, grantAccessItem.limits)
+  )
+    return false;
+  return true;
+}
+
 export class GrantEntity implements IGrantEntity {
   private _id: string;
   private _startMethods: IStartMethod[];
@@ -55,7 +97,7 @@ export class GrantEntity implements IGrantEntity {
   private _continueId?: string;
   private _state: GrantState;
   private _finalizationReason?: GrantFinalization;
-  private _client?: string;
+  private _client?: string | IJsonWebKey;
   private _subject?: ISubject;
   private _accesses?: IAccessItem[];
   private _finishMethod?: IFinishMethod;
@@ -71,12 +113,10 @@ export class GrantEntity implements IGrantEntity {
     this._id = input.id;
     this._startMethods = input.startMethods;
     this._identifier = input.identifier;
-    // TODO: optionally generate continue information for cases where grant is not continuable
-    this._continueToken = crypto.randomBytes(16).toString('hex').toUpperCase();
-    this._continueId = uuid();
-    // TODO: determine state heuristically from inputs, with input.state as override
+    this._continueToken = input.continueToken;
+    this._continueId = input.continueId;
     this._state = input.state;
-
+    this._finalizationReason = input.finalizationReason;
     this._client = input.client;
     this._subject = input.subject;
     this._accesses = input.accesses;
@@ -90,26 +130,24 @@ export class GrantEntity implements IGrantEntity {
     return new GrantEntity(obj);
   }
 
+  // Computes the state of the grant as well as any continuation information
+  // depending on the access types requested.
   static create(input: CreateGrantInput): GrantEntity {
-    const hasInteractiveAccessType = input.accesses?.some((access) =>
+    const isContinuableGrant = input.accesses?.some((access) =>
       InteractiveAccessType.includes(access.type)
     );
 
     const entity = new GrantEntity({
       ...input,
-      state: hasInteractiveAccessType
-        ? GrantState.PENDING
-        : GrantState.FINALIZED,
-      finalizationReason: !hasInteractiveAccessType
+      state: isContinuableGrant ? GrantState.PENDING : GrantState.FINALIZED,
+      finalizationReason: !isContinuableGrant
         ? GrantFinalization.ISSUED
         : undefined,
-      continueToken: hasInteractiveAccessType
-        ? crypto.randomBytes(16).toString('hex').toUpperCase()
-        : undefined,
-      continueId: hasInteractiveAccessType ? uuid() : undefined
+      continueToken: isContinuableGrant ? generateContinueToken() : undefined,
+      continueId: isContinuableGrant ? uuid() : undefined
     });
 
-    if (!hasInteractiveAccessType) {
+    if (!isContinuableGrant) {
       entity.createAccessToken();
     }
 
@@ -136,6 +174,7 @@ export class GrantEntity implements IGrantEntity {
     };
   }
 
+  // Generates an interaction for the grant.
   startInteraction(): IInteraction {
     if (!this._startMethods) {
       throw new NonInteractiveGrantError();
@@ -151,6 +190,7 @@ export class GrantEntity implements IGrantEntity {
     return this._interaction;
   }
 
+  // Updates the approval state of the interaction.
   handleInteractionChoice(choice: InteractionChoice) {
     if (!this._interaction) {
       throw new UnknownInteractionError();
@@ -162,6 +202,7 @@ export class GrantEntity implements IGrantEntity {
     this._interaction.state = choice;
   }
 
+  // Continues the grant, if an interaction was required.
   continueGrant(
     continueToken: string,
     continueId: string
@@ -208,14 +249,51 @@ export class GrantEntity implements IGrantEntity {
     }
   }
 
+  // Issues a new access token for this grant.
   createAccessToken(): NewAccessToken {
+    if (this.finalizationReason !== GrantFinalization.ISSUED) {
+      throw new InvalidGrantError(
+        'Cannot create access token for grant that has not been issued'
+      );
+    }
     const newAccessToken: NewAccessToken = {
       managementId: uuid(),
-      value: crypto.randomBytes(10).toString('hex').toUpperCase(),
+      value: generateAccessToken(),
+      createdAt: new Date(),
       expiresIn: Number(process.env.ACCESS_TOKEN_EXPIRY_SECONDS)
     };
     this._accessTokens.set(newAccessToken.value, newAccessToken);
     return newAccessToken;
+  }
+
+  // Introspect an access token.
+  // Returns the union between the requested accesses and the grant's accesses.
+  introspectAccessToken(
+    value: string,
+    requestedAccesses: IAccessItem[]
+  ): IAccessItem[] {
+    const accessToken = this._accessTokens.get(value);
+    if (
+      !accessToken ||
+      accessToken.revokedAt ||
+      accessToken.createdAt.getTime() + accessToken.expiresIn < Date.now()
+    ) {
+      throw new UnknownAccessTokenError();
+    }
+
+    if (this.finalizationReason !== GrantFinalization.ISSUED)
+      throw new InvalidGrantError();
+
+    const allowedAccessItems: IAccessItem[] = [];
+    for (const requestedAccessItem of requestedAccesses) {
+      const allowedAccessItem = this._accesses?.find((grantAccessItem) =>
+        compareAccessItems(requestedAccessItem, grantAccessItem)
+      );
+      if (allowedAccessItem) {
+        allowedAccessItems.push(allowedAccessItem);
+      }
+    }
+    return allowedAccessItems;
   }
 
   revokeAccessToken(value: string): RevokedAccessToken {
@@ -260,7 +338,7 @@ export class GrantEntity implements IGrantEntity {
     return this._finalizationReason;
   }
 
-  get client(): string | undefined {
+  get client(): string | IJsonWebKey | undefined {
     return this._client;
   }
 

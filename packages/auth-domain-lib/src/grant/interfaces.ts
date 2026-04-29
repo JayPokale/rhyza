@@ -126,7 +126,7 @@ export interface IGrant {
   continueId?: string;
   state: GrantState;
   finalizationReason?: GrantFinalization;
-  client?: string;
+  client?: string | IJsonWebKey;
   subject?: ISubject;
   accesses?: IAccessItem[];
   finishMethod?: IFinishMethod;
@@ -146,5 +146,15 @@ export interface IAccessToken {
   value: string;
   managementId: string;
   expiresIn: number;
+  createdAt: Date;
   revokedAt?: Date;
+}
+
+export interface IJsonWebKey {
+  kty: string;
+  kid: string;
+  use?: string;
+  alg: string;
+  crv: string;
+  x: string;
 }
