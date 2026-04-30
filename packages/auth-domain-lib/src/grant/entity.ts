@@ -108,18 +108,22 @@ export class GrantEntity implements IGrantEntity {
   private _finishUri?: string;
   private _interaction?: IInteraction;
   private _lastContinuedAt?: Date;
-  private _accessTokens: Map<string, IAccessToken> = new Map();
+  // Map is indexed by the value of the access token.
+  private _accessTokens: Map<string, IAccessToken> = new Map<
+    string,
+    IAccessToken
+  >();
 
   private constructor(input: IGrantInput) {
     this._id = input.id;
     this._startMethods = input.startMethods;
-    this._identifier = input.identifier;
     this._continueToken = input.continueToken;
     this._continueId = input.continueId;
     this._state = input.state;
     this._finalizationReason = input.finalizationReason;
     this._client = input.client;
     this._subject = input.subject;
+    this._identifier = input.identifier;
     this._accesses = input.accesses;
     this._finishMethod = input.finishMethod;
     this._finishUri = input.finishUri;
