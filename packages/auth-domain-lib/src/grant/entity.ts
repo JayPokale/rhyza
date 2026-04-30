@@ -208,7 +208,7 @@ export class GrantEntity implements IGrantEntity {
   }
 
   // Continues the grant, if an interaction was required.
-  continueGrant(
+  continue(
     continueToken: string,
     continueId: string,
     interactRef: string

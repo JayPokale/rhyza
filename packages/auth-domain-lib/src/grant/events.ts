@@ -46,20 +46,20 @@ export class GrantCreateFailedEvent extends DomainEventMsg {
   }
 }
 
-export interface GrantFinalizedPayload {
+export interface GrantContinuePayload {
   id: string;
-  reason: GrantFinalization;
+  result: GrantFinalization;
 }
 
-export class GrantFinalizedEvent extends DomainEventMsg {
+export class GrantContinueEvent extends DomainEventMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateId: string;
   aggregateName: string = AGGREGATE_NAME;
   msgKey: string;
   msgTopic: string = EventTopics.AuthEvents;
-  payload: GrantFinalizedPayload;
+  payload: GrantContinuePayload;
 
-  constructor(payload: GrantFinalizedPayload, requestId?: string) {
+  constructor(payload: GrantContinuePayload, requestId?: string) {
     super();
     this.aggregateId = this.msgKey = payload.id;
     this.payload = payload;
@@ -67,20 +67,20 @@ export class GrantFinalizedEvent extends DomainEventMsg {
   }
 }
 
-export interface GrantFinalizeFailedPayload {
+export interface GrantContinueFailedPayload {
   errorName: string;
   message: string;
 }
 
-export class GrantFinalizedFailedEvent extends DomainEventMsg {
+export class GrantContinueFailedEvent extends DomainEventMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateId: string;
   aggregateName: string = AGGREGATE_NAME;
   msgKey: string;
   msgTopic: string = EventTopics.AuthEvents;
-  payload: GrantFinalizeFailedPayload;
+  payload: GrantContinueFailedPayload;
 
-  constructor(payload: GrantFinalizeFailedPayload, requestId?: string) {
+  constructor(payload: GrantContinueFailedPayload, requestId?: string) {
     super();
     this.aggregateId = this.msgKey = requestId ?? '';
     this.payload = payload;

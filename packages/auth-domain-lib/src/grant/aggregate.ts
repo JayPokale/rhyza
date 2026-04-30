@@ -1,15 +1,16 @@
 import { Message } from 'common-types-lib';
 import {
-  FinalizeGrantCmd,
+  ContinueGrantCmd,
   CreateGrantCmd,
-  InteractionChoiceCommand
+  InteractionApprovedCommand,
+  InteractionDeniedCommand
 } from '../commands';
 import { DuplicateGrantError, GrantNotFoundError } from './errors';
 import {
   GrantCreatedEvent,
   GrantCreateFailedEvent,
-  GrantFinalizedEvent,
-  GrantFinalizedFailedEvent,
+  GrantContinueEvent,
+  GrantContinueFailedEvent,
   GrantInteractionChoiceEvent,
   GrantInteractionChoiceFailureEvent
 } from './events';
@@ -23,6 +24,7 @@ import {
   IFinishMethod,
   IGrant,
   InteractionChoice,
+  InteractionState,
   IStartMethod,
   ISubjectId
 } from './interfaces';
@@ -45,11 +47,16 @@ export class GrantAggregate {
       if (cmd.msgName === CreateGrantCmd.name) {
         const payload = (cmd as CreateGrantCmd).payload;
         grantIdSet.add(payload.id);
-      } else if (cmd.msgName === FinalizeGrantCmd.name) {
-        const payload = (cmd as FinalizeGrantCmd).payload;
+      } else if (cmd.msgName === ContinueGrantCmd.name) {
+        const payload = (cmd as ContinueGrantCmd).payload;
         grantIdSet.add(payload.id);
-      } else if ((cmd.msgName = InteractionChoiceCommand.name)) {
-        const payload = (cmd as InteractionChoiceCommand).payload;
+      } else if (
+        (cmd.msgName = InteractionApprovedCommand.name) ||
+        (cmd.msgName = InteractionDeniedCommand.name)
+      ) {
+        const payload = (
+          cmd as InteractionApprovedCommand | InteractionDeniedCommand
+        ).payload;
         grantIdSet.add(payload.id);
       }
 
@@ -63,11 +70,15 @@ export class GrantAggregate {
         let event: Message;
         if (cmd.msgName == CreateGrantCmd.name) {
           event = this.handleCreateGrantCommand(cmd as CreateGrantCmd);
-        } else if (cmd.msgName === FinalizeGrantCmd.name) {
-          event = this.handleFinalizeGrantCommand(cmd as FinalizeGrantCmd);
-        } else if (cmd.msgName === InteractionChoiceCommand.name) {
-          event = this.handleInteractionChoiceCommand(
-            cmd as InteractionChoiceCommand
+        } else if (cmd.msgName === ContinueGrantCmd.name) {
+          event = this.handleContinueGrantCommand(cmd as ContinueGrantCmd);
+        } else if (cmd.msgName === InteractionApprovedCommand.name) {
+          event = this.handleInteractionApprovedCommand(
+            cmd as InteractionApprovedCommand
+          );
+        } else if (cmd.msgName === InteractionDeniedCommand.name) {
+          event = this.handleInteractionDeniedCommand(
+            cmd as InteractionDeniedCommand
           );
         } else {
           throw new Error('Unexpected command');
@@ -86,8 +97,6 @@ export class GrantAggregate {
         throw new DuplicateGrantError(`Grant with id ${id} already exists`);
       }
 
-      // TODO verify state & start methods are in enum
-
       const accessItems: IAccessItem[] | undefined = cmd.payload.access?.map(
         (access) => {
           return {
@@ -99,11 +108,10 @@ export class GrantAggregate {
         }
       );
 
-      const entity = GrantEntity.fromObject({
+      const entity = GrantEntity.create({
         ...cmd.payload,
-        state: cmd.payload.state as GrantState,
-        startMethods: cmd.payload.startMethods as IStartMethod[],
-        finishMethod: cmd.payload.finishMethod as IFinishMethod,
+        startMethods: cmd.payload.interact?.start as IStartMethod[],
+        finishMethod: cmd.payload.interact?.finish?.method as IFinishMethod,
         subjectIds: cmd.payload.subjectIds as ISubjectId[],
         accesses: accessItems
       });
@@ -127,8 +135,8 @@ export class GrantAggregate {
     }
   }
 
-  private handleFinalizeGrantCommand(cmd: FinalizeGrantCmd) {
-    const { id, finalizationReason, accessToken } = cmd.payload;
+  private handleContinueGrantCommand(cmd: ContinueGrantCmd) {
+    const { id, continueId, continueToken } = cmd.payload;
     try {
       const grantObj = this.grantMap.get(id);
       if (!grantObj) {
@@ -136,24 +144,26 @@ export class GrantAggregate {
       }
 
       const grant = GrantEntity.fromObject(grantObj);
-      grant.finalize(finalizationReason as GrantFinalization);
+      grant.continue(continueToken, continueId);
 
       this.grantMap.set(id, grant.toObject());
-      return new GrantFinalizedEvent({
+      return new GrantContinueEvent({
         id,
-        reason: finalizationReason as GrantFinalization
+        result: grant.finalizationReason as GrantFinalization
       });
     } catch (err) {
-      return new GrantFinalizedFailedEvent({
+      return new GrantContinueFailedEvent({
         errorName: (err as Error).name,
         message: (err as Error).message
       });
     }
   }
 
-  private handleInteractionChoiceCommand(cmd: InteractionChoiceCommand) {
-    const { id, nonce, interactId, choice } = cmd.payload;
-
+  private handleInteractionChoice(
+    id: string,
+    choice: InteractionChoice,
+    interactId: string
+  ) {
     try {
       const grantObj = this.grantMap.get(id);
       if (!grantObj) {
@@ -161,23 +171,38 @@ export class GrantAggregate {
       }
 
       const grant = GrantEntity.fromObject(grantObj);
-      // TODO: validate choice as interactionChoice
-      grant.handleInteractionChoice(
-        interactId,
-        nonce,
-        choice as InteractionChoice
-      );
+      grant.handleInteractionChoice(choice);
       this.grantMap.set(id, grant.toObject());
 
       return new GrantInteractionChoiceEvent({
         id,
         interactId
       });
-    } catch (err) {
+    } catch (error) {
       return new GrantInteractionChoiceFailureEvent({
-        errName: (err as Error).name,
-        message: (err as Error).message
+        errName: (error as Error).name,
+        message: (error as Error).message
       });
     }
+  }
+
+  private handleInteractionApprovedCommand(cmd: InteractionApprovedCommand) {
+    const { id, interactId } = cmd.payload;
+
+    return this.handleInteractionChoice(
+      id,
+      InteractionState.APPROVED,
+      interactId
+    );
+  }
+
+  private handleInteractionDeniedCommand(cmd: InteractionDeniedCommand) {
+    const { id, interactId } = cmd.payload;
+
+    return this.handleInteractionChoice(
+      id,
+      InteractionState.DENIED,
+      interactId
+    );
   }
 }

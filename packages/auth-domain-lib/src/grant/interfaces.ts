@@ -35,6 +35,11 @@ export interface IAccessItem {
   identifier?: string;
 }
 
+export interface ISubjectId {
+  format: string;
+  id: string;
+}
+
 export interface ISubject {
   subIds?: ISubjectId[];
 }
@@ -67,11 +72,6 @@ export const IFinishMethod = {
   REDIRECT: 'REDIRECT'
 } as const;
 export type IFinishMethod = keyof typeof IFinishMethod;
-
-export interface ISubjectId {
-  format: string;
-  id: string;
-}
 
 export interface IGrantFinishMethod {
   method: IFinishMethod;

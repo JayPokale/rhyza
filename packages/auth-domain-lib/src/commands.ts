@@ -93,7 +93,7 @@ export interface ContinueGrantCmdPayload {
   interactRef: string;
 }
 
-export class ContinueGrantCommand extends CommandMsg {
+export class ContinueGrantCmd extends CommandMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateName: string = GRANT_AGGREGATE_NAME;
   msgKey: string;
