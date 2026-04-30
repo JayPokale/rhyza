@@ -12,7 +12,7 @@ import {
   ApprovePaymentCmd,
   FinalizeRemoteQuoteCmd,
   FailRemoteQuoteCmd,
-  FetchRemotePaymentIntentCmd
+  ImportRemotePaymentIntentCmd
 } from 'payments-domain-lib';
 
 export class PaymentsCommandHandler {
@@ -67,7 +67,7 @@ export class PaymentsCommandHandler {
         case FailRemoteQuoteCmd.name:
           commandMessages.push(msg);
           break;
-        case FetchRemotePaymentIntentCmd.name:
+        case ImportRemotePaymentIntentCmd.name:
           commandMessages.push(msg);
           break;
         default:

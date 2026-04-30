@@ -13,6 +13,9 @@ interface IncomingPaymentRouteOptions extends FastifyPluginOptions {
   repo: MongoDbPaymentIntentRepo;
 }
 
+// TODO: get properly
+const STUB_DESTINATION_ILP_ADDRESS = 'test.rafiki.bob';
+
 export async function incomingPaymentRoutes(
   server: FastifyInstance,
   opts: IncomingPaymentRouteOptions
@@ -91,13 +94,15 @@ export async function incomingPaymentRoutes(
           assetScale: number;
         };
         expiresAt?: string;
+        destinationIlpAddress: string;
       } = {
         walletAddress: paymentIntent.receiverWalletAddress,
         receivedAmount: {
           value: String(paymentIntent.receivedAmount),
           assetCode: paymentIntent.assetCode,
           assetScale: paymentIntent.assetScale
-        }
+        },
+        destinationIlpAddress: STUB_DESTINATION_ILP_ADDRESS
       };
 
       if (paymentIntent.incomingAmount) {

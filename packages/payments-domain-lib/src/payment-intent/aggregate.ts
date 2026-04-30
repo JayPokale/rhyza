@@ -19,7 +19,7 @@ import {
   ApprovePaymentCmd,
   FinalizeRemoteQuoteCmd,
   FailRemoteQuoteCmd,
-  FetchRemotePaymentIntentCmd
+  ImportRemotePaymentIntentCmd
 } from '../commands';
 import {
   CannotCreateDuplicatePaymentIntentError,
@@ -40,8 +40,8 @@ import {
   PaymentCreatedEvent,
   RemoteQuoteRequestedEvent,
   RemoteQuoteFailedEvent,
-  RemotePaymentIntentFetchedEvent,
-  RemotePaymentIntentFetchFailedEvent
+  RemotePaymentIntentImportedEvent,
+  RemotePaymentIntentImportFailedEvent
 } from './events';
 
 export class PaymentIntentAggregate {
@@ -49,8 +49,11 @@ export class PaymentIntentAggregate {
   private newPaymentIntentQuotes = new Map<string, string[]>(); // paymentIntentId, quoteIds
   private newPaymentsMap = new Map<string, string[]>(); // paymentIntentId, paymentIds
   private completedLocalPayments = new Map<string, string[]>(); // paymentIntentId, paymentIds
+  private completedRemoteQuotes = new Map<string, string[]>(); // paymentIntentId, quoteIds
+  private remoteIntentIdRemap = new Map<string, string>(); // cmdId -> existingPaymentIntentId
   private paymentIntentMap = new Map<string, IPaymentIntent>();
   private walletAddressMap = new Map<string, WalletAddress>();
+  private remotePaymentIntentFetchErrors = new Map<string, Error>();
 
   constructor(
     private _repo: IPaymentIntentRepository,
@@ -66,6 +69,7 @@ export class PaymentIntentAggregate {
     // prefetch any external data needed to process the batch
     const walletAddressIdSet = new Set<string>();
     const paymentIntentIdsSet = new Set<string>();
+    const remotePaymentIntentUrlMap = new Map<string, string>(); // id -> url
     for (const cmd of cmds) {
       if (cmd.msgName === CreatePaymentIntentCmd.name) {
         const payload = (cmd as CreatePaymentIntentCmd).payload;
@@ -88,16 +92,51 @@ export class PaymentIntentAggregate {
       } else if (cmd.msgName === FailRemoteQuoteCmd.name) {
         const payload = (cmd as FailRemoteQuoteCmd).payload;
         paymentIntentIdsSet.add(payload.paymentIntentId);
-      } else if (cmd.msgName === FetchRemotePaymentIntentCmd.name) {
-        const payload = (cmd as FetchRemotePaymentIntentCmd).payload;
-        paymentIntentIdsSet.add(payload.id);
+      } else if (cmd.msgName === ImportRemotePaymentIntentCmd.name) {
+        const payload = (cmd as ImportRemotePaymentIntentCmd).payload;
+        remotePaymentIntentUrlMap.set(payload.id, payload.url);
       }
     }
 
-    const [walletAddresses, existingPaymentIntents] = await Promise.all([
-      this._walletAddressService.fetchByIds([...walletAddressIdSet]),
-      this._repo.fetchByIdsWithPayments([...paymentIntentIdsSet])
-    ]);
+    const remoteUrlSet = new Set([...remotePaymentIntentUrlMap.values()]);
+
+    const [walletAddresses, existingPaymentIntents, existingByUrl] =
+      await Promise.all([
+        this._walletAddressService.fetchByIds([...walletAddressIdSet]),
+        this._repo.fetchByIdsWithPayments([...paymentIntentIdsSet]),
+        // TODO: can we safely avoid this fetch to check for duplicates by
+        // hashing the incomingPaymentUrl to an id for the ImportRemotePaymentIntentCmd?
+        // Or even using the incomingPaymentUrl as the id?
+        // Currently we have this lookup because if POST /quote is called with the same
+        // incomingPaymentUrl multiple times, we will fetch and store the remote PaymentIntent multiple times.
+        this._repo.fetchByRemoteUrls([...remoteUrlSet])
+      ]);
+
+    const urlToExistingId = new Map(
+      existingByUrl.map((e) => [e.remoteUrl, e.id])
+    );
+    for (const [cmdId, url] of remotePaymentIntentUrlMap.entries()) {
+      const existingId = urlToExistingId.get(url);
+      if (existingId) {
+        this.remoteIntentIdRemap.set(cmdId, existingId);
+      }
+    }
+
+    const urlsToFetch = [...remotePaymentIntentUrlMap.entries()].filter(
+      ([cmdId]) => !this.remoteIntentIdRemap.has(cmdId)
+    );
+
+    const remotePaymentIntentResults = await Promise.all(
+      urlsToFetch.map(async ([id, url]) => {
+        try {
+          const remotePaymentIntent =
+            await this._remotePaymentIntentPort.fetchIncomingPayment(url);
+          return { id, url, remotePaymentIntent, error: null };
+        } catch (err) {
+          return { id, url, remotePaymentIntent: null, error: err as Error };
+        }
+      })
+    );
 
     for (const walletAddress of walletAddresses) {
       this.walletAddressMap.set(walletAddress.id, walletAddress);
@@ -105,6 +144,33 @@ export class PaymentIntentAggregate {
 
     for (const paymentIntent of existingPaymentIntents) {
       this.paymentIntentMap.set(paymentIntent.id, paymentIntent);
+    }
+
+    for (const {
+      id,
+      url,
+      remotePaymentIntent,
+      error
+    } of remotePaymentIntentResults) {
+      if (error) {
+        this.remotePaymentIntentFetchErrors.set(id, error);
+      } else {
+        const entity = PaymentIntent.create(
+          id,
+          undefined,
+          remotePaymentIntent.walletAddress,
+          PaymentIntentDestination.REMOTE,
+          remotePaymentIntent.assetCode,
+          remotePaymentIntent.assetScale,
+          remotePaymentIntent.expiresAt ?? null,
+          remotePaymentIntent.incomingAmount ?? null,
+          remotePaymentIntent.receivedAmount,
+          remotePaymentIntent.destinationIlpAddress,
+          url
+        );
+        this.paymentIntentMap.set(id, entity.toObject());
+        this.newPaymentIntentIds.push(id);
+      }
     }
 
     for (const cmd of cmds) {
@@ -127,9 +193,9 @@ export class PaymentIntentAggregate {
         );
       } else if (cmd.msgName === FailRemoteQuoteCmd.name) {
         event = this.handleFailRemoteQuoteCommand(cmd as FailRemoteQuoteCmd);
-      } else if (cmd.msgName === FetchRemotePaymentIntentCmd.name) {
-        event = await this.handleFetchRemotePaymentIntentCommand(
-          cmd as FetchRemotePaymentIntentCmd
+      } else if (cmd.msgName === ImportRemotePaymentIntentCmd.name) {
+        event = this.handleImportRemotePaymentIntentCommand(
+          cmd as ImportRemotePaymentIntentCmd
         );
       } else {
         throw new Error('Unexpected command');
@@ -301,8 +367,12 @@ export class PaymentIntentAggregate {
       this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
       this.appendToMap(this.newPaymentIntentQuotes, paymentIntent.id, quoteId);
 
-      // TODO: should assume destination ilp address was on fetched remote payment intent. stub that.
-      const destinationIlpAddress = '';
+      const destinationIlpAddress = paymentIntent.destinationIlpAddress;
+      if (!destinationIlpAddress) {
+        throw new Error(
+          `Payment intent ${paymentIntentId} is missing destinationIlpAddress — remote payment intent may not have been fetched correctly`
+        );
+      }
       const { peerId } = await this._ilpClientPort.resolvePeerByAddress(
         destinationIlpAddress
       );
@@ -445,7 +515,7 @@ export class PaymentIntentAggregate {
       });
 
       this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
-      this.appendToMap(this.newPaymentIntentQuotes, paymentIntent.id, quoteId);
+      this.appendToMap(this.completedRemoteQuotes, paymentIntent.id, quoteId);
 
       // TODO: include exchange rate per Max's slack comment? Kinda breaks pattern of just returning id's
       // and looking up where we care to. Clarify this idea.
@@ -508,47 +578,28 @@ export class PaymentIntentAggregate {
     }
   }
 
-  private async handleFetchRemotePaymentIntentCommand(
-    cmd: FetchRemotePaymentIntentCmd
+  private handleImportRemotePaymentIntentCommand(
+    cmd: ImportRemotePaymentIntentCmd
   ) {
-    const { id, url } = cmd.payload;
+    const { id } = cmd.payload;
 
-    try {
-      if (this.paymentIntentMap.has(id)) {
-        return new RemotePaymentIntentFetchedEvent({ id }, cmd.requestId);
-      }
-
-      // TODO: this should be prefetched?
-      const details =
-        await this._remotePaymentIntentPort.fetchIncomingPayment(url);
-
-      // TODO: what should receiverWalletAddressId be? we dont have it for
-      // remote payment intents. Using the remote wallet address URL as a placeholder.
-      // OK? Should it be optional instead?
-      const entity = PaymentIntent.create(
-        id,
-        details.walletAddress,
-        details.walletAddress,
-        PaymentIntentDestination.REMOTE,
-        details.assetCode,
-        details.assetScale,
-        details.expiresAt ?? null,
-        details.incomingAmount ?? null
-      );
-
-      this.paymentIntentMap.set(id, entity.toObject());
-      this.newPaymentIntentIds.push(id);
-
-      return new RemotePaymentIntentFetchedEvent({ id }, cmd.requestId);
-    } catch (err) {
-      return new RemotePaymentIntentFetchFailedEvent(
-        {
-          errorName: (err as Error).constructor.name,
-          message: (err as Error).message
-        },
+    const error = this.remotePaymentIntentFetchErrors.get(id);
+    if (error) {
+      return new RemotePaymentIntentImportFailedEvent(
+        { errorName: error.constructor.name, message: error.message },
         cmd.requestId
       );
     }
+
+    const existingId = this.remoteIntentIdRemap.get(id);
+    if (existingId) {
+      return new RemotePaymentIntentImportedEvent(
+        { id: existingId },
+        cmd.requestId
+      );
+    }
+
+    return new RemotePaymentIntentImportedEvent({ id }, cmd.requestId);
   }
 
   private appendToMap(
@@ -670,6 +721,50 @@ export class PaymentIntentAggregate {
       promises.push(this._repo.storeCompletedLocalPayments(updates));
     }
 
+    if (this.completedRemoteQuotes.size > 0) {
+      const updates: {
+        paymentIntentId: string;
+        quoteId: string;
+        debitAmount: bigint;
+        receiveAmount: bigint;
+        exchangeRate: number;
+        expiresAt: Date;
+      }[] = [];
+
+      for (const [
+        paymentIntentId,
+        quoteIds
+      ] of this.completedRemoteQuotes.entries()) {
+        const paymentIntent = this.paymentIntentMap.get(paymentIntentId);
+        if (!paymentIntent) {
+          console.error(
+            `Payment intent ${paymentIntentId} missing from paymentIntentMap during flush (completed remote quotes)`
+          );
+          continue;
+        }
+
+        for (const quoteId of quoteIds) {
+          const quote = paymentIntent.quotes.find((q) => q.id === quoteId);
+          if (!quote || quote.state !== 'COMPLETED') {
+            console.error(
+              `Quote ${quoteId} missing or not completed in paymentIntentMap during flush`
+            );
+            continue;
+          }
+          updates.push({
+            paymentIntentId,
+            quoteId,
+            debitAmount: quote.debitAmount,
+            receiveAmount: quote.receiveAmount,
+            exchangeRate: quote.exchangeRate,
+            expiresAt: quote.expiresAt
+          });
+        }
+      }
+
+      promises.push(this._repo.storeCompletedRemoteQuotes(updates));
+    }
+
     // TODO handle gracefully
     try {
       await Promise.all(promises);
@@ -678,8 +773,11 @@ export class PaymentIntentAggregate {
       this.walletAddressMap.clear(); // TODO: wallet addresses are OK to be cached
       this.newPaymentsMap.clear();
       this.completedLocalPayments.clear();
+      this.completedRemoteQuotes.clear();
+      this.remoteIntentIdRemap.clear();
       this.newPaymentIntentQuotes.clear();
       this.newPaymentIntentIds = [];
+      this.remotePaymentIntentFetchErrors.clear();
     }
   }
 }

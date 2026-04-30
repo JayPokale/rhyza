@@ -146,20 +146,20 @@ export class ApprovePaymentCmd extends CommandMsg {
   }
 }
 
-export interface FetchRemotePaymentIntentCmdPayload {
+export interface ImportRemotePaymentIntentCmdPayload {
   id: string;
   url: string;
 }
 
-export class FetchRemotePaymentIntentCmd extends CommandMsg {
+export class ImportRemotePaymentIntentCmd extends CommandMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateId: string;
   aggregateName: string = PAYMENT_INTENT_AGG_NAME;
   msgKey: string;
   msgTopic: string = CommandTopics.PaymentCommands;
-  payload: FetchRemotePaymentIntentCmdPayload;
+  payload: ImportRemotePaymentIntentCmdPayload;
 
-  constructor(payload: FetchRemotePaymentIntentCmdPayload, requestId: string) {
+  constructor(payload: ImportRemotePaymentIntentCmdPayload, requestId: string) {
     super();
     this.aggregateId = this.msgKey = payload.id;
     this.requestId = requestId;

@@ -5,7 +5,7 @@ import {
   RemotePaymentIntentDetails
 } from 'payments-domain-lib';
 
-// TODO: Consider replacing with the open-payments-node client.
+// TODO: Consider replacing fetch with the open-payments-node client.
 // That would require either: (a) key pair initialization for authenticated
 // requests, or (b) the remote server exposing asset details on the public
 // incoming payment endpoint (e.g., excluding only receiver wallet address).
@@ -24,27 +24,30 @@ export class RemotePaymentIntentAdapter implements IRemotePaymentIntentPort {
 
     const data = (await response.json()) as {
       walletAddress: string;
+      assetCode: string;
+      assetScale: number;
       incomingAmount?: { value: string; assetCode: string; assetScale: number };
-      receivedAmount?: { value: string; assetCode: string; assetScale: number };
+      receivedAmount: { value: string; assetCode: string; assetScale: number };
       expiresAt?: string;
+      destinationIlpAddress?: string;
     };
 
-    // Asset is always available on receivedAmount when incomingAmount is absent.
-    const amountWithAsset = data.incomingAmount ?? data.receivedAmount;
-    if (!amountWithAsset) {
+    if (!data.destinationIlpAddress) {
       throw new Error(
-        `Remote incoming payment at ${url} did not include asset details`
+        `Remote incoming payment at ${url} did not include destinationIlpAddress`
       );
     }
 
     return {
       walletAddress: data.walletAddress,
-      assetCode: amountWithAsset.assetCode,
-      assetScale: amountWithAsset.assetScale,
+      assetCode: data.assetCode,
+      assetScale: data.assetScale,
       incomingAmount: data.incomingAmount
         ? BigInt(data.incomingAmount.value)
         : undefined,
-      expiresAt: data.expiresAt
+      receivedAmount: BigInt(data.receivedAmount.value),
+      expiresAt: data.expiresAt,
+      destinationIlpAddress: data.destinationIlpAddress
     };
   }
 }

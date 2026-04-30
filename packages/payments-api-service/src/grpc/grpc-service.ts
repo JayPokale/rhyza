@@ -48,11 +48,11 @@ import {
   LocalPaymentCompletedPayload,
   LocalPaymentCompleteFailedEvent,
   LocalPaymentCompleteFailedPayload,
-  FetchRemotePaymentIntentCmd,
-  RemotePaymentIntentFetchedEvent,
-  RemotePaymentIntentFetchedPayload,
-  RemotePaymentIntentFetchFailedEvent,
-  RemotePaymentIntentFetchFailedPayload
+  ImportRemotePaymentIntentCmd,
+  RemotePaymentIntentImportedEvent,
+  RemotePaymentIntentImportedPayload,
+  RemotePaymentIntentImportFailedEvent,
+  RemotePaymentIntentImportFailedPayload
 } from 'payments-domain-lib';
 
 const PUBLIC_TYPES_LIB_PATH = require.resolve('payments-public-types-lib');
@@ -280,7 +280,7 @@ export class PaymentsServiceServer {
         return;
       }
       this._storePendingResponse(commandId, call, callback);
-      const cmd = new FetchRemotePaymentIntentCmd(
+      const cmd = new ImportRemotePaymentIntentCmd(
         { id: commandId, url: call.request.getUrl() },
         commandId
       );
@@ -404,17 +404,17 @@ export class PaymentsServiceServer {
         });
         break;
       }
-      case RemotePaymentIntentFetchedEvent.name: {
-        const payload = message.payload as RemotePaymentIntentFetchedPayload;
+      case RemotePaymentIntentImportedEvent.name: {
+        const payload = message.payload as RemotePaymentIntentImportedPayload;
         const response = new CreateRemoteIncomingPaymentResponse().setId(
           payload.id
         );
         this._resolvePendingResponse(pending, requestId, null, response);
         break;
       }
-      case RemotePaymentIntentFetchFailedEvent.name: {
+      case RemotePaymentIntentImportFailedEvent.name: {
         const errorPayload =
-          message.payload as RemotePaymentIntentFetchFailedPayload;
+          message.payload as RemotePaymentIntentImportFailedPayload;
         this._resolvePendingResponse(pending, requestId, {
           code: grpc.status.INTERNAL,
           message: errorPayload.message || 'Command processing failed',

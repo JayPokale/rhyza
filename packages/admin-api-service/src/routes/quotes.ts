@@ -78,11 +78,11 @@ export async function quoteRoutes(
       !input.incomingPaymentUrl.startsWith(openPaymentsUrl!)
     ) {
       const localId = randomUUID();
-      await paymentsClient.createRemoteIncomingPayment(
+      const remoteResult = await paymentsClient.importRemotePaymentIntent(
         localId,
         input.incomingPaymentUrl
       );
-      paymentIntentId = localId;
+      paymentIntentId = remoteResult.id;
     } else if (input.kind === 'url') {
       paymentIntentId = input.incomingPaymentUrl.split('/').at(-1)!;
     } else {

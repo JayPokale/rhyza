@@ -59,7 +59,7 @@ export interface IPayment {
 
 export interface IPaymentIntent {
   id: string;
-  receiverWalletAddressId: string;
+  receiverWalletAddressId?: string;
   receiverWalletAddress: string;
   state: PaymentIntentState;
   destination: PaymentIntentDestination;
@@ -70,6 +70,8 @@ export interface IPaymentIntent {
   receivedAmount: bigint;
   quotes: IQuote[];
   payments: IPayment[];
+  destinationIlpAddress?: string;
+  remoteUrl?: string;
 }
 
 export interface WalletAddress {
@@ -95,7 +97,9 @@ export interface RemotePaymentIntentDetails {
   assetCode: string;
   assetScale: number;
   incomingAmount?: bigint;
+  receivedAmount: bigint;
   expiresAt?: string;
+  destinationIlpAddress: string;
 }
 
 export interface IRemotePaymentIntentPort {
@@ -125,4 +129,15 @@ export interface IPaymentIntentRepository {
       payments: { id: string; state: PaymentState; sentAmount: bigint }[];
     }[]
   ): Promise<void>;
+  storeCompletedRemoteQuotes(
+    updates: {
+      paymentIntentId: string;
+      quoteId: string;
+      debitAmount: bigint;
+      receiveAmount: bigint;
+      exchangeRate: number;
+      expiresAt: Date;
+    }[]
+  ): Promise<void>;
+  fetchByRemoteUrls(urls: string[]): Promise<Array<{ id: string; remoteUrl: string }>>;
 }

@@ -72,6 +72,49 @@ export class MockPaymentIntentRepo implements IPaymentIntentRepository {
     }
   }
 
+  async storeCompletedRemoteQuotes(
+    updates: {
+      paymentIntentId: string;
+      quoteId: string;
+      debitAmount: bigint;
+      receiveAmount: bigint;
+      exchangeRate: number;
+      expiresAt: Date;
+    }[]
+  ): Promise<void> {
+    for (const update of updates) {
+      const paymentIntent = this._store.get(update.paymentIntentId);
+      if (!paymentIntent) {
+        throw new Error('Could not find paymentIntent in store');
+      }
+
+      const quote = paymentIntent.quotes.find((q) => q.id === update.quoteId);
+      if (!quote) {
+        throw new Error('Could not find quote in store');
+      }
+
+      Object.assign(quote, {
+        state: 'COMPLETED',
+        debitAmount: update.debitAmount,
+        receiveAmount: update.receiveAmount,
+        exchangeRate: update.exchangeRate,
+        expiresAt: update.expiresAt
+      });
+    }
+  }
+
+  async fetchByRemoteUrls(
+    urls: string[]
+  ): Promise<Array<{ id: string; remoteUrl: string }>> {
+    const results: Array<{ id: string; remoteUrl: string }> = [];
+    for (const intent of this._store.values()) {
+      if (intent.remoteUrl && urls.includes(intent.remoteUrl)) {
+        results.push({ id: intent.id, remoteUrl: intent.remoteUrl });
+      }
+    }
+    return results;
+  }
+
   getAll(): IPaymentIntent[] {
     return [...this._store.values()];
   }

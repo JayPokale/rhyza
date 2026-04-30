@@ -1,6 +1,7 @@
 import {
   InvalidPaymentAmountError,
   InvalidPaymentIdError,
+  InvalidPaymentIntentError,
   InvalidPaymentIntentExpiryError,
   InvalidQuoteAmountError,
   InvalidQuoteIdError,
@@ -59,7 +60,7 @@ interface Payment {
 
 export class PaymentIntent implements IPaymentIntent {
   private _id: string;
-  private _receiverWalletAddressId: string;
+  private _receiverWalletAddressId: string | undefined;
   private _receiverWalletAddress: string;
   private _state: PaymentIntentState;
   private _destination: PaymentIntentDestination;
@@ -70,10 +71,12 @@ export class PaymentIntent implements IPaymentIntent {
   private _receivedAmount: bigint;
   private _quotes: Quote[] = [];
   private _payments: Payment[] = [];
+  private _destinationIlpAddress: string | undefined;
+  private _remoteUrl: string | undefined;
 
   private constructor(
     id: string,
-    receiverWalletAddressId: string,
+    receiverWalletAddressId: string | undefined,
     receiverWalletAddress: string,
     destination: PaymentIntentDestination,
     assetCode: string,
@@ -83,7 +86,9 @@ export class PaymentIntent implements IPaymentIntent {
     receivedAmount: bigint = 0n,
     state: PaymentIntentState = PaymentIntentState.CREATED,
     quotes: Quote[] = [],
-    payments: Payment[] = []
+    payments: Payment[] = [],
+    destinationIlpAddress?: string,
+    remoteUrl?: string
   ) {
     this._id = id;
     this._receiverWalletAddressId = receiverWalletAddressId;
@@ -99,19 +104,29 @@ export class PaymentIntent implements IPaymentIntent {
     this._payments = payments;
 
     this._expiresAt = expiresAt;
+    this._destinationIlpAddress = destinationIlpAddress;
+    this._remoteUrl = remoteUrl;
   }
 
   static create(
     id: string,
-    receiverWalletAddressId: string,
+    receiverWalletAddressId: string | undefined,
     receiverWalletAddress: string,
     destination: PaymentIntentDestination,
     assetCode: string,
     assetScale: number,
     expiresAt: string | null,
     incomingAmount: bigint | null = null,
-    receivedAmount: bigint = 0n
+    receivedAmount: bigint = 0n,
+    destinationIlpAddress?: string,
+    remoteUrl?: string
   ): PaymentIntent {
+    if (destination === 'LOCAL' && !receiverWalletAddressId) {
+      throw new InvalidPaymentIntentError(
+        'receiverWalletAddressId is required for LOCAL payment intents'
+      );
+    }
+
     const resolvedExpiresAt = expiresAt
       ? new Date(expiresAt)
       : new Date(Date.now() + MAX_PAYMENT_INTENT_EXPIRY_MS);
@@ -139,7 +154,12 @@ export class PaymentIntent implements IPaymentIntent {
       assetScale,
       resolvedExpiresAt,
       incomingAmount,
-      receivedAmount
+      receivedAmount,
+      undefined,
+      undefined,
+      undefined,
+      destinationIlpAddress,
+      remoteUrl
     );
   }
 
@@ -183,7 +203,9 @@ export class PaymentIntent implements IPaymentIntent {
         state: payment.state,
         debitAmount: payment.debitAmount,
         receiveAmount: payment.receiveAmount
-      }))
+      })),
+      obj.destinationIlpAddress,
+      obj.remoteUrl
     );
   }
 
@@ -227,7 +249,9 @@ export class PaymentIntent implements IPaymentIntent {
         debitAmount: payment.debitAmount,
         receiveAmount: payment.receiveAmount,
         sentAmount: payment.sentAmount
-      }))
+      })),
+      destinationIlpAddress: this._destinationIlpAddress,
+      remoteUrl: this._remoteUrl
     };
   }
 
@@ -555,7 +579,7 @@ export class PaymentIntent implements IPaymentIntent {
     return this._id;
   }
 
-  get receiverWalletAddressId(): string {
+  get receiverWalletAddressId(): string | undefined {
     return this._receiverWalletAddressId;
   }
 
@@ -601,5 +625,13 @@ export class PaymentIntent implements IPaymentIntent {
 
   get payments(): Payment[] {
     return this._payments;
+  }
+
+  get destinationIlpAddress(): string | undefined {
+    return this._destinationIlpAddress;
+  }
+
+  get remoteUrl(): string | undefined {
+    return this._remoteUrl;
   }
 }

@@ -225,19 +225,19 @@ export class LocalPaymentCompleteFailedEvent extends DomainEventMsg {
   }
 }
 
-export interface RemotePaymentIntentFetchedPayload {
+export interface RemotePaymentIntentImportedPayload {
   id: string;
 }
 
-export class RemotePaymentIntentFetchedEvent extends DomainEventMsg {
+export class RemotePaymentIntentImportedEvent extends DomainEventMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateId: string;
   aggregateName: string = AGGREGATE_NAME;
   msgKey: string;
   msgTopic: string = EventTopics.PaymentEvents;
-  payload: RemotePaymentIntentFetchedPayload;
+  payload: RemotePaymentIntentImportedPayload;
 
-  constructor(payload: RemotePaymentIntentFetchedPayload, requestId?: string) {
+  constructor(payload: RemotePaymentIntentImportedPayload, requestId?: string) {
     super();
     this.aggregateId = this.msgKey = payload.id;
     this.payload = payload;
@@ -245,22 +245,22 @@ export class RemotePaymentIntentFetchedEvent extends DomainEventMsg {
   }
 }
 
-export interface RemotePaymentIntentFetchFailedPayload {
+export interface RemotePaymentIntentImportFailedPayload {
   errorName: string;
   message: string;
 }
 
-export class RemotePaymentIntentFetchFailedEvent extends DomainEventMsg {
+export class RemotePaymentIntentImportFailedEvent extends DomainEventMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateId: string;
   aggregateName: string = AGGREGATE_NAME;
   msgKey: string;
   msgTopic: string = EventTopics.PaymentEvents;
   isErrorEvent: boolean = true;
-  payload: RemotePaymentIntentFetchFailedPayload;
+  payload: RemotePaymentIntentImportFailedPayload;
 
   constructor(
-    payload: RemotePaymentIntentFetchFailedPayload,
+    payload: RemotePaymentIntentImportFailedPayload,
     requestId?: string
   ) {
     super();

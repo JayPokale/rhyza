@@ -63,6 +63,10 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
           { id: 1 },
           { unique: true }
         );
+        await this._paymentIntentCollection.createIndex(
+          { remoteUrl: 1 },
+          { sparse: true }
+        );
       }
 
       const paymentsCollectionExists = collections.some(
@@ -117,6 +121,8 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
           expiresAt: p.expiresAt,
           incomingAmount: p.incomingAmount,
           receivedAmount: p.receivedAmount,
+          destinationIlpAddress: p.destinationIlpAddress,
+          remoteUrl: p.remoteUrl,
           quotes: p.quotes.map((quote) => ({
             id: quote.id,
             senderWalletAddress: quote.senderWalletAddress,
@@ -167,6 +173,8 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
         expiresAt: doc.expiresAt,
         incomingAmount: doc.incomingAmount,
         receivedAmount: doc.receivedAmount,
+        destinationIlpAddress: doc.destinationIlpAddress,
+        remoteUrl: doc.remoteUrl,
         quotes: doc.quotes.map((quote) => ({
           id: quote.id,
           senderWalletAddress: quote.senderWalletAddress,
@@ -276,6 +284,69 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
       console.error(e);
       throw new Error(
         `Unable to store payments - error: ${(e as Error).message}`
+      );
+    }
+  }
+
+  async fetchByRemoteUrls(
+    urls: string[]
+  ): Promise<Array<{ id: string; remoteUrl: string }>> {
+    this._checkInitialisedOrThrow();
+
+    if (urls.length === 0) return [];
+
+    try {
+      const docs = await this._paymentIntentCollection
+        .find({ remoteUrl: { $in: urls } }, { projection: { id: 1, remoteUrl: 1 } })
+        .toArray();
+
+      return docs
+        .filter((doc) => doc.remoteUrl != null)
+        .map((doc) => ({ id: doc.id, remoteUrl: doc.remoteUrl as string }));
+    } catch (e) {
+      console.error(e);
+      throw new Error(
+        `Unable to fetch payment intents by remote URL - error: ${(e as Error).message}`
+      );
+    }
+  }
+
+  async storeCompletedRemoteQuotes(
+    updates: {
+      paymentIntentId: string;
+      quoteId: string;
+      debitAmount: bigint;
+      receiveAmount: bigint;
+      exchangeRate: number;
+      expiresAt: Date;
+    }[]
+  ): Promise<void> {
+    this._checkInitialisedOrThrow();
+
+    if (updates.length === 0) return;
+
+    try {
+      await this._paymentIntentCollection.bulkWrite(
+        updates.map((u) => ({
+          updateOne: {
+            filter: { id: u.paymentIntentId },
+            update: {
+              $set: {
+                'quotes.$[q].state': 'COMPLETED',
+                'quotes.$[q].debitAmount': u.debitAmount,
+                'quotes.$[q].receiveAmount': u.receiveAmount,
+                'quotes.$[q].exchangeRate': u.exchangeRate,
+                'quotes.$[q].expiresAt': u.expiresAt
+              }
+            },
+            arrayFilters: [{ 'q.id': u.quoteId }]
+          }
+        }))
+      );
+    } catch (e) {
+      console.error(e);
+      throw new Error(
+        `Unable to complete remote quotes - error: ${(e as Error).message}`
       );
     }
   }

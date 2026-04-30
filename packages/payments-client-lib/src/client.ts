@@ -209,7 +209,7 @@ export class PaymentsClient {
     });
   }
 
-  async createRemoteIncomingPayment(
+  async importRemotePaymentIntent(
     id: string,
     url: string
   ): Promise<ICreateRemoteIncomingPaymentResponse> {
