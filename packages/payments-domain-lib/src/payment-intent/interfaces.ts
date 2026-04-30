@@ -139,5 +139,4 @@ export interface IPaymentIntentRepository {
       expiresAt: Date;
     }[]
   ): Promise<void>;
-  fetchByRemoteUrls(urls: string[]): Promise<Array<{ id: string; remoteUrl: string }>>;
 }

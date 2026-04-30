@@ -103,18 +103,6 @@ export class MockPaymentIntentRepo implements IPaymentIntentRepository {
     }
   }
 
-  async fetchByRemoteUrls(
-    urls: string[]
-  ): Promise<Array<{ id: string; remoteUrl: string }>> {
-    const results: Array<{ id: string; remoteUrl: string }> = [];
-    for (const intent of this._store.values()) {
-      if (intent.remoteUrl && urls.includes(intent.remoteUrl)) {
-        results.push({ id: intent.id, remoteUrl: intent.remoteUrl });
-      }
-    }
-    return results;
-  }
-
   getAll(): IPaymentIntent[] {
     return [...this._store.values()];
   }

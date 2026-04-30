@@ -4,6 +4,7 @@ import { randomUUID } from 'crypto';
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { PalClient, parseAddressToDomainAndPathName } from 'pal-client-lib';
 import { PaymentsClient } from 'payments-client-lib';
+import { v5 as uuidv5 } from 'uuid';
 
 type QuoteInput =
   | { kind: 'url'; incomingPaymentUrl: string }
@@ -77,7 +78,7 @@ export async function quoteRoutes(
       input.kind === 'url' &&
       !input.incomingPaymentUrl.startsWith(openPaymentsUrl!)
     ) {
-      const localId = randomUUID();
+      const localId = uuidv5(input.incomingPaymentUrl, uuidv5.URL);
       const remoteResult = await paymentsClient.importRemotePaymentIntent(
         localId,
         input.incomingPaymentUrl

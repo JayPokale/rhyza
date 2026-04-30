@@ -15,7 +15,8 @@
     "pal-client-lib": "workspace:*",
     "payments-client-lib": "workspace:*",
     "payments-domain-lib": "workspace:*",
-    "payments-implementations-lib": "workspace:*"
+    "payments-implementations-lib": "workspace:*",
+    "uuid": "^14.0.0"
   },
   "devDependencies": {
     "tsx": "^4.19.3"

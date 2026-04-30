@@ -50,7 +50,6 @@ export class PaymentIntentAggregate {
   private newPaymentsMap = new Map<string, string[]>(); // paymentIntentId, paymentIds
   private completedLocalPayments = new Map<string, string[]>(); // paymentIntentId, paymentIds
   private completedRemoteQuotes = new Map<string, string[]>(); // paymentIntentId, quoteIds
-  private remoteIntentIdRemap = new Map<string, string>(); // cmdId -> existingPaymentIntentId
   private paymentIntentMap = new Map<string, IPaymentIntent>();
   private walletAddressMap = new Map<string, WalletAddress>();
   private remotePaymentIntentFetchErrors = new Map<string, Error>();
@@ -95,35 +94,25 @@ export class PaymentIntentAggregate {
       } else if (cmd.msgName === ImportRemotePaymentIntentCmd.name) {
         const payload = (cmd as ImportRemotePaymentIntentCmd).payload;
         remotePaymentIntentUrlMap.set(payload.id, payload.url);
+        paymentIntentIdsSet.add(payload.id);
       }
     }
 
-    const remoteUrlSet = new Set([...remotePaymentIntentUrlMap.values()]);
+    const [walletAddresses, existingPaymentIntents] = await Promise.all([
+      this._walletAddressService.fetchByIds([...walletAddressIdSet]),
+      this._repo.fetchByIdsWithPayments([...paymentIntentIdsSet])
+    ]);
 
-    const [walletAddresses, existingPaymentIntents, existingByUrl] =
-      await Promise.all([
-        this._walletAddressService.fetchByIds([...walletAddressIdSet]),
-        this._repo.fetchByIdsWithPayments([...paymentIntentIdsSet]),
-        // TODO: can we safely avoid this fetch to check for duplicates by
-        // hashing the incomingPaymentUrl to an id for the ImportRemotePaymentIntentCmd?
-        // Or even using the incomingPaymentUrl as the id?
-        // Currently we have this lookup because if POST /quote is called with the same
-        // incomingPaymentUrl multiple times, we will fetch and store the remote PaymentIntent multiple times.
-        this._repo.fetchByRemoteUrls([...remoteUrlSet])
-      ]);
+    for (const walletAddress of walletAddresses) {
+      this.walletAddressMap.set(walletAddress.id, walletAddress);
+    }
 
-    const urlToExistingId = new Map(
-      existingByUrl.map((e) => [e.remoteUrl, e.id])
-    );
-    for (const [cmdId, url] of remotePaymentIntentUrlMap.entries()) {
-      const existingId = urlToExistingId.get(url);
-      if (existingId) {
-        this.remoteIntentIdRemap.set(cmdId, existingId);
-      }
+    for (const paymentIntent of existingPaymentIntents) {
+      this.paymentIntentMap.set(paymentIntent.id, paymentIntent);
     }
 
     const urlsToFetch = [...remotePaymentIntentUrlMap.entries()].filter(
-      ([cmdId]) => !this.remoteIntentIdRemap.has(cmdId)
+      ([id]) => !this.paymentIntentMap.has(id)
     );
 
     const remotePaymentIntentResults = await Promise.all(
@@ -137,14 +126,6 @@ export class PaymentIntentAggregate {
         }
       })
     );
-
-    for (const walletAddress of walletAddresses) {
-      this.walletAddressMap.set(walletAddress.id, walletAddress);
-    }
-
-    for (const paymentIntent of existingPaymentIntents) {
-      this.paymentIntentMap.set(paymentIntent.id, paymentIntent);
-    }
 
     for (const {
       id,
@@ -591,14 +572,6 @@ export class PaymentIntentAggregate {
       );
     }
 
-    const existingId = this.remoteIntentIdRemap.get(id);
-    if (existingId) {
-      return new RemotePaymentIntentImportedEvent(
-        { id: existingId },
-        cmd.requestId
-      );
-    }
-
     return new RemotePaymentIntentImportedEvent({ id }, cmd.requestId);
   }
 
@@ -774,7 +747,6 @@ export class PaymentIntentAggregate {
       this.newPaymentsMap.clear();
       this.completedLocalPayments.clear();
       this.completedRemoteQuotes.clear();
-      this.remoteIntentIdRemap.clear();
       this.newPaymentIntentQuotes.clear();
       this.newPaymentIntentIds = [];
       this.remotePaymentIntentFetchErrors.clear();
