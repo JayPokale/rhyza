@@ -1,4 +1,4 @@
-import { Message } from 'common-types-lib';
+import { IMessage } from 'common-types-lib';
 import {
   IPaymentIntent,
   IPaymentIntentRepository,
@@ -49,8 +49,8 @@ export class PaymentIntentAggregate {
     private _ratesService: IRatesService
   ) {}
 
-  async handleBatch(cmds: Message[]): Promise<{ events: Message[] }> {
-    const outputEvents: Message[] = [];
+  async handleBatch(cmds: IMessage[]): Promise<{ events: IMessage[] }> {
+    const outputEvents: IMessage[] = [];
 
     // prefetch any external data needed to process the batch
     const walletAddressIdSet = new Set<string>();
@@ -88,7 +88,7 @@ export class PaymentIntentAggregate {
     }
 
     for (const cmd of cmds) {
-      let event: Message;
+      let event: IMessage;
       if (cmd.msgName === CreatePaymentIntentCmd.name) {
         event = this.handleCreatePaymentIntentCommand(
           cmd as CreatePaymentIntentCmd

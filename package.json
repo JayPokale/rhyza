@@ -28,7 +28,7 @@
     "onlyBuiltDependencies": [
       "esbuild",
       "grpc-tools",
-      "node-rdkafka",
+      "@confluentinc/kafka-javascript",
       "protobufjs"
     ]
   }

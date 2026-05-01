@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { Logger, TelemetryService } from 'common-types-lib';
+import { ILogger, TelemetryService } from 'common-types-lib';
 import process from 'process';
 import { NodeTracerProvider } from '@opentelemetry/node';
 
@@ -33,7 +33,7 @@ const OPEN_TELEMETRY_COLLECTOR_URL =
   process.env['OPEN_TELEMETRY_COLLECTOR_URL'] || 'http://127.0.0.1:4317';
 
 export class OpenTelemetryService implements TelemetryService {
-  private logger: Logger;
+  private logger: ILogger;
   private bcName: string;
   private appName: string;
   private appVersion: string;
@@ -53,7 +53,7 @@ export class OpenTelemetryService implements TelemetryService {
     appName: string,
     appVersion: string,
     instanceId: string,
-    logger: Logger,
+    logger: ILogger,
     collectorUrl?: string
   ) {
     this.bcName = bcName;
@@ -79,7 +79,7 @@ export class OpenTelemetryService implements TelemetryService {
     appName: string,
     appVersion: string,
     instanceId: string,
-    logger: Logger,
+    logger: ILogger,
     collectorUrl?: string
   ) {
     if (this.instance) {

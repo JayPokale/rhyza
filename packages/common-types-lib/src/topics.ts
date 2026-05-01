@@ -1,0 +1,27 @@
+// public domain events
+export enum DomainEventTopics {
+  'PaymentEvents' = 'payment-domain-events',
+  'AuthEvents' = 'auth-domain-events',
+  'LedgerEvents' = 'ledger-domain-events',
+  'AssetEvents' = 'asset-domain-events',
+  'WalletAddressEvents' = 'wallet-address-domain-events'
+}
+
+// TODO pedro: not sure we should keep commands, state events and snapshots in the common types lib,
+// maybe they should be in the BC types libs?
+export enum CommandTopics {
+  'PaymentCommands' = 'payment-commands',
+  'AuthCommands' = 'auth-commands',
+  'LedgerCommands' = 'ledger-commands',
+  'AssetCommands' = 'asset-commands'
+}
+
+// for private event-sourcing events
+export enum StateEventTopics {
+  'LedgerStateEvents' = 'ledger-state-events'
+}
+
+// for private event-sourcing snapshot events
+export enum SnapshotEventTopics {
+  'LedgerSnapshotEvents' = 'ledger-snapshot-events'
+}
