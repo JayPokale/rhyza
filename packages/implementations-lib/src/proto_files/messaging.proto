@@ -64,3 +64,4 @@ message PbCommandMsg {
 
   google.protobuf.Any payload = 5;
 }
+

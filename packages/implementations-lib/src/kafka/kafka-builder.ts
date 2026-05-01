@@ -224,36 +224,4 @@ export class KafkaBuilder implements IKafkaBuilder {
       this._logger
     );
   }
-  // buildLowLevelConsumer(consumerOptions: KafkaLowLevelConsumerOptions): KafkaLowLevelConsumer {
-  //   this._buildBasics();
-  //
-  //   const globalConfig: RdKafka.ConsumerGlobalConfig = this._globalConfig;
-  //   globalConfig['group.id'] = consumerOptions.consumerGroupId || crypto.randomUUID();
-  //
-  //   if(consumerOptions.batchTimeoutMs !== undefined && consumerOptions.batchTimeoutMs > 0) {
-  //     globalConfig['fetch.wait.max.ms'] = consumerOptions.batchTimeoutMs;
-  //   }
-  //
-  //   const topicConfig: RdKafka.ConsumerTopicConfig = {};
-  //   topicConfig['auto.offset.reset'] = consumerOptions.autoOffsetReset ?? 'latest';
-  //
-  //
-  //   return new KafkaLowLevelConsumer(
-  //     globalConfig, topicConfig,
-  //     this._serializerFactory,
-  //     consumerOptions.useSyncCommit, consumerOptions.batchSize,
-  //     this._logger
-  //   );
-  // }
-
-  // buildEventSourcingRepo<S extends StateEvent, T extends SnapshotEvent>(cache:ICache<SnapshotEvent>): IKafkaSourcingRepository{
-  //   this._buildBasics();
-  //   return new KafkaEventSourcingRepo<S, T>(
-  //     this._kafka,
-  //     this._serializerFactory,
-  //     this._logger,
-  //     this._cache,
-  //     this._cachePrefix
-  //   );
-  // }
 }

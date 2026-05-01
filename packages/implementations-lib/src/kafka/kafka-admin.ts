@@ -6,12 +6,10 @@ const DEFAULT_TIMEOUT_MS = 10000;
 
 export class KafkaAdmin implements IKafkaAdmin {
   private readonly _logger: ILogger;
-  private readonly _kafka: KafkaJS.Kafka;
   private readonly _admin: KafkaJS.Admin;
 
   constructor(kafka: KafkaJS.Kafka, logger: ILogger) {
     this._logger = logger;
-    this._kafka = kafka;
     this._admin = kafka.admin();
   }
 

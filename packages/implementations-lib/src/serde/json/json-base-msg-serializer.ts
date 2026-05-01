@@ -33,8 +33,9 @@ export abstract class JsonBaseMessageSerializer implements IRawMessageSerializer
         updated by the top level deserializer from the kafka data */
       msgKey: msgObj.msgKey ? msgObj.msgKey : null,
       msgTopic: msgObj.msgTopic ? msgObj.msgTopic : null,
-      msgPartition: msgObj.msgPartition ? msgObj.msgPartition : null,
-      msgOffset: msgObj.msgOffset ? msgObj.msgOffset : null,
+      msgPartition:
+        msgObj.msgPartition != undefined ? msgObj.msgPartition : null,
+      msgOffset: msgObj.msgOffset != undefined ? msgObj.msgOffset : null,
 
       payload: msgObj.payload,
 
