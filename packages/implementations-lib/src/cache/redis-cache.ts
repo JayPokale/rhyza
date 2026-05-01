@@ -40,15 +40,10 @@ export class RedisCache<T> implements ICache<T> {
       return val;
     });
 
-    return (
-      (await this.redisClient.set(
-        key,
-        stringifiedValue
-      )) === 'OK'
-    );
+    return (await this.redisClient.set(key, stringifiedValue)) === 'OK';
   }
 
-  async setWithTtl(key: string, value: T, ttlMs:number): Promise<boolean> {
+  async setWithTtl(key: string, value: T, ttlMs: number): Promise<boolean> {
     const stringifiedValue = JSON.stringify(value, (key, val) => {
       if (typeof val === 'bigint') {
         return val.toString();
@@ -57,12 +52,7 @@ export class RedisCache<T> implements ICache<T> {
     });
 
     return (
-      (await this.redisClient.set(
-        key,
-        stringifiedValue,
-        'PX',
-        ttlMs
-      )) === 'OK'
+      (await this.redisClient.set(key, stringifiedValue, 'PX', ttlMs)) === 'OK'
     );
   }
 

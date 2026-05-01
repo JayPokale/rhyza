@@ -382,4 +382,91 @@ describe('Payments Client', () => {
       }
     });
   });
+
+  describe('approveOutgoingPayment', () => {
+    test('approve outgoing payment', async () => {
+      const incomingPaymentId = await createIncomingPayment(100);
+      const outgoingPaymentId = randomUUID();
+      await paymentsClient.createOutgoingPayment(
+        outgoingPaymentId,
+        senderWalletAddressId,
+        SENDER_WALLET_ADDRESS,
+        incomingPaymentId,
+        undefined,
+        100
+      );
+
+      const result = await paymentsClient.approveOutgoingPayment(
+        outgoingPaymentId,
+        incomingPaymentId
+      );
+
+      assert.ok(result);
+      assert.equal(result.id, outgoingPaymentId);
+    });
+
+    test('duplicate approval is rejected', async () => {
+      const incomingPaymentId = await createIncomingPayment(100);
+      const outgoingPaymentId = randomUUID();
+      await paymentsClient.createOutgoingPayment(
+        outgoingPaymentId,
+        senderWalletAddressId,
+        SENDER_WALLET_ADDRESS,
+        incomingPaymentId,
+        undefined,
+        100
+      );
+
+      await paymentsClient.approveOutgoingPayment(
+        outgoingPaymentId,
+        incomingPaymentId
+      );
+
+      try {
+        await paymentsClient.approveOutgoingPayment(
+          outgoingPaymentId,
+          incomingPaymentId
+        );
+        assert.fail('expected error for duplicate approval');
+      } catch (e) {
+        assert.ok(e instanceof Error);
+      }
+    });
+
+    test('unknown outgoing payment id is rejected', async () => {
+      const incomingPaymentId = await createIncomingPayment(100);
+      try {
+        await paymentsClient.approveOutgoingPayment(
+          randomUUID(),
+          incomingPaymentId
+        );
+        assert.fail('expected error for unknown outgoing payment');
+      } catch (e) {
+        assert.ok(e instanceof Error);
+      }
+    });
+
+    test('unknown incoming payment id is rejected', async () => {
+      const incomingPaymentId = await createIncomingPayment(100);
+      const outgoingPaymentId = randomUUID();
+      await paymentsClient.createOutgoingPayment(
+        outgoingPaymentId,
+        senderWalletAddressId,
+        SENDER_WALLET_ADDRESS,
+        incomingPaymentId,
+        undefined,
+        100
+      );
+
+      try {
+        await paymentsClient.approveOutgoingPayment(
+          outgoingPaymentId,
+          randomUUID()
+        );
+        assert.fail('expected error for unknown incoming payment');
+      } catch (e) {
+        assert.ok(e instanceof Error);
+      }
+    });
+  });
 });

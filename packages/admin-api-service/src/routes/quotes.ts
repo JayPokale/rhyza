@@ -47,6 +47,6 @@ export async function quoteRoutes(
       Number(receiveAmount)
     );
 
-    return reply.status(201).send({ id: `${result.id}_${incomingPaymentId}` }); // Concatenate ids when returning the request
+    return reply.status(201).send({ id: `${incomingPaymentId}_${result.id}` }); // Concatenate ids when returning the request
   });
 }

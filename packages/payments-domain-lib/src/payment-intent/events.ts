@@ -1,4 +1,4 @@
-import {DomainEvent, DomainEventTopics, MessageDataFormats} from 'common-types-lib';
+import { DomainEvent, DomainEventTopics } from 'common-types-lib';
 
 const BOUNDED_CONTEXT_NAME = 'payment';
 const AGGREGATE_NAME = 'payment-intents';
@@ -8,9 +8,7 @@ export interface PaymentIntentCreatedPayload {
 }
 
 export class PaymentIntentCreatedEvent extends DomainEvent {
-  msgDataFormat:MessageDataFormats = MessageDataFormats.JSON;
   contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
   aggregateName: string = AGGREGATE_NAME;
   msgKey: string;
   msgTopic: string = DomainEventTopics.PaymentEvents;
@@ -18,7 +16,7 @@ export class PaymentIntentCreatedEvent extends DomainEvent {
 
   constructor(payload: PaymentIntentCreatedPayload, requestId?: string) {
     super(payload.id);
-    this.aggregateId = this.msgKey = payload.id;
+    this.msgKey = payload.id;
     this.payload = payload;
     this.requestId = requestId;
   }
@@ -30,9 +28,7 @@ export interface PaymentIntentCreateFailedPayload {
 }
 
 export class PaymentIntentCreateFailedEvent extends DomainEvent {
-  msgDataFormat:MessageDataFormats = MessageDataFormats.JSON;
   contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
   aggregateName: string = AGGREGATE_NAME;
   msgKey: string;
   msgTopic: string = DomainEventTopics.PaymentEvents;
@@ -41,7 +37,7 @@ export class PaymentIntentCreateFailedEvent extends DomainEvent {
 
   constructor(payload: PaymentIntentCreateFailedPayload, requestId?: string) {
     super(requestId ?? '');
-    this.aggregateId = this.msgKey = requestId ?? '';
+    this.msgKey = requestId ?? '';
     this.payload = payload;
     this.requestId = requestId;
   }
@@ -52,9 +48,7 @@ export interface QuoteCompletedPayload {
 }
 
 export class QuoteCompletedEvent extends DomainEvent {
-  msgDataFormat:MessageDataFormats = MessageDataFormats.JSON;
   contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
   aggregateName: string = AGGREGATE_NAME;
   msgKey: string;
   msgTopic: string = DomainEventTopics.PaymentEvents;
@@ -62,7 +56,7 @@ export class QuoteCompletedEvent extends DomainEvent {
 
   constructor(payload: QuoteCompletedPayload, requestId?: string) {
     super(payload.id);
-    this.aggregateId = this.msgKey = payload.id;
+    this.msgKey = payload.id;
     this.payload = payload;
     this.requestId = requestId;
   }
@@ -74,9 +68,7 @@ export interface QuoteCreateFailedPayload {
 }
 
 export class QuoteCreateFailedEvent extends DomainEvent {
-  msgDataFormat:MessageDataFormats = MessageDataFormats.JSON;
   contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
   aggregateName: string = AGGREGATE_NAME;
   msgKey: string;
   msgTopic: string = DomainEventTopics.PaymentEvents;
@@ -85,7 +77,7 @@ export class QuoteCreateFailedEvent extends DomainEvent {
 
   constructor(payload: QuoteCreateFailedPayload, requestId?: string) {
     super(requestId ?? '');
-    this.aggregateId = this.msgKey = requestId ?? '';
+    this.msgKey = requestId ?? '';
     this.payload = payload;
     this.requestId = requestId;
   }
@@ -96,9 +88,7 @@ export interface PaymentCreatedPayload {
 }
 
 export class PaymentCreatedEvent extends DomainEvent {
-  msgDataFormat:MessageDataFormats = MessageDataFormats.JSON;
   contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
   aggregateName: string = AGGREGATE_NAME;
   msgKey: string;
   msgTopic: string = DomainEventTopics.PaymentEvents;
@@ -106,7 +96,7 @@ export class PaymentCreatedEvent extends DomainEvent {
 
   constructor(payload: PaymentCreatedPayload, requestId?: string) {
     super(payload.id);
-    this.aggregateId = this.msgKey = payload.id;
+    this.msgKey = payload.id;
     this.payload = payload;
     this.requestId = requestId;
   }
@@ -118,9 +108,7 @@ export interface PaymentCreateFailedPayload {
 }
 
 export class PaymentCreateFailedEvent extends DomainEvent {
-  msgDataFormat:MessageDataFormats = MessageDataFormats.JSON;
   contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
   aggregateName: string = AGGREGATE_NAME;
   msgKey: string;
   msgTopic: string = DomainEventTopics.PaymentEvents;
@@ -129,7 +117,47 @@ export class PaymentCreateFailedEvent extends DomainEvent {
 
   constructor(payload: PaymentCreateFailedPayload, requestId?: string) {
     super(requestId ?? '');
-    this.aggregateId = this.msgKey = requestId ?? '';
+    this.msgKey = requestId ?? '';
+    this.payload = payload;
+    this.requestId = requestId;
+  }
+}
+
+export interface LocalPaymentCompletedPayload {
+  id: string;
+}
+
+export class LocalPaymentCompletedEvent extends DomainEvent {
+  contextName: string = BOUNDED_CONTEXT_NAME;
+  aggregateName: string = AGGREGATE_NAME;
+  msgKey: string;
+  msgTopic: string = DomainEventTopics.PaymentEvents;
+  payload: LocalPaymentCompletedPayload;
+
+  constructor(payload: LocalPaymentCompletedPayload, requestId?: string) {
+    super(payload.id);
+    this.msgKey = payload.id;
+    this.payload = payload;
+    this.requestId = requestId;
+  }
+}
+
+export interface LocalPaymentCompleteFailedPayload {
+  errorName: string;
+  message: string;
+}
+
+export class LocalPaymentCompleteFailedEvent extends DomainEvent {
+  contextName: string = BOUNDED_CONTEXT_NAME;
+  aggregateName: string = AGGREGATE_NAME;
+  msgKey: string;
+  msgTopic: string = DomainEventTopics.PaymentEvents;
+  isErrorEvent: boolean = true;
+  payload: LocalPaymentCompleteFailedPayload;
+
+  constructor(payload: LocalPaymentCompleteFailedPayload, requestId?: string) {
+    super(requestId ?? '');
+    this.msgKey = requestId ?? '';
     this.payload = payload;
     this.requestId = requestId;
   }

@@ -12,6 +12,9 @@ service PaymentsGrpc {
 
   // Creates a new outgoing payment.
   rpc CreateOutgoingPayment(CreateOutgoingPaymentRequest) returns (CreateOutgoingPaymentResponse);
+
+  // Approves an existing outgoing payment.
+  rpc ApproveOutgoingPayment(ApproveOutgoingPaymentRequest) returns (ApproveOutgoingPaymentResponse);
 }
 
 /*
@@ -68,6 +71,17 @@ message CreateOutgoingPaymentRequest {
 
 // Response containing the ID of the created outgoing payment.
 message CreateOutgoingPaymentResponse {
+  string id = 1;
+}
+
+// Request to approve an outgoing payment.
+message ApproveOutgoingPaymentRequest {
+  string id = 1;
+  string incoming_payment_id = 2;
+}
+
+// Response confirming the approval of the outgoing payment.
+message ApproveOutgoingPaymentResponse {
   string id = 1;
 }
 

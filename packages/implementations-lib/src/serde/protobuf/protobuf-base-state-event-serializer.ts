@@ -1,17 +1,17 @@
 import { ProtoBufBaseMessageSerializer } from './protobuf-base-msg-serializer';
-import {MessageDataFormats, MessageTypes, SnapshotEvent, StateEvent} from 'common-types-lib';
+import { MessageDataFormats, MessageTypes, StateEvent } from 'common-types-lib';
 import { Any as PbAny } from 'google-protobuf/google/protobuf/any_pb';
 import { PbKafkaMessageTypes, PbStateEvent } from '../../proto_generated';
-import {ProtoBufBaseSnapshotEventSerializer} from "./protobuf-base-snapshot-serializer";
 
-
-export abstract class ProtoBufBaseStateEventSerializer<P> extends ProtoBufBaseMessageSerializer {
+export abstract class ProtoBufBaseStateEventSerializer<
+  P
+> extends ProtoBufBaseMessageSerializer {
   public msgType: MessageTypes = MessageTypes.STATE_EVENT;
 
-  protected abstract _serializePayload(payload:P):Uint8Array;
-  protected abstract _deserializePayload(pbAny:PbAny, msgName:string): P;
+  protected abstract _serializePayload(payload: P): Uint8Array;
+  protected abstract _deserializePayload(pbAny: PbAny, msgName: string): P;
 
-  serializeMsg(msg: StateEvent):Uint8Array {
+  serializeMsg(msg: StateEvent): Uint8Array {
     const pbMsg = new PbStateEvent();
 
     const msgTypeStr =
@@ -32,7 +32,7 @@ export abstract class ProtoBufBaseStateEventSerializer<P> extends ProtoBufBaseMe
     return pbMsg.serializeBinary();
   }
 
-  deserializeMsg(msgBytes:Uint8Array): StateEvent {
+  deserializeMsg(msgBytes: Uint8Array): StateEvent {
     const pbMsg = PbStateEvent.deserializeBinary(msgBytes);
 
     const evt: StateEvent = {
@@ -55,7 +55,10 @@ export abstract class ProtoBufBaseStateEventSerializer<P> extends ProtoBufBaseMe
 
     if (pbMsg.hasPayload()) {
       const pbPayloadAny = pbMsg.getPayload()!;
-      evt.payload = this._deserializePayload(pbPayloadAny, this._payloadPbClassName);
+      evt.payload = this._deserializePayload(
+        pbPayloadAny,
+        this._payloadPbClassName
+      );
     }
 
     return evt;

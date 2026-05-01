@@ -1,16 +1,17 @@
 import { ProtoBufBaseMessageSerializer } from './protobuf-base-msg-serializer';
-import {CommandMsg, MessageDataFormats, MessageTypes} from 'common-types-lib';
+import { CommandMsg, MessageDataFormats, MessageTypes } from 'common-types-lib';
 import { Any as PbAny } from 'google-protobuf/google/protobuf/any_pb';
-import {PbCommandMsg, PbKafkaMessageTypes} from '../../proto_generated';
+import { PbCommandMsg, PbKafkaMessageTypes } from '../../proto_generated';
 
-
-export abstract class ProtoBufBaseCommandSerializer<P> extends ProtoBufBaseMessageSerializer {
+export abstract class ProtoBufBaseCommandSerializer<
+  P
+> extends ProtoBufBaseMessageSerializer {
   public msgType: MessageTypes = MessageTypes.COMMAND;
 
-  protected abstract _serializePayload(payload:P):Uint8Array;
-  protected abstract _deserializePayload(pbAny:PbAny, msgName:string): P;
+  protected abstract _serializePayload(payload: P): Uint8Array;
+  protected abstract _deserializePayload(pbAny: PbAny, msgName: string): P;
 
-  serializeMsg(msg: CommandMsg):Uint8Array {
+  serializeMsg(msg: CommandMsg): Uint8Array {
     const pbMsg = new PbCommandMsg();
 
     const msgTypeStr =
@@ -32,7 +33,7 @@ export abstract class ProtoBufBaseCommandSerializer<P> extends ProtoBufBaseMessa
     return pbMsg.serializeBinary();
   }
 
-  deserializeMsg(msgBytes:Uint8Array): CommandMsg {
+  deserializeMsg(msgBytes: Uint8Array): CommandMsg {
     const pbMsg = PbCommandMsg.deserializeBinary(msgBytes);
 
     const cmd: CommandMsg = {
@@ -55,7 +56,10 @@ export abstract class ProtoBufBaseCommandSerializer<P> extends ProtoBufBaseMessa
 
     if (pbMsg.hasPayload()) {
       const pbPayloadAny = pbMsg.getPayload()!;
-      cmd.payload = this._deserializePayload(pbPayloadAny, this._payloadPbClassName);
+      cmd.payload = this._deserializePayload(
+        pbPayloadAny,
+        this._payloadPbClassName
+      );
     }
 
     return cmd;

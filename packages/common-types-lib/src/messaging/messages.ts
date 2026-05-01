@@ -1,9 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import * as Crypto from 'crypto';
 
 export const MessageDataFormats = {
-  JSON: "JSON",
-  PROTOBUF: "PROTOBUF"
+  JSON: 'JSON',
+  PROTOBUF: 'PROTOBUF'
 } as const;
 export type MessageDataFormats = keyof typeof MessageDataFormats;
 
@@ -42,11 +41,11 @@ export abstract class BaseMessage implements IMessage {
   msgOffset: number | null = null;
   msgBatchId: string | null = null;
   msgTimestamp: number = Date.now();
+  msgDataFormat: MessageDataFormats = MessageDataFormats.JSON;
 
   payload: any;
 
   abstract msgTopic: string;
-  abstract msgDataFormat: MessageDataFormats;
   abstract msgType: MessageTypes;
 
   requestId?: string;

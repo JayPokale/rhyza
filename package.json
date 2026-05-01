@@ -1,5 +1,5 @@
 {
-  "name": "rafiki-poc",
+  "name": "rafiki-v2",
   "packageManager": "pnpm@10.28.2",
   "scripts": {
     "clean": "find . -name 'node_modules' -type d -prune -exec rm -rf '{}' +",
@@ -28,9 +28,8 @@
     "onlyBuiltDependencies": [
       "esbuild",
       "grpc-tools",
-      "node-rdkafka",
-      "protobufjs",
-      "@confluentinc/kafka-javascript"
+      "@confluentinc/kafka-javascript",
+      "protobufjs"
     ]
   }
 }

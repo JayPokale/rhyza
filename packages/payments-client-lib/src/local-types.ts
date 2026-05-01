@@ -9,3 +9,7 @@ export interface ICreateQuoteResponse {
 export interface ICreateOutgoingPaymentResponse {
   id: string;
 }
+
+export interface IApproveOutgoingPaymentResponse {
+  id: string;
+}

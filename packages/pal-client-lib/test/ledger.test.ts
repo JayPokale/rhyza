@@ -84,6 +84,8 @@ test('pal client - ledger low-level - create ledger account for non-existent ass
 });
 
 test('pal client - ledger low-level - created ledger accounts should exist and be successfully retrieved', async () => {
+  // we have to wait for the ledger to be created and the accounts to be created in the read side
+  await new Promise(resolve => setTimeout(resolve, 5000));
   const [accOne, accTwo] = await client.getLedgerAccounts([accOneId, accTwoId]);
 
   assert.ok(accOne);

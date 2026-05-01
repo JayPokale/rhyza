@@ -12,7 +12,7 @@ import {
 import {ConsoleLogger, DomainEvent, StateEvent} from "common-types-lib";
 import {MockMessageProducer} from "./mocks/mock-msg-publisher";
 import {
-  LedgerAccountCreatedEvent,
+  LedgerAccountCreatedEvent, LedgerCreatedEvent,
   LedgerTransactionPostedEvent, LedgerTransferCommitedEvent,
   LedgerTransferInsufficientFundsErrorEvent, LedgerTransferRejectedEvent, LedgerTransferReservedEvent
 } from "pal-public-types-lib";
@@ -50,7 +50,10 @@ test("PAL Ledger Domain HighLevel API - Create ledger", async () => {
   assert.equal(lastEvents[lastEvents.length-1].aggregateId, EUR_LEDGER_ID);
   assert.equal(lastEvents[lastEvents.length-1].aggregateVersion, "1");
 
-  assert.ok(mockProducer.messages.length ==  0);
+  const lastDomainEvent = mockProducer.messages[mockProducer.messages.length -1] as DomainEvent;
+  assert.ok(lastDomainEvent);
+  assert.equal(lastDomainEvent.msgName, LedgerCreatedEvent.name);
+  assert.equal(lastDomainEvent.aggregateId, EUR_LEDGER_ID);
 });
 
 test("PAL Ledger Domain HighLevel API - Create accounts", async () => {
@@ -107,17 +110,18 @@ test("PAL Ledger Domain HighLevel API - Create accounts", async () => {
   assert.ok(aggregate.verify());
 
   // check domain/integration events
-  assert.ok(mockProducer.messages.length ==  5);
-  assert.ok(mockProducer.messages[0].msgName ==  LedgerAccountCreatedEvent.name);
-  assert.equal(mockProducer.messages[0].payload.id, EUR_PAYER_CLEARING_ACCOUNT_ID);
+  assert.ok(mockProducer.messages.length ==  6);
+
   assert.ok(mockProducer.messages[1].msgName ==  LedgerAccountCreatedEvent.name);
-  assert.equal(mockProducer.messages[1].payload.id, EUR_PAYER_LIQUIDITY_ACCOUNT_ID);
+  assert.equal(mockProducer.messages[1].payload.id, EUR_PAYER_CLEARING_ACCOUNT_ID);
   assert.ok(mockProducer.messages[2].msgName ==  LedgerAccountCreatedEvent.name);
-  assert.equal(mockProducer.messages[2].payload.id, EUR_PAYEE_CLEARING_ACCOUNT_ID);
+  assert.equal(mockProducer.messages[2].payload.id, EUR_PAYER_LIQUIDITY_ACCOUNT_ID);
   assert.ok(mockProducer.messages[3].msgName ==  LedgerAccountCreatedEvent.name);
-  assert.equal(mockProducer.messages[3].payload.id, EUR_SUSPENSE_ACCOUNT_ID);
+  assert.equal(mockProducer.messages[3].payload.id, EUR_PAYEE_CLEARING_ACCOUNT_ID);
   assert.ok(mockProducer.messages[4].msgName ==  LedgerAccountCreatedEvent.name);
-  assert.equal(mockProducer.messages[4].payload.id, EUR_CASH_ACCOUNT_ID);
+  assert.equal(mockProducer.messages[4].payload.id, EUR_SUSPENSE_ACCOUNT_ID);
+  assert.ok(mockProducer.messages[5].msgName ==  LedgerAccountCreatedEvent.name);
+  assert.equal(mockProducer.messages[5].payload.id, EUR_CASH_ACCOUNT_ID);
 
 });
 

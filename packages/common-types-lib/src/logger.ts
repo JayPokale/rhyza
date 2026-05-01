@@ -18,22 +18,22 @@ export interface ILogger {
 
 // default implementation of ILogger which uses the console (no ext dependencies)
 export class ConsoleLogger implements ILogger {
-  fatal(...args:any[]): void {
+  fatal(...args: any[]): void {
     console.error(args);
   }
-  error(...args:any[]): void {
+  error(...args: any[]): void {
     console.error(args);
   }
-  warn(...args:any[]): void {
+  warn(...args: any[]): void {
     console.warn(args);
   }
-  info(...args:any[]): void {
+  info(...args: any[]): void {
     console.info(args);
   }
-  debug(...args:any[]): void {
+  debug(...args: any[]): void {
     console.debug(args);
   }
-  trace(...args:any[]): void {
+  trace(...args: any[]): void {
     console.trace(args);
   }
 
@@ -56,5 +56,6 @@ export class ConsoleLogger implements ILogger {
     return true;
   }
 
-  setLogLevel(logLevel: any):void{}
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  setLogLevel(logLevel: any): void {}
 }

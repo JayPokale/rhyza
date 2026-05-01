@@ -1,8 +1,7 @@
-import {CommandMsg, CommandTopics, MessageDataFormats} from 'common-types-lib';
+import { CommandMsg, CommandTopics } from 'common-types-lib';
 
 const BOUNDED_CONTEXT_NAME = 'payment';
 const PAYMENT_INTENT_AGG_NAME = 'payment-intents';
-
 
 export interface CreatePaymentIntentCmdPayload {
   id: string;
@@ -14,15 +13,15 @@ export interface CreatePaymentIntentCmdPayload {
 }
 
 export class CreatePaymentIntentCmd extends CommandMsg {
-  msgDataFormat:MessageDataFormats = MessageDataFormats.JSON;
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateName: string = PAYMENT_INTENT_AGG_NAME;
+  msgKey: string;
   msgTopic: string = CommandTopics.PaymentCommands;
   payload: CreatePaymentIntentCmdPayload;
 
   constructor(payload: CreatePaymentIntentCmdPayload, requestId: string) {
     super(payload.id);
-    this.aggregateId = this.msgKey = payload.id;
+    this.msgKey = payload.id;
     this.requestId = requestId;
     this.payload = payload;
   }
@@ -38,15 +37,15 @@ export interface CreateQuoteCmdPayload {
 }
 
 export class CreateQuoteCmd extends CommandMsg {
-  msgDataFormat:MessageDataFormats = MessageDataFormats.JSON;
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateName: string = PAYMENT_INTENT_AGG_NAME;
+  msgKey: string;
   msgTopic: string = CommandTopics.PaymentCommands;
   payload: CreateQuoteCmdPayload;
 
   constructor(payload: CreateQuoteCmdPayload, requestId: string) {
     super(payload.paymentIntentId);
-    this.aggregateId = this.msgKey = payload.paymentIntentId;
+    this.msgKey = payload.paymentIntentId;
     this.requestId = requestId;
     this.payload = payload;
   }
@@ -62,15 +61,35 @@ export interface CreatePaymentCmdPayload {
 }
 
 export class CreatePaymentCmd extends CommandMsg {
-  msgDataFormat:MessageDataFormats = MessageDataFormats.JSON;
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateName: string = PAYMENT_INTENT_AGG_NAME;
+  msgKey: string;
   msgTopic: string = CommandTopics.PaymentCommands;
   payload: CreatePaymentCmdPayload;
 
   constructor(payload: CreatePaymentCmdPayload, requestId: string) {
     super(payload.paymentIntentId);
-    this.aggregateId = this.msgKey = payload.paymentIntentId;
+    this.msgKey = payload.paymentIntentId;
+    this.requestId = requestId;
+    this.payload = payload;
+  }
+}
+
+export interface ApprovePaymentCmdPayload {
+  id: string;
+  paymentIntentId: string;
+}
+
+export class ApprovePaymentCmd extends CommandMsg {
+  contextName: string = BOUNDED_CONTEXT_NAME;
+  aggregateName: string = PAYMENT_INTENT_AGG_NAME;
+  msgKey: string;
+  msgTopic: string = CommandTopics.PaymentCommands;
+  payload: ApprovePaymentCmdPayload;
+
+  constructor(payload: ApprovePaymentCmdPayload, requestId: string) {
+    super(payload.paymentIntentId);
+    this.msgKey = payload.paymentIntentId;
     this.requestId = requestId;
     this.payload = payload;
   }
