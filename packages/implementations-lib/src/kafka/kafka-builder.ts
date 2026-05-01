@@ -24,7 +24,6 @@ import { KafkaLowLevelConsumer } from './kafka-lowlevel-consumer';
 import { KafkaLoggerWrapper } from './kafka-logger-wrapper';
 
 export class KafkaBuilder implements IKafkaBuilder {
-
   constructor() {
     this._globalConfig = {};
   }
