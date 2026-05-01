@@ -54,7 +54,10 @@ export class KafkaProducer implements IMessageProducer {
     const topicMessages = this._convertIMessageArrayToTopicMessages(message);
 
     // we're ignoring the promise on purpose
-    this._producer.sendBatch({ topicMessages });
+    this._producer.sendBatch({ topicMessages }).catch((e) => {
+      this._logger?.error(e, `Error sending message to Kafka - ${e.message}}`);
+      throw e;
+    });
 
     this._logger?.debug(`${this.constructor.name} - send completed`);
   }

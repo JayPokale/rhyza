@@ -22,16 +22,16 @@ export class PaymentsApiService {
   static async start(): Promise<void> {
     const logger = new PinoLogger();
 
-    KafkaBuilder.instance()
+    const kafkaBuilder = new KafkaBuilder()
       .withLogger(logger)
       .withBrokerList(KAFKA_URL)
       .withClientId(INSTANCE_ID)
       .withSerializerFactory(MessageSerializationFactory.instance());
 
-    this.msgProducer = KafkaBuilder.instance().buildProducer({});
+    this.msgProducer = kafkaBuilder.buildProducer({});
     await this.msgProducer.connect();
 
-    this.msgConsumer = KafkaBuilder.instance().buildConsumer({
+    this.msgConsumer = kafkaBuilder.buildConsumer({
       consumerGroupId: `payments-api-service`
     });
     this.msgConsumer.setTopics([DomainEventTopics.PaymentEvents]);

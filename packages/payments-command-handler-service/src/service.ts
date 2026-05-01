@@ -38,7 +38,7 @@ export class PaymentsCommandHandlerService {
   static async start(): Promise<void> {
     const logger = new PinoLogger();
 
-    KafkaBuilder.instance()
+    const kafkaBuilder = new KafkaBuilder()
       .withLogger(logger)
       .withBrokerList(KAFKA_URL)
       .withClientId(INSTANCE_ID)
@@ -58,10 +58,10 @@ export class PaymentsCommandHandlerService {
       staticRatesAdapter
     );
 
-    this.msgProducer = KafkaBuilder.instance().buildProducer({});
+    this.msgProducer = kafkaBuilder.buildProducer({});
     await this.msgProducer.connect();
 
-    this.msgConsumer = KafkaBuilder.instance().buildConsumer({
+    this.msgConsumer = kafkaBuilder.buildConsumer({
       consumerGroupId: `payments-cmd-handler`,
       batchSize: CONSUMER_BATCH_SIZE,
       batchTimeoutMs: CONSUMER_BATCH_TIMEOUT_MS
