@@ -84,7 +84,7 @@ export class PaymentsServiceServer {
     this._msgProducer = msgProducer;
     this._msgConsumer = msgConsumer;
 
-    this._msgConsumer.setCallbackFn(this._handleResponseEvent.bind(this));
+    this._msgConsumer.setBatchCallbackFn(this._handleBatch.bind(this));
 
     this._server = new grpc.Server({
       'grpc.max_concurrent_streams': 100,
@@ -300,6 +300,12 @@ export class PaymentsServiceServer {
     }, timeoutMs);
 
     this._responseMap.set(commandId, { callback, timer });
+  }
+
+  private async _handleBatch(messages: IMessage[]): Promise<void> {
+    for (const message of messages) {
+      await this._handleResponseEvent(message);
+    }
   }
 
   private async _handleResponseEvent(message: IMessage): Promise<void> {
