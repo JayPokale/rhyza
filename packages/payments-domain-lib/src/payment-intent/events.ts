@@ -9,11 +9,15 @@ export abstract class PaymentIntentDomainEvent extends DomainEvent {
     this.msgKey = aggId;
   }
 
-  static isPaymentIntentCreatedEvent(evt: DomainEvent): evt is PaymentIntentCreatedEvent {
+  static isPaymentIntentCreatedEvent(
+    evt: DomainEvent
+  ): evt is PaymentIntentCreatedEvent {
     return evt.msgName === PaymentIntentCreatedEvent.name;
   }
 
-  static isPaymentIntentCreateFailedEvent(evt: DomainEvent): evt is PaymentIntentCreateFailedEvent {
+  static isPaymentIntentCreateFailedEvent(
+    evt: DomainEvent
+  ): evt is PaymentIntentCreateFailedEvent {
     return evt.msgName === PaymentIntentCreateFailedEvent.name;
   }
 
@@ -21,7 +25,9 @@ export abstract class PaymentIntentDomainEvent extends DomainEvent {
     return evt.msgName === QuoteCompletedEvent.name;
   }
 
-  static isQuoteCreateFailedEvent(evt: DomainEvent): evt is QuoteCreateFailedEvent {
+  static isQuoteCreateFailedEvent(
+    evt: DomainEvent
+  ): evt is QuoteCreateFailedEvent {
     return evt.msgName === QuoteCreateFailedEvent.name;
   }
 
@@ -29,22 +35,28 @@ export abstract class PaymentIntentDomainEvent extends DomainEvent {
     return evt.msgName === PaymentCreatedEvent.name;
   }
 
-  static isPaymentCreateFailedEvent(evt: DomainEvent): evt is PaymentCreateFailedEvent {
+  static isPaymentCreateFailedEvent(
+    evt: DomainEvent
+  ): evt is PaymentCreateFailedEvent {
     return evt.msgName === PaymentCreateFailedEvent.name;
   }
 
-  static isLocalPaymentCompletedEvent(evt: DomainEvent): evt is LocalPaymentCompletedEvent {
+  static isLocalPaymentCompletedEvent(
+    evt: DomainEvent
+  ): evt is LocalPaymentCompletedEvent {
     return evt.msgName === LocalPaymentCompletedEvent.name;
   }
 
-  static isLocalPaymentCompleteFailedEvent(evt: DomainEvent): evt is LocalPaymentCompleteFailedEvent {
+  static isLocalPaymentCompleteFailedEvent(
+    evt: DomainEvent
+  ): evt is LocalPaymentCompleteFailedEvent {
     return evt.msgName === LocalPaymentCompleteFailedEvent.name;
   }
 }
 
 export type PaymentIntentCreatedPayload = {
   id: string;
-}
+};
 
 export class PaymentIntentCreatedEvent extends PaymentIntentDomainEvent {
   payload: PaymentIntentCreatedPayload;
@@ -60,7 +72,7 @@ export type PaymentIntentCreateFailedPayload = {
   paymentIntentId: string;
   errorName: string;
   message: string;
-}
+};
 
 export class PaymentIntentCreateFailedEvent extends PaymentIntentDomainEvent {
   payload: PaymentIntentCreateFailedPayload;
@@ -75,7 +87,7 @@ export class PaymentIntentCreateFailedEvent extends PaymentIntentDomainEvent {
 
 export type QuoteCompletedPayload = {
   id: string;
-}
+};
 
 export class QuoteCompletedEvent extends PaymentIntentDomainEvent {
   payload: QuoteCompletedPayload;
@@ -91,7 +103,7 @@ export type QuoteCreateFailedPayload = {
   paymentIntentId: string;
   errorName: string;
   message: string;
-}
+};
 
 export class QuoteCreateFailedEvent extends PaymentIntentDomainEvent {
   payload: QuoteCreateFailedPayload;
@@ -106,7 +118,7 @@ export class QuoteCreateFailedEvent extends PaymentIntentDomainEvent {
 
 export type PaymentCreatedPayload = {
   id: string;
-}
+};
 
 export class PaymentCreatedEvent extends PaymentIntentDomainEvent {
   payload: PaymentCreatedPayload;
@@ -122,7 +134,7 @@ export type PaymentCreateFailedPayload = {
   paymentIntentId: string;
   errorName: string;
   message: string;
-}
+};
 
 export class PaymentCreateFailedEvent extends PaymentIntentDomainEvent {
   payload: PaymentCreateFailedPayload;
@@ -137,7 +149,7 @@ export class PaymentCreateFailedEvent extends PaymentIntentDomainEvent {
 
 export type LocalPaymentCompletedPayload = {
   id: string;
-}
+};
 
 export class LocalPaymentCompletedEvent extends PaymentIntentDomainEvent {
   payload: LocalPaymentCompletedPayload;
@@ -153,7 +165,7 @@ export type LocalPaymentCompleteFailedPayload = {
   paymentIntentId: string;
   errorName: string;
   message: string;
-}
+};
 
 export class LocalPaymentCompleteFailedEvent extends PaymentIntentDomainEvent {
   payload: LocalPaymentCompleteFailedPayload;

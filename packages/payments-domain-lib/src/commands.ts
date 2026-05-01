@@ -8,7 +8,9 @@ export abstract class PaymentIntentCommand extends CommandMsg {
     this.msgKey = aggId;
   }
 
-  static isCreatePaymentIntentCmd(cmd: CommandMsg): cmd is CreatePaymentIntentCmd {
+  static isCreatePaymentIntentCmd(
+    cmd: CommandMsg
+  ): cmd is CreatePaymentIntentCmd {
     return cmd.msgName === CreatePaymentIntentCmd.name;
   }
 
@@ -32,7 +34,7 @@ export type CreatePaymentIntentCmdPayload = {
   expiresAt?: string;
   incomingAmount?: number;
   metadata?: string;
-}
+};
 
 export class CreatePaymentIntentCmd extends PaymentIntentCommand {
   payload: CreatePaymentIntentCmdPayload;
@@ -51,7 +53,7 @@ export type CreateQuoteCmdPayload = {
   senderWalletAddressId: string;
   debitAmount?: number;
   receiveAmount?: number;
-}
+};
 
 export class CreateQuoteCmd extends PaymentIntentCommand {
   payload: CreateQuoteCmdPayload;
@@ -70,7 +72,7 @@ export type CreatePaymentCmdPayload = {
   paymentIntentId: string;
   quoteId?: string;
   debitAmount?: number;
-}
+};
 
 export class CreatePaymentCmd extends PaymentIntentCommand {
   payload: CreatePaymentCmdPayload;
@@ -85,7 +87,7 @@ export class CreatePaymentCmd extends PaymentIntentCommand {
 export type ApprovePaymentCmdPayload = {
   id: string;
   paymentIntentId: string;
-}
+};
 
 export class ApprovePaymentCmd extends PaymentIntentCommand {
   payload: ApprovePaymentCmdPayload;
