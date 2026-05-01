@@ -14,7 +14,10 @@ import { ServiceError } from '@grpc/grpc-js';
 import {
   IGetWalletAddressResponse,
   IPalClientAsset,
-  IPalClientWalletAddress
+  IPalClientWalletAddress, PalClientLedgerAccountAlreadyExistsError,
+  PalClientLedgerAccountCreationFailedError, PalClientLedgerAlreadyExistsError,
+  PalClientLedgerNotFoundError, PalClientLedgerUnknownError,
+  PalClientUnknownError
 } from './local-types';
 import {
   PbCreateAssetRequest,
@@ -27,7 +30,8 @@ import {
   PbGetWalletAddressesResponse,
   PalGrpcClient,
   PbResolveWalletAddressAliasRequest,
-  PbResolveWalletAddressAliasResponse
+  PbResolveWalletAddressAliasResponse, PbCreateLedgerRequest, PbCreateLedgerAccountRequest, PbGetLedgerAccountsRequest,
+  ILedgerAccountDTO, PbGetLedgerAccountsResponse
 } from 'pal-public-types-lib';
 
 export class PalClient {
@@ -93,7 +97,7 @@ export class PalClient {
       this._grpcClient.createAsset(request, (error: ServiceError | null) => {
         if (error) {
           console.error(error);
-          return reject(error);
+          return reject(new PalClientUnknownError(error.message));
         }
 
         return resolve();
@@ -111,7 +115,7 @@ export class PalClient {
         (error: ServiceError | null, response: PbGetAssetResponse) => {
           if (error) {
             console.error(error);
-            return reject(error);
+            return reject(new PalClientUnknownError(error.message));
           }
 
           if (!response.hasAsset()) {
@@ -167,7 +171,7 @@ export class PalClient {
         (error: ServiceError | null, response: PbCreateWalletAddressResponse) => {
           if (error) {
             console.error(error);
-            return reject(error);
+            return reject(new PalClientUnknownError(error.message));
           }
 
           return resolve({
@@ -195,7 +199,7 @@ export class PalClient {
         (error: ServiceError | null, response: PbGetWalletAddressesResponse) => {
           if (error) {
             console.error(error);
-            return reject(error);
+            return reject(new PalClientUnknownError(error.message));
           }
 
           const respWallets = response.getWalletAddressesList();
@@ -239,7 +243,7 @@ export class PalClient {
         (error: ServiceError | null) => {
           if (error) {
             console.error(error);
-            return reject(error);
+            return reject(new PalClientUnknownError(error.message));
           }
 
           return resolve();
@@ -268,8 +272,7 @@ export class PalClient {
           response: PbResolveWalletAddressAliasResponse
         ) => {
           if (error) {
-            console.error(error);
-            return reject(error);
+            return reject(new PalClientUnknownError(error.message));
           }
 
           const alias = response.getAlias();
@@ -285,6 +288,74 @@ export class PalClient {
           });
         }
       );
+    });
+  }
+
+  /*
+   * ledger related functions
+   * */
+
+  createLedger(assetCode:string):Promise<void>{
+    const request = new PbCreateLedgerRequest();
+    request.setLedgerAssetCode(assetCode);
+
+    return new Promise((resolve, reject) => {
+      this._grpcClient.createLedger(request, (error: ServiceError | null) => {
+        if (error) {
+          if(error.code == grpc.status.ALREADY_EXISTS){
+            return reject(new PalClientLedgerAlreadyExistsError(error.message));
+          }
+          return reject(new PalClientLedgerUnknownError(error.message));
+        }
+        return resolve();
+      });
+    });
+  }
+
+  createLedgerAccount(accId:string, assetCode:string, assetDisplayScale: number, name:string):Promise<void>{
+    const request = new PbCreateLedgerAccountRequest();
+    request.setId(accId);
+    request.setAssetCode(assetCode);
+    request.setAssetDisplayScale(assetDisplayScale);
+    request.setName(name);
+
+    return new Promise((resolve, reject) => {
+      this._grpcClient.createLedgerAccount(request, (error: ServiceError | null) => {
+        if (error) {
+          if(error.code == grpc.status.ALREADY_EXISTS){
+            return reject(new PalClientLedgerAccountAlreadyExistsError(error.message));
+          }else if(error.code == grpc.status.NOT_FOUND){
+            return reject(new PalClientLedgerNotFoundError(error.message));
+          }
+          return reject(new PalClientLedgerUnknownError(error.message));
+        }
+        return resolve();
+      });
+    });
+  }
+
+  getLedgerAccounts(ids:string[]): Promise<ILedgerAccountDTO[]>{
+    const request = new PbGetLedgerAccountsRequest();
+    request.setAccountIdsList(ids);
+
+    return new Promise((resolve, reject) => {
+      this._grpcClient.getLedgerAccounts(request, (error: ServiceError | null, response: PbGetLedgerAccountsResponse) => {
+        if (error) {
+          return reject(error);
+        }
+
+        const respAccounts = response.getAccountsList().map((item) => {
+          return {
+            id: item.getId(),
+            name: item.getName(),
+            assetCode: item.getAssetCode(),
+            assetDisplayScale: item.getAssetDisplayScale(),
+            debitedAmount: item.getDebitedAmount(),
+            creditedAmount: item.getCreditedAmount(),
+          };
+        });
+        return resolve(respAccounts);
+      });
     });
   }
 }

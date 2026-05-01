@@ -21,6 +21,7 @@ export class KafkaLowLevelConsumer implements IMessageConsumer{
   private _batchSize: number;
   private _batchTimeoutMs: number;
   private _consuming = false;
+  private _stopConsumingRequested = false;
 
   constructor(
     globalConfigs: RdKafka.ConsumerGlobalConfig,
@@ -163,6 +164,8 @@ export class KafkaLowLevelConsumer implements IMessageConsumer{
 
 
     while (this._consuming) {
+      if(this._stopConsumingRequested) break;
+
       const start = Date.now();
       const kafkaMessages = await this._fetchBatch();
       const afterFetch = Date.now();
@@ -283,6 +286,8 @@ export class KafkaLowLevelConsumer implements IMessageConsumer{
   }
 
   start(): Promise<void> {
+    // reset flag
+    this._stopConsumingRequested = false;
     return new Promise((resolve, reject) => {
       if (!Array.isArray(this._topics) || this._topics.length == 0) {
         this._logger?.warn('KafkaLowLevelConsumer - no topics subscribed on start()');
@@ -304,6 +309,7 @@ export class KafkaLowLevelConsumer implements IMessageConsumer{
   }
 
   async stop(): Promise<void> {
+    this._stopConsumingRequested = true;
     this._consumer.unsubscribe();
     this._logger?.info('KafkaLowLevelConsumer - stop called, unsubscribed from previously subscribed topics');
   }

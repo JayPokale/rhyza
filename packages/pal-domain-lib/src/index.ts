@@ -11,6 +11,6 @@
 
 export * from './assets';
 export * from './wallet-address';
-export * from './wallet-address-alias';
-export * from './wallet-domain-service/wallet-domain-service';
+// export * from './wallet-address-alias';
+// export * from './wallet-domain-service/wallet-domain-service';
 export * from './liquidity';

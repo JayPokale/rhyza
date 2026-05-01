@@ -9,7 +9,7 @@
 
 'use strict';
 
-import { IPalWalletAddressAlias } from './interfaces';
+import { IPalWalletAddressAlias } from '../interfaces';
 
 export class PalWalletAddressAlias implements IPalWalletAddressAlias {
   private readonly _domain: string | null;

@@ -41,13 +41,13 @@ export class KafkaEventSourcingRepo<S extends StateEvent, T extends SnapshotEven
   }
 
   async publishEvents(events: IMessage[]): Promise<void> {
-    await this._producer.sendWithAck(events);
+    await this._producer.send(events);
   }
 
   async publishSnapshotEvent(events: T[]): Promise<void> {
     // not efficient, but we don't expect to have many snapshots at the same time
     for(const evt of events) {
-      const ack = await this._producer.sendWithAck([evt]);
+      const ack = await this._producer.send([evt]);
 
       await this._cache.set(
         this._getCacheKey(evt.aggregateId),

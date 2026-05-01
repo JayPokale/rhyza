@@ -9,7 +9,7 @@
 
 'use strict';
 
-import { IPalWalletAddress, IPalWalletAddressRepository } from '../../src';
+import {IPalWalletAddress, IPalWalletAddressAlias, IPalWalletAddressRepository} from '../../src';
 
 export class MockWalletRepo implements IPalWalletAddressRepository {
   private _data: Map<string, IPalWalletAddress> = new Map<
@@ -27,5 +27,18 @@ export class MockWalletRepo implements IPalWalletAddressRepository {
       ids.includes(item.id)
     );
     return Promise.resolve(ret);
+  }
+
+  getByAlias(domain: string | null, pathName: string): Promise<IPalWalletAddress | null> {
+    let found: IPalWalletAddress | null = null;
+    this._data.forEach(wallet => {
+      wallet.aliases.forEach(alias => {
+        if(alias.domain === domain && alias.pathName === pathName) {
+          found = wallet;
+          return;
+        }
+      });
+    });
+    return Promise.resolve(found);
   }
 }

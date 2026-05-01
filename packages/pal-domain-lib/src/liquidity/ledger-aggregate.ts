@@ -22,7 +22,12 @@ import console from "node:console";
 import {ILedgerAccount} from "./entities/ledger-account";
 import {ILedgerEventSourcingRepository} from "./interfaces";
 import {CommandMsg, ILogger, IMessageProducer, MessageTypes} from "common-types-lib";
-import {LedgerDomainEvent} from "pal-public-types-lib";
+import {
+  LedgerDomainEvent,
+  LedgerCreatedEvent,
+  LedgerCreationFailedEvent,
+  LedgerNotFoundEvent
+} from "pal-public-types-lib";
 
 const INTERNAL_ASSET_SCALE = 20;
 
@@ -51,29 +56,46 @@ export class LedgerAggregate {
         }else{
             // ledger-specific commands, load it first
             const ledger = await this.getOrLoadLedger(command.aggregateId);
-            if(!ledger) {
-                throw new Error("Ledger not found"); // TODO make error event
-            }
-            await ledger.processCommand(command);
-            this._uncommittedStateEvents.push(...ledger.uncommittedStateEvents);
-            ledger.clearUncommittedEvents();
-            this._uncommittedDomainEvents.push(...ledger.uncommittedDomainEvents);
-            ledger.clearUncommittedDomainEvents();
+
+          if (!ledger) {
+            const errEvt = new LedgerNotFoundEvent({assetCode: command.aggregateId});
+            errEvt.requestId = command.requestId;
+            this._uncommittedDomainEvents.push(errEvt);
+            this._logger.warn(`Ledger with asset code: ${command.aggregateId} not found`);
+            return;
+          }
+
+          await ledger.processCommand(command);
+
+          this._uncommittedStateEvents.push(...ledger.uncommittedStateEvents);
+          ledger.clearUncommittedEvents();
+          this._uncommittedDomainEvents.push(...ledger.uncommittedDomainEvents);
+          ledger.clearUncommittedDomainEvents();
         }
     }
 
     private async _processCreateLedgerCmd(cmd:CreateLedgerCmd):Promise<void>{
         const existing = await this.getOrLoadLedger(cmd.aggregateId);
         if(existing) {
-            throw new Error(`Ledger for asset: ${cmd.aggregateId} already exists`); // TODO make error event
+            const errorEvt = new LedgerCreationFailedEvent({assetCode: cmd.aggregateId, reason: "DUPLICATE_ASSET_CODE"});
+            errorEvt.requestId = cmd.requestId;
+            this._uncommittedDomainEvents.push(errorEvt);
+            this._logger.warn(`Ledger for asset: ${cmd.aggregateId} already exists`);
+            return;
         }
 
         const newLedger = Ledger.CreateNewLedger(cmd.aggregateId, INTERNAL_ASSET_SCALE, this._logger);
-        const event = new LedgerCreatedStateEvent(cmd.aggregateId, INTERNAL_ASSET_SCALE);
 
         this._ledgers.set( cmd.aggregateId, newLedger);
 
-        this._uncommittedStateEvents.push(event);
+        this._uncommittedStateEvents.push(
+          new LedgerCreatedStateEvent(cmd.aggregateId, INTERNAL_ASSET_SCALE)
+        );
+
+        const domainEvent = new LedgerCreatedEvent({assetCode: cmd.aggregateId});
+        domainEvent.requestId = cmd.requestId;
+        this._uncommittedDomainEvents.push(domainEvent);
+
     }
 
     async processCommands(commands: CommandMsg | CommandMsg[]): Promise<void> {
@@ -84,12 +106,13 @@ export class LedgerAggregate {
 
         for(const cmd of commands) {
             if(cmd.msgType !== MessageTypes.COMMAND) {
-                throw new Error("Invalid command type"); // TODO make error event
+                this._logger.warn(`Invalid message type: ${cmd.msgType} - expected command`);
+                continue;
             }
             if(!cmd.aggregateId) {
-                throw new Error("Invalid aggregateId in command"); // TODO make error event
+              this._logger.warn("Invalid aggregateId in command");
+              continue;
             }
-
             await this._processSingleCommand(cmd as LedgerCommand);
         }
         const procMs = Date.now() - startTs;
@@ -103,7 +126,7 @@ export class LedgerAggregate {
 
         const prePublishStart = Date.now();
         this._uncommittedStateEvents.length = 0;
-        await this._msgProducer.sendWithAck(this._uncommittedDomainEvents);
+        await this._msgProducer.send(this._uncommittedDomainEvents);
         this._uncommittedDomainEvents.length = 0;
         const producerMs = Date.now() - prePublishStart;
 

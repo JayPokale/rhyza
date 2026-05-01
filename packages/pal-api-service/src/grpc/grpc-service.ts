@@ -15,16 +15,15 @@ import * as protoLoader from '@grpc/proto-loader';
 import { join } from 'path';
 import { ReflectionService } from '@grpc/reflection';
 import {
+  Metadata,
   sendUnaryData,
   ServerDuplexStream,
   ServerUnaryCall
 } from '@grpc/grpc-js';
 
 import {
-  WalletAddressAliasAggregate,
   WalletAddressAggregate,
-  AssetAggregate,
-  WalletDomainService
+  AssetAggregate, CreateLedgerCmd, CreateLedgerAccountCmd, LedgerAccountDtoSerializer
 } from 'pal-domain-lib';
 import {
   PbCreateAssetRequest,
@@ -42,39 +41,80 @@ import {
   PalGrpcService,
   PbResolveWalletAddressAliasResponse,
   PbResolveWalletAddressNonEmptyResponse,
-  PbSingleWalletAddressResponse
+  PbSingleWalletAddressResponse,
+  PbCreateLedgerRequest, LedgerCreatedEvent, LedgerDomainEvent,
+  PbCreateLedgerAccountRequest, LedgerNotFoundEvent, PbGetLedgerAccountsRequest, PbGetLedgerAccountsResponse,
+  PbGetLedgerTransactionsRequest, PbGetLedgerTransactionsResponse,
 } from 'pal-public-types-lib';
 import { PbResolveWalletAddressAliasRequest } from 'pal-public-types-lib';
 import { PbCreateWalletAddressAliasRequest } from 'pal-public-types-lib';
 import { Empty } from 'google-protobuf/google/protobuf/empty_pb';
+import {
+  DomainEvent,
+  DomainEventTopics,
+  ILogger,
+  IMessage,
+  IMessageConsumer,
+  IMessageProducer,
+  MessageTypes
+} from "common-types-lib";
+import {ServerStatusResponse} from "@grpc/grpc-js/src/server-call";
+import {Status} from "@grpc/grpc-js/src/constants";
+import {ILedgerReadSideRepository} from "pal-implementations-lib";
 
 const PUBLIC_TYPES_LIB_PATH = require.resolve('pal-public-types-lib');
 
-export class PalServiceServer {
+const DEFAULT_RESPONSE_TIMEOUT_MS = 120_000; // 2 minutes;
+
+interface PendingResponse {
+  callback: sendUnaryData<any>;
+  timer: ReturnType<typeof setTimeout>;
+}
+
+export class PalGrpcServer {
   private readonly _instanceId: string;
+  private readonly _logger: ILogger;
   private readonly _serverUrl: string;
   private readonly _server: grpc.Server;
   private readonly _assetAggregate: AssetAggregate;
   private readonly _walletAggregate: WalletAddressAggregate;
-  private readonly _walletAliasAggregate: WalletAddressAliasAggregate;
-  private readonly _walletDomainService: WalletDomainService;
-  private _startedAt: number = 0;
-  private _terminating: boolean = false;
+  private readonly _msgProducer: IMessageProducer;
+  private readonly _msgConsumer: IMessageConsumer;
+  private readonly _ledgerReadSideRepo: ILedgerReadSideRepository;
+  private readonly _responseTimeoutMs: number;
+  // Holds pending gRPC callbacks keyed by command ID (UUID).
+  // Kafka consumer resolves/rejects these when response events arrive.
+  // Entries are cleaned up on response or when the deadline expires.
+  private readonly _responseMap: Map<string, PendingResponse>;
+  private _startedAt:number;
+  private _terminating: boolean;
 
   constructor(
     instanceId: string,
     serverUrl: string,
     assetAggregate: AssetAggregate,
     walletAggregate: WalletAddressAggregate,
-    walletAliasAggregate: WalletAddressAliasAggregate,
-    walletDomainService: WalletDomainService
+    producer: IMessageProducer,
+    consumer: IMessageConsumer,
+    ledgerReadSideRepo: ILedgerReadSideRepository,
+    logger:ILogger
   ) {
     this._serverUrl = serverUrl;
     this._instanceId = instanceId;
     this._assetAggregate = assetAggregate;
     this._walletAggregate = walletAggregate;
-    this._walletAliasAggregate = walletAliasAggregate;
-    this._walletDomainService = walletDomainService;
+    this._msgProducer = producer;
+    this._msgConsumer = consumer;
+    this._ledgerReadSideRepo = ledgerReadSideRepo;
+    this._logger = logger;
+
+    this._responseTimeoutMs = DEFAULT_RESPONSE_TIMEOUT_MS;
+    this._responseMap = new Map();
+    this._startedAt = 0;
+    this._terminating = false;
+
+    this._msgConsumer.setTopics([DomainEventTopics.LedgerEvents]);
+    this._msgConsumer.setBatchCallbackFn(this._handleResponseEvents.bind(this));
 
     this._server = new grpc.Server({
       'grpc.max_concurrent_streams': 100,
@@ -113,24 +153,34 @@ export class PalServiceServer {
       createWalletAddress: this._handleUnary.bind(this),
       getWalletAddresses: this._handleUnary.bind(this),
       resolveWalletAddressAlias: this._handleUnary.bind(this),
-      createWalletAddressAlias: this._handleUnary.bind(this)
+      createWalletAddressAlias: this._handleUnary.bind(this),
+      createLedger: this._handleUnary.bind(this),
+      createLedgerAccount: this._handleUnary.bind(this),
+      getLedgerAccounts: this._handleUnary.bind(this),
+      getLedgerTransactions: this._handleUnary.bind(this),
     });
   }
 
   async start(): Promise<void> {
+    await this._msgProducer.connect();
+
+    await this._msgConsumer.connect();
+    await this._msgConsumer.startAndWaitForRebalance();
+
     return new Promise((resolve, reject) => {
       const credentials = grpc.ServerCredentials.createInsecure();
-      console.info(`Starting GRPC service in url: ${this._serverUrl}...`);
+      this._logger.info(`Starting GRPC service in url: ${this._serverUrl}...`);
 
       // start the gRPC server
       this._server.bindAsync(this._serverUrl, credentials, (error) => {
         if (error !== null) {
-          console.error(error);
+          this._logger.error(error);
           reject(error);
           return;
         }
 
         this._startedAt = Date.now();
+        this._logger.info('GRPC server started successfully');
         return resolve();
       });
     });
@@ -138,20 +188,132 @@ export class PalServiceServer {
 
   async stop(): Promise<void> {
     this._terminating = true;
-    console.info('Stopping the server...');
+    this._logger.info('Stopping the server...');
+
+    await this._msgConsumer.stop();
+    await this._msgConsumer.disconnect(false);
+
 
     return new Promise((resolve, reject) => {
       this._server.tryShutdown((error) => {
         if (error !== undefined) {
-          console.info(`Shutdown completed with error: ${error}`);
+          this._logger.info(`Shutdown completed with error: ${error}`);
           reject(error);
           return;
         }
 
-        console.info('Shutdown completed successfully');
-        resolve();
+        this._msgProducer.disconnect().then(()=>{
+          this._logger.info('Shutdown completed successfully');
+          resolve();
+        });
       });
     });
+  }
+
+  private _storePendingResponse(
+    requestId: string,
+    call: ServerUnaryCall<any, any>,
+    callback: sendUnaryData<any>
+  ): void {
+    const deadline = call.getDeadline();
+    let timeoutMs: number;
+
+    if (deadline instanceof Date) {
+      timeoutMs = deadline.getTime() - Date.now();
+    } else if (typeof deadline === 'number' && deadline !== Infinity) {
+      timeoutMs = deadline - Date.now();
+    } else {
+      timeoutMs = this._responseTimeoutMs;
+    }
+
+    // Ensure at least a minimal timeout
+    timeoutMs = Math.max(timeoutMs, 0);
+
+    const timer = setTimeout(() => {
+      const pending = this._responseMap.get(requestId);
+      if (pending) {
+        this._responseMap.delete(requestId);
+        pending.callback({
+          code: grpc.status.DEADLINE_EXCEEDED,
+          message: 'Response timeout exceeded'
+        });
+        this._logger.warn(`Response timeout exceeded for requestId: ${requestId} after ${timeoutMs}ms.`);
+      }
+    }, timeoutMs);
+
+    this._responseMap.set(requestId, { callback, timer });
+  }
+
+  private _resolvePendingResponse(
+    pending: PendingResponse,
+    requestId: string,
+    error: {code:Status, message:string} | null,
+    response?: any
+  ): void {
+    clearTimeout(pending.timer);
+    this._responseMap.delete(requestId);
+
+    if(error){
+      pending.callback({
+        code: error.code,
+        message: error.message
+      });
+    }else{
+      pending.callback(null, response);
+    }
+  }
+
+  private async _handleResponseEvents(messages: IMessage[]): Promise<void> {
+    for(const msg of messages){
+      await this._handleResponseEvent(msg);
+    }
+  }
+
+  private async _handleResponseEvent(message: IMessage): Promise<void> {
+    if(message.msgType !== MessageTypes.DOMAIN_EVENT) {
+      return;
+    }
+    const domainEvent = message as DomainEvent;
+
+    const requestId = domainEvent.requestId;
+    if (!requestId) {
+      return;
+    }
+
+    // Not ours — a different API instance holds the pending callback
+    const pending = this._responseMap.get(requestId);
+    if (!pending) {
+      return
+    }
+
+     /*
+     NOTE: for now we only handle ledger domain events
+     (LedgerCreatedEvent and LedgerAccountCreatedEvent),
+     if more are needed, this function should be refactored to split
+     by topic, and per topic handler functions should be added
+     */
+
+    if(LedgerDomainEvent.isLedgerCreatedEvent(domainEvent)
+      || LedgerDomainEvent.isLedgerCreationFailedEvent(domainEvent)){
+      await this._handleCreateLedgerResponseEvent(requestId, pending, domainEvent);
+    }else if(LedgerDomainEvent.isLedgerAccountCreatedEvent(domainEvent)
+      || LedgerDomainEvent.isLedgerAccountCreationFailedEvent(domainEvent)){
+      await this._handleCreateLedgerAccountResponseEvent(requestId, pending, domainEvent);
+    }else if(LedgerDomainEvent.isLedgerNotFoundEvent(domainEvent)) {
+      this._resolvePendingResponse(pending, requestId, {
+        code: grpc.status.NOT_FOUND,
+        message: `Ledger not found`
+      });
+    }else{
+      this._logger.warn(
+        `Unknown response event — msgName: ${message.msgName}, requestId: ${requestId}`
+      );
+      this._resolvePendingResponse(pending, requestId, {
+        code: grpc.status.UNIMPLEMENTED,
+        message: 'Method not implemented'
+      });
+    }
+
   }
 
   // region health check handlers
@@ -184,9 +346,12 @@ export class PalServiceServer {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     callback: sendUnaryData<any>
   ): Promise<void> {
+    let requestIsAsync = false;
     let specificRequestHandler: (
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      call: ServerUnaryCall<any, any>
+      call: ServerUnaryCall<any, any>,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      callback: sendUnaryData<any>
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ) => Promise<any>;
 
@@ -205,6 +370,20 @@ export class PalServiceServer {
     } else if (call.request instanceof PbCreateWalletAddressAliasRequest) {
       specificRequestHandler =
         this._handleCreateWalletAddressAliasRequest.bind(this);
+    } else if (call.request instanceof PbCreateLedgerRequest) {
+      specificRequestHandler =
+        this._handleCreateLedgerRequest.bind(this);
+      requestIsAsync = true;
+    } else if (call.request instanceof PbCreateLedgerAccountRequest) {
+      specificRequestHandler =
+        this._handleCreateLedgerAccountRequest.bind(this);
+      requestIsAsync = true;
+    } else if (call.request instanceof PbGetLedgerAccountsRequest) {
+      specificRequestHandler =
+        this._handleGetLedgerAccountsRequest.bind(this);
+    } else if (call.request instanceof PbGetLedgerTransactionsRequest) {
+      specificRequestHandler =
+        this._handleGetLedgerTransactionsRequest.bind(this);
     } else {
       callback(
         new Error(`Invalid request type: ${call.request.constructor.name}`)
@@ -213,8 +392,10 @@ export class PalServiceServer {
     }
 
     try {
-      const resp = await specificRequestHandler(call);
-      callback(null, resp);
+      const resp = await specificRequestHandler(call, callback);
+      if(!requestIsAsync) {
+        callback(null, resp);
+      }
     } catch (err) {
       let returnError: Error;
       if (err instanceof Error) {
@@ -306,7 +487,7 @@ export class PalServiceServer {
 
     // Use the wallet domain service to coordinate wallet address and wallet alias
     // aggregates, ie, will automatically create the alias for the address
-    await this._walletDomainService.createWalletAddress(
+    await this._walletAggregate.createWalletAddress(
       domain,
       call.request.getPathName(),
       call.request.getPublicName(),
@@ -367,7 +548,7 @@ export class PalServiceServer {
     const pathName = call.request.getPathName();
 
     const walletAddressId =
-      await this._walletAliasAggregate.resolveWalletAddressAlias(
+      await this._walletAggregate.resolveWalletAddressAlias(
         domain,
         pathName
       );
@@ -395,7 +576,7 @@ export class PalServiceServer {
       : null;
 
     // Use the wallet domain service to coordinate wallet address and wallet alias aggregates
-    await this._walletDomainService.createWalletAddressAlias(
+    await this._walletAggregate.createWalletAddressAlias(
       domain,
       call.request.getPathName(),
       call.request.getWalletAddressId()
@@ -403,4 +584,124 @@ export class PalServiceServer {
 
     return new Empty();
   }
+
+  /*
+   * Ledger related functions (only low-level API not SAGA based)
+   * */
+
+  private async _handleCreateLedgerRequest(
+    call: ServerUnaryCall<PbCreateLedgerRequest, Empty>,
+    callback: sendUnaryData<any|undefined>
+  ): Promise<void>{
+    const cmd = new CreateLedgerCmd({
+      id: call.request.getLedgerAssetCode()
+    });
+    cmd.requestId = crypto.randomUUID();
+
+    await this._msgProducer.send(cmd);
+
+    this._storePendingResponse(cmd.requestId, call, callback);
+  }
+
+  private async _handleCreateLedgerResponseEvent(reqId:string, pendingResp:PendingResponse, event:LedgerDomainEvent):Promise<void>{
+    let error:any = null;
+    let response:any = null;
+
+    if(LedgerDomainEvent.isLedgerCreatedEvent(event)){
+      // success response
+      response = new Empty();
+    }else if(LedgerDomainEvent.isLedgerCreationFailedEvent(event)){
+      // error response, check what to put in the error message
+      let code:grpc.status;
+      if(event.payload.reason === "DUPLICATE_ASSET_CODE"){
+        code = grpc.status.ALREADY_EXISTS;
+      }else{
+        code = grpc.status.UNKNOWN
+      }
+
+      error = {
+        code: code,
+        message: event.payload.reason
+      };
+    }
+
+    // respond to the client
+    this._resolvePendingResponse(pendingResp, reqId, error, response);
+  }
+
+  private async _handleCreateLedgerAccountRequest(
+    call: ServerUnaryCall<PbCreateLedgerAccountRequest, Empty>,
+    callback: sendUnaryData<any|undefined>
+  ): Promise<void>{
+    const cmd = new CreateLedgerAccountCmd(
+      call.request.getAssetCode(),
+      {
+        id: call.request.getId(),
+        name: call.request.getName(),
+        assetCode: call.request.getAssetCode(),
+        assetDisplayScale: call.request.getAssetDisplayScale(),
+      }
+    );
+    cmd.requestId = crypto.randomUUID();
+
+    await this._msgProducer.send(cmd);
+
+    this._storePendingResponse(cmd.requestId, call, callback);
+  }
+
+  private async _handleCreateLedgerAccountResponseEvent(reqId:string, pendingResp:PendingResponse, event:LedgerDomainEvent):Promise<void>{
+    let error:any = null;
+    let response:any = null;
+
+    if(LedgerDomainEvent.isLedgerAccountCreatedEvent(event)){
+      // success response
+      response = new Empty();
+    }else if(LedgerDomainEvent.isLedgerAccountCreationFailedEvent(event)){
+      // error response, check what to put in the error message
+      let code:grpc.status;
+      if(event.payload.reason === "DUPLICATE_ACCOUNT_ID"){
+        code = grpc.status.ALREADY_EXISTS
+      }else if(event.payload.reason === "ASSET_CODE_MISMATCH"){
+        code = grpc.status.INVALID_ARGUMENT
+      }else{
+        code = grpc.status.UNKNOWN;
+      }
+
+      error = {
+        code: code,
+        message: event.payload.reason
+      };
+    }
+
+    // respond to the client
+    this._resolvePendingResponse(pendingResp, reqId, error, response);
+  }
+
+  private async _handleGetLedgerAccountsRequest(
+    call: ServerUnaryCall<PbGetLedgerAccountsRequest, PbGetLedgerAccountsResponse>
+  ): Promise<PbGetLedgerAccountsResponse>{
+    const accountIds = call.request.getAccountIdsList();
+    const accounts = await this._ledgerReadSideRepo.fetchLedgerAccounts(accountIds);
+
+    const resp = new PbGetLedgerAccountsResponse();
+
+    const accountDtos = accounts.map(LedgerAccountDtoSerializer.toDTO);
+
+    return resp.setAccountsList(accountDtos.map(accountDto =>
+       new PbGetLedgerAccountsResponse.PbLedgerAccountRead()
+        .setId(accountDto.id)
+        .setAssetCode(accountDto.assetCode)
+        .setName(accountDto.name)
+        .setDebitedAmount(accountDto.debitedAmount)
+        .setCreditedAmount(accountDto.creditedAmount)
+        .setAssetDisplayScale(accountDto.assetDisplayScale)
+    ));
+  }
+
+  private async _handleGetLedgerTransactionsRequest(
+    call: ServerUnaryCall<PbGetLedgerTransactionsRequest, PbGetLedgerTransactionsResponse>
+  ): Promise<PbGetLedgerTransactionsResponse>{
+   throw new Error("Not implemented");
+  }
 }
+

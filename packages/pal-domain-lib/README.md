@@ -22,15 +22,15 @@ For admin and other non-high perf requests, available via gRPC or the client
 | Command | Description | Resulting State Event | Domain/Integration Event(s)    |
 |---|---|---|--------------------------------|
 | CreateLedgerCmd | Create a new ledger for a given asset code | LedgerCreatedStateEvent| (none)                           |
-| CreateLedgerAccountCmd | Create a new account on a ledger | LedgerAccountCreatedStateEvent | LegerAccountCreatedEvent |
-| PostTransactionCmd | Post a transaction between two accounts on the same ledger | LedgerTransactionRecordedStateEvent | LegerTransactionPostedEvent |
+| CreateLedgerAccountCmd | Create a new account on a ledger | LedgerAccountCreatedStateEvent | LedgerAccountCreatedEvent |
+| PostTransactionCmd | Post a transaction between two accounts on the same ledger | LedgerTransactionRecordedStateEvent | LedgerTransactionPostedEvent |
 
 ### High level API
 
 | Command | Description                                                                                        | Resulting State Event                  | Domain/Integration Event(s) |
 |---|----------------------------------------------------------------------------------------------------|----------------------------------------|-----------------------------|
-| CheckBalanceAndReserveTransferCmd | Check for available liquidity before reserving the transfer (payer clearing to suspense)           | LedgerTransactionRecordedStateEvent    | LegerTransferReservedEvent |
-| ReserveTransferCmd | Reserve transfer without checking for available liquidity                                          | LedgerTransactionRecordedStateEvent    | LegerTransferReservedEvent |
+| CheckBalanceAndReserveTransferCmd | Check for available liquidity before reserving the transfer (payer clearing to suspense)           | LedgerTransactionRecordedStateEvent    | LedgerTransferReservedEvent |
+| ReserveTransferCmd | Reserve transfer without checking for available liquidity                                          | LedgerTransactionRecordedStateEvent    | LedgerTransferReservedEvent |
 | CommitTransferCmd | Commit a reserved transfer (reverse suspention and transfer from payer clearing to payee clearing) | LedgerTransactionRecordedStateEvent x2 | TransferCommittedEvent |
 | RejectTransferCmd | Reject a reserved transfer (reverse suspention) | LedgerTransactionRecordedStateEvent | TransferRejectedEvent |
 

@@ -87,7 +87,11 @@ export class LedgerStateEventHandler {
         };
       }
 
-      const snapshot = ledger.executeSnapshot(lastEventIndex);
+      const snapshot = ledger.executeSnapshot();
+      if (lastEventIndex) {
+        snapshot.lastEventIndexPartition = lastEventIndex.partition;
+        snapshot.lastEventIndexOffset = lastEventIndex.offset;
+      }
       this._uncommittedSnapshots.push(snapshot);
     }
 

@@ -16,6 +16,8 @@
     "@grpc/reflection": "~1.0.4",
     "google-protobuf": "~4.0.1",
     "protobufjs": "~8.0.0",
+    "common-types-lib": "workspace: *",
+    "implementations-lib": "workspace: *",
     "pal-public-types-lib": "workspace: *",
     "pal-domain-lib": "workspace: *",
     "pal-implementations-lib": "workspace: *"

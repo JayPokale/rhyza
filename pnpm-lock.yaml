@@ -142,9 +142,15 @@ importers:
       '@grpc/reflection':
         specifier: ~1.0.4
         version: 1.0.4(@grpc/grpc-js@1.14.3)
+      common-types-lib:
+        specifier: 'workspace: *'
+        version: link:../common-types-lib
       google-protobuf:
         specifier: ~4.0.1
         version: 4.0.1
+      implementations-lib:
+        specifier: 'workspace: *'
+        version: link:../implementations-lib
       pal-domain-lib:
         specifier: 'workspace: *'
         version: link:../pal-domain-lib

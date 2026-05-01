@@ -9,9 +9,9 @@
 
 'use strict';
 
-import { after, before, test } from 'node:test';
+import {after, before, test} from 'node:test';
 import * as assert from 'node:assert/strict';
-import { PalClient, parseAddressToDomainAndPathName } from '../src';
+import {PalClient, parseAddressToDomainAndPathName} from '../src';
 
 let client: PalClient;
 
@@ -27,6 +27,9 @@ let createdWalletAddressId: string;
 before(async () => {
   client = new PalClient('0.0.0.0:50051');
   await client.init();
+});
+after(async () => {
+  await client.disconnect();
 });
 
 /*
@@ -63,6 +66,7 @@ test('pal client - get non existing asset should fail', async () => {
 
   assert.ok(asset === null);
 });
+
 
 /*
  * Wallet address tests

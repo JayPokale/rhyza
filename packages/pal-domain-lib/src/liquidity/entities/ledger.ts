@@ -1,15 +1,10 @@
-export interface ILedgerDTO {
-  id: string;
-  version: string;
-  assetScale: number;
-}
+import {ILedgerDTO} from "pal-public-types-lib";
 
 export interface ILedger {
   id: string;
   version: bigint;
   assetScale: number;
 }
-
 
 export class LedgerDtoSerializer {
   static toDTO(ledger:ILedger):ILedgerDTO{

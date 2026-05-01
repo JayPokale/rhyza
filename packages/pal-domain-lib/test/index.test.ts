@@ -11,29 +11,28 @@
 import { before, test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {
-  AssetAggregate,
+  AssetAggregate, CannotCreateDuplicateWalletAddressAliasError, CannotCreateDuplicateWalletAddressError,
   IPalAssetRepository,
   IPalWalletAddressRepository,
   WalletAddressAggregate,
-  WalletAddressAliasAggregate,
-  WalletDomainService
 } from '../src';
 import {
   MockAssetRepo,
-  MockWalletAddressAliasRepo,
   MockWalletRepo
 } from './mocks';
+import {MockMessageProducer} from "./mocks/mock-msg-publisher";
+import {ConsoleLogger, DomainEvent} from "common-types-lib";
+import {AssetCreatedEvent, WalletAddressAliasCreatedEvent, WalletAddressCreatedEvent} from "pal-public-types-lib";
+
+const logger = new ConsoleLogger();
+
+let mockProducer = new MockMessageProducer();
 
 let assetAggregate: AssetAggregate;
 let assetRepository: IPalAssetRepository;
 
 let walletAggregate: WalletAddressAggregate;
 let walletRepository: IPalWalletAddressRepository;
-
-let walletAddressAliasAggregate: WalletAddressAliasAggregate;
-let walletAddressAliasRepository: MockWalletAddressAliasRepo;
-
-let walletDomainService: WalletDomainService;
 
 const ASSET_CODE = 'EUR';
 const ASSET_SCALE = 2;
@@ -46,33 +45,33 @@ let createdWalletAddressInternalId: string;
 
 before(async () => {
   assetRepository = new MockAssetRepo();
-  assetAggregate = new AssetAggregate(assetRepository);
+  assetAggregate = new AssetAggregate(assetRepository, mockProducer, logger);
 
   walletRepository = new MockWalletRepo();
-  walletAggregate = new WalletAddressAggregate(walletRepository);
-
-  walletAddressAliasRepository = new MockWalletAddressAliasRepo();
-  walletAddressAliasAggregate = new WalletAddressAliasAggregate(
-    walletAddressAliasRepository
-  );
-
-  walletDomainService = new WalletDomainService(
-    walletAggregate,
-    walletAddressAliasAggregate
-  );
+  walletAggregate = new WalletAddressAggregate(walletRepository, mockProducer, logger);
 });
 
 //region assets
-test('pal domain - create asset', async () => {
+test('PAL Asset Domain - create asset', async () => {
   await assetAggregate.createAsset(
     ASSET_CODE,
     ASSET_SCALE,
     undefined,
     undefined
   );
+
+  const lastEvent = mockProducer.messages[mockProducer.messages.length - 1] as DomainEvent;
+  assert.ok(lastEvent);
+  assert.equal(lastEvent.msgName, AssetCreatedEvent.name);
+  assert.equal(lastEvent.aggregateId, ASSET_CODE);
+  assert.ok(lastEvent.payload);
+  assert.equal(lastEvent.payload.code, ASSET_CODE);
+  assert.equal(lastEvent.payload.scale, ASSET_SCALE);
+  assert.equal(lastEvent.payload.liquidityLowThreshold, null);
+  assert.equal(lastEvent.payload.liquidityHighThreshold, null);
 });
 
-test('pal domain - get asset', async () => {
+test('PAL Asset Domain - get asset', async () => {
   const asset = await assetAggregate.getAsset(ASSET_CODE);
 
   assert.ok(asset);
@@ -82,7 +81,7 @@ test('pal domain - get asset', async () => {
   assert.equal(asset.liquidityHighThreshold, null);
 });
 
-test('pal domain - created duplicate asset should fail', async () => {
+test('PAL Asset Domain - created duplicate asset should fail', async () => {
   try {
     await assetAggregate.createAsset(
       ASSET_CODE,
@@ -98,7 +97,7 @@ test('pal domain - created duplicate asset should fail', async () => {
   }
 });
 
-test('pal domain - get non existing asset should fail', async () => {
+test('PAL Asset Domain - get non existing asset should fail', async () => {
   const asset = await assetAggregate.getAsset('NON EXISTING');
 
   assert.ok(asset === null);
@@ -106,9 +105,9 @@ test('pal domain - get non existing asset should fail', async () => {
 //endregion assets
 
 //region wallet address
-test('pal domain - create wallet address', async () => {
+test('PAL WalletAddress Domain - create wallet address', async () => {
   createdWalletAddressInternalId =
-    await walletDomainService.createWalletAddress(
+    await walletAggregate.createWalletAddress(
       ALIAS_DOMAIN,
       ALIAS_PATHNAME,
       PUBLIC_NAME,
@@ -117,9 +116,22 @@ test('pal domain - create wallet address', async () => {
     );
 
   assert.ok(createdWalletAddressInternalId);
+
+  const lastEvent = mockProducer.messages[mockProducer.messages.length - 1] as DomainEvent;
+  assert.ok(lastEvent);
+  assert.equal(lastEvent.msgName, WalletAddressCreatedEvent.name);
+  assert.equal(lastEvent.aggregateId, createdWalletAddressInternalId);
+  assert.ok(lastEvent.payload);
+  assert.equal(lastEvent.payload.id, createdWalletAddressInternalId);
+  assert.equal(lastEvent.payload.domain, ALIAS_DOMAIN);
+  assert.equal(lastEvent.payload.pathName, ALIAS_PATHNAME);
+  assert.equal(lastEvent.payload.publicName, PUBLIC_NAME);
+  assert.equal(lastEvent.payload.assetCode, ASSET_CODE);
+  assert.equal(lastEvent.payload.assetScale, ASSET_SCALE);
+  assert.equal(lastEvent.payload.isActive, true);
 });
 
-test('pal domain - get wallet address', async () => {
+test('PAL WalletAddress Domain - get wallet address', async () => {
   const wallets = await walletAggregate.getWalletAddresses([
     createdWalletAddressInternalId
   ]);
@@ -133,9 +145,9 @@ test('pal domain - get wallet address', async () => {
   assert.equal(wallets[0].isActive, true);
 });
 
-test('pal domain - created duplicate wallet address should fail', async () => {
+test('PAL WalletAddress Domain - created duplicate wallet address should fail', async () => {
   try {
-    await walletDomainService.createWalletAddress(
+    await walletAggregate.createWalletAddress(
       ALIAS_DOMAIN,
       ALIAS_PATHNAME,
       PUBLIC_NAME,
@@ -145,21 +157,18 @@ test('pal domain - created duplicate wallet address should fail', async () => {
 
     assert.fail();
   } catch (e) {
-    assert.ok(e instanceof Error);
-    assert.ok(e.message.includes('already exists'));
+    assert.ok(e instanceof CannotCreateDuplicateWalletAddressError);
   }
 });
 
-test('pal domain - get non existing wallet address should fail', async () => {
+test('PAL WalletAddress Domain - get non existing wallet address should fail', async () => {
   const wallets = await walletAggregate.getWalletAddresses(['NON EXISTING']);
 
   assert.ok(wallets.length === 0);
 });
-//endregion wallet address
 
-//region wallet address alias
-test('pal domain - alias should exist for created wallet address', async () => {
-  const walletId = await walletAddressAliasAggregate.resolveWalletAddressAlias(
+test('PAL WalletAddress Domain - alias should exist for created wallet address', async () => {
+  const walletId = await walletAggregate.resolveWalletAddressAlias(
     ALIAS_DOMAIN,
     ALIAS_PATHNAME
   );
@@ -168,42 +177,80 @@ test('pal domain - alias should exist for created wallet address', async () => {
   assert.equal(walletId, createdWalletAddressInternalId);
 });
 
-test('pal domain - create wallet address alias without domain', async () => {
-  await walletDomainService.createWalletAddressAlias(
+test('PAL WalletAddress Domain - create wallet address alias without domain', async () => {
+  await walletAggregate.createWalletAddressAlias(
     null,
     ALIAS_PATHNAME,
     createdWalletAddressInternalId
   );
-  assert.ok(true);
+
+
+  const lastEvent = mockProducer.messages[mockProducer.messages.length - 1] as DomainEvent;
+  assert.ok(lastEvent);
+  assert.equal(lastEvent.msgName, WalletAddressAliasCreatedEvent.name);
+  assert.equal(lastEvent.aggregateId, createdWalletAddressInternalId);
+  assert.ok(lastEvent.payload);
+  assert.equal(lastEvent.payload.walletId, createdWalletAddressInternalId);
+  assert.equal(lastEvent.payload.domain, null);
+  assert.equal(lastEvent.payload.pathName, ALIAS_PATHNAME);
+
 });
 
-test('pal domain - create wallet address alias with domain', async () => {
+test('PAL WalletAddress Domain - create wallet address alias with domain', async () => {
   // Must use another domain as the create wallet address test
   // above automatically creates the alias with domain
-  await walletDomainService.createWalletAddressAlias(
+  await walletAggregate.createWalletAddressAlias(
     'otherdomain.com',
     ALIAS_PATHNAME,
     createdWalletAddressInternalId
   );
-  assert.ok(true);
+
+  const lastEvent = mockProducer.messages[mockProducer.messages.length - 1] as DomainEvent;
+  assert.ok(lastEvent);
+  assert.equal(lastEvent.msgName, WalletAddressAliasCreatedEvent.name);
+  assert.equal(lastEvent.aggregateId, createdWalletAddressInternalId);
+  assert.ok(lastEvent.payload);
+  assert.equal(lastEvent.payload.walletId, createdWalletAddressInternalId);
+  assert.equal(lastEvent.payload.domain, 'otherdomain.com');
+  assert.equal(lastEvent.payload.pathName, ALIAS_PATHNAME);
 });
 
-test('pal domain - create wallet address with invalid wallet id should fail', async () => {
+test('PAL WalletAddress Domain - create wallet address with invalid wallet id should fail', async () => {
   try {
-    await walletDomainService.createWalletAddressAlias(
+    await walletAggregate.createWalletAddressAlias(
       ALIAS_DOMAIN,
       ALIAS_PATHNAME,
       'invalid wallet id'
     );
     assert.fail();
   } catch (e) {
-    assert.ok(e instanceof Error);
-    assert.ok(e.message.includes('does not exist'));
+    assert.ok(e instanceof CannotCreateDuplicateWalletAddressAliasError);
   }
 });
 
-test('pal domain - resolve wallet address alias without domain', async () => {
-  const walletId = await walletAddressAliasAggregate.resolveWalletAddressAlias(
+test('PAL WalletAddress Domain - create alias that exists in another wallet address should fail', async () => {
+  try {
+    const newWalletId = await walletAggregate.createWalletAddress(
+        ALIAS_DOMAIN,
+        ALIAS_PATHNAME+"_other",
+        PUBLIC_NAME+"_other",
+        ASSET_CODE,
+        ASSET_SCALE
+      );
+
+    await walletAggregate.createWalletAddressAlias(
+      ALIAS_DOMAIN,
+      ALIAS_PATHNAME,
+      newWalletId
+    );
+    assert.fail();
+  } catch (e) {
+    assert.ok(e instanceof CannotCreateDuplicateWalletAddressAliasError);
+  }
+});
+
+test('PAL WalletAddress Domain - resolve wallet address alias without domain', async () => {
+  const walletId = await walletAggregate.resolveWalletAddressAlias(
     null,
     ALIAS_PATHNAME
   );
@@ -212,8 +259,8 @@ test('pal domain - resolve wallet address alias without domain', async () => {
   assert.equal(walletId, createdWalletAddressInternalId);
 });
 
-test('pal domain - resolve wallet address alias with domain', async () => {
-  const walletId = await walletAddressAliasAggregate.resolveWalletAddressAlias(
+test('PAL WalletAddress Domain - resolve wallet address alias with domain', async () => {
+  const walletId = await walletAggregate.resolveWalletAddressAlias(
     ALIAS_DOMAIN,
     ALIAS_PATHNAME
   );
@@ -222,8 +269,8 @@ test('pal domain - resolve wallet address alias with domain', async () => {
   assert.equal(walletId, createdWalletAddressInternalId);
 });
 
-test('pal domain - resolve non existing wallet address alias with domain should fail', async () => {
-  const walletId = await walletAddressAliasAggregate.resolveWalletAddressAlias(
+test('PAL WalletAddress Domain - resolve non existing wallet address alias with domain should fail', async () => {
+  const walletId = await walletAggregate.resolveWalletAddressAlias(
     ALIAS_DOMAIN,
     'NON_EXISTING'
   );
@@ -231,8 +278,8 @@ test('pal domain - resolve non existing wallet address alias with domain should 
   assert.equal(walletId === null, true);
 });
 
-test('pal domain - resolve non existing wallet address alias without domain should fail', async () => {
-  const walletId = await walletAddressAliasAggregate.resolveWalletAddressAlias(
+test('PAL WalletAddress Domain - resolve non existing wallet address alias without domain should fail', async () => {
+  const walletId = await walletAggregate.resolveWalletAddressAlias(
     null,
     'NON_EXISTING'
   );

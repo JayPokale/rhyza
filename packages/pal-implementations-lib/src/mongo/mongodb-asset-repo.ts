@@ -84,7 +84,7 @@ export class MongoDbAssetRepo implements IPalAssetRepository {
     this._checkInitialisedOrThrow();
 
     try {
-      await this._collection.insertOne(asset);
+      await this._collection.updateOne({code: asset.code}, { $set: asset }, {upsert: true});
       return;
     } catch (e) {
       console.error(e);

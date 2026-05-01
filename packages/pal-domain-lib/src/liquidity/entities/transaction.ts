@@ -1,23 +1,4 @@
-/*****
- Copyright © 2026 & Interledger Foundation
- ----------------------------------------------
- Contributors
-
- * Cyberbones Digital Solutions
- - Pedro Sousa Barreto <pedrosousabarreto@gmail.com>
- ******/
-
-"use strict";
-
-export interface ILedgerTransactionDTO {
-    id: string;
-    debitedAccountId: string;
-    creditedAccountId: string;
-    amount: string;
-    amountScale: number;
-    timestamp: number;
-    externalId?: string;
-}
+import {ILedgerTransactionDTO} from "pal-public-types-lib";
 
 export interface ILedgerTransaction {
     id: string;

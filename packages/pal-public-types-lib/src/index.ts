@@ -13,3 +13,4 @@
 export * from './proto_generated';
 
 export * from './messages';
+export * from './types';

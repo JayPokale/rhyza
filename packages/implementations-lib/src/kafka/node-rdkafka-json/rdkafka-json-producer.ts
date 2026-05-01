@@ -39,7 +39,7 @@ export class RafikiKafkaJsonProducer implements IMessageProducer {
     return outpuMsgs;
   }
 
-  async send(message: IMessage | IMessage[]): Promise<void> {
+  async sendWithoutAcks(message: IMessage | IMessage[]): Promise<void> {
     // TODO fill in missing fields with defaults (id, timestamp, etc)
 
     const rawMsg: IRawMessage[] = this._convert(message);
@@ -62,7 +62,7 @@ export class RafikiKafkaJsonProducer implements IMessageProducer {
     this._rawKafkaProducer.setDeliveryReportFn(handlerCallback);
   }
 
-  sendWithAck(
+  send(
     message: IMessage | IMessage[]
   ): Promise<IMessageProducerAcks[]> {
     throw new Error('Method not implemented.');

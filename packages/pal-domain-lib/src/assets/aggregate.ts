@@ -12,12 +12,18 @@
 import { CannotCreateDuplicateAssetError } from './errors';
 import { IPalAssetRepository } from './interfaces';
 import { PalAsset } from './entity';
+import {AssetCreatedEvent} from "pal-public-types-lib";
+import {ILogger, IMessageProducer} from "common-types-lib";
 
 export class AssetAggregate {
-  private _repo: IPalAssetRepository;
+  private readonly _logger: ILogger;
+  private readonly _repo: IPalAssetRepository;
+  private readonly _msgProducer: IMessageProducer;
 
-  constructor(repo: IPalAssetRepository) {
+  constructor(repo: IPalAssetRepository, msgProducer: IMessageProducer, logger:ILogger) {
+    this._logger = logger;
     this._repo = repo;
+    this._msgProducer = msgProducer;
   }
 
   async createAsset(
@@ -28,10 +34,11 @@ export class AssetAggregate {
   ): Promise<void> {
     const existing = await this._repo.fetch(code);
 
-    if (existing)
+    if (existing) {
       throw new CannotCreateDuplicateAssetError(
         'Asset with code: ' + code + ' already exists'
       );
+    }
 
     // TODO: validate inputs
 
@@ -43,6 +50,14 @@ export class AssetAggregate {
     );
 
     await this._repo.store(newAsset.toObject());
+
+    // send domain event
+    await this._msgProducer.send(new AssetCreatedEvent({
+      code: code,
+      scale: scale,
+      liquidityLowThreshold: liquidityLowThreshold,
+      liquidityHighThreshold: liquidityHighThreshold
+    }));
   }
 
   async getAsset(code: string): Promise<PalAsset | null> {

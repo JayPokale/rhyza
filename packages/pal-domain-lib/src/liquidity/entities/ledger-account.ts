@@ -1,22 +1,4 @@
-/*****
- Copyright © 2026 & Interledger Foundation
- ----------------------------------------------
- Contributors
-
- * Cyberbones Digital Solutions
- - Pedro Sousa Barreto <pedrosousabarreto@gmail.com>
- ******/
-
-"use strict";
-
-export interface ILedgerAccountDTO {
-    id: string;
-    name: string;
-    assetCode: string;
-    assetDisplayScale: number;
-    debitedAmount: string;
-    creditedAmount: string;
-}
+import {ILedgerAccountDTO} from "pal-public-types-lib";
 
 export interface ILedgerAccount{
     id: string;

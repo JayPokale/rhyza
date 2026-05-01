@@ -28,8 +28,8 @@ export declare interface IMessageProducer {
     destroy(): Promise<void>;
     connect(): Promise<void>;
     disconnect(): Promise<void>;
-    send(message: IMessage | IMessage[]): Promise<void>;
-    sendWithAck(message: IMessage | IMessage[]): Promise<IMessageProducerAcks[]>;
+    sendWithoutAcks(message: IMessage | IMessage[]): Promise<void>;
+    send(message: IMessage | IMessage[]): Promise<IMessageProducerAcks[]>;
 }
 
 

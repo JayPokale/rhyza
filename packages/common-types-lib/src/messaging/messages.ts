@@ -91,6 +91,7 @@ export abstract class DomainEvent extends BaseMessage {
   msgType: MessageTypes = MessageTypes.DOMAIN_EVENT;
   declare aggregateId: string;
 
+  isErrorEvent: boolean = false;
   abstract payload: any;
 
   protected constructor(aggId: string) {

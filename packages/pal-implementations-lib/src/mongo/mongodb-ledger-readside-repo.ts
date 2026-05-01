@@ -1,18 +1,15 @@
 import {BulkWriteResult, Collection, CollectionInfo, Db, InsertManyResult, MongoClient} from 'mongodb';
 import {
   ILedger,
-  ILedgerDTO,
   LedgerDtoSerializer,
   ILedgerAccount,
-  ILedgerAccountDTO,
   LedgerAccountDtoSerializer,
   ILedgerTransaction,
-  ILedgerTransactionDTO,
   LedgerTransactionDtoSerializer
 } from 'pal-domain-lib';
 import * as console from 'node:console';
 import {ILedgerReadSideRepository} from "./readside-interfaces";
-
+import {ILedgerDTO, ILedgerAccountDTO, ILedgerTransactionDTO} from 'pal-public-types-lib';
 const DB_NAME = 'pal';
 const TIMEOUT_MS: number = 5_000;
 const LEDGERS_COLLECTION_NAME: string = 'ledgers';
@@ -116,9 +113,9 @@ export class MongoDbLedgerReadSideRepo implements ILedgerReadSideRepository {
       );
     }
 
-    if (result.matchedCount !== ledgers.length) {
-      throw new Error(`Failed to upsert ${ledgers.length} ledgers - only ${result.upsertedCount} upserted out of ${ledgers.length} requested`);
-    }
+    // if (result.matchedCount !== ledgers.length && result.upsertedCount !== ledgers.length) {
+    //   throw new Error(`Failed to upsert ${ledgers.length} ledgers - only ${result.upsertedCount} upserted out of ${ledgers.length} requested`);
+    // }
 
     return;
   }
@@ -166,9 +163,9 @@ export class MongoDbLedgerReadSideRepo implements ILedgerReadSideRepository {
       );
     }
 
-    if (result.matchedCount !== accounts.length) {
-      throw new Error(`Failed to upsert ${accounts.length} ledger accounts - only ${result.matchedCount} matched out of ${accounts.length} requested`);
-    }
+    // if (result.upsertedCount !== accounts.length && result.matchedCount !== accounts.length) {
+    //   throw new Error(`Failed to upsert ${accounts.length} ledger accounts - only ${result.upsertedCount}/${result.matchedCount} upserted/matched out of ${accounts.length} requested`);
+    // }
 
     return;
   }

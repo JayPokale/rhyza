@@ -38,3 +38,18 @@ export interface IGetWalletAddressResponse {
   assetScale: number;
   isActive: boolean;
 }
+
+
+
+
+/**
+ * Local error types
+ */
+export class PalClientUnknownError extends Error{}
+
+// ledger errors
+export class PalClientLedgerUnknownError extends Error{}
+export class PalClientLedgerNotFoundError extends Error{}
+export class PalClientLedgerAlreadyExistsError extends Error{}
+export class PalClientLedgerAccountAlreadyExistsError extends Error{}
+export class PalClientLedgerAccountCreationFailedError extends Error{}

@@ -7,6 +7,23 @@ services:
     ports:
       - '6379:6379'
 
+  mongodb:
+    image: mongo
+    container_name: mongodb
+    restart: unless-stopped
+    volumes:
+      - mongodb-data:/data/db
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=mongoPass
+    ports:
+      - 27017:27017
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
   kafka-1:
     image: apache/kafka:latest
     hostname: kafka-1
@@ -103,3 +120,6 @@ services:
       - KAFKA_BROKERS=kafka-1:19092
     ports:
       - 8080:8080
+
+volumes:
+  mongodb-data:

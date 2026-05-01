@@ -15,6 +15,8 @@ export interface IPalWalletAddress {
   assetCode: string;
   assetScale: number;
   isActive: boolean;
+
+  aliases: IPalWalletAddressAlias[];
 }
 
 export interface IPalWalletAddressAlias {
@@ -27,4 +29,6 @@ export interface IPalWalletAddressAlias {
 export interface IPalWalletAddressRepository {
   store(walletAddress: IPalWalletAddress): Promise<void>;
   fetch(ids: string[]): Promise<IPalWalletAddress[]>;
+
+  getByAlias(domain: string | null, pathName: string): Promise<IPalWalletAddress | null>;
 }

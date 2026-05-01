@@ -10,9 +10,6 @@
 "use strict";
 
 import {StateEvent, SnapshotEvent, SnapshotEventTopics, StateEventTopics, MessageDataFormats} from 'common-types-lib';
-import {ILedgerAccountDTO} from "../entities/ledger-account";
-import {ILedgerTransactionDTO} from "../entities/transaction";
-
 
 export abstract class LedgerStateEvent extends StateEvent {
   msgDataFormat:MessageDataFormats = MessageDataFormats.PROTOBUF;
@@ -62,31 +59,43 @@ export class LedgerCreatedStateEvent extends LedgerStateEvent {
 
 
 export type LedgerAccountCreatedStatePayload = {
-    account:ILedgerAccountDTO;
+    account:{
+      id: string;
+      name: string;
+      assetCode: string;
+      assetDisplayScale: number;
+      debitedAmount: string;
+      creditedAmount: string;
+    };
 }
 export class LedgerAccountCreatedStateEvent extends LedgerStateEvent {
   payload: LedgerAccountCreatedStatePayload;
 
   constructor(
     aggId: string,
-    aggVersion: string,
     payload: LedgerAccountCreatedStatePayload
   ) {
     super(aggId);
-    this.aggregateVersion = aggVersion;
     this.payload = payload;
   }
 }
 
 export type LedgerTransactionRecordedStatePayload = {
-    transaction: ILedgerTransactionDTO;
+    transaction: {
+      id: string;
+      debitedAccountId: string;
+      creditedAccountId: string;
+      amount: string;
+      amountScale: number;
+      timestamp: number;
+      externalId?: string;
+    };
 }
 export class LedgerTransactionRecordedStateEvent extends LedgerStateEvent{
     payload: LedgerTransactionRecordedStatePayload;
 
-    constructor(aggId:string, aggVersion:string, payload: LedgerTransactionRecordedStatePayload){
+    constructor(aggId:string, payload: LedgerTransactionRecordedStatePayload){
         super(aggId);
-        this.aggregateVersion = aggVersion;
         this.payload = payload;
     };
 }
@@ -95,7 +104,14 @@ export class LedgerTransactionRecordedStateEvent extends LedgerStateEvent{
 * Snapshot Events
 * */
 export type LedgerSnapshotPayload = {
-    accounts: ILedgerAccountDTO[];
+    accounts: {
+      id: string;
+      name: string;
+      assetCode: string;
+      assetDisplayScale: number;
+      debitedAmount: string;
+      creditedAmount: string;
+    }[];
     transactionCount: string;
     assetScale: number;
 }

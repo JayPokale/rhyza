@@ -10,3 +10,4 @@
 'use strict';
 
 export class CannotCreateDuplicateWalletAddressError extends Error {}
+export class CannotCreateDuplicateWalletAddressAliasError extends Error {}

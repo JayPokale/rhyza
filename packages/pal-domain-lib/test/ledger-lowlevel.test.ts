@@ -12,14 +12,16 @@ import {
 import {ConsoleLogger, DomainEvent} from "common-types-lib";
 import {MockMessageProducer} from "./mocks/mock-msg-publisher";
 import {
-  LegerAccountCreatedEvent,
-  LegerTransactionPostedEvent,
-  LegerTransferInsufficientFundsErrorEvent
+  LedgerAccountCreatedEvent,
+  LedgerTransactionPostedEvent,
+  LedgerTransferInsufficientFundsErrorEvent
 } from "pal-public-types-lib";
 
 let mockRepo:MockLedgerEventSourcingRepository;
 let mockProducer: MockMessageProducer;
 let aggregate:LedgerAggregate;
+
+let aggExpectedVersion = 0;
 
 const EUR_LEDGER_ID = "EUR";
 const EUR_ACCOUNT_ONE_ID = "pedro";
@@ -33,7 +35,7 @@ before(() => {
   assert.ok(aggregate.verify());
 });
 
-test("PAL Ledger - create ledger", async () => {
+test("PAL Ledger Domain LowLevel API - create ledger", async () => {
   const cmd: CreateLedgerCmd = new CreateLedgerCmd({id: EUR_LEDGER_ID});
 
   await aggregate.processCommands(cmd);
@@ -42,13 +44,13 @@ test("PAL Ledger - create ledger", async () => {
   assert.ok(lastStateEvents.length > 0);
   assert.equal(lastStateEvents[lastStateEvents.length-1].msgName, LedgerCreatedStateEvent.name);
   assert.equal(lastStateEvents[lastStateEvents.length-1].aggregateId, EUR_LEDGER_ID);
-  assert.equal(lastStateEvents[lastStateEvents.length-1].aggregateVersion, "1");
+  assert.equal(lastStateEvents[lastStateEvents.length-1].aggregateVersion, (++aggExpectedVersion).toString());
 
   assert.ok(aggregate.verify());
 });
 
 
-test("PAL Ledger - create account", async () => {
+test("PAL Ledger Domain LowLevel API - create account", async () => {
   const cmd: CreateLedgerAccountCmd = new CreateLedgerAccountCmd(EUR_LEDGER_ID, {
     id: EUR_ACCOUNT_ONE_ID,
     name: EUR_ACCOUNT_ONE_ID,
@@ -70,7 +72,7 @@ test("PAL Ledger - create account", async () => {
   assert.equal(payload.account.assetCode, EUR_LEDGER_ID);
   assert.equal(payload.account.assetDisplayScale, 2);
 
-  assert.equal(lastEvents[lastEvents.length-1].aggregateVersion, "2");
+  assert.equal(lastEvents[lastEvents.length-1].aggregateVersion, (++aggExpectedVersion).toString());
 
   const acc = aggregate.getAccounts([EUR_ACCOUNT_ONE_ID]);
   assert.ok(acc);
@@ -83,7 +85,7 @@ test("PAL Ledger - create account", async () => {
 
   // check domain/integration events
   const lastDomainEvent = mockProducer.messages[mockProducer.messages.length -1] as DomainEvent;
-  assert.equal(lastDomainEvent.msgName, LegerAccountCreatedEvent.name);
+  assert.equal(lastDomainEvent.msgName, LedgerAccountCreatedEvent.name);
   assert.equal(lastDomainEvent.aggregateId, EUR_LEDGER_ID);
   assert.equal(lastDomainEvent.payload.id, EUR_ACCOUNT_ONE_ID );
   assert.equal(lastDomainEvent.payload.name, EUR_ACCOUNT_ONE_ID );
@@ -92,7 +94,7 @@ test("PAL Ledger - create account", async () => {
 });
 
 
-test("PAL Ledger - create a second account", async () => {
+test("PAL Ledger Domain LowLevel API - create a second account", async () => {
   const cmd: CreateLedgerAccountCmd = new CreateLedgerAccountCmd(EUR_LEDGER_ID, {
     id: EUR_ACCOUNT_TWO_ID,
     name: EUR_ACCOUNT_TWO_ID,
@@ -114,7 +116,7 @@ test("PAL Ledger - create a second account", async () => {
   assert.equal(payload.account.assetCode, EUR_LEDGER_ID);
   assert.equal(payload.account.assetDisplayScale, 2);
 
-  assert.equal(lastEvents[lastEvents.length-1].aggregateVersion, "3");
+  assert.equal(lastEvents[lastEvents.length-1].aggregateVersion, (++aggExpectedVersion).toString());
 
   const acc = aggregate.getAccounts([EUR_ACCOUNT_TWO_ID]);
   assert.ok(acc);
@@ -127,7 +129,7 @@ test("PAL Ledger - create a second account", async () => {
 
   // check domain/integration events
   const lastDomainEvent = mockProducer.messages[mockProducer.messages.length -1] as DomainEvent;
-  assert.equal(lastDomainEvent.msgName, LegerAccountCreatedEvent.name);
+  assert.equal(lastDomainEvent.msgName, LedgerAccountCreatedEvent.name);
   assert.equal(lastDomainEvent.aggregateId, EUR_LEDGER_ID);
   assert.equal(lastDomainEvent.payload.id, EUR_ACCOUNT_TWO_ID );
   assert.equal(lastDomainEvent.payload.name, EUR_ACCOUNT_TWO_ID );
@@ -136,7 +138,7 @@ test("PAL Ledger - create a second account", async () => {
 });
 
 
-test("PAL Ledger - post transaction", async () => {
+test("PAL Ledger Domain LowLevel API - post transaction", async () => {
   const cmd: PostTransactionCmd = new PostTransactionCmd(EUR_LEDGER_ID, {
     id: "1",
     amount: "123",
@@ -152,7 +154,7 @@ test("PAL Ledger - post transaction", async () => {
   assert.equal(lastEvents[lastEvents.length-1].msgName, LedgerTransactionRecordedStateEvent.name);
   assert.equal(lastEvents[lastEvents.length-1].aggregateId, EUR_LEDGER_ID);
 
-  assert.equal(lastEvents[lastEvents.length-1].aggregateVersion, "4");
+  assert.equal(lastEvents[lastEvents.length-1].aggregateVersion, (++aggExpectedVersion).toString());
 
   const payload = lastEvents[lastEvents.length-1].payload as LedgerTransactionRecordedStatePayload;
   assert.ok(payload);
@@ -177,7 +179,7 @@ test("PAL Ledger - post transaction", async () => {
 
   // check domain/integration events
   const lastDomainEvent = mockProducer.messages[mockProducer.messages.length -1] as DomainEvent;
-  assert.equal(lastDomainEvent.msgName, LegerTransactionPostedEvent.name);
+  assert.equal(lastDomainEvent.msgName, LedgerTransactionPostedEvent.name);
   assert.equal(lastDomainEvent.aggregateId, EUR_LEDGER_ID);
   assert.equal(lastDomainEvent.payload.id, "1" );
   assert.equal(lastDomainEvent.payload.amount,  "123" );

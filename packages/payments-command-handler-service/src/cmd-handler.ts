@@ -77,7 +77,7 @@ export class PaymentsCommandHandler {
     }
 
     if (eventsToPublish.length > 0) {
-      await this._msgProducer.sendWithAck(eventsToPublish);
+      await this._msgProducer.send(eventsToPublish);
     }
   }
 }

@@ -50,7 +50,7 @@ const elsaAccId = "elsa";
 
 let producer: IMessageProducer;
 
-const CREATE_LEDGER_AND_ACCOUNTS = false;
+const CREATE_LEDGER_AND_ACCOUNTS = process.env["CREATE_LEDGER_AND_ACCOUNTS"] && process.env["CREATE_LEDGER_AND_ACCOUNTS"].toUpperCase() === "TRUE" || false;
 const TRANSACTION_COUNT = process.env["TRANSACTION_COUNT"] ? parseInt(process.env["TRANSACTION_COUNT"]) : 10;
 
 const logger = new ConsoleLogger();
@@ -134,7 +134,7 @@ async function main() {
 
     const startTs = Date.now();
 
-    await producer.sendWithAck(cmds);
+    await producer.send(cmds);
 
     console.log(`Transactions posted, publishing took: ${Date.now() - startTs} ms`);
 

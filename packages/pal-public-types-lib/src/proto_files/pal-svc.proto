@@ -25,9 +25,14 @@ service PalGrpc {
   // high-level liquidity API uses event driven, not client called, so we only implement low-level
   // rpc LedgerProcessHighLevelRequests(PbLedgerHighLevelRequestList) returns (PbLedgerHighLevelResponseList);
 
-  // TODO low level liquidity API
+  // low level liquidity API
   rpc CreateLedger(PbCreateLedgerRequest) returns (google.protobuf.Empty);
   rpc CreateLedgerAccount(PbCreateLedgerAccountRequest) returns (google.protobuf.Empty);
+
+  // ledger queries
+  rpc GetLedgerAccounts(PbGetLedgerAccountsRequest) returns (PbGetLedgerAccountsResponse);
+  rpc GetLedgerTransactions(PbGetLedgerTransactionsRequest) returns (PbGetLedgerTransactionsResponse);
+
 }
 
 /*
@@ -124,14 +129,42 @@ Liquidity messages
 
 // Low level requests
 
-
 message PbCreateLedgerRequest{
-  string ledgerAssetCode = 1;
+  string ledger_asset_code = 1;
 }
 
 message PbCreateLedgerAccountRequest{
+  string id = 1;
+  string asset_code = 2;
+  uint32 asset_display_scale = 3;
+  string name = 4;
+}
+
+// query messages
+message PbGetLedgerAccountsRequest{
+  repeated string account_ids = 1;
+}
+
+message PbGetLedgerAccountsResponse{
+  message PbLedgerAccountRead {
+    string id = 1;
+    string asset_code = 2;
+    uint32 asset_display_scale = 3;
+    string name = 4;
+    string debited_amount = 5;
+    string credited_amount = 6;
+  }
+  repeated PbLedgerAccountRead accounts = 1;
+}
+
+message PbGetLedgerTransactionsRequest{
 
 }
+
+message PbGetLedgerTransactionsResponse{
+
+}
+
 
 /*
 // High level requests - NOT HERE,  THESE ARE COMMANDS
