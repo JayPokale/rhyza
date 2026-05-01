@@ -19,8 +19,8 @@ Topics in Rafiki are organized by their purpose and the bounded context they bel
 
 Events represent things that have already happened in a bounded context. Most events are public and can be consumed by other bounded contexts, but [some](#message-types) (such as state and snapshot events for aggregates using event sourcing) are private to the bounded context.
 
-- **Naming Convention**: `{bc}-events`
-- **Example**: `payment-events`, `auth-events`
+- **Naming Convention**: `{bc}-domain-events`
+- **Example**: `payment-domain-events`, `auth-domain-events`
 - **Usage**: Use events to notify other parts of the system about state changes (e.g., `PaymentIntentCreated`) or for internal state management.
 
 ### Command Topics
