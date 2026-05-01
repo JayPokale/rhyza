@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+// ledger commands
+message PbCreateLedgerCmdPayload{
+  string ledger_id = 1;
+}
+
+message PbCreateLedgerAccountCmdPayload{
+  string ledger_id = 1;
+  string name = 2;
+  string asset_code = 3;
+  uint32 asset_display_scale = 4;
+}
+
+message PbPostTransactionCmdPayload{
+  string id = 1;
+  string debited_account_id = 2;
+  string credited_account_id = 3;
+  string amount =4;
+  uint32 amount_scale = 5;
+}

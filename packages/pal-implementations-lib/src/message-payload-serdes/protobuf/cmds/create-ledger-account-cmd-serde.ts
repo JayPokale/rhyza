@@ -1,8 +1,7 @@
 import {Any as PbAny} from "google-protobuf/google/protobuf/any_pb";
-import {
-  PbCreateLedgerAccountCmdPayload, ProtoBufBaseCommandSerializer,
-} from "implementations-lib";
-import {CreateLedgerAccountCmdPayload,  } from "pal-domain-lib";
+import {ProtoBufBaseCommandSerializer} from "implementations-lib";
+import {CreateLedgerAccountCmdPayload } from "pal-domain-lib";
+import {PbCreateLedgerAccountCmdPayload} from "../../../proto_generated";
 
 
 export class CreateLedgerAccountCmdSerde extends ProtoBufBaseCommandSerializer<CreateLedgerAccountCmdPayload>{

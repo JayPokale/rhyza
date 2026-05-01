@@ -1,8 +1,7 @@
 import {Any as PbAny} from "google-protobuf/google/protobuf/any_pb";
-import {
-  PbPostTransactionCmdPayload, ProtoBufBaseCommandSerializer
-} from "implementations-lib";
+import { ProtoBufBaseCommandSerializer } from "implementations-lib";
 import { PostTransactionCmdPayload } from "pal-domain-lib";
+import {PbPostTransactionCmdPayload} from "../../../proto_generated";
 
 
 export class PostTransactionCmdSerde extends ProtoBufBaseCommandSerializer<PostTransactionCmdPayload>{

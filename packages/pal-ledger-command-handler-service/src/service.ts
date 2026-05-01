@@ -105,12 +105,11 @@ export class PalLedgerCommandHandlerService {
     this._msgSerializationFactory = msgSerializationFactory;
 
     if(!kafkaBuilder){
-      KafkaBuilder.instance()
+      kafkaBuilder = new KafkaBuilder()
         .withLogger(this._logger)
         .withBrokerList(KAFKA_URL)
         .withClientId(INSTANCE_ID)
         .withSerializerFactory(this._msgSerializationFactory)
-      kafkaBuilder = KafkaBuilder.instance();
     }
     this._kafkaBuilder = kafkaBuilder;
 
