@@ -15,8 +15,8 @@ service PaymentsGrpc {
   // Approves an existing outgoing payment.
   rpc ApproveOutgoingPayment(ApproveOutgoingPaymentRequest) returns (ApproveOutgoingPaymentResponse);
 
-  // Fetches a remote incoming payment and persists it locally as a payment intent.
-  rpc CreateRemoteIncomingPayment(CreateRemoteIncomingPaymentRequest) returns (CreateRemoteIncomingPaymentResponse);
+  // Imports a remote incoming payment and persists it locally as a payment intent.
+  rpc ImportRemoteIncomingPayment(ImportRemoteIncomingPaymentRequest) returns (ImportRemoteIncomingPaymentResponse);
 }
 
 /*
@@ -88,17 +88,17 @@ message ApproveOutgoingPaymentResponse {
 }
 
 /*
- * Remote Incoming Payment messages
+ * Import Remote Incoming Payment messages
  */
 
-// Request to fetch a remote incoming payment and persist it locally.
-message CreateRemoteIncomingPaymentRequest {
+// Request to import a remote incoming payment and persist it locally.
+message ImportRemoteIncomingPaymentRequest {
   string id = 1;   // local payment intent ID (new UUID)
   string url = 2;  // full URL of the remote incoming payment
 }
 
 // Response containing the local payment intent ID.
-message CreateRemoteIncomingPaymentResponse {
+message ImportRemoteIncomingPaymentResponse {
   string id = 1;
 }
 

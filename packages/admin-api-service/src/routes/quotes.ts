@@ -4,32 +4,17 @@ import { randomUUID } from 'crypto';
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { PalClient, parseAddressToDomainAndPathName } from 'pal-client-lib';
 import { PaymentsClient } from 'payments-client-lib';
-import { v5 as uuidv5 } from 'uuid';
-
-type QuoteInput =
-  | { kind: 'url'; incomingPaymentUrl: string }
-  | { kind: 'id'; incomingPaymentId: string };
-
-function parseQuoteInput(
-  incomingPaymentId?: string,
-  incomingPaymentUrl?: string
-): QuoteInput | null {
-  if (incomingPaymentUrl) return { kind: 'url', incomingPaymentUrl };
-  if (incomingPaymentId) return { kind: 'id', incomingPaymentId };
-  return null;
-}
 
 interface QuoteRouteOptions extends FastifyPluginOptions {
   palClient: PalClient;
   paymentsClient: PaymentsClient;
-  openPaymentsUrl: string | undefined;
 }
 
 export async function quoteRoutes(
   server: FastifyInstance,
   opts: QuoteRouteOptions
 ): Promise<void> {
-  const { palClient, paymentsClient, openPaymentsUrl } = opts;
+  const { palClient, paymentsClient } = opts;
 
   server.post<{
     Body: {
@@ -49,16 +34,14 @@ export async function quoteRoutes(
       incomingPaymentUrl
     } = request.body;
 
-    const input = parseQuoteInput(incomingPaymentId, incomingPaymentUrl);
-    if (!input) {
+    let incomingPayment: { incomingPaymentUrl: string } | { incomingPaymentId: string };
+    if (incomingPaymentUrl) {
+      incomingPayment = { incomingPaymentUrl };
+    } else if (incomingPaymentId) {
+      incomingPayment = { incomingPaymentId };
+    } else {
       return reply.status(400).send({
         error: 'Either incomingPaymentId or incomingPaymentUrl is required'
-      });
-    }
-
-    if (input.kind === 'url' && !openPaymentsUrl) {
-      return reply.status(500).send({
-        error: 'Remote quoting is not configured (OPEN_PAYMENTS_URL is not set)'
       });
     }
 
@@ -72,33 +55,17 @@ export async function quoteRoutes(
         .send({ error: `Wallet address '${walletAddress}' not found` });
     }
 
-    let paymentIntentId: string;
-
-    if (
-      input.kind === 'url' &&
-      !input.incomingPaymentUrl.startsWith(openPaymentsUrl!)
-    ) {
-      const localId = uuidv5(input.incomingPaymentUrl, uuidv5.URL);
-      const remoteResult = await paymentsClient.importRemotePaymentIntent(
-        localId,
-        input.incomingPaymentUrl
-      );
-      paymentIntentId = remoteResult.id;
-    } else if (input.kind === 'url') {
-      paymentIntentId = input.incomingPaymentUrl.split('/').at(-1)!;
-    } else {
-      paymentIntentId = input.incomingPaymentId;
-    }
-
     const result = await paymentsClient.createQuote(
       id,
-      paymentIntentId,
+      incomingPayment,
       alias.walletAddressId,
       walletAddress,
       Number(debitAmount),
       Number(receiveAmount)
     );
 
-    return reply.status(201).send({ id: `${paymentIntentId}_${result.id}` }); // Concatenate ids when returning the request
+    return reply
+      .status(201)
+      .send({ id: `${result.paymentIntentId}_${result.id}` }); // Concatenate ids when returning the request
   });
 }

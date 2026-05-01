@@ -47,9 +47,6 @@ importers:
       payments-implementations-lib:
         specifier: workspace:*
         version: link:../payments-implementations-lib
-      uuid:
-        specifier: ^14.0.0
-        version: 14.0.0
     devDependencies:
       tsx:
         specifier: ^4.19.3
@@ -282,6 +279,9 @@ importers:
       payments-public-types-lib:
         specifier: workspace:*
         version: link:../payments-public-types-lib
+      uuid:
+        specifier: ^14.0.0
+        version: 14.0.0
     devDependencies:
       '@types/google-protobuf':
         specifier: ~3.15.12

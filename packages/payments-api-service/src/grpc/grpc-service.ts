@@ -19,8 +19,8 @@ import {
   CreateOutgoingPaymentResponse,
   ApproveOutgoingPaymentRequest,
   ApproveOutgoingPaymentResponse,
-  CreateRemoteIncomingPaymentRequest,
-  CreateRemoteIncomingPaymentResponse,
+  ImportRemoteIncomingPaymentRequest,
+  ImportRemoteIncomingPaymentResponse,
   HealthCheckRequest,
   HealthCheckResponse,
   HealthService,
@@ -125,7 +125,7 @@ export class PaymentsServiceServer {
       createQuote: this._handleUnary.bind(this),
       createOutgoingPayment: this._handleUnary.bind(this),
       approveOutgoingPayment: this._handleUnary.bind(this),
-      createRemoteIncomingPayment: this._handleUnary.bind(this)
+      importRemoteIncomingPayment: this._handleUnary.bind(this)
     });
   }
 
@@ -270,7 +270,7 @@ export class PaymentsServiceServer {
         commandId
       );
       await this._msgProducer.send(cmd);
-    } else if (call.request instanceof CreateRemoteIncomingPaymentRequest) {
+    } else if (call.request instanceof ImportRemoteIncomingPaymentRequest) {
       const commandId = call.request.getId();
       if (!PaymentsServiceServer.UUID_REGEX.test(commandId)) {
         callback({
@@ -406,7 +406,7 @@ export class PaymentsServiceServer {
       }
       case RemotePaymentIntentImportedEvent.name: {
         const payload = message.payload as RemotePaymentIntentImportedPayload;
-        const response = new CreateRemoteIncomingPaymentResponse().setId(
+        const response = new ImportRemoteIncomingPaymentResponse().setId(
           payload.id
         );
         this._resolvePendingResponse(pending, requestId, null, response);

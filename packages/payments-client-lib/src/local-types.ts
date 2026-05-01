@@ -4,6 +4,7 @@ export interface ICreateIncomingPaymentResponse {
 
 export interface ICreateQuoteResponse {
   id: string;
+  paymentIntentId: string;
 }
 
 export interface ICreateOutgoingPaymentResponse {
@@ -11,9 +12,5 @@ export interface ICreateOutgoingPaymentResponse {
 }
 
 export interface IApproveOutgoingPaymentResponse {
-  id: string;
-}
-
-export interface ICreateRemoteIncomingPaymentResponse {
   id: string;
 }
