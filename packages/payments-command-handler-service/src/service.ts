@@ -9,7 +9,6 @@ import {
   MongoDbPaymentIntentRepo,
   RemotePaymentIntentAdapter,
   PalWalletAddressAdapter,
-  PalPeerServiceAdapter,
   StaticRatesAdapter
 } from 'payments-implementations-lib';
 import { PaymentIntentAggregate } from 'payments-domain-lib';
@@ -55,14 +54,11 @@ export class PaymentsCommandHandlerService {
     const staticRatesAdapter = new StaticRatesAdapter();
     const remotePaymentIntentAdapter = new RemotePaymentIntentAdapter();
 
-    const peerService = new PalPeerServiceAdapter(palClient);
-
     const aggregate = new PaymentIntentAggregate(
       this.repo,
       walletAddressAdapter,
       staticRatesAdapter,
-      remotePaymentIntentAdapter,
-      peerService
+      remotePaymentIntentAdapter
     );
 
     this.msgProducer = kafkaBuilder.buildProducer({});

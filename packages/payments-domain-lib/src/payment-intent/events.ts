@@ -206,7 +206,6 @@ export type RemoteQuoteRequestedPayload = {
   paymentIntentId: string;
   quoteId: string;
   senderWalletAddress: string;
-  senderWalletAddressId: string;
   receiverWalletAddress: string;
   senderAssetCode: string;
   senderAssetScale: number;
@@ -214,7 +213,6 @@ export type RemoteQuoteRequestedPayload = {
   receiverAssetScale: number;
   debitAmount?: string;
   receiveAmount?: string;
-  peerId: string;
   destinationIlpAddress: string;
 };
 

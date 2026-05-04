@@ -1,6 +1,5 @@
 import { IMessage } from 'common-types-lib';
 import {
-  IPeerService,
   IPaymentIntent,
   IPaymentIntentRepository,
   IRatesService,
@@ -27,7 +26,8 @@ import {
   WalletAddressInactiveError,
   PaymentIntentNotFoundError,
   PaymentIntentInvalidState,
-  RatesError
+  RatesError,
+  MissingDestinationIlpAddressError
 } from './errors';
 import {
   QuoteCompletedEvent,
@@ -58,8 +58,7 @@ export class PaymentIntentAggregate {
     private _repo: IPaymentIntentRepository,
     private _walletAddressService: IWalletAddressService,
     private _ratesService: IRatesService,
-    private _remotePaymentIntentService: IRemotePaymentIntentService,
-    private _peerService: IPeerService
+    private _remotePaymentIntentService: IRemotePaymentIntentService
   ) {}
 
   async handleBatch(cmds: IMessage[]): Promise<{ events: IMessage[] }> {
@@ -222,9 +221,7 @@ export class PaymentIntentAggregate {
       // the sender understands the asset to be used?
       // - v1 Rafiki requires it to be passed in
 
-      // TODO: determine from peer lookup (should probably move this to prefetch phase)
-      // const peer = await this._palClient.getPeerByWalletAddress(receiverWalletAddress)
-      // - lookup by receiverWalletAddress or receiverWalletAddressId? And what will peer be?
+      // TODO: are incoming payments created in this create incoming payment intent command always local?
       const destination = PaymentIntentDestination.LOCAL;
 
       const entity = PaymentIntent.create(
@@ -294,18 +291,16 @@ export class PaymentIntentAggregate {
 
       const paymentIntent = PaymentIntent.fromObject(paymentIntentObj);
 
-      // TODO (FX): for local quotes, the exchange rate is fetched here and used to compute amounts.
-      // Unclear what service backs _ratesService and whether this is the correct/authoritative FX source.
-      const exchangeRate = await this._ratesService.getRate(
-        walletAddress.assetCode,
-        paymentIntent.assetCode
-      );
-
-      if (!exchangeRate) {
-        throw new RatesError('Could not get rates during quoting');
-      }
-
       if (paymentIntent.destination === 'LOCAL') {
+        const exchangeRate = await this._ratesService.getRate(
+          walletAddress.assetCode,
+          paymentIntent.assetCode
+        );
+
+        if (!exchangeRate) {
+          throw new RatesError('Could not get rates during quoting');
+        }
+
         paymentIntent.addLocalQuote({
           id: quoteId,
           senderWalletAddress: {
@@ -329,12 +324,7 @@ export class PaymentIntentAggregate {
         return new QuoteCompletedEvent({ id: quoteId }, cmd.requestId);
       }
 
-      // TODO: Diagram shows "Determine peer based on destination address" using ILP BC.
-      // rafiki-poc/internal-docs/sequence-diagrams/ILP/Remote Quote - Sending.md
-      // Unclear what this is signifying. Kinda looks async (no response) but seems
-      // to indicate we are getting the peer, except surely we would ge this from PAL?
-
-      // REMOTE: create pending quote, emit event for ILP BC to initiate quoting
+      // REMOTE: create pending quote, emit event to initiate quoting
       // TODO: debitAmount/receiveAmount on RemoteQuoteRequestedEvent sufficient for auditing or
       // should we store on quote as well? requestedDebitAmount etc.
       // - FWIW, Rafiki v1 does not persist requested (nor has event to trace)
@@ -349,22 +339,18 @@ export class PaymentIntentAggregate {
       this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
       this.appendToMap(this.newPaymentIntentQuotes, paymentIntent.id, quoteId);
 
-      const destinationIlpAddress = paymentIntent.destinationIlpAddress;
+      const { destinationIlpAddress } = paymentIntent;
       if (!destinationIlpAddress) {
-        throw new Error(
-          `Payment intent ${paymentIntentId} is missing destinationIlpAddress — remote payment intent may not have been fetched correctly`
+        throw new MissingDestinationIlpAddressError(
+          `Payment intent ${paymentIntentId} is missing destinationIlpAddress`
         );
       }
-      const { peerId } = await this._peerService.resolvePeerByIlpAddress(
-        destinationIlpAddress
-      );
 
       return new RemoteQuoteRequestedEvent(
         {
           paymentIntentId,
           quoteId,
           senderWalletAddress,
-          senderWalletAddressId,
           receiverWalletAddress: paymentIntent.receiverWalletAddress,
           senderAssetCode: walletAddress.assetCode,
           senderAssetScale: walletAddress.assetScale,
@@ -373,7 +359,6 @@ export class PaymentIntentAggregate {
           debitAmount: debitAmount != null ? String(debitAmount) : undefined,
           receiveAmount:
             receiveAmount != null ? String(receiveAmount) : undefined,
-          peerId,
           destinationIlpAddress
         },
         cmd.requestId
