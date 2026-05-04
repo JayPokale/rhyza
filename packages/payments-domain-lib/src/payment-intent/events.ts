@@ -59,12 +59,6 @@ export abstract class PaymentIntentDomainEvent extends DomainEvent {
     return evt.msgName === RemoteQuoteRequestedEvent.name;
   }
 
-  static isRemoteQuoteFailedEvent(
-    evt: DomainEvent
-  ): evt is RemoteQuoteFailedEvent {
-    return evt.msgName === RemoteQuoteFailedEvent.name;
-  }
-
   static isRemotePaymentIntentImportedEvent(
     evt: DomainEvent
   ): evt is RemotePaymentIntentImportedEvent {
@@ -220,23 +214,6 @@ export class RemoteQuoteRequestedEvent extends PaymentIntentDomainEvent {
   payload: RemoteQuoteRequestedPayload;
 
   constructor(payload: RemoteQuoteRequestedPayload, requestId?: string) {
-    super(payload.paymentIntentId);
-    this.payload = payload;
-    this.requestId = requestId;
-  }
-}
-
-export type RemoteQuoteFailedPayload = {
-  paymentIntentId: string;
-  errorName: string;
-  message: string;
-};
-
-export class RemoteQuoteFailedEvent extends PaymentIntentDomainEvent {
-  payload: RemoteQuoteFailedPayload;
-  isErrorEvent = true;
-
-  constructor(payload: RemoteQuoteFailedPayload, requestId?: string) {
     super(payload.paymentIntentId);
     this.payload = payload;
     this.requestId = requestId;

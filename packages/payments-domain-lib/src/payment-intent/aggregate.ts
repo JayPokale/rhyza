@@ -39,7 +39,6 @@ import {
   LocalPaymentCompleteFailedEvent,
   PaymentCreatedEvent,
   RemoteQuoteRequestedEvent,
-  RemoteQuoteFailedEvent,
   RemotePaymentIntentImportedEvent,
   RemotePaymentIntentImportFailedEvent
 } from './events';
@@ -474,8 +473,6 @@ export class PaymentIntentAggregate {
 
       const paymentIntent = PaymentIntent.fromObject(paymentIntentObj);
 
-      // TODO (FX): exchange rate is provided by ILP BC via FinalizeRemoteQuoteCmd.
-      // Should Payments BC validate or cross-check this rate against its own FX source?
       paymentIntent.completeRemoteQuote({
         id: quoteId,
         debitAmount: BigInt(maxSourceAmount),
@@ -486,8 +483,6 @@ export class PaymentIntentAggregate {
       this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
       this.appendToMap(this.completedRemoteQuotes, paymentIntent.id, quoteId);
 
-      // TODO: include exchange rate per Max's slack comment? Kinda breaks pattern of just returning id's
-      // and looking up where we care to. Clarify this idea.
       return new QuoteCompletedEvent({ id: quoteId }, cmd.requestId);
     } catch (err) {
       return new QuoteCreateFailedEvent(
