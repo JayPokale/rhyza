@@ -6,16 +6,6 @@ service IlpGrpc {
   rpc GetPeer(GetPeerRequest) returns (GetPeerResponse);
   rpc ListPeers(ListPeersRequest) returns (ListPeersResponse);
   rpc UpdatePeer(UpdatePeerRequest) returns (UpdatePeerResponse);
-  rpc ResolvePeerByAddress(ResolvePeerByAddressRequest) returns (ResolvePeerByAddressResponse);
-}
-
-message CorrelationIds {
-  string request_id = 1;
-  string payment_intent_ref = 2;
-  optional string quote_id = 3;
-  optional string outgoing_payment_id = 4;
-  optional string packet_id = 5;
-  optional string peer_id = 6;
 }
 
 /* 
@@ -36,18 +26,12 @@ message PeerHttpSettings {
   optional PeerHttpIncomingSettings incoming = 2;
 }
 
-message PeerRoutingSettings {
-  string static_ilp_address = 1;
-  repeated string route_prefixes = 2;
-}
-
 // ILP BC view of a peer.
 message Peer {
   string id = 1;
   PeerHttpSettings http = 2;
-  PeerRoutingSettings routing = 3;
-  optional uint64 max_packet_amount = 4;
-  optional bool is_active = 5;
+  optional uint64 max_packet_amount = 3;
+  optional bool is_active = 4;
 }
 
 /* 
@@ -55,55 +39,31 @@ Peer lifecycle messages
 */
 
 message CreatePeerRequest {
-  CorrelationIds correlation = 1;
-  Peer peer = 2;
+  Peer peer = 1;
 }
 
 message CreatePeerResponse {
-  CorrelationIds correlation = 1;
-  Peer peer = 2;
+  Peer peer = 1;
 }
 
 message GetPeerRequest {
-  CorrelationIds correlation = 1;
-  string id = 2;
+  string id = 1;
 }
 
 message GetPeerResponse {
-  CorrelationIds correlation = 1;
-  optional Peer peer = 2;
+  optional Peer peer = 1;
 }
 
-message ListPeersRequest {
-  CorrelationIds correlation = 1;
-}
+message ListPeersRequest {}
 
 message ListPeersResponse {
-  CorrelationIds correlation = 1;
-  repeated Peer peers = 2;
+  repeated Peer peers = 1;
 }
 
 message UpdatePeerRequest {
-  CorrelationIds correlation = 1;
-  Peer peer = 2;
+  Peer peer = 1;
 }
 
 message UpdatePeerResponse {
-  CorrelationIds correlation = 1;
-  Peer peer = 2;
-}
-
-/* 
-Peer resolution messages 
-*/
-
-message ResolvePeerByAddressRequest {
-  CorrelationIds correlation = 1;
-  string destination_ilp_address = 2;
-}
-
-message ResolvePeerByAddressResponse {
-  CorrelationIds correlation = 1;
-  string peer_id = 2;
-  string matched_prefix = 3;
+  Peer peer = 1;
 }
