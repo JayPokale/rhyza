@@ -8,22 +8,10 @@ export type PacketState = keyof typeof PacketState;
 
 export interface IPacketCorrelation {
   packetId: string;
-  requestId: string;
-  paymentIntentRef: string;
   peerId: string;
-  quoteId?: string;
-  outgoingPaymentId?: string;
-  ledgerTransferId?: string;
+  paymentIntentId: string;
   expiresAt: Date;
   state: PacketState;
-  rejectCode?: string;
-  rejectMessage?: string;
-  // Who caused the ILP reject (remote peer, internal or another hop)
-  // TODO: Make enum or remove?
-  rejectTriggeredBy?: string;
-  fulfilledAt?: Date;
-  rejectedAt?: Date;
-  expiredAt?: Date;
 }
 
 export interface IPacketJournalRepository {
