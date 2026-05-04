@@ -1,10 +1,10 @@
 import { IMessage } from 'common-types-lib';
 import {
-  IIlpClientPort,
+  IPeerService,
   IPaymentIntent,
   IPaymentIntentRepository,
   IRatesService,
-  IRemotePaymentIntentPort,
+  IRemotePaymentIntentService,
   IWalletAddressService,
   PaymentIntentDestination,
   PaymentIntentState,
@@ -58,8 +58,8 @@ export class PaymentIntentAggregate {
     private _repo: IPaymentIntentRepository,
     private _walletAddressService: IWalletAddressService,
     private _ratesService: IRatesService,
-    private _remotePaymentIntentPort: IRemotePaymentIntentPort,
-    private _ilpClientPort: IIlpClientPort
+    private _remotePaymentIntentService: IRemotePaymentIntentService,
+    private _peerService: IPeerService
   ) {}
 
   async handleBatch(cmds: IMessage[]): Promise<{ events: IMessage[] }> {
@@ -119,7 +119,7 @@ export class PaymentIntentAggregate {
       urlsToFetch.map(async ([id, url]) => {
         try {
           const remotePaymentIntent =
-            await this._remotePaymentIntentPort.fetchIncomingPayment(url);
+            await this._remotePaymentIntentService.fetchIncomingPayment(url);
           return { id, url, remotePaymentIntent, error: null };
         } catch (err) {
           return { id, url, remotePaymentIntent: null, error: err as Error };
@@ -355,7 +355,7 @@ export class PaymentIntentAggregate {
           `Payment intent ${paymentIntentId} is missing destinationIlpAddress — remote payment intent may not have been fetched correctly`
         );
       }
-      const { peerId } = await this._ilpClientPort.resolvePeerByAddress(
+      const { peerId } = await this._peerService.resolvePeerByIlpAddress(
         destinationIlpAddress
       );
 

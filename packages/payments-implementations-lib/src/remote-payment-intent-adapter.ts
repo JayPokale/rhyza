@@ -1,7 +1,7 @@
 'use strict';
 
 import {
-  IRemotePaymentIntentPort,
+  IRemotePaymentIntentService,
   RemotePaymentIntentDetails
 } from 'payments-domain-lib';
 
@@ -10,7 +10,7 @@ import {
 // requests, or (b) the remote server exposing asset details on the public
 // incoming payment endpoint (e.g., excluding only receiver wallet address).
 // Ideally we shouldn't need to make an authenticated request for this.
-export class RemotePaymentIntentAdapter implements IRemotePaymentIntentPort {
+export class RemotePaymentIntentAdapter implements IRemotePaymentIntentService {
   async fetchIncomingPayment(url: string): Promise<RemotePaymentIntentDetails> {
     const response = await fetch(url, {
       headers: { Accept: 'application/json' }

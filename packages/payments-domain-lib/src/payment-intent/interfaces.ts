@@ -102,12 +102,12 @@ export interface RemotePaymentIntentDetails {
   destinationIlpAddress: string;
 }
 
-export interface IRemotePaymentIntentPort {
+export interface IRemotePaymentIntentService {
   fetchIncomingPayment(url: string): Promise<RemotePaymentIntentDetails>;
 }
 
-export interface IIlpClientPort {
-  resolvePeerByAddress(destinationIlpAddress: string): Promise<{ peerId: string }>;
+export interface IPeerService {
+  resolvePeerByIlpAddress(destinationIlpAddress: string): Promise<{ peerId: string }>;
 }
 
 export interface IPaymentIntentRepository {
