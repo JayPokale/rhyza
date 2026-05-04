@@ -1,171 +1,178 @@
-import { DomainEventMsg, EventTopics } from 'common-types-lib';
+import { DomainEvent, DomainEventTopics } from 'common-types-lib';
 
-const BOUNDED_CONTEXT_NAME = 'payment';
-const AGGREGATE_NAME = 'payment-intents';
+export abstract class PaymentIntentDomainEvent extends DomainEvent {
+  msgTopic: string = DomainEventTopics.PaymentEvents;
+  isErrorEvent = false;
 
-export interface PaymentIntentCreatedPayload {
-  id: string;
+  protected constructor(aggId: string) {
+    super(aggId);
+    this.msgKey = aggId;
+  }
+
+  static isPaymentIntentCreatedEvent(
+    evt: DomainEvent
+  ): evt is PaymentIntentCreatedEvent {
+    return evt.msgName === PaymentIntentCreatedEvent.name;
+  }
+
+  static isPaymentIntentCreateFailedEvent(
+    evt: DomainEvent
+  ): evt is PaymentIntentCreateFailedEvent {
+    return evt.msgName === PaymentIntentCreateFailedEvent.name;
+  }
+
+  static isQuoteCompletedEvent(evt: DomainEvent): evt is QuoteCompletedEvent {
+    return evt.msgName === QuoteCompletedEvent.name;
+  }
+
+  static isQuoteCreateFailedEvent(
+    evt: DomainEvent
+  ): evt is QuoteCreateFailedEvent {
+    return evt.msgName === QuoteCreateFailedEvent.name;
+  }
+
+  static isPaymentCreatedEvent(evt: DomainEvent): evt is PaymentCreatedEvent {
+    return evt.msgName === PaymentCreatedEvent.name;
+  }
+
+  static isPaymentCreateFailedEvent(
+    evt: DomainEvent
+  ): evt is PaymentCreateFailedEvent {
+    return evt.msgName === PaymentCreateFailedEvent.name;
+  }
+
+  static isLocalPaymentCompletedEvent(
+    evt: DomainEvent
+  ): evt is LocalPaymentCompletedEvent {
+    return evt.msgName === LocalPaymentCompletedEvent.name;
+  }
+
+  static isLocalPaymentCompleteFailedEvent(
+    evt: DomainEvent
+  ): evt is LocalPaymentCompleteFailedEvent {
+    return evt.msgName === LocalPaymentCompleteFailedEvent.name;
+  }
 }
 
-export class PaymentIntentCreatedEvent extends DomainEventMsg {
-  contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
-  aggregateName: string = AGGREGATE_NAME;
-  msgKey: string;
-  msgTopic: string = EventTopics.PaymentEvents;
+export type PaymentIntentCreatedPayload = {
+  id: string;
+};
+
+export class PaymentIntentCreatedEvent extends PaymentIntentDomainEvent {
   payload: PaymentIntentCreatedPayload;
 
   constructor(payload: PaymentIntentCreatedPayload, requestId?: string) {
-    super();
-    this.aggregateId = this.msgKey = payload.id;
+    super(payload.id);
     this.payload = payload;
     this.requestId = requestId;
   }
 }
 
-export interface PaymentIntentCreateFailedPayload {
+export type PaymentIntentCreateFailedPayload = {
+  paymentIntentId: string;
   errorName: string;
   message: string;
-}
+};
 
-export class PaymentIntentCreateFailedEvent extends DomainEventMsg {
-  contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
-  aggregateName: string = AGGREGATE_NAME;
-  msgKey: string;
-  msgTopic: string = EventTopics.PaymentEvents;
-  isErrorEvent: boolean = true;
+export class PaymentIntentCreateFailedEvent extends PaymentIntentDomainEvent {
   payload: PaymentIntentCreateFailedPayload;
+  isErrorEvent = true;
 
   constructor(payload: PaymentIntentCreateFailedPayload, requestId?: string) {
-    super();
-    this.aggregateId = this.msgKey = requestId ?? '';
+    super(payload.paymentIntentId);
     this.payload = payload;
     this.requestId = requestId;
   }
 }
 
-export interface QuoteCompletedPayload {
+export type QuoteCompletedPayload = {
   id: string;
-}
+};
 
-export class QuoteCompletedEvent extends DomainEventMsg {
-  contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
-  aggregateName: string = AGGREGATE_NAME;
-  msgKey: string;
-  msgTopic: string = EventTopics.PaymentEvents;
+export class QuoteCompletedEvent extends PaymentIntentDomainEvent {
   payload: QuoteCompletedPayload;
 
   constructor(payload: QuoteCompletedPayload, requestId?: string) {
-    super();
-    this.aggregateId = this.msgKey = payload.id;
+    super(payload.id);
     this.payload = payload;
     this.requestId = requestId;
   }
 }
 
-export interface QuoteCreateFailedPayload {
+export type QuoteCreateFailedPayload = {
+  paymentIntentId: string;
   errorName: string;
   message: string;
-}
+};
 
-export class QuoteCreateFailedEvent extends DomainEventMsg {
-  contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
-  aggregateName: string = AGGREGATE_NAME;
-  msgKey: string;
-  msgTopic: string = EventTopics.PaymentEvents;
-  isErrorEvent: boolean = true;
+export class QuoteCreateFailedEvent extends PaymentIntentDomainEvent {
   payload: QuoteCreateFailedPayload;
+  isErrorEvent = true;
 
   constructor(payload: QuoteCreateFailedPayload, requestId?: string) {
-    super();
-    this.aggregateId = this.msgKey = requestId ?? '';
+    super(payload.paymentIntentId);
     this.payload = payload;
     this.requestId = requestId;
   }
 }
 
-export interface PaymentCreatedPayload {
+export type PaymentCreatedPayload = {
   id: string;
-}
+};
 
-export class PaymentCreatedEvent extends DomainEventMsg {
-  contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
-  aggregateName: string = AGGREGATE_NAME;
-  msgKey: string;
-  msgTopic: string = EventTopics.PaymentEvents;
+export class PaymentCreatedEvent extends PaymentIntentDomainEvent {
   payload: PaymentCreatedPayload;
 
   constructor(payload: PaymentCreatedPayload, requestId?: string) {
-    super();
-    this.aggregateId = this.msgKey = payload.id;
+    super(payload.id);
     this.payload = payload;
     this.requestId = requestId;
   }
 }
 
-export interface PaymentCreateFailedPayload {
+export type PaymentCreateFailedPayload = {
+  paymentIntentId: string;
   errorName: string;
   message: string;
-}
+};
 
-export class PaymentCreateFailedEvent extends DomainEventMsg {
-  contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
-  aggregateName: string = AGGREGATE_NAME;
-  msgKey: string;
-  msgTopic: string = EventTopics.PaymentEvents;
-  isErrorEvent: boolean = true;
+export class PaymentCreateFailedEvent extends PaymentIntentDomainEvent {
   payload: PaymentCreateFailedPayload;
+  isErrorEvent = true;
 
   constructor(payload: PaymentCreateFailedPayload, requestId?: string) {
-    super();
-    this.aggregateId = this.msgKey = requestId ?? '';
+    super(payload.paymentIntentId);
     this.payload = payload;
     this.requestId = requestId;
   }
 }
 
-export interface LocalPaymentCompletedPayload {
+export type LocalPaymentCompletedPayload = {
   id: string;
-}
+};
 
-export class LocalPaymentCompletedEvent extends DomainEventMsg {
-  contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
-  aggregateName: string = AGGREGATE_NAME;
-  msgKey: string;
-  msgTopic: string = EventTopics.PaymentEvents;
+export class LocalPaymentCompletedEvent extends PaymentIntentDomainEvent {
   payload: LocalPaymentCompletedPayload;
 
   constructor(payload: LocalPaymentCompletedPayload, requestId?: string) {
-    super();
-    this.aggregateId = this.msgKey = payload.id;
+    super(payload.id);
     this.payload = payload;
     this.requestId = requestId;
   }
 }
 
-export interface LocalPaymentCompleteFailedPayload {
+export type LocalPaymentCompleteFailedPayload = {
+  paymentIntentId: string;
   errorName: string;
   message: string;
-}
+};
 
-export class LocalPaymentCompleteFailedEvent extends DomainEventMsg {
-  contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
-  aggregateName: string = AGGREGATE_NAME;
-  msgKey: string;
-  msgTopic: string = EventTopics.PaymentEvents;
-  isErrorEvent: boolean = true;
+export class LocalPaymentCompleteFailedEvent extends PaymentIntentDomainEvent {
   payload: LocalPaymentCompleteFailedPayload;
+  isErrorEvent = true;
 
   constructor(payload: LocalPaymentCompleteFailedPayload, requestId?: string) {
-    super();
-    this.aggregateId = this.msgKey = requestId ?? '';
+    super(payload.paymentIntentId);
     this.payload = payload;
     this.requestId = requestId;
   }

@@ -78,25 +78,6 @@ export class MongoDbNotificationRepo implements INotificationRepository {
     }
   }
 
-  async fetch(id: string): Promise<INotification | null> {
-    this._checkInitialisedOrThrow();
-    try {
-      const notification = await this._notificationCollection.findOne({ id });
-      return notification;
-    } catch (e: unknown) {
-      this._handleError(e, 'fetch');
-    }
-  }
-  async fetchAll(): Promise<INotification[]> {
-    this._checkInitialisedOrThrow();
-    try {
-      const notifications = await this._notificationCollection.find().toArray();
-      return notifications;
-    } catch (e: unknown) {
-      this._handleError(e, 'fetch all');
-    }
-  }
-
   private _handleError(e: unknown, action: string): never {
     if (e instanceof Error) {
       console.error(e);

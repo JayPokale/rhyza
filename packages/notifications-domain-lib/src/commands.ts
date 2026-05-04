@@ -13,12 +13,12 @@ export class CreateNotificationCmd extends CommandMsg {
   aggregateId: string;
   aggregateName: string = NOTIFICATION_AGG_NAME;
   msgKey: string;
-  msgTopic: string = CommandTopics.NotificationCommands;
+  msgTopic: string = CommandTopics.PaymentCommands;
   payload: CreateNotificationCmdPayload;
   constructor(payload: CreateNotificationCmdPayload, requestId?: string) {
-    super();
+    super(payload.id);
     this.aggregateId = this.msgKey = payload.id;
-    this.requestId = requestId;
+    this.requestId = requestId ?? '';
     this.payload = payload;
   }
 }

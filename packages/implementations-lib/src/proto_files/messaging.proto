@@ -1,0 +1,67 @@
+syntax = "proto3";
+import "google/protobuf/any.proto";
+
+/*
+Common base protocol buffers messages for kafka transport
+Specific payload messages, should be in the respective BC implementations lib
+*/
+
+// must match MessageTypes
+enum PbKafkaMessageTypes {
+    STATE_EVENT = 0;
+    SNAPSHOT_EVENT = 1;
+    DOMAIN_EVENT = 2;
+    COMMAND = 3;
+}
+
+message PbKafkaMessage{
+    PbKafkaMessageTypes msg_type = 1;
+    string msg_id = 2;
+    string msg_name = 3;
+    int64 msg_timestamp = 4;
+
+    optional string aggregate_id = 10;
+    optional string aggregate_version = 11;
+
+    google.protobuf.Any payload = 5;
+}
+
+message PbStateEvent {
+    PbKafkaMessageTypes msgType = 1;
+    string msg_id = 2;
+    string msg_name = 3;
+    int64 msg_timestamp = 4;
+
+    string aggregate_id = 10;
+    string aggregate_version = 11;
+
+    google.protobuf.Any payload = 5;
+}
+
+message PbSnapshotEvent {
+    PbKafkaMessageTypes msgType = 1;
+    string msg_id = 2;
+    string msg_name = 3;
+    int64 msg_timestamp = 4;
+
+    string aggregate_id = 10;
+    string aggregate_version = 11;
+
+    uint32 last_event_index_partition = 12;
+    uint64 last_event_index_offset = 13;
+
+    google.protobuf.Any payload = 5;
+}
+
+message PbCommandMsg {
+  PbKafkaMessageTypes msgType = 1;
+  string msg_id = 2;
+  string msg_name = 3;
+  int64 msg_timestamp = 4;
+
+  string aggregate_id = 10;
+  string request_id = 11;
+
+  google.protobuf.Any payload = 5;
+}
+

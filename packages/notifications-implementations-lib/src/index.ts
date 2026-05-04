@@ -1,2 +1,2 @@
 export * from './mongodb-notification-repo';
-export * from './notification-sender-service';
+export * from './webhook-sender-adapter';

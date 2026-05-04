@@ -34,9 +34,4 @@ export class NotificationAggregate {
       await this._repo.store(notification.toObject());
     }
   }
-
-  async getNotification(id: string): Promise<Notification | null> {
-    const found = await this._repo.fetch(id);
-    return found ? Notification.fromObject(found) : null;
-  }
 }

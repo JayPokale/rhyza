@@ -1,32 +1,23 @@
-import {
-  CommandTopics,
-  Message,
-  MessageConsumer,
-  MessageProducer
-} from 'common-types-lib';
+import { CommandTopics, IMessage, IMessageConsumer } from 'common-types-lib';
 import {
   CreateNotificationCmd,
-  NotificationAggregate,
-  NotificationCreatedEvent
+  NotificationAggregate
 } from 'notifications-domain-lib';
 
 export class NotificationsCommandHandler {
-  private _msgConsumer: MessageConsumer;
-  private _msgProducer: MessageProducer;
+  private _msgConsumer: IMessageConsumer;
   private _notificationAggregate: NotificationAggregate;
 
   constructor(
-    msgConsumer: MessageConsumer,
-    msgProducer: MessageProducer,
+    msgConsumer: IMessageConsumer,
     notificationAggregate: NotificationAggregate
   ) {
     this._msgConsumer = msgConsumer;
-    this._msgProducer = msgProducer;
     this._notificationAggregate = notificationAggregate;
   }
 
   async start(): Promise<void> {
-    this._msgConsumer.setTopics([CommandTopics.NotificationCommands]);
+    this._msgConsumer.setTopics([CommandTopics.PaymentCommands]);
     this._msgConsumer.setBatchCallbackFn(this._handleBatch.bind(this));
     await this._msgConsumer.connect();
     await this._msgConsumer.startAndWaitForRebalance();
@@ -37,17 +28,15 @@ export class NotificationsCommandHandler {
     await this._msgConsumer.disconnect(true);
   }
 
-  private async _handleBatch(messages: Message[]): Promise<void> {
-    const eventsToPublish: Message[] = [];
-    const unhandled: Message[] = [];
+  private async _handleBatch(messages: IMessage[]): Promise<void> {
+    const unhandled: IMessage[] = [];
 
     for (const msg of messages) {
       switch (msg.msgName) {
         case CreateNotificationCmd.name: {
-          const event = await this._createAndSendNotification(
-            msg as CreateNotificationCmd
+          await this._notificationAggregate.createAndSendNotification(
+            (msg as CreateNotificationCmd).payload.data
           );
-          eventsToPublish.push(event);
           break;
         }
         default: {
@@ -62,22 +51,5 @@ export class NotificationsCommandHandler {
         `Unhandled Notification command: ${[...new Set(unhandled.map((m) => m.msgName))].join(', ')}`
       );
     }
-
-    if (eventsToPublish.length > 0) {
-      await this._msgProducer.send(eventsToPublish);
-    }
-  }
-
-  private async _createAndSendNotification(
-    cmd: CreateNotificationCmd
-  ): Promise<Message> {
-    const notificationId =
-      await this._notificationAggregate.createAndSendNotification(
-        cmd.payload.data
-      );
-    return new NotificationCreatedEvent(
-      { id: notificationId, data: cmd.payload.data },
-      cmd.requestId
-    );
   }
 }

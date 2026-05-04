@@ -1,5 +1,5 @@
 export * from './messaging';
 export * from './logger';
-export * from './events';
+export * from './topics';
 export * from './telemetry';
 export * from './cache';

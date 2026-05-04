@@ -1,13 +1,13 @@
-import { Cache, Cached } from 'common-types-lib';
+import { ICache, ICached } from 'common-types-lib';
 
 const CHECK_EXPIRY_INTERVAL_MS = 60 * 1000;
 
-export class InMemoryCache<T> implements Cache<T> {
-  private map: Map<string, Cached<T>>;
+export class InMemoryCache<T> implements ICache<T> {
+  private map: Map<string, ICached<T>>;
   private keyTtlMs: number;
 
   constructor(keyTtlMs: number) {
-    this.map = new Map<string, Cached<T>>();
+    this.map = new Map<string, ICached<T>>();
     this.keyTtlMs = keyTtlMs;
 
     // TODO change to an async init() method and store the timer to kill in a stop()
@@ -20,7 +20,7 @@ export class InMemoryCache<T> implements Cache<T> {
     }, CHECK_EXPIRY_INTERVAL_MS);
   }
 
-  private getAndCheckExpiry(key: string): Cached<T> | undefined {
+  private getAndCheckExpiry(key: string): ICached<T> | undefined {
     const cached = this.map.get(key);
     if (cached?.expiry && Date.now() >= cached.expiry) {
       this.deleteKey(key);
@@ -49,7 +49,12 @@ export class InMemoryCache<T> implements Cache<T> {
   }
 
   async set(key: string, value: T): Promise<boolean> {
-    this.map.set(key, { expiry: Date.now() + this.keyTtlMs, data: value });
+    this.map.set(key, { expiry: Infinity, data: value });
+    return true;
+  }
+
+  async setWithTtl(key: string, value: T, ttlMs: number): Promise<boolean> {
+    this.map.set(key, { expiry: Date.now() + ttlMs, data: value });
     return true;
   }
 }

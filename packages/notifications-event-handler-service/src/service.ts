@@ -1,27 +1,27 @@
 import { NotificationsEventHandler } from './event-handler';
 import {
-  RafikiKafkaJsonConsumer,
-  RafikiKafkaJsonProducer
-} from '../../implementations-lib/dist';
+  KafkaBuilder,
+  KafkaConsumer,
+  KafkaProducer
+} from 'implementations-lib';
 
 const KAFKA_URL = process.env.KAFKA_URL || 'localhost:9093';
 
 export class NotificationsEventHandlerService {
   private static eventHandler: NotificationsEventHandler;
-  private static msgProducer: RafikiKafkaJsonProducer;
-  private static msgConsumer: RafikiKafkaJsonConsumer;
+  private static msgProducer: KafkaProducer;
+  private static msgConsumer: KafkaConsumer;
 
   static async start(): Promise<void> {
-    this.msgProducer = new RafikiKafkaJsonProducer({
-      kafkaBrokerList: KAFKA_URL,
-      producerClientId: `notifications-event-handler-${crypto.randomUUID()}`
-    });
+    const kafkaBuilder = new KafkaBuilder();
+    kafkaBuilder
+      .withBrokerList(KAFKA_URL)
+      .withClientId('notifications-event-handler-service');
+
+    this.msgProducer = kafkaBuilder.buildProducer({});
     await this.msgProducer.connect();
 
-    this.msgConsumer = new RafikiKafkaJsonConsumer({
-      kafkaBrokerList: KAFKA_URL,
-      kafkaGroupId: 'notifications-event-handler'
-    });
+    this.msgConsumer = kafkaBuilder.buildConsumer({});
 
     this.eventHandler = new NotificationsEventHandler(
       this.msgConsumer,
