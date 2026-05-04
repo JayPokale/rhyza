@@ -20,9 +20,7 @@ const DB_NAME = 'pal';
 const COLLECTION_NAME: string = 'walletAddressAliases';
 const TIMEOUT_MS: number = 5_000;
 
-export class MongoWalletAddressAliasRepo
-  implements IPalWalletAddressAliasRepository
-{
+export class MongoWalletAddressAliasRepo implements IPalWalletAddressAliasRepository {
   private readonly _connectionString: string;
   private _client!: MongoClient;
   private _collection!: Collection<IPalWalletAddressAlias>;

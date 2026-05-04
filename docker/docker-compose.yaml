@@ -165,8 +165,8 @@ services:
       ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --topic audits
       ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --topic logs
       ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 24 --topic payment-commands
-      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 24 --topic payment-events
-      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 24 --topic ilp-events
+      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 24 --topic payment-domain-events
+      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 24 --topic ilp-domain-events
       echo -e '\nSuccessfully created the following topics:'
       ./kafka-topics.sh --bootstrap-server kafka:19092 --list
       "

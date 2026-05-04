@@ -1,8 +1,8 @@
 import {
   CommandTopics,
-  Message,
-  MessageConsumer,
-  MessageProducer
+  IMessage,
+  IMessageConsumer,
+  IMessageProducer
 } from 'common-types-lib';
 import {
   CreatePaymentIntentCmd,
@@ -16,13 +16,13 @@ import {
 } from 'payments-domain-lib';
 
 export class PaymentsCommandHandler {
-  private _msgConsumer: MessageConsumer;
-  private _msgProducer: MessageProducer;
+  private _msgConsumer: IMessageConsumer;
+  private _msgProducer: IMessageProducer;
   private _paymentIntentAggregate: PaymentIntentAggregate;
 
   constructor(
-    msgConsumer: MessageConsumer,
-    msgProducer: MessageProducer,
+    msgConsumer: IMessageConsumer,
+    msgProducer: IMessageProducer,
     paymentIntentAggregate: PaymentIntentAggregate
   ) {
     this._msgConsumer = msgConsumer;
@@ -42,10 +42,10 @@ export class PaymentsCommandHandler {
     await this._msgConsumer.disconnect(true);
   }
 
-  private async _handleBatch(messages: Message[]): Promise<void> {
-    const commandMessages: Message[] = [];
+  private async _handleBatch(messages: IMessage[]): Promise<void> {
+    const commandMessages: IMessage[] = [];
     // TODO: route quote and outgoing payment commands to their aggregates
-    const unhandled: Message[] = [];
+    const unhandled: IMessage[] = [];
 
     for (const msg of messages) {
       switch (msg.msgName) {
@@ -82,7 +82,7 @@ export class PaymentsCommandHandler {
       );
     }
 
-    const eventsToPublish: Message[] = [];
+    const eventsToPublish: IMessage[] = [];
 
     if (commandMessages.length > 0) {
       const { events } =

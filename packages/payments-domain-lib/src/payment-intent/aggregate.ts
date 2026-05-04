@@ -1,4 +1,4 @@
-import { Message } from 'common-types-lib';
+import { IMessage } from 'common-types-lib';
 import {
   IIlpClientPort,
   IPaymentIntent,
@@ -62,8 +62,8 @@ export class PaymentIntentAggregate {
     private _ilpClientPort: IIlpClientPort
   ) {}
 
-  async handleBatch(cmds: Message[]): Promise<{ events: Message[] }> {
-    const outputEvents: Message[] = [];
+  async handleBatch(cmds: IMessage[]): Promise<{ events: IMessage[] }> {
+    const outputEvents: IMessage[] = [];
 
     // prefetch any external data needed to process the batch
     const walletAddressIdSet = new Set<string>();
@@ -155,7 +155,7 @@ export class PaymentIntentAggregate {
     }
 
     for (const cmd of cmds) {
-      let event: Message;
+      let event: IMessage;
       if (cmd.msgName === CreatePaymentIntentCmd.name) {
         event = this.handleCreatePaymentIntentCommand(
           cmd as CreatePaymentIntentCmd
@@ -247,6 +247,7 @@ export class PaymentIntentAggregate {
     } catch (err) {
       const event = new PaymentIntentCreateFailedEvent(
         {
+          paymentIntentId: cmd.payload.id,
           errorName: (err as Error).constructor.name,
           message: (err as Error).message
         },
@@ -380,6 +381,7 @@ export class PaymentIntentAggregate {
     } catch (err) {
       const event = new QuoteCreateFailedEvent(
         {
+          paymentIntentId: cmd.payload.paymentIntentId,
           errorName: (err as Error).constructor.name,
           message: (err as Error).message
         },
@@ -457,6 +459,7 @@ export class PaymentIntentAggregate {
     } catch (err) {
       const event = new PaymentCreateFailedEvent(
         {
+          paymentIntentId: cmd.payload.paymentIntentId,
           errorName: (err as Error).constructor.name,
           message: (err as Error).message
         },
@@ -551,6 +554,7 @@ export class PaymentIntentAggregate {
     } catch (err) {
       return new LocalPaymentCompleteFailedEvent(
         {
+          paymentIntentId: cmd.payload.paymentIntentId,
           errorName: (err as Error).constructor.name,
           message: (err as Error).message
         },
