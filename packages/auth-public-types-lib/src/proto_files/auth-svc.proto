@@ -27,18 +27,14 @@ message AccessItem {
 
 message GrantAccessToken {
 	string value = 1;
-	string manage = 2;
+	string management_id = 2;
 	int32 expires_in = 3;
 	repeated AccessItem access = 4;
 }
 
 message GrantContinuation {
-	message GrantContinueAccessToken {
-		string value = 1;
-	}
-	GrantContinueAccessToken access_token = 1;
-	string uri = 2;
-	int32 wait = 3;
+	string continue_token = 1;
+	string continue_id = 2;
 }
 
 message Grant {
@@ -63,19 +59,15 @@ enum AccessAction {
 
 message Amount {
 	string value = 1;
-	string asset_code = 2;
-	int32 asset_scale = 3;	
+	int32 scale = 2;	
 }
 
 message AccessLimits {
 	string receiver = 1;
 	Amount debit_amount = 2;
 	Amount send_amount = 3;
-	string interval = 4;
-}
-
-message GrantRequestAccessToken {
-	repeated AccessItem access = 1;
+	string asset_code = 4;
+	string interval = 5;
 }
 
 enum StartMethod {
@@ -92,11 +84,6 @@ message GrantRequestFinish {
 	string nonce = 3;
 }
 
-message GrantRequestInteract {
-	repeated StartMethod start = 1;
-	GrantRequestFinish finish = 2;
-}
-
 message SubjectId {
 	string format = 1;
 	string id = 2;
@@ -107,11 +94,11 @@ message Subject {
 }
 
 message GrantRequest {
-	string tenant_id = 1;
-	GrantRequestAccessToken access_token = 2;
-	string client = 3;
-	GrantRequestInteract interact = 4;
-	Subject subject = 5;
+	repeated AccessItem access = 1;
+	string client = 2;
+	Subject subject = 3;
+	repeated StartMethod start = 4;
+	GrantRequestFinish finish = 5;
 }
 
 message GrantContinuationRequest {
@@ -121,43 +108,42 @@ message GrantContinuationRequest {
 }
 
 message GrantRevocationRequest {
-	string tenant_id = 1;
-	string continue_id = 2;
-	string continue_token = 3;
+	string continue_id = 1;
+	string continue_token = 2;
 }
 
 message AccessToken {
 	repeated AccessItem access = 1;
-	string tokenvalue = 2;
-	string manage = 3;
+	string value = 2;
+	string management_id = 3;
 	int32 expires_in = 4;
 }
 
 message TokenInfo {
 	bool active = 1;
-	string grant = 2;
+	string grant_id = 2;
 	repeated AccessItem access = 3;
 	string client = 4;
 }
 
 message TokenIntrospectionRequest {
-	string access_token = 1;
+	string token_value = 1;
 	repeated AccessItem access = 2;
 }
 
 message TokenRotationRequest {
-	string access_token_id = 1;
+	string token_value = 1;
+	string management_id = 2;
 }
 
 message TokenRevocationRequest {
-	string access_token_id = 1;
+	string token_value = 1;
+	string management_id = 2;
 }
 
 message StartInteractionRequest {
 	string interact_id = 1;
 	string nonce = 2;
-	string client_name = 3;
-	string client_uri = 4;
 }
 
 enum InteractionState {
@@ -173,7 +159,6 @@ message StartOrFinishInteractionResponse {
 message FinishInteractionRequest {
 	string interact_id = 1;
 	string nonce = 2;
-	string session_nonce = 3;
 }
 
 message GetGrantDetailsRequest {
