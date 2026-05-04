@@ -1,9 +1,8 @@
 import {
-  CommandTopics,
-  EventTopics,
-  Message,
-  MessageConsumer,
-  MessageProducer
+  DomainEventTopics,
+  IMessage,
+  IMessageConsumer,
+  IMessageProducer
 } from 'common-types-lib';
 import {
   FinalizeRemoteQuoteCmd,
@@ -31,16 +30,16 @@ interface IlpQuoteFailedPayload {
 }
 
 export class PaymentsEventHandler {
-  private _msgConsumer: MessageConsumer;
-  private _msgProducer: MessageProducer;
+  private _msgConsumer: IMessageConsumer;
+  private _msgProducer: IMessageProducer;
 
-  constructor(msgConsumer: MessageConsumer, msgProducer: MessageProducer) {
+  constructor(msgConsumer: IMessageConsumer, msgProducer: IMessageProducer) {
     this._msgConsumer = msgConsumer;
     this._msgProducer = msgProducer;
   }
 
   async start(): Promise<void> {
-    this._msgConsumer.setTopics([EventTopics.IlpEvents]);
+    this._msgConsumer.setTopics([DomainEventTopics.ILPEvents]);
     this._msgConsumer.setCallbackFn(this._handleEvent.bind(this));
     await this._msgConsumer.connect();
     await this._msgConsumer.startAndWaitForRebalance();
@@ -51,7 +50,7 @@ export class PaymentsEventHandler {
     await this._msgConsumer.disconnect(true);
   }
 
-  private async _handleEvent(message: Message): Promise<void> {
+  private async _handleEvent(message: IMessage): Promise<void> {
     switch (message.msgName) {
       case ILP_QUOTE_DETERMINED_EVENT: {
         const payload = message.payload as IlpQuoteDeterminedPayload;
@@ -65,7 +64,6 @@ export class PaymentsEventHandler {
           },
           message.requestId ?? ''
         );
-        cmd.msgTopic = CommandTopics.PaymentCommands;
         await this._msgProducer.send(cmd);
         break;
       }
@@ -80,7 +78,6 @@ export class PaymentsEventHandler {
           },
           message.requestId ?? ''
         );
-        cmd.msgTopic = CommandTopics.PaymentCommands;
         await this._msgProducer.send(cmd);
         break;
       }
