@@ -507,6 +507,7 @@ export class PaymentIntentAggregate {
     } catch (err) {
       return new QuoteCreateFailedEvent(
         {
+          paymentIntentId: cmd.payload.paymentIntentId,
           errorName: (err as Error).constructor.name,
           message: (err as Error).message
         },
@@ -518,7 +519,11 @@ export class PaymentIntentAggregate {
   private handleFailRemoteQuoteCommand(cmd: FailRemoteQuoteCmd) {
     // TODO: should we change from PENDING to a new FAILED QuoteState? Could it ever be retried? Anything else?
     return new QuoteCreateFailedEvent(
-      { errorName: cmd.payload.errorName, message: cmd.payload.message },
+      {
+        paymentIntentId: cmd.payload.paymentIntentId,
+        errorName: cmd.payload.errorName,
+        message: cmd.payload.message
+      },
       cmd.requestId
     );
   }
@@ -571,7 +576,11 @@ export class PaymentIntentAggregate {
     const error = this.remotePaymentIntentFetchErrors.get(id);
     if (error) {
       return new RemotePaymentIntentImportFailedEvent(
-        { errorName: error.constructor.name, message: error.message },
+        {
+          paymentIntentId: id,
+          errorName: error.constructor.name,
+          message: error.message
+        },
         cmd.requestId
       );
     }

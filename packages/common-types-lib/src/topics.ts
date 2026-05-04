@@ -4,7 +4,8 @@ export enum DomainEventTopics {
   'AuthEvents' = 'auth-domain-events',
   'LedgerEvents' = 'ledger-domain-events',
   'AssetEvents' = 'asset-domain-events',
-  'WalletAddressEvents' = 'wallet-address-domain-events'
+  'WalletAddressEvents' = 'wallet-address-domain-events',
+  'ILPEvents' = 'ilp-domain-events'
 }
 
 // TODO pedro: not sure we should keep commands, state events and snapshots in the common types lib,
