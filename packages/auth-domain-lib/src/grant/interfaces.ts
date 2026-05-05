@@ -113,7 +113,7 @@ export interface IInteraction {
   interactRef: string;
   clientNonce: string;
   state: InteractionState;
-  expiresIn: number;
+  expiresInMs: number;
 }
 
 export type IGrantEntity = Omit<IGrant, 'id'>;
@@ -145,7 +145,7 @@ export type RevokedAccessToken = IAccessToken & {
 export interface IAccessToken {
   value: string;
   managementId: string;
-  expiresIn: number;
+  expiresInMs: number;
   createdAt: Date;
   revokedAt?: Date;
 }

@@ -89,8 +89,8 @@ function compareAccessItems(
 }
 
 const GRANT_POLL_MS = 5_000; // 5 seconds
-const INTERACTION_EXPIRY_SECONDS = 10;
-const ACCESS_TOKEN_EXPIRY_SECONDS = 10;
+const INTERACTION_EXPIRY_MS = 10_000; // 10 seconds
+const ACCESS_TOKEN_EXPIRY_MS = 10_000; // 10 seconds
 
 export class GrantEntity implements IGrantEntity {
   private _id: string;
@@ -186,7 +186,7 @@ export class GrantEntity implements IGrantEntity {
     this._interaction = {
       interactRef: uuid(),
       clientNonce: crypto.randomBytes(16).toString('hex').toUpperCase(),
-      expiresIn: INTERACTION_EXPIRY_SECONDS,
+      expiresInMs: INTERACTION_EXPIRY_MS,
       state: InteractionState.PENDING
     };
 
@@ -267,7 +267,7 @@ export class GrantEntity implements IGrantEntity {
       managementId: uuid(),
       value: generateAccessToken(),
       createdAt: new Date(),
-      expiresIn: ACCESS_TOKEN_EXPIRY_SECONDS
+      expiresInMs: ACCESS_TOKEN_EXPIRY_MS
     };
     this._accessTokens.set(newAccessToken.value, newAccessToken);
     return newAccessToken;
@@ -284,7 +284,7 @@ export class GrantEntity implements IGrantEntity {
     if (
       !accessToken ||
       accessToken.revokedAt ||
-      accessToken.createdAt.getTime() + accessToken.expiresIn < Date.now()
+      accessToken.createdAt.getTime() + accessToken.expiresInMs < Date.now()
     ) {
       return { active: false };
     }
