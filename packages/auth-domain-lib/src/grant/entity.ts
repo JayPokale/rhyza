@@ -227,7 +227,10 @@ export class GrantEntity implements IGrantEntity {
 
     this._lastContinuedAt = new Date();
 
-    if (!this._interaction) {
+    if (
+      !this._interaction ||
+      this._interaction.state === InteractionState.PENDING
+    ) {
       throw new InvalidInteractionError();
     }
 
