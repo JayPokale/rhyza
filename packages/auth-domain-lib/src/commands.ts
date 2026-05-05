@@ -66,7 +66,6 @@ export interface RevokeGrantCmdPayload {
   tenantId: string;
   continueId: string;
   continueToken: string;
-  interactRef: string;
 }
 
 export class RevokeGrantCmd extends CommandMsg {
@@ -88,6 +87,7 @@ export interface ContinueGrantCmdPayload {
   id: string;
   continueId: string;
   continueToken: string;
+  interactRef: string;
 }
 
 export class ContinueGrantCommand extends CommandMsg {

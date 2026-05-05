@@ -208,7 +208,8 @@ export class GrantEntity implements IGrantEntity {
   // Continues the grant, if an interaction was required.
   continueGrant(
     continueToken: string,
-    continueId: string
+    continueId: string,
+    interactRef: string
   ): NewAccessToken | undefined {
     if (
       continueToken !== this.continueToken ||
@@ -229,6 +230,7 @@ export class GrantEntity implements IGrantEntity {
 
     if (
       !this._interaction ||
+      this._interaction.interactRef !== interactRef ||
       this._interaction.state === InteractionState.PENDING
     ) {
       throw new InvalidInteractionError();
