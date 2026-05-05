@@ -167,5 +167,5 @@ class InteractionChoiceCommand extends CommandMsg {
   }
 }
 
-export class InteractionApprovedCommand extends InteractionChoiceCommand { }
-export class InteractionDeniedCommand extends InteractionChoiceCommand { }
+export class InteractionApprovedCommand extends InteractionChoiceCommand {}
+export class InteractionDeniedCommand extends InteractionChoiceCommand {}

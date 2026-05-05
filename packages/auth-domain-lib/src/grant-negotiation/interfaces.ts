@@ -147,4 +147,3 @@ export interface Interaction {
   state: InteractionState;
   expiresIn: number;
 }
-
