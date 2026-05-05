@@ -107,7 +107,9 @@ export interface IRemotePaymentIntentService {
 }
 
 export interface IPeerService {
-  resolvePeerByIlpAddress(destinationIlpAddress: string): Promise<{ peerId: string }>;
+  resolvePeerByIlpAddress(
+    destinationIlpAddress: string
+  ): Promise<{ peerId: string }>;
 }
 
 export interface IPaymentIntentRepository {

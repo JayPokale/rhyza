@@ -31,7 +31,11 @@ export class AdminApiService {
     await this.palClient.init();
     console.log(`Connected to PAL service at ${PAL_GRPC_URL}`);
 
-    this.paymentsClient = new PaymentsClient(PAYMENTS_GRPC_URL, 5_000, OPEN_PAYMENTS_URL);
+    this.paymentsClient = new PaymentsClient(
+      PAYMENTS_GRPC_URL,
+      5_000,
+      OPEN_PAYMENTS_URL
+    );
     await this.paymentsClient.init();
     console.log(`Connected to Payments service at ${PAYMENTS_GRPC_URL}`);
 

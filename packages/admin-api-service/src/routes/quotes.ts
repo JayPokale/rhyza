@@ -34,7 +34,9 @@ export async function quoteRoutes(
       incomingPaymentUrl
     } = request.body;
 
-    let incomingPayment: { incomingPaymentUrl: string } | { incomingPaymentId: string };
+    let incomingPayment:
+      | { incomingPaymentUrl: string }
+      | { incomingPaymentId: string };
     if (incomingPaymentUrl) {
       incomingPayment = { incomingPaymentUrl };
     } else if (incomingPaymentId) {

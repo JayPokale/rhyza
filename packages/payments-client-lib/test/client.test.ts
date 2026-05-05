@@ -271,7 +271,10 @@ describe('Payments Client', () => {
       try {
         await clientWithoutUrl.createQuote(
           randomUUID(),
-          { incomingPaymentUrl: 'https://remote.example.com/incoming-payments/123' },
+          {
+            incomingPaymentUrl:
+              'https://remote.example.com/incoming-payments/123'
+          },
           senderWalletAddressId,
           SENDER_WALLET_ADDRESS
         );

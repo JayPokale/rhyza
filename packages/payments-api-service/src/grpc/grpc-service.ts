@@ -323,7 +323,9 @@ export class PaymentsServiceServer {
     const evt = message as PaymentIntentDomainEvent;
 
     if (PaymentIntentDomainEvent.isPaymentIntentCreatedEvent(evt)) {
-      const response = new CreateIncomingPaymentResponse().setId(evt.payload.id);
+      const response = new CreateIncomingPaymentResponse().setId(
+        evt.payload.id
+      );
       this._resolvePendingResponse(pending, requestId, null, response);
     } else if (PaymentIntentDomainEvent.isPaymentIntentCreateFailedEvent(evt)) {
       this._resolvePendingResponse(pending, requestId, {
@@ -345,7 +347,9 @@ export class PaymentsServiceServer {
         metadata: new grpc.Metadata()
       });
     } else if (PaymentIntentDomainEvent.isPaymentCreatedEvent(evt)) {
-      const response = new CreateOutgoingPaymentResponse().setId(evt.payload.id);
+      const response = new CreateOutgoingPaymentResponse().setId(
+        evt.payload.id
+      );
       this._resolvePendingResponse(pending, requestId, null, response);
     } else if (PaymentIntentDomainEvent.isPaymentCreateFailedEvent(evt)) {
       this._resolvePendingResponse(pending, requestId, {
@@ -356,9 +360,13 @@ export class PaymentsServiceServer {
         metadata: new grpc.Metadata()
       });
     } else if (PaymentIntentDomainEvent.isLocalPaymentCompletedEvent(evt)) {
-      const response = new ApproveOutgoingPaymentResponse().setId(evt.payload.id);
+      const response = new ApproveOutgoingPaymentResponse().setId(
+        evt.payload.id
+      );
       this._resolvePendingResponse(pending, requestId, null, response);
-    } else if (PaymentIntentDomainEvent.isLocalPaymentCompleteFailedEvent(evt)) {
+    } else if (
+      PaymentIntentDomainEvent.isLocalPaymentCompleteFailedEvent(evt)
+    ) {
       this._resolvePendingResponse(pending, requestId, {
         code: grpc.status.INTERNAL,
         message: evt.payload.message || 'Command processing failed',
@@ -366,7 +374,9 @@ export class PaymentsServiceServer {
         name: evt.payload.errorName || 'CommandError',
         metadata: new grpc.Metadata()
       });
-    } else if (PaymentIntentDomainEvent.isRemotePaymentIntentImportedEvent(evt)) {
+    } else if (
+      PaymentIntentDomainEvent.isRemotePaymentIntentImportedEvent(evt)
+    ) {
       const response = new ImportRemoteIncomingPaymentResponse().setId(
         evt.payload.id
       );
