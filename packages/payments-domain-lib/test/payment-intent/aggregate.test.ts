@@ -12,7 +12,8 @@ import { CreatePaymentCmd, CreatePaymentIntentCmd } from '../../src/commands';
 import {
   MockPaymentIntentRepo,
   MockWalletAddressAdapter,
-  MockRatesAdapter
+  MockRatesAdapter,
+  MockRemotePaymentIntentService
 } from '../mocks';
 import { QuoteCreateFailedEvent } from '../../src/payment-intent/events';
 import { CreateQuoteCmd } from '../../src/commands';
@@ -113,6 +114,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
   let repo: MockPaymentIntentRepo;
   let walletAddressAdapter: MockWalletAddressAdapter;
   let mockRatesAdapter: MockRatesAdapter;
+  let mockRemotePaymentIntentService: MockRemotePaymentIntentService;
   let aggregate: PaymentIntentAggregate;
 
   beforeEach(() => {
@@ -125,10 +127,12 @@ describe('PaymentIntentAggregate.handleBatch', () => {
       assetScale: 2
     });
     mockRatesAdapter = new MockRatesAdapter();
+    mockRemotePaymentIntentService = new MockRemotePaymentIntentService();
     aggregate = new PaymentIntentAggregate(
       repo,
       walletAddressAdapter,
-      mockRatesAdapter
+      mockRatesAdapter,
+      mockRemotePaymentIntentService
     );
   });
 

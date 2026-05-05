@@ -10,6 +10,7 @@ export class PalPeerServiceAdapter implements IPeerService {
 
   // TODO: implement using palClient once PAL exposes resolvePeerByIlpAddress
   async resolvePeerByIlpAddress(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _destinationIlpAddress: string
   ): Promise<{ peerId: string }> {
     return { peerId: '' };
