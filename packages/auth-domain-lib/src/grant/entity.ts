@@ -88,6 +88,10 @@ function compareAccessItems(
   return true;
 }
 
+const GRANT_POLL_MS = 5_000; // 5 seconds
+const INTERACTION_EXPIRY_SECONDS = 10;
+const ACCESS_TOKEN_EXPIRY_SECONDS = 10;
+
 export class GrantEntity implements IGrantEntity {
   private _id: string;
   private _startMethods: IStartMethod[];
@@ -182,7 +186,7 @@ export class GrantEntity implements IGrantEntity {
     this._interaction = {
       interactRef: uuid(),
       clientNonce: crypto.randomBytes(16).toString('hex').toUpperCase(),
-      expiresIn: Number(process.env.INTERACTION_EXPIRY_SECONDS),
+      expiresIn: INTERACTION_EXPIRY_SECONDS,
       state: InteractionState.PENDING
     };
 
@@ -215,8 +219,7 @@ export class GrantEntity implements IGrantEntity {
 
     if (
       this._lastContinuedAt &&
-      this._lastContinuedAt.getTime() + Number(process.env.GRANT_POLL_MS) <
-        Date.now()
+      this._lastContinuedAt.getTime() + GRANT_POLL_MS < Date.now()
     ) {
       this._lastContinuedAt = new Date();
       throw new InvalidGrantError('Cannot continue grant too soon');
@@ -259,7 +262,7 @@ export class GrantEntity implements IGrantEntity {
       managementId: uuid(),
       value: generateAccessToken(),
       createdAt: new Date(),
-      expiresIn: Number(process.env.ACCESS_TOKEN_EXPIRY_SECONDS)
+      expiresIn: ACCESS_TOKEN_EXPIRY_SECONDS
     };
     this._accessTokens.set(newAccessToken.value, newAccessToken);
     return newAccessToken;
