@@ -24,7 +24,6 @@ import {
   RevokedAccessToken,
   GrantFinalization,
   InteractiveAccessType,
-  AccessType,
   IJsonWebKey,
   AccessAction
 } from './interfaces';
@@ -267,22 +266,24 @@ export class GrantEntity implements IGrantEntity {
   }
 
   // Introspect an access token.
-  // Returns the union between the requested accesses and the grant's accesses.
+  // Returns an active boolean, and if true,
+  // then the union between the requested accesses and the grant's accesses.
   introspectAccessToken(
     value: string,
     requestedAccesses: IAccessItem[]
-  ): IAccessItem[] {
+  ): { active: boolean; access?: IAccessItem[] } {
     const accessToken = this._accessTokens.get(value);
     if (
       !accessToken ||
       accessToken.revokedAt ||
       accessToken.createdAt.getTime() + accessToken.expiresIn < Date.now()
     ) {
-      throw new UnknownAccessTokenError();
+      return { active: false };
     }
 
-    if (this.finalizationReason !== GrantFinalization.ISSUED)
-      throw new InvalidGrantError();
+    if (this.finalizationReason !== GrantFinalization.ISSUED) {
+      return { active: false };
+    }
 
     const allowedAccessItems: IAccessItem[] = [];
     for (const requestedAccessItem of requestedAccesses) {
@@ -293,7 +294,10 @@ export class GrantEntity implements IGrantEntity {
         allowedAccessItems.push(allowedAccessItem);
       }
     }
-    return allowedAccessItems;
+
+    if (allowedAccessItems.length === requestedAccesses.length)
+      return { active: false };
+    return { active: true, access: allowedAccessItems };
   }
 
   revokeAccessToken(value: string): RevokedAccessToken {
