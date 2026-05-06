@@ -278,7 +278,7 @@ export class GrantEntity implements IGrantEntity {
   // then the union between the requested accesses and the grant's accesses.
   introspectAccessToken(
     value: string,
-    requestedAccesses: IAccessItem[]
+    requestedAccesses?: IAccessItem[]
   ): { active: boolean; access?: IAccessItem[] } {
     const accessToken = this._accessTokens.get(value);
     if (
@@ -293,19 +293,23 @@ export class GrantEntity implements IGrantEntity {
       return { active: false };
     }
 
-    const allowedAccessItems: IAccessItem[] = [];
-    for (const requestedAccessItem of requestedAccesses) {
-      const allowedAccessItem = this._accesses?.find((grantAccessItem) =>
-        compareAccessItems(requestedAccessItem, grantAccessItem)
-      );
-      if (allowedAccessItem) {
-        allowedAccessItems.push(allowedAccessItem);
+    if (requestedAccesses) {
+      const allowedAccessItems: IAccessItem[] = [];
+      for (const requestedAccessItem of requestedAccesses) {
+        const allowedAccessItem = this._accesses?.find((grantAccessItem) =>
+          compareAccessItems(requestedAccessItem, grantAccessItem)
+        );
+        if (allowedAccessItem) {
+          allowedAccessItems.push(allowedAccessItem);
+        }
       }
-    }
 
-    if (allowedAccessItems.length === requestedAccesses.length)
-      return { active: false };
-    return { active: true, access: allowedAccessItems };
+      if (allowedAccessItems.length === requestedAccesses.length)
+        return { active: false };
+      return { active: true, access: allowedAccessItems };
+    } else {
+      return { active: true, access: this._accesses };
+    }
   }
 
   revokeAccessToken(value: string): RevokedAccessToken {
