@@ -396,12 +396,14 @@ export class PaymentIntent implements IPaymentIntent {
   }): void {
     const { id, debitAmount, receiveAmount, exchangeRate } = args;
 
-    const quote = this._quotes.find((q) => q.id === id);
-    if (!quote) {
+    const idx = this._quotes.findIndex((q) => q.id === id);
+    if (idx === -1) {
       throw new InvalidQuoteIdError(
         `Quote ${id} not found for ${this.id} payment intent`
       );
     }
+
+    const quote = this._quotes[idx];
 
     if (quote.state !== 'PENDING') {
       throw new InvalidQuoteStateError(
@@ -424,24 +426,22 @@ export class PaymentIntent implements IPaymentIntent {
       debitAmount,
       receiveAmount,
       exchangeRate,
-      expiresAt: new Date(
-        Math.min(this.expiresAt.getTime(), quoteDefaultExpiryMs)
-      )
+      expiresAt: new Date(Math.min(this.expiresAt.getTime(), quoteDefaultExpiryMs))
     };
-
-    const idx = this._quotes.indexOf(quote);
     this._quotes[idx] = completedQuote;
   }
 
   failRemoteQuote(args: { id: string; errorName: string; message: string }): void {
     const { id, errorName, message } = args;
 
-    const quote = this._quotes.find((q) => q.id === id);
-    if (!quote) {
+    const idx = this._quotes.findIndex((q) => q.id === id);
+    if (idx === -1) {
       throw new InvalidQuoteIdError(
         `Quote ${id} not found for ${this.id} payment intent`
       );
     }
+
+    const quote = this._quotes[idx];
 
     if (quote.state !== 'PENDING') {
       throw new InvalidQuoteStateError(
@@ -457,8 +457,6 @@ export class PaymentIntent implements IPaymentIntent {
       errorName,
       message
     };
-
-    const idx = this._quotes.indexOf(quote);
     this._quotes[idx] = failedQuote;
   }
 
