@@ -1,11 +1,11 @@
 meta {
   name: Approve Outgoing Payment
   type: http
-  seq: 8
+  seq: 7
 }
 
 post {
-  url: http://{{baseUrl}}/outgoing-payments/{{outgoingPaymentId}}/approve
+  url: http://{{adminApiUrl}}/outgoing-payments/{{outgoingPaymentId}}/approve
   body: json
   auth: none
 }

@@ -1,20 +1,13 @@
 meta {
-  name: Incoming Payment
+  name: Wallet Address
   type: http
-  seq: 5
+  seq: 2
 }
 
-post {
-  url: http://{{baseUrl}}/incoming-payments
+get {
+  url: http://localhost:3002/receiver
   body: json
   auth: none
-}
-
-body:json {
-  {
-    "walletAddress": "test.com/receiver",
-    "incomingAmount": 100
-  }
 }
 
 script:post-response {
