@@ -23,7 +23,7 @@ import {
 const MAX_PAYMENT_INTENT_EXPIRY_MS = 1000 * 60 * 60 * 24 * 30; // 30 days
 const QUOTE_EXPIRY_MS = 1000 * 60 * 10;
 
-type Quote = PendingQuote | CompletedQuote;
+type Quote = PendingQuote | CompletedQuote | FailedQuote;
 
 interface BaseQuote {
   id: string;
@@ -42,6 +42,12 @@ interface CompletedQuote extends BaseQuote {
   receiveAmount: bigint;
   debitAmount: bigint;
   exchangeRate: number;
+}
+
+interface FailedQuote extends BaseQuote {
+  state: 'FAILED';
+  errorName: string;
+  message: string;
 }
 
 interface Payment {
@@ -181,15 +187,19 @@ export class PaymentIntent implements IPaymentIntent {
         senderWalletAddressId: quote.senderWalletAddressId,
         ...(quote.state === 'COMPLETED'
           ? {
+              state: quote.state,
               debitAmount: quote.debitAmount,
               receiveAmount: quote.receiveAmount,
               expiresAt: quote.expiresAt,
-              exchangeRate: quote.exchangeRate,
-              state: quote.state
+              exchangeRate: quote.exchangeRate
             }
-          : {
-              state: quote.state
-            })
+          : quote.state === 'FAILED'
+            ? {
+                state: quote.state,
+                errorName: quote.errorName,
+                message: quote.message
+              }
+            : { state: quote.state })
       })),
       obj.payments.map((payment) => ({
         id: payment.id,
@@ -227,15 +237,19 @@ export class PaymentIntent implements IPaymentIntent {
         senderWalletAddressId: quote.senderWalletAddressId,
         ...(quote.state === 'COMPLETED'
           ? {
+              state: quote.state,
               debitAmount: quote.debitAmount,
               receiveAmount: quote.receiveAmount,
               expiresAt: quote.expiresAt,
-              exchangeRate: quote.exchangeRate,
-              state: quote.state
+              exchangeRate: quote.exchangeRate
             }
-          : {
-              state: quote.state
-            })
+          : quote.state === 'FAILED'
+            ? {
+                state: quote.state,
+                errorName: quote.errorName,
+                message: quote.message
+              }
+            : { state: quote.state })
       })),
       payments: this._payments.map((payment) => ({
         id: payment.id,
@@ -417,6 +431,35 @@ export class PaymentIntent implements IPaymentIntent {
 
     const idx = this._quotes.indexOf(quote);
     this._quotes[idx] = completedQuote;
+  }
+
+  failRemoteQuote(args: { id: string; errorName: string; message: string }): void {
+    const { id, errorName, message } = args;
+
+    const quote = this._quotes.find((q) => q.id === id);
+    if (!quote) {
+      throw new InvalidQuoteIdError(
+        `Quote ${id} not found for ${this.id} payment intent`
+      );
+    }
+
+    if (quote.state !== 'PENDING') {
+      throw new InvalidQuoteStateError(
+        `Quote ${id} is not in PENDING state, cannot fail`
+      );
+    }
+
+    const failedQuote: FailedQuote = {
+      id: quote.id,
+      state: 'FAILED',
+      senderWalletAddress: quote.senderWalletAddress,
+      senderWalletAddressId: quote.senderWalletAddressId,
+      errorName,
+      message
+    };
+
+    const idx = this._quotes.indexOf(quote);
+    this._quotes[idx] = failedQuote;
   }
 
   addLocalPayment(args: {

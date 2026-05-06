@@ -5,7 +5,7 @@ import {
   IMessageProducer
 } from 'common-types-lib';
 import {
-  FinalizeRemoteQuoteCmd,
+  CompleteRemoteQuoteCmd,
   FailRemoteQuoteCmd
 } from 'payments-domain-lib';
 
@@ -54,7 +54,7 @@ export class PaymentsEventHandler {
     switch (message.msgName) {
       case ILP_QUOTE_DETERMINED_EVENT: {
         const payload = message.payload as IlpQuoteDeterminedPayload;
-        const cmd = new FinalizeRemoteQuoteCmd(
+        const cmd = new CompleteRemoteQuoteCmd(
           {
             quoteId: payload.quoteId,
             paymentIntentId: payload.paymentIntentId,

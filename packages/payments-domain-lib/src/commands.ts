@@ -26,10 +26,10 @@ export abstract class PaymentIntentCommand extends CommandMsg {
     return cmd.msgName === ApprovePaymentCmd.name;
   }
 
-  static isFinalizeRemoteQuoteCmd(
+  static isCompleteRemoteQuoteCmd(
     cmd: CommandMsg
-  ): cmd is FinalizeRemoteQuoteCmd {
-    return cmd.msgName === FinalizeRemoteQuoteCmd.name;
+  ): cmd is CompleteRemoteQuoteCmd {
+    return cmd.msgName === CompleteRemoteQuoteCmd.name;
   }
 
   static isFailRemoteQuoteCmd(cmd: CommandMsg): cmd is FailRemoteQuoteCmd {
@@ -115,7 +115,7 @@ export class ApprovePaymentCmd extends PaymentIntentCommand {
   }
 }
 
-export type FinalizeRemoteQuoteCmdPayload = {
+export type CompleteRemoteQuoteCmdPayload = {
   quoteId: string;
   paymentIntentId: string;
   maxSourceAmount: number;
@@ -123,10 +123,10 @@ export type FinalizeRemoteQuoteCmdPayload = {
   lowEstimatedExchangeRate: number;
 };
 
-export class FinalizeRemoteQuoteCmd extends PaymentIntentCommand {
-  payload: FinalizeRemoteQuoteCmdPayload;
+export class CompleteRemoteQuoteCmd extends PaymentIntentCommand {
+  payload: CompleteRemoteQuoteCmdPayload;
 
-  constructor(payload: FinalizeRemoteQuoteCmdPayload, requestId: string) {
+  constructor(payload: CompleteRemoteQuoteCmdPayload, requestId: string) {
     super(payload.paymentIntentId);
     this.requestId = requestId;
     this.payload = payload;

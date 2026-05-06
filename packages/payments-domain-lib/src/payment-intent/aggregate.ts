@@ -1,5 +1,6 @@
 import { IMessage } from 'common-types-lib';
 import {
+  FinalizedRemoteQuoteUpdate,
   IPaymentIntent,
   IPaymentIntentRepository,
   IRatesService,
@@ -16,7 +17,7 @@ import {
   CreateQuoteCmd,
   CreatePaymentCmd,
   ApprovePaymentCmd,
-  FinalizeRemoteQuoteCmd,
+  CompleteRemoteQuoteCmd,
   FailRemoteQuoteCmd,
   ImportRemotePaymentIntentCmd
 } from '../commands';
@@ -48,7 +49,7 @@ export class PaymentIntentAggregate {
   private newPaymentIntentQuotes = new Map<string, string[]>(); // paymentIntentId, quoteIds
   private newPaymentsMap = new Map<string, string[]>(); // paymentIntentId, paymentIds
   private completedLocalPayments = new Map<string, string[]>(); // paymentIntentId, paymentIds
-  private completedRemoteQuotes = new Map<string, string[]>(); // paymentIntentId, quoteIds
+  private finalizedRemoteQuotes = new Map<string, string[]>(); // paymentIntentId, quoteIds
   private paymentIntentMap = new Map<string, IPaymentIntent>();
   private walletAddressMap = new Map<string, WalletAddress>();
   private remotePaymentIntentFetchErrors = new Map<string, Error>();
@@ -83,8 +84,8 @@ export class PaymentIntentAggregate {
       } else if (cmd.msgName === ApprovePaymentCmd.name) {
         const payload = (cmd as ApprovePaymentCmd).payload;
         paymentIntentIdsSet.add(payload.paymentIntentId);
-      } else if (cmd.msgName === FinalizeRemoteQuoteCmd.name) {
-        const payload = (cmd as FinalizeRemoteQuoteCmd).payload;
+      } else if (cmd.msgName === CompleteRemoteQuoteCmd.name) {
+        const payload = (cmd as CompleteRemoteQuoteCmd).payload;
         paymentIntentIdsSet.add(payload.paymentIntentId);
       } else if (cmd.msgName === FailRemoteQuoteCmd.name) {
         const payload = (cmd as FailRemoteQuoteCmd).payload;
@@ -166,9 +167,9 @@ export class PaymentIntentAggregate {
         event = await this.handleApprovePaymentCommand(
           cmd as ApprovePaymentCmd
         );
-      } else if (cmd.msgName === FinalizeRemoteQuoteCmd.name) {
-        event = this.handleFinalizeRemoteQuoteCommand(
-          cmd as FinalizeRemoteQuoteCmd
+      } else if (cmd.msgName === CompleteRemoteQuoteCmd.name) {
+        event = this.handleCompleteRemoteQuoteCommand(
+          cmd as CompleteRemoteQuoteCmd
         );
       } else if (cmd.msgName === FailRemoteQuoteCmd.name) {
         event = this.handleFailRemoteQuoteCommand(cmd as FailRemoteQuoteCmd);
@@ -454,7 +455,7 @@ export class PaymentIntentAggregate {
     }
   }
 
-  private handleFinalizeRemoteQuoteCommand(cmd: FinalizeRemoteQuoteCmd) {
+  private handleCompleteRemoteQuoteCommand(cmd: CompleteRemoteQuoteCmd) {
     const {
       quoteId,
       paymentIntentId,
@@ -481,7 +482,7 @@ export class PaymentIntentAggregate {
       });
 
       this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
-      this.appendToMap(this.completedRemoteQuotes, paymentIntent.id, quoteId);
+      this.appendToMap(this.finalizedRemoteQuotes, paymentIntent.id, quoteId);
 
       return new QuoteCompletedEvent({ id: quoteId }, cmd.requestId);
     } catch (err) {
@@ -497,15 +498,37 @@ export class PaymentIntentAggregate {
   }
 
   private handleFailRemoteQuoteCommand(cmd: FailRemoteQuoteCmd) {
-    // TODO: should we change from PENDING to a new FAILED QuoteState? Could it ever be retried? Anything else?
-    return new QuoteCreateFailedEvent(
-      {
-        paymentIntentId: cmd.payload.paymentIntentId,
-        errorName: cmd.payload.errorName,
-        message: cmd.payload.message
-      },
-      cmd.requestId
-    );
+    const { quoteId, paymentIntentId, errorName, message } = cmd.payload;
+
+    try {
+      const paymentIntentObj = this.paymentIntentMap.get(paymentIntentId);
+      if (!paymentIntentObj) {
+        throw new PaymentIntentNotFoundError(
+          `Payment intent ${paymentIntentId} not found`
+        );
+      }
+
+      const paymentIntent = PaymentIntent.fromObject(paymentIntentObj);
+
+      paymentIntent.failRemoteQuote({ id: quoteId, errorName, message });
+
+      this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
+      this.appendToMap(this.finalizedRemoteQuotes, paymentIntent.id, quoteId);
+
+      return new QuoteCreateFailedEvent(
+        { paymentIntentId, errorName, message },
+        cmd.requestId
+      );
+    } catch (err) {
+      return new QuoteCreateFailedEvent(
+        {
+          paymentIntentId,
+          errorName: (err as Error).constructor.name,
+          message: (err as Error).message
+        },
+        cmd.requestId
+      );
+    }
   }
 
   private async handleApprovePaymentCommand(cmd: ApprovePaymentCmd) {
@@ -687,48 +710,56 @@ export class PaymentIntentAggregate {
       promises.push(this._repo.storeCompletedLocalPayments(updates));
     }
 
-    if (this.completedRemoteQuotes.size > 0) {
-      const updates: {
-        paymentIntentId: string;
-        quoteId: string;
-        debitAmount: bigint;
-        receiveAmount: bigint;
-        exchangeRate: number;
-        expiresAt: Date;
-      }[] = [];
+    if (this.finalizedRemoteQuotes.size > 0) {
+      const updates: FinalizedRemoteQuoteUpdate[] = [];
 
       for (const [
         paymentIntentId,
         quoteIds
-      ] of this.completedRemoteQuotes.entries()) {
+      ] of this.finalizedRemoteQuotes.entries()) {
         const paymentIntent = this.paymentIntentMap.get(paymentIntentId);
         if (!paymentIntent) {
           console.error(
-            `Payment intent ${paymentIntentId} missing from paymentIntentMap during flush (completed remote quotes)`
+            `Payment intent ${paymentIntentId} missing from paymentIntentMap during flush (finalized remote quotes)`
           );
           continue;
         }
 
         for (const quoteId of quoteIds) {
           const quote = paymentIntent.quotes.find((q) => q.id === quoteId);
-          if (!quote || quote.state !== 'COMPLETED') {
+          if (!quote) {
             console.error(
-              `Quote ${quoteId} missing or not completed in paymentIntentMap during flush`
+              `Quote ${quoteId} missing from paymentIntentMap during flush`
             );
             continue;
           }
-          updates.push({
-            paymentIntentId,
-            quoteId,
-            debitAmount: quote.debitAmount,
-            receiveAmount: quote.receiveAmount,
-            exchangeRate: quote.exchangeRate,
-            expiresAt: quote.expiresAt
-          });
+          if (quote.state === 'COMPLETED') {
+            updates.push({
+              paymentIntentId,
+              quoteId,
+              state: 'COMPLETED',
+              debitAmount: quote.debitAmount,
+              receiveAmount: quote.receiveAmount,
+              exchangeRate: quote.exchangeRate,
+              expiresAt: quote.expiresAt
+            });
+          } else if (quote.state === 'FAILED') {
+            updates.push({
+              paymentIntentId,
+              quoteId,
+              state: 'FAILED',
+              errorName: quote.errorName,
+              message: quote.message
+            });
+          } else {
+            console.error(
+              `Quote ${quoteId} has unexpected state "${quote.state}" during flush`
+            );
+          }
         }
       }
 
-      promises.push(this._repo.storeCompletedRemoteQuotes(updates));
+      promises.push(this._repo.storeFinalizedRemoteQuotes(updates));
     }
 
     // TODO handle gracefully
@@ -739,7 +770,7 @@ export class PaymentIntentAggregate {
       this.walletAddressMap.clear(); // TODO: wallet addresses are OK to be cached
       this.newPaymentsMap.clear();
       this.completedLocalPayments.clear();
-      this.completedRemoteQuotes.clear();
+      this.finalizedRemoteQuotes.clear();
       this.newPaymentIntentQuotes.clear();
       this.newPaymentIntentIds = [];
       this.remotePaymentIntentFetchErrors.clear();

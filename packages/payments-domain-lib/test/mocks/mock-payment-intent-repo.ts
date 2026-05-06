@@ -1,4 +1,5 @@
 import {
+  FinalizedRemoteQuoteUpdate,
   IPaymentIntent,
   IPaymentIntentRepository,
   PaymentIntentState,
@@ -72,16 +73,7 @@ export class MockPaymentIntentRepo implements IPaymentIntentRepository {
     }
   }
 
-  async storeCompletedRemoteQuotes(
-    updates: {
-      paymentIntentId: string;
-      quoteId: string;
-      debitAmount: bigint;
-      receiveAmount: bigint;
-      exchangeRate: number;
-      expiresAt: Date;
-    }[]
-  ): Promise<void> {
+  async storeFinalizedRemoteQuotes(updates: FinalizedRemoteQuoteUpdate[]): Promise<void> {
     for (const update of updates) {
       const paymentIntent = this._store.get(update.paymentIntentId);
       if (!paymentIntent) {
@@ -93,13 +85,21 @@ export class MockPaymentIntentRepo implements IPaymentIntentRepository {
         throw new Error('Could not find quote in store');
       }
 
-      Object.assign(quote, {
-        state: 'COMPLETED',
-        debitAmount: update.debitAmount,
-        receiveAmount: update.receiveAmount,
-        exchangeRate: update.exchangeRate,
-        expiresAt: update.expiresAt
-      });
+      if (update.state === 'COMPLETED') {
+        Object.assign(quote, {
+          state: 'COMPLETED',
+          debitAmount: update.debitAmount,
+          receiveAmount: update.receiveAmount,
+          exchangeRate: update.exchangeRate,
+          expiresAt: update.expiresAt
+        });
+      } else {
+        Object.assign(quote, {
+          state: 'FAILED',
+          errorName: update.errorName,
+          message: update.message
+        });
+      }
     }
   }
 

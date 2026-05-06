@@ -1,5 +1,6 @@
 import { Collection, CollectionInfo, Db, MongoClient } from 'mongodb';
 import {
+  FinalizedRemoteQuoteUpdate,
   IPayment,
   IPaymentIntent,
   IPaymentIntentRepository,
@@ -125,15 +126,19 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
             senderWalletAddressId: quote.senderWalletAddressId,
             ...(quote.state === 'COMPLETED'
               ? {
+                  state: quote.state,
                   debitAmount: quote.debitAmount,
                   receiveAmount: quote.receiveAmount,
                   expiresAt: quote.expiresAt,
-                  exchangeRate: quote.exchangeRate,
-                  state: quote.state
+                  exchangeRate: quote.exchangeRate
                 }
-              : {
-                  state: quote.state
-                })
+              : quote.state === 'FAILED'
+                ? {
+                    state: quote.state,
+                    errorName: quote.errorName,
+                    message: quote.message
+                  }
+                : { state: quote.state })
           }))
         }))
       );
@@ -177,15 +182,19 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
           senderWalletAddressId: quote.senderWalletAddressId,
           ...(quote.state === 'COMPLETED'
             ? {
+                state: quote.state,
                 debitAmount: quote.debitAmount,
                 receiveAmount: quote.receiveAmount,
                 expiresAt: quote.expiresAt,
-                exchangeRate: quote.exchangeRate,
-                state: quote.state
+                exchangeRate: quote.exchangeRate
               }
-            : {
-                state: quote.state
-              })
+            : quote.state === 'FAILED'
+              ? {
+                  state: quote.state,
+                  errorName: quote.errorName,
+                  message: quote.message
+                }
+              : { state: quote.state })
         })),
         payments: paymentDocs
           .filter((p) => p.paymentIntentId === doc.id)
@@ -284,16 +293,7 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
     }
   }
 
-  async storeCompletedRemoteQuotes(
-    updates: {
-      paymentIntentId: string;
-      quoteId: string;
-      debitAmount: bigint;
-      receiveAmount: bigint;
-      exchangeRate: number;
-      expiresAt: Date;
-    }[]
-  ): Promise<void> {
+  async storeFinalizedRemoteQuotes(updates: FinalizedRemoteQuoteUpdate[]): Promise<void> {
     this._checkInitialisedOrThrow();
 
     if (updates.length === 0) return;
@@ -304,13 +304,20 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
           updateOne: {
             filter: { id: u.paymentIntentId },
             update: {
-              $set: {
-                'quotes.$[q].state': 'COMPLETED',
-                'quotes.$[q].debitAmount': u.debitAmount,
-                'quotes.$[q].receiveAmount': u.receiveAmount,
-                'quotes.$[q].exchangeRate': u.exchangeRate,
-                'quotes.$[q].expiresAt': u.expiresAt
-              }
+              $set:
+                u.state === 'COMPLETED'
+                  ? {
+                      'quotes.$[q].state': 'COMPLETED',
+                      'quotes.$[q].debitAmount': u.debitAmount,
+                      'quotes.$[q].receiveAmount': u.receiveAmount,
+                      'quotes.$[q].exchangeRate': u.exchangeRate,
+                      'quotes.$[q].expiresAt': u.expiresAt
+                    }
+                  : {
+                      'quotes.$[q].state': 'FAILED',
+                      'quotes.$[q].errorName': u.errorName,
+                      'quotes.$[q].message': u.message
+                    }
             },
             arrayFilters: [{ 'q.id': u.quoteId }]
           }
@@ -319,7 +326,7 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
     } catch (e) {
       console.error(e);
       throw new Error(
-        `Unable to complete remote quotes - error: ${(e as Error).message}`
+        `Unable to finalize remote quotes - error: ${(e as Error).message}`
       );
     }
   }

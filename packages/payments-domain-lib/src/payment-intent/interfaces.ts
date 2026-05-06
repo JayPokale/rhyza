@@ -12,7 +12,8 @@ export type PaymentIntentDestination = keyof typeof PaymentIntentDestination;
 
 export const QuoteState = {
   PENDING: 'PENDING',
-  COMPLETED: 'COMPLETED'
+  COMPLETED: 'COMPLETED',
+  FAILED: 'FAILED'
 } as const;
 export type QuoteState = keyof typeof QuoteState;
 
@@ -35,7 +36,13 @@ interface CompletedQuote extends BaseQuote {
   exchangeRate: number;
 }
 
-export type IQuote = PendingQuote | CompletedQuote;
+interface FailedQuote extends BaseQuote {
+  state: 'FAILED';
+  errorName: string;
+  message: string;
+}
+
+export type IQuote = PendingQuote | CompletedQuote | FailedQuote;
 
 export const PaymentState = {
   CREATED: 'CREATED',
@@ -112,6 +119,24 @@ export interface IPeerService {
   ): Promise<{ peerId: string }>;
 }
 
+export type FinalizedRemoteQuoteUpdate =
+  | {
+      paymentIntentId: string;
+      quoteId: string;
+      state: 'COMPLETED';
+      debitAmount: bigint;
+      receiveAmount: bigint;
+      exchangeRate: number;
+      expiresAt: Date;
+    }
+  | {
+      paymentIntentId: string;
+      quoteId: string;
+      state: 'FAILED';
+      errorName: string;
+      message: string;
+    };
+
 export interface IPaymentIntentRepository {
   storeMany(paymentIntents: IPaymentIntent[]): Promise<void>;
   fetchByIdsWithPayments(ids: string[]): Promise<IPaymentIntent[]>;
@@ -131,14 +156,5 @@ export interface IPaymentIntentRepository {
       payments: { id: string; state: PaymentState; sentAmount: bigint }[];
     }[]
   ): Promise<void>;
-  storeCompletedRemoteQuotes(
-    updates: {
-      paymentIntentId: string;
-      quoteId: string;
-      debitAmount: bigint;
-      receiveAmount: bigint;
-      exchangeRate: number;
-      expiresAt: Date;
-    }[]
-  ): Promise<void>;
+  storeFinalizedRemoteQuotes(updates: FinalizedRemoteQuoteUpdate[]): Promise<void>;
 }
