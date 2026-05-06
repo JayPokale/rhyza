@@ -15,15 +15,14 @@ export interface StartRemoteQuoteCmdPayload {
 
 export class StartRemoteQuoteCmd extends CommandMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
   aggregateName: string = AGGREGATE_NAME;
   msgKey: string;
   msgTopic: string = CommandTopics.IlpCommands;
   payload: StartRemoteQuoteCmdPayload;
 
   constructor(payload: StartRemoteQuoteCmdPayload) {
-    super();
-    this.aggregateId = this.msgKey = payload.peerId;
+    super(payload.peerId);
+    this.msgKey = payload.peerId;
     this.payload = payload;
   }
 }
@@ -41,15 +40,14 @@ export interface StartRemotePaymentCmdPayload {
 
 export class StartRemotePaymentCmd extends CommandMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
   aggregateName: string = AGGREGATE_NAME;
   msgKey: string;
   msgTopic: string = CommandTopics.IlpCommands;
   payload: StartRemotePaymentCmdPayload;
 
   constructor(payload: StartRemotePaymentCmdPayload) {
-    super();
-    this.aggregateId = this.msgKey = payload.peerId;
+    super(payload.peerId);
+    this.msgKey = payload.peerId;
     this.payload = payload;
   }
 }
