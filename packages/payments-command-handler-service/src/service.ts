@@ -58,7 +58,8 @@ export class PaymentsCommandHandlerService {
       this.repo,
       walletAddressAdapter,
       staticRatesAdapter,
-      remotePaymentIntentAdapter
+      remotePaymentIntentAdapter,
+      logger
     );
 
     this.msgProducer = kafkaBuilder.buildProducer({});

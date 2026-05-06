@@ -1,5 +1,6 @@
 import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
+import { ConsoleLogger } from 'common-types-lib';
 
 import { PaymentIntentAggregate } from '../../src/payment-intent/aggregate';
 import {
@@ -132,7 +133,8 @@ describe('PaymentIntentAggregate.handleBatch', () => {
       repo,
       walletAddressAdapter,
       mockRatesAdapter,
-      mockRemotePaymentIntentService
+      mockRemotePaymentIntentService,
+      new ConsoleLogger()
     );
   });
 

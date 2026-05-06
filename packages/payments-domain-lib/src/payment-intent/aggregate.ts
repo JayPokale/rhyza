@@ -1,4 +1,4 @@
-import { IMessage } from 'common-types-lib';
+import { ILogger, IMessage } from 'common-types-lib';
 import {
   FinalizedRemoteQuoteUpdate,
   IPaymentIntent,
@@ -58,7 +58,8 @@ export class PaymentIntentAggregate {
     private _repo: IPaymentIntentRepository,
     private _walletAddressService: IWalletAddressService,
     private _ratesService: IRatesService,
-    private _remotePaymentIntentService: IRemotePaymentIntentService
+    private _remotePaymentIntentService: IRemotePaymentIntentService,
+    private _logger: ILogger
   ) {}
 
   async handleBatch(cmds: IMessage[]): Promise<{ events: IMessage[] }> {
@@ -611,7 +612,7 @@ export class PaymentIntentAggregate {
       for (const id of this.newPaymentIntentIds) {
         const paymentIntent = this.paymentIntentMap.get(id);
         if (!paymentIntent) {
-          console.error(
+          this._logger.error(
             `Payment intent ${id} missing from paymentIntentMap during flush (payment intents)`
           );
           continue;
@@ -634,7 +635,7 @@ export class PaymentIntentAggregate {
       ] of this.newPaymentIntentQuotes.entries()) {
         const paymentIntent = this.paymentIntentMap.get(paymentIntentId);
         if (!paymentIntent) {
-          console.error(
+          this._logger.error(
             `Payment intent ${paymentIntentId} missing from paymentIntentMap during flush (quotes)`
           );
           continue;
@@ -657,7 +658,7 @@ export class PaymentIntentAggregate {
       ] of this.newPaymentsMap.entries()) {
         const paymentIntent = this.paymentIntentMap.get(paymentIntentId);
         if (!paymentIntent) {
-          console.error(
+          this._logger.error(
             `Payment intent ${paymentIntentId} missing from paymentIntentMap during flush (payments)`
           );
           continue;
@@ -685,7 +686,7 @@ export class PaymentIntentAggregate {
       ] of this.completedLocalPayments.entries()) {
         const paymentIntent = this.paymentIntentMap.get(paymentIntentId);
         if (!paymentIntent) {
-          console.error(
+          this._logger.error(
             `Payment intent ${paymentIntentId} missing from paymentIntentMap during flush (payments)`
           );
           continue;
@@ -719,7 +720,7 @@ export class PaymentIntentAggregate {
       ] of this.finalizedRemoteQuotes.entries()) {
         const paymentIntent = this.paymentIntentMap.get(paymentIntentId);
         if (!paymentIntent) {
-          console.error(
+          this._logger.error(
             `Payment intent ${paymentIntentId} missing from paymentIntentMap during flush (finalized remote quotes)`
           );
           continue;
@@ -728,7 +729,7 @@ export class PaymentIntentAggregate {
         for (const quoteId of quoteIds) {
           const quote = paymentIntent.quotes.find((q) => q.id === quoteId);
           if (!quote) {
-            console.error(
+            this._logger.error(
               `Quote ${quoteId} missing from paymentIntentMap during flush`
             );
             continue;
@@ -752,7 +753,7 @@ export class PaymentIntentAggregate {
               message: quote.message
             });
           } else {
-            console.error(
+            this._logger.error(
               `Quote ${quoteId} has unexpected state "${quote.state}" during flush`
             );
           }
