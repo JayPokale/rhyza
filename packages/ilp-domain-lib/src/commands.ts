@@ -3,7 +3,6 @@ import { CommandMsg, CommandTopics } from 'common-types-lib';
 const BOUNDED_CONTEXT_NAME = 'ilp';
 const AGGREGATE_NAME = 'ilp-peer';
 
-
 export interface StartRemoteQuoteCmdPayload {
   peerId: string;
   paymentIntentId: string;
