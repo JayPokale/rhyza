@@ -1,18 +1,12 @@
-export const PacketState = {
-  PENDING: 'PENDING',
-  FULFILLED: 'FULFILLED',
-  REJECTED: 'REJECTED',
-  EXPIRED: 'EXPIRED'
-} as const;
-export type PacketState = keyof typeof PacketState;
+import { PacketState as PeerPacketState } from '../peer/interfaces';
+import type {
+  IPacketCorrelation as PeerPacketCorrelation,
+  PacketState as PeerPacketStateType
+} from '../peer/interfaces';
 
-export interface IPacketCorrelation {
-  packetId: string;
-  peerId: string;
-  paymentIntentId: string;
-  expiresAt: Date;
-  state: PacketState;
-}
+export const PacketState = PeerPacketState;
+export type PacketState = PeerPacketStateType;
+export type IPacketCorrelation = PeerPacketCorrelation;
 
 export interface IPacketJournalRepository {
   fetchByIds(packetIds: string[]): Promise<IPacketCorrelation[]>;
