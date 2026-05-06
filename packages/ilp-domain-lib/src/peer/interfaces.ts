@@ -19,7 +19,6 @@ export interface PeerHttpConfig {
 export interface IPeer {
   peerId: string;
   http: PeerHttpConfig;
-  maxPacketAmount?: bigint;
   isActive?: boolean;
 }
 

@@ -32,7 +32,7 @@ export class StartRemoteQuoteCmd extends CommandMsg {
 export interface StartRemotePaymentCmdPayload {
   peerId: string;
   paymentIntentId: string;
-  outgoingPaymentId: string;
+  paymentId: string;
   destinationIlpAddress: string;
   amount: bigint;
   assetCode: string;
