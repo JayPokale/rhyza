@@ -12,7 +12,9 @@ import {
 import {
   CompleteRemoteQuoteCmd,
   CreatePaymentCmd,
-  CreatePaymentIntentCmd
+  CreatePaymentIntentCmd,
+  FailRemoteQuoteCmd,
+  ImportRemotePaymentIntentCmd
 } from '../../src/commands';
 import {
   MockPaymentIntentRepo,
@@ -28,6 +30,8 @@ import { ApprovePaymentCmd } from '../../src/commands';
 import {
   LocalPaymentCompletedEvent,
   LocalPaymentCompleteFailedEvent,
+  RemotePaymentIntentImportedEvent,
+  RemotePaymentIntentImportFailedEvent,
   RemoteQuoteRequestedEvent
 } from '../../src/payment-intent/events';
 
@@ -142,6 +146,30 @@ describe('PaymentIntentAggregate.handleBatch', () => {
       new ConsoleLogger()
     );
   });
+
+  function makeRemotePaymentIntentWithPendingQuote(quoteId: string): IPaymentIntent {
+    return {
+      id: crypto.randomUUID(),
+      receivedAmount: 0n,
+      receiverWalletAddress: 'remote.domain.com/alice',
+      assetCode: 'USD',
+      assetScale: 2,
+      state: 'CREATED',
+      destination: 'REMOTE',
+      expiresAt: new Date(Date.now() + 60_000),
+      incomingAmount: null,
+      quotes: [
+        {
+          id: quoteId,
+          state: 'PENDING',
+          senderWalletAddress: 'domain.com/bob',
+          senderWalletAddressId: 'wallet-1'
+        }
+      ],
+      payments: [],
+      destinationIlpAddress: 'g.peer.123'
+    };
+  }
 
   describe('handleBatch', async () => {
     describe('handleCreatePaymentIntentCommand', async () => {
@@ -394,30 +422,6 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         );
       }
 
-      function makeRemotePaymentIntentWithPendingQuote(quoteId: string): IPaymentIntent {
-        return {
-          id: crypto.randomUUID(),
-          receivedAmount: 0n,
-          receiverWalletAddress: 'remote.domain.com/alice',
-          assetCode: 'USD',
-          assetScale: 2,
-          state: 'CREATED',
-          destination: 'REMOTE',
-          expiresAt: new Date(Date.now() + 60_000),
-          incomingAmount: null,
-          quotes: [
-            {
-              id: quoteId,
-              state: 'PENDING',
-              senderWalletAddress: 'domain.com/bob',
-              senderWalletAddressId: 'wallet-1'
-            }
-          ],
-          payments: [],
-          destinationIlpAddress: 'g.peer.123'
-        };
-      }
-
       it('emits QuoteCompletedEvent on success', async () => {
         const quoteId = crypto.randomUUID();
         const paymentIntent = makeRemotePaymentIntentWithPendingQuote(quoteId);
@@ -460,6 +464,152 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         assert.equal(events[0].msgName, QuoteCreateFailedEvent.name);
         const payload = (events[0] as QuoteCreateFailedEvent).payload;
         assert.equal(payload.errorName, 'InvalidQuoteIdError');
+      });
+    });
+
+    describe('handleFailRemoteQuoteCommand', () => {
+      function makeFailRemoteQuoteCmd(
+        overrides: Partial<{
+          paymentIntentId: string;
+          quoteId: string;
+          errorName: string;
+          message: string;
+        }> = {}
+      ): FailRemoteQuoteCmd {
+        return new FailRemoteQuoteCmd(
+          {
+            paymentIntentId: overrides.paymentIntentId ?? crypto.randomUUID(),
+            quoteId: overrides.quoteId ?? crypto.randomUUID(),
+            errorName: overrides.errorName ?? 'IlpQuoteError',
+            message: overrides.message ?? 'Quote could not be determined'
+          },
+          crypto.randomUUID()
+        );
+      }
+
+      it('emits QuoteCreateFailedEvent with ILP error details on success', async () => {
+        const quoteId = crypto.randomUUID();
+        const paymentIntent = makeRemotePaymentIntentWithPendingQuote(quoteId);
+        await repo.storeMany([paymentIntent]);
+
+        const cmd = makeFailRemoteQuoteCmd({
+          paymentIntentId: paymentIntent.id,
+          quoteId,
+          errorName: 'IlpQuoteError',
+          message: 'No route to destination'
+        });
+        const { events } = await aggregate.handleBatch([cmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, QuoteCreateFailedEvent.name);
+        const payload = (events[0] as QuoteCreateFailedEvent).payload;
+        assert.equal(payload.paymentIntentId, paymentIntent.id);
+        assert.equal(payload.errorName, 'IlpQuoteError');
+        assert.equal(payload.message, 'No route to destination');
+      });
+
+      it('fails when payment intent not found', async () => {
+        const cmd = makeFailRemoteQuoteCmd({ paymentIntentId: 'nonexistent' });
+        const { events } = await aggregate.handleBatch([cmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, QuoteCreateFailedEvent.name);
+        const payload = (events[0] as QuoteCreateFailedEvent).payload;
+        assert.equal(payload.errorName, 'PaymentIntentNotFoundError');
+      });
+
+      it('fails when quote not found', async () => {
+        const paymentIntent = makeRemotePaymentIntentWithPendingQuote(crypto.randomUUID());
+        await repo.storeMany([paymentIntent]);
+
+        const cmd = makeFailRemoteQuoteCmd({
+          paymentIntentId: paymentIntent.id,
+          quoteId: 'nonexistent-quote'
+        });
+        const { events } = await aggregate.handleBatch([cmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, QuoteCreateFailedEvent.name);
+        const payload = (events[0] as QuoteCreateFailedEvent).payload;
+        assert.equal(payload.errorName, 'InvalidQuoteIdError');
+      });
+    });
+
+    describe('handleImportRemotePaymentIntentCommand', () => {
+      function makeImportRemotePaymentIntentCmd(
+        overrides: Partial<{ id: string; url: string }> = {}
+      ): ImportRemotePaymentIntentCmd {
+        return new ImportRemotePaymentIntentCmd(
+          {
+            id: overrides.id ?? crypto.randomUUID(),
+            url: overrides.url ?? 'https://remote.domain.com/incoming-payments/abc'
+          },
+          crypto.randomUUID()
+        );
+      }
+
+      it('emits RemotePaymentIntentImportedEvent on successful fetch', async () => {
+        mockRemotePaymentIntentService.fetchIncomingPayment = async () => ({
+          walletAddress: 'remote.domain.com/alice',
+          assetCode: 'USD',
+          assetScale: 2,
+          receivedAmount: 0n,
+          destinationIlpAddress: 'g.peer.123',
+          expiresAt: new Date(Date.now() + 60_000).toISOString()
+        });
+
+        const cmd = makeImportRemotePaymentIntentCmd();
+        const { events } = await aggregate.handleBatch([cmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, RemotePaymentIntentImportedEvent.name);
+        assert.equal(
+          (events[0] as RemotePaymentIntentImportedEvent).payload.id,
+          cmd.payload.id
+        );
+      });
+
+      it('emits RemotePaymentIntentImportedEvent when payment intent already in repo', async () => {
+        const existingPaymentIntent: IPaymentIntent = {
+          id: crypto.randomUUID(),
+          receivedAmount: 0n,
+          receiverWalletAddress: 'remote.domain.com/alice',
+          assetCode: 'USD',
+          assetScale: 2,
+          state: 'CREATED',
+          destination: 'REMOTE',
+          expiresAt: new Date(Date.now() + 60_000),
+          incomingAmount: null,
+          quotes: [],
+          payments: [],
+          destinationIlpAddress: 'g.peer.123'
+        };
+        await repo.storeMany([existingPaymentIntent]);
+
+        const cmd = makeImportRemotePaymentIntentCmd({ id: existingPaymentIntent.id });
+        const { events } = await aggregate.handleBatch([cmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, RemotePaymentIntentImportedEvent.name);
+        assert.equal(
+          (events[0] as RemotePaymentIntentImportedEvent).payload.id,
+          existingPaymentIntent.id
+        );
+      });
+
+      it('emits RemotePaymentIntentImportFailedEvent when fetch throws', async () => {
+        mockRemotePaymentIntentService.fetchIncomingPayment = async () => {
+          throw new Error('Connection refused');
+        };
+
+        const cmd = makeImportRemotePaymentIntentCmd();
+        const { events } = await aggregate.handleBatch([cmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, RemotePaymentIntentImportFailedEvent.name);
+        const payload = (events[0] as RemotePaymentIntentImportFailedEvent).payload;
+        assert.equal(payload.paymentIntentId, cmd.payload.id);
+        assert.match(payload.message, /Connection refused/);
       });
     });
 
