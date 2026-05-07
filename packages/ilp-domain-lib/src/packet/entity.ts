@@ -19,7 +19,7 @@ export class PacketCorrelation {
     peerId: string;
     paymentIntentId: string;
     expiresAt: Date;
-    outgoingPaymentId: string;
+    paymentId: string;
   }): PacketCorrelation {
     return new PacketCorrelation({
       ...args,

@@ -1,4 +1,4 @@
-import { DomainEventMsg, EventTopics } from 'common-types-lib';
+import { DomainEvent, DomainEventTopics } from 'common-types-lib';
 
 const BOUNDED_CONTEXT_NAME = 'ilp';
 const AGGREGATE_NAME = 'ilp-peer';
@@ -12,17 +12,15 @@ export interface QuoteDeterminedPayload {
   lowEstimatedExchangeRate: number;
 }
 
-export class QuoteDeterminedEvent extends DomainEventMsg {
+export class QuoteDeterminedEvent extends DomainEvent {
   contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
   aggregateName: string = AGGREGATE_NAME;
-  msgKey: string;
-  msgTopic: string = EventTopics.IlpEvents;
+  msgTopic: string = DomainEventTopics.IlpEvents;
   payload: QuoteDeterminedPayload;
 
   constructor(payload: QuoteDeterminedPayload) {
-    super();
-    this.aggregateId = this.msgKey = payload.peerId;
+    super(payload.peerId);
+    this.msgKey = payload.peerId;
     this.payload = payload;
   }
 }
@@ -36,18 +34,16 @@ export interface QuoteFailedPayload {
   expired?: boolean;
 }
 
-export class QuoteFailedEvent extends DomainEventMsg {
+export class QuoteFailedEvent extends DomainEvent {
   contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
   aggregateName: string = AGGREGATE_NAME;
-  msgKey: string;
-  msgTopic: string = EventTopics.IlpEvents;
+  msgTopic: string = DomainEventTopics.IlpEvents;
   isErrorEvent: boolean = true;
   payload: QuoteFailedPayload;
 
   constructor(payload: QuoteFailedPayload) {
-    super();
-    this.aggregateId = this.msgKey = payload.peerId;
+    super(payload.peerId);
+    this.msgKey = payload.peerId;
     this.payload = payload;
   }
 }
@@ -55,21 +51,19 @@ export class QuoteFailedEvent extends DomainEventMsg {
 export interface RemotePaymentConfirmedPayload {
   peerId: string;
   paymentIntentId: string;
-  outgoingPaymentId: string;
+  paymentId: string;
   confirmedAt: string;
 }
 
-export class RemotePaymentConfirmedEvent extends DomainEventMsg {
+export class RemotePaymentConfirmedEvent extends DomainEvent {
   contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
   aggregateName: string = AGGREGATE_NAME;
-  msgKey: string;
-  msgTopic: string = EventTopics.IlpEvents;
+  msgTopic: string = DomainEventTopics.IlpEvents;
   payload: RemotePaymentConfirmedPayload;
 
   constructor(payload: RemotePaymentConfirmedPayload) {
-    super();
-    this.aggregateId = this.msgKey = payload.peerId;
+    super(payload.peerId);
+    this.msgKey = payload.peerId;
     this.payload = payload;
   }
 }
@@ -84,23 +78,21 @@ export type RemotePaymentFailureReason =
 export interface RemotePaymentFailedPayload {
   peerId: string;
   paymentIntentId: string;
-  outgoingPaymentId: string;
+  paymentId: string;
   failedAt: string;
   reason: RemotePaymentFailureReason;
 }
 
-export class RemotePaymentFailedEvent extends DomainEventMsg {
+export class RemotePaymentFailedEvent extends DomainEvent {
   contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
   aggregateName: string = AGGREGATE_NAME;
-  msgKey: string;
-  msgTopic: string = EventTopics.IlpEvents;
+  msgTopic: string = DomainEventTopics.IlpEvents;
   isErrorEvent: boolean = true;
   payload: RemotePaymentFailedPayload;
 
   constructor(payload: RemotePaymentFailedPayload) {
-    super();
-    this.aggregateId = this.msgKey = payload.peerId;
+    super(payload.peerId);
+    this.msgKey = payload.peerId;
     this.payload = payload;
   }
 }

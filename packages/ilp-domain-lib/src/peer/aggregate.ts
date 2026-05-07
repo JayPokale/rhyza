@@ -1,4 +1,4 @@
-import { Message } from 'common-types-lib';
+import { IMessage } from 'common-types-lib';
 import {
   ExpirePacketCmd,
   ProcessFulfillPacketCmd,
@@ -6,11 +6,7 @@ import {
   StartRemotePaymentCmd,
   StartRemoteQuoteCmd
 } from '../commands';
-import {
-  IPacketJournalRepository,
-  IPeeringClient,
-  PacketCorrelation
-} from '../packet';
+import { IPeeringClient, PacketCorrelation } from '../packet';
 import { PacketNotFound } from '../packet/errors';
 import { Peer } from './entity';
 import { DuplicatePeer, UnknownPeer } from './errors';
@@ -25,7 +21,6 @@ import { IPeer, IPeerRepository } from './interfaces';
 export class IlpPeerAggregate {
   constructor(
     private readonly peerRepo: IPeerRepository,
-    private readonly packetRepo: IPacketJournalRepository,
     private readonly peeringClient: IPeeringClient
   ) {}
 
@@ -38,7 +33,6 @@ export class IlpPeerAggregate {
     const entity = Peer.create({
       peerId: input.peerId,
       http: input.http,
-      maxPacketAmount: input.maxPacketAmount,
       isActive: input.isActive
     });
 
@@ -56,7 +50,6 @@ export class IlpPeerAggregate {
     const entity = Peer.create({
       peerId: input.peerId,
       http: input.http,
-      maxPacketAmount: input.maxPacketAmount,
       isActive: input.isActive
     });
 
@@ -69,8 +62,8 @@ export class IlpPeerAggregate {
     return this.peerRepo.fetchById(peerId);
   }
 
-  async handleBatch(cmds: Message[]): Promise<{ events: Message[] }> {
-    const events: Message[] = [];
+  async handleBatch(cmds: IMessage[]): Promise<{ events: IMessage[] }> {
+    const events: IMessage[] = [];
 
     for (const cmd of cmds) {
       const emitted = await this.handleCommand(cmd);
@@ -80,7 +73,7 @@ export class IlpPeerAggregate {
     return { events };
   }
 
-  private async handleCommand(cmd: Message): Promise<Message[]> {
+  private async handleCommand(cmd: IMessage): Promise<IMessage[]> {
     switch (cmd.msgName) {
       case StartRemoteQuoteCmd.name:
         return this.handleStartRemoteQuote(cmd as StartRemoteQuoteCmd);
@@ -99,7 +92,7 @@ export class IlpPeerAggregate {
 
   private async handleStartRemoteQuote(
     cmd: StartRemoteQuoteCmd
-  ): Promise<Message[]> {
+  ): Promise<IMessage[]> {
     const payload = cmd.payload;
     const peer = await this.peerRepo.fetchById(payload.peerId);
     if (!peer) {
@@ -116,7 +109,7 @@ export class IlpPeerAggregate {
       expiresAt,
       quoteId: payload.quoteId
     });
-    await this.packetRepo.store(correlation.toObject());
+    await this.peerRepo.storePacket(correlation.toObject());
 
     await this.peeringClient.dispatch({
       type: 'QUOTE',
@@ -135,7 +128,7 @@ export class IlpPeerAggregate {
 
   private async handleStartRemotePayment(
     cmd: StartRemotePaymentCmd
-  ): Promise<Message[]> {
+  ): Promise<IMessage[]> {
     const payload = cmd.payload;
     const peer = await this.peerRepo.fetchById(payload.peerId);
     if (!peer) {
@@ -149,16 +142,16 @@ export class IlpPeerAggregate {
       peerId: peer.peerId,
       paymentIntentId: payload.paymentIntentId,
       expiresAt: new Date(payload.expiresAt),
-      outgoingPaymentId: payload.outgoingPaymentId
+      paymentId: payload.paymentId
     });
-    await this.packetRepo.store(correlation.toObject());
+    await this.peerRepo.storePacket(correlation.toObject());
 
     await this.peeringClient.dispatch({
       type: 'PAYMENT',
       peerId: peer.peerId,
       packetId,
       paymentIntentId: payload.paymentIntentId,
-      outgoingPaymentId: payload.outgoingPaymentId,
+      paymentId: payload.paymentId,
       destinationIlpAddress: payload.destinationIlpAddress,
       amount: payload.amount,
       assetCode: payload.assetCode,
@@ -171,23 +164,23 @@ export class IlpPeerAggregate {
 
   private async handleProcessFulfillPacket(
     cmd: ProcessFulfillPacketCmd
-  ): Promise<Message[]> {
+  ): Promise<IMessage[]> {
     const payload = cmd.payload;
-    const stored = await this.packetRepo.fetchById(payload.packetId);
+    const stored = await this.peerRepo.fetchPacketById(payload.packetId);
     if (!stored) {
       throw new PacketNotFound(`Packet ${payload.packetId} not found`);
     }
     const transitioned = PacketCorrelation.fromObject(stored)
       .fulfill()
       .toObject();
-    await this.packetRepo.update(transitioned);
+    await this.peerRepo.updatePacket(transitioned);
 
     if (transitioned.kind === 'PAYMENT') {
       return [
         new RemotePaymentConfirmedEvent({
           peerId: transitioned.peerId,
           paymentIntentId: transitioned.paymentIntentId,
-          outgoingPaymentId: transitioned.outgoingPaymentId,
+          paymentId: transitioned.paymentId,
           confirmedAt: payload.fulfilledAt
         })
       ];
@@ -199,16 +192,16 @@ export class IlpPeerAggregate {
 
   private async handleProcessRejectPacket(
     cmd: ProcessRejectPacketCmd
-  ): Promise<Message[]> {
+  ): Promise<IMessage[]> {
     const payload = cmd.payload;
-    const stored = await this.packetRepo.fetchById(payload.packetId);
+    const stored = await this.peerRepo.fetchPacketById(payload.packetId);
     if (!stored) {
       throw new PacketNotFound(`Packet ${payload.packetId} not found`);
     }
     const transitioned = PacketCorrelation.fromObject(stored)
       .reject()
       .toObject();
-    await this.packetRepo.update(transitioned);
+    await this.peerRepo.updatePacket(transitioned);
 
     if (transitioned.kind === 'QUOTE') {
       if (
@@ -243,23 +236,23 @@ export class IlpPeerAggregate {
       new RemotePaymentFailedEvent({
         peerId: transitioned.peerId,
         paymentIntentId: transitioned.paymentIntentId,
-        outgoingPaymentId: transitioned.outgoingPaymentId,
+        paymentId: transitioned.paymentId,
         failedAt: payload.rejectedAt,
         reason: 'REJECTED'
       })
     ];
   }
 
-  private async handleExpirePacket(cmd: ExpirePacketCmd): Promise<Message[]> {
+  private async handleExpirePacket(cmd: ExpirePacketCmd): Promise<IMessage[]> {
     const payload = cmd.payload;
-    const stored = await this.packetRepo.fetchById(payload.packetId);
+    const stored = await this.peerRepo.fetchPacketById(payload.packetId);
     if (!stored) {
       throw new PacketNotFound(`Packet ${payload.packetId} not found`);
     }
     const transitioned = PacketCorrelation.fromObject(stored)
       .expire()
       .toObject();
-    await this.packetRepo.update(transitioned);
+    await this.peerRepo.updatePacket(transitioned);
 
     if (transitioned.kind === 'QUOTE') {
       return [
@@ -276,7 +269,7 @@ export class IlpPeerAggregate {
       new RemotePaymentFailedEvent({
         peerId: transitioned.peerId,
         paymentIntentId: transitioned.paymentIntentId,
-        outgoingPaymentId: transitioned.outgoingPaymentId,
+        paymentId: transitioned.paymentId,
         failedAt: payload.expiredAt,
         reason: 'EXPIRED'
       })

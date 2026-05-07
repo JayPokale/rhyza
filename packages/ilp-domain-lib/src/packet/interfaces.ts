@@ -21,7 +21,7 @@ interface QuotePacketCorrelation extends BasePacketCorrelation {
 
 interface PaymentPacketCorrelation extends BasePacketCorrelation {
   kind: 'PAYMENT';
-  outgoingPaymentId: string;
+  paymentId: string;
 }
 
 export type IPacketCorrelation =
@@ -52,7 +52,7 @@ export interface PaymentDispatch {
   peerId: string;
   packetId: string;
   paymentIntentId: string;
-  outgoingPaymentId: string;
+  paymentId: string;
   destinationIlpAddress: string;
   amount: bigint;
   assetCode: string;

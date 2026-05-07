@@ -62,15 +62,14 @@ export interface ProcessFulfillPacketCmdPayload {
 
 export class ProcessFulfillPacketCmd extends CommandMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
   aggregateName: string = AGGREGATE_NAME;
   msgKey: string;
   msgTopic: string = CommandTopics.IlpCommands;
   payload: ProcessFulfillPacketCmdPayload;
 
   constructor(payload: ProcessFulfillPacketCmdPayload) {
-    super();
-    this.aggregateId = this.msgKey = payload.peerId;
+    super(payload.peerId);
+    this.msgKey = payload.peerId;
     this.payload = payload;
   }
 }
@@ -89,15 +88,14 @@ export interface ProcessRejectPacketCmdPayload {
 
 export class ProcessRejectPacketCmd extends CommandMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
   aggregateName: string = AGGREGATE_NAME;
   msgKey: string;
   msgTopic: string = CommandTopics.IlpCommands;
   payload: ProcessRejectPacketCmdPayload;
 
   constructor(payload: ProcessRejectPacketCmdPayload) {
-    super();
-    this.aggregateId = this.msgKey = payload.peerId;
+    super(payload.peerId);
+    this.msgKey = payload.peerId;
     this.payload = payload;
   }
 }
@@ -112,15 +110,14 @@ export interface ExpirePacketCmdPayload {
 
 export class ExpirePacketCmd extends CommandMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
   aggregateName: string = AGGREGATE_NAME;
   msgKey: string;
   msgTopic: string = CommandTopics.IlpCommands;
   payload: ExpirePacketCmdPayload;
 
   constructor(payload: ExpirePacketCmdPayload) {
-    super();
-    this.aggregateId = this.msgKey = payload.peerId;
+    super(payload.peerId);
+    this.msgKey = payload.peerId;
     this.payload = payload;
   }
 }
