@@ -44,9 +44,6 @@ export interface CreateGrantCmdPayload {
     };
   };
   subjectIds?: SubjectId[];
-  continueToken: string;
-  continueId: string;
-  state: string;
 }
 
 export class CreateGrantCmd extends CommandMsg {
@@ -154,7 +151,6 @@ export interface InteractionChoiceCmdPayload {
   id: string;
   interactId: string;
   nonce: string;
-  choice: string;
 }
 
 class InteractionChoiceCommand extends CommandMsg {

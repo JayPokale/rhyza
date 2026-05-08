@@ -40,10 +40,6 @@ export interface ISubjectId {
   id: string;
 }
 
-export interface ISubject {
-  subIds?: ISubjectId[];
-}
-
 export type InteractionChoice =
   | typeof InteractionState.APPROVED
   | typeof InteractionState.DENIED;
@@ -116,13 +112,12 @@ export type IGrantEntity = Omit<IGrant, 'id'>;
 export interface IGrant {
   id: string;
   startMethods: IStartMethod[];
-  identifier: string;
   continueToken?: string;
   continueId?: string;
   state: GrantState;
   finalizationReason?: GrantFinalization;
   client?: string | IJsonWebKey;
-  subject?: ISubject;
+  subjectIds?: ISubjectId[];
   accesses?: IAccessItem[];
   finishMethod?: IFinishMethod;
   finishUri?: string;

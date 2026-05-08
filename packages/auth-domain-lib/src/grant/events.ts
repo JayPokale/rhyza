@@ -1,4 +1,4 @@
-import { DomainEventMsg, EventTopics } from 'common-types-lib';
+import { DomainEventTopics, DomainEvent } from 'common-types-lib';
 import { GrantFinalization } from './interfaces';
 
 const BOUNDED_CONTEXT_NAME = 'auth';
@@ -8,41 +8,39 @@ export interface GrantCreatedPayload {
   id: string;
 }
 
-export class GrantCreatedEvent extends DomainEventMsg {
+export class GrantCreatedEvent extends DomainEvent {
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateId: string;
   aggregateName: string = AGGREGATE_NAME;
   msgKey: string;
-  msgTopic: string = EventTopics.AuthEvents;
+  msgTopic: string = DomainEventTopics.AuthEvents;
   payload: GrantCreatedPayload;
 
-  constructor(payload: GrantCreatedPayload, requestId?: string) {
-    super();
+  constructor(payload: GrantCreatedPayload) {
+    super(payload.id);
     this.aggregateId = this.msgKey = payload.id;
     this.payload = payload;
-    this.requestId = requestId;
   }
 }
 
 export interface GrantCreateFailedPayload {
+  grantId: string;
   errorName: string;
   message: string;
 }
 
-export class GrantCreateFailedEvent extends DomainEventMsg {
+export class GrantCreateFailedEvent extends DomainEvent {
   contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
   aggregateName: string = AGGREGATE_NAME;
   msgKey: string;
-  msgTopic: string = EventTopics.AuthEvents;
+  msgTopic: string = DomainEventTopics.AuthEvents;
   isErrorEvent: boolean = true;
   payload: GrantCreateFailedPayload;
 
-  constructor(payload: GrantCreateFailedPayload, requestId?: string) {
-    super();
-    this.aggregateId = this.msgKey = requestId ?? '';
+  constructor(payload: GrantCreateFailedPayload) {
+    super(payload.grantId);
+    this.aggregateId = this.msgKey = payload.grantId;
     this.payload = payload;
-    this.requestId = requestId;
   }
 }
 
@@ -51,16 +49,16 @@ export interface GrantContinuePayload {
   result: GrantFinalization;
 }
 
-export class GrantContinueEvent extends DomainEventMsg {
+export class GrantContinueEvent extends DomainEvent {
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateId: string;
   aggregateName: string = AGGREGATE_NAME;
   msgKey: string;
-  msgTopic: string = EventTopics.AuthEvents;
+  msgTopic: string = DomainEventTopics.AuthEvents;
   payload: GrantContinuePayload;
 
   constructor(payload: GrantContinuePayload, requestId?: string) {
-    super();
+    super(payload.id);
     this.aggregateId = this.msgKey = payload.id;
     this.payload = payload;
     this.requestId = requestId;
@@ -68,21 +66,22 @@ export class GrantContinueEvent extends DomainEventMsg {
 }
 
 export interface GrantContinueFailedPayload {
+  grantId: string;
   errorName: string;
   message: string;
 }
 
-export class GrantContinueFailedEvent extends DomainEventMsg {
+export class GrantContinueFailedEvent extends DomainEvent {
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateId: string;
   aggregateName: string = AGGREGATE_NAME;
   msgKey: string;
-  msgTopic: string = EventTopics.AuthEvents;
+  msgTopic: string = DomainEventTopics.AuthEvents;
   payload: GrantContinueFailedPayload;
 
-  constructor(payload: GrantContinueFailedPayload, requestId?: string) {
-    super();
-    this.aggregateId = this.msgKey = requestId ?? '';
+  constructor(payload: GrantContinueFailedPayload) {
+    super(payload.grantId);
+    this.aggregateId = this.msgKey = payload.grantId;
     this.payload = payload;
   }
 }
@@ -92,40 +91,38 @@ export interface GrantInteractionChoicePayload {
   interactId: string;
 }
 
-export class GrantInteractionChoiceEvent extends DomainEventMsg {
+export class GrantInteractionChoiceEvent extends DomainEvent {
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateId: string;
   aggregateName: string = AGGREGATE_NAME;
   msgKey: string;
-  msgTopic: string = EventTopics.AuthEvents;
+  msgTopic: string = DomainEventTopics.AuthEvents;
   payload: GrantInteractionChoicePayload;
 
-  constructor(payload: GrantInteractionChoicePayload, requestId?: string) {
-    super();
+  constructor(payload: GrantInteractionChoicePayload) {
+    super(payload.id);
     this.aggregateId = this.msgKey = payload.id;
     this.payload = payload;
   }
 }
 
 export interface GrantInteractionChoiceFailurePayload {
+  grantId: string;
   errName: string;
   message: string;
 }
 
-export class GrantInteractionChoiceFailureEvent extends DomainEventMsg {
+export class GrantInteractionChoiceFailureEvent extends DomainEvent {
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateId: string;
   aggregateName: string = AGGREGATE_NAME;
   msgKey: string;
-  msgTopic: string = EventTopics.AuthEvents;
+  msgTopic: string = DomainEventTopics.AuthEvents;
   payload: GrantInteractionChoiceFailurePayload;
 
-  constructor(
-    payload: GrantInteractionChoiceFailurePayload,
-    requestId?: string
-  ) {
-    super();
-    this.aggregateId = this.msgKey = requestId ?? '';
+  constructor(payload: GrantInteractionChoiceFailurePayload) {
+    super(payload.grantId);
+    this.aggregateId = this.msgKey = payload.grantId;
     this.payload = payload;
   }
 }

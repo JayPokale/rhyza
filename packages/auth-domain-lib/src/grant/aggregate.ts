@@ -1,4 +1,4 @@
-import { Message } from 'common-types-lib';
+import { IMessage } from 'common-types-lib';
 import {
   ContinueGrantCmd,
   CreateGrantCmd,
@@ -39,8 +39,8 @@ export class GrantAggregate {
 
   constructor(private _grantService: IGrantService) {}
 
-  async handleBatch(cmds: Message[]): Promise<{ events: Message[] }> {
-    const outputEvents: Message[] = [];
+  async handleBatch(cmds: IMessage[]): Promise<{ events: IMessage[] }> {
+    const outputEvents: IMessage[] = [];
 
     const grantIdSet = new Set<string>();
     for (const cmd of cmds) {
@@ -67,7 +67,7 @@ export class GrantAggregate {
       }
 
       for (const cmd of cmds) {
-        let event: Message;
+        let event: IMessage;
         if (cmd.msgName == CreateGrantCmd.name) {
           event = this.handleCreateGrantCommand(cmd as CreateGrantCmd);
         } else if (cmd.msgName === ContinueGrantCmd.name) {
@@ -118,25 +118,20 @@ export class GrantAggregate {
 
       this.grantMap.set(id, entity.toObject());
 
-      return new GrantCreatedEvent(
-        {
-          id
-        },
-        cmd.requestId
-      );
+      return new GrantCreatedEvent({
+        id
+      });
     } catch (err) {
-      return new GrantCreateFailedEvent(
-        {
-          errorName: (err as Error).name,
-          message: (err as Error).message
-        },
-        cmd.requestId
-      );
+      return new GrantCreateFailedEvent({
+        grantId: cmd.payload.id,
+        errorName: (err as Error).name,
+        message: (err as Error).message
+      });
     }
   }
 
   private handleContinueGrantCommand(cmd: ContinueGrantCmd) {
-    const { id, continueId, continueToken } = cmd.payload;
+    const { id, continueId, continueToken, interactRef } = cmd.payload;
     try {
       const grantObj = this.grantMap.get(id);
       if (!grantObj) {
@@ -144,7 +139,7 @@ export class GrantAggregate {
       }
 
       const grant = GrantEntity.fromObject(grantObj);
-      grant.continue(continueToken, continueId);
+      grant.continue(continueToken, continueId, interactRef);
 
       this.grantMap.set(id, grant.toObject());
       return new GrantContinueEvent({
@@ -153,6 +148,7 @@ export class GrantAggregate {
       });
     } catch (err) {
       return new GrantContinueFailedEvent({
+        grantId: cmd.payload.id,
         errorName: (err as Error).name,
         message: (err as Error).message
       });
@@ -180,6 +176,7 @@ export class GrantAggregate {
       });
     } catch (error) {
       return new GrantInteractionChoiceFailureEvent({
+        grantId: id,
         errName: (error as Error).name,
         message: (error as Error).message
       });
