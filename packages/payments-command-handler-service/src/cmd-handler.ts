@@ -44,7 +44,6 @@ export class PaymentsCommandHandler {
 
   private async _handleBatch(messages: IMessage[]): Promise<void> {
     const commandMessages: IMessage[] = [];
-    // TODO: route quote and outgoing payment commands to their aggregates
     const unhandled: IMessage[] = [];
 
     for (const msg of messages) {

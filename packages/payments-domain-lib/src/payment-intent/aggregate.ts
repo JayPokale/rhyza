@@ -222,7 +222,6 @@ export class PaymentIntentAggregate {
       // the sender understands the asset to be used?
       // - v1 Rafiki requires it to be passed in
 
-      // TODO: are incoming payments created in this create incoming payment intent command always local?
       const destination = PaymentIntentDestination.LOCAL;
 
       const entity = PaymentIntent.create(
@@ -326,9 +325,6 @@ export class PaymentIntentAggregate {
       }
 
       // REMOTE: create pending quote, emit event to initiate quoting
-      // TODO: debitAmount/receiveAmount on RemoteQuoteRequestedEvent sufficient for auditing or
-      // should we store on quote as well? requestedDebitAmount etc.
-      // - FWIW, Rafiki v1 does not persist requested (nor has event to trace)
       paymentIntent.addPendingRemoteQuote({
         id: quoteId,
         senderWalletAddress: {

@@ -65,9 +65,6 @@ export async function incomingPaymentRoutes(
     return reply.status(201).send(response);
   });
 
-  // TODO: Clarify scope of this endpoint. should it be /payment-intent and
-  // have quote and payments? Currently only exposing for fetching remote payment intents
-  // but long term we wont use this for that purpose (will use open payments api when it exists).
   server.get<{ Params: { id: string } }>(
     '/incoming-payments/:id',
     async (request, reply) => {
