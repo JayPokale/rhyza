@@ -426,12 +426,18 @@ export class PaymentIntent implements IPaymentIntent {
       debitAmount,
       receiveAmount,
       exchangeRate,
-      expiresAt: new Date(Math.min(this.expiresAt.getTime(), quoteDefaultExpiryMs))
+      expiresAt: new Date(
+        Math.min(this.expiresAt.getTime(), quoteDefaultExpiryMs)
+      )
     };
     this._quotes[idx] = completedQuote;
   }
 
-  failRemoteQuote(args: { id: string; errorName: string; message: string }): void {
+  failRemoteQuote(args: {
+    id: string;
+    errorName: string;
+    message: string;
+  }): void {
     const { id, errorName, message } = args;
 
     const idx = this._quotes.findIndex((q) => q.id === id);

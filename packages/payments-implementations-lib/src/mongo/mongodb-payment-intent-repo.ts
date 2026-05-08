@@ -293,7 +293,9 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
     }
   }
 
-  async storeFinalizedRemoteQuotes(updates: FinalizedRemoteQuoteUpdate[]): Promise<void> {
+  async storeFinalizedRemoteQuotes(
+    updates: FinalizedRemoteQuoteUpdate[]
+  ): Promise<void> {
     this._checkInitialisedOrThrow();
 
     if (updates.length === 0) return;

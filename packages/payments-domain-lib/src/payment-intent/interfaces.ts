@@ -113,12 +113,6 @@ export interface IRemotePaymentIntentService {
   fetchIncomingPayment(url: string): Promise<RemotePaymentIntentDetails>;
 }
 
-export interface IPeerService {
-  resolvePeerByIlpAddress(
-    destinationIlpAddress: string
-  ): Promise<{ peerId: string }>;
-}
-
 export type FinalizedRemoteQuoteUpdate =
   | {
       paymentIntentId: string;
@@ -156,5 +150,7 @@ export interface IPaymentIntentRepository {
       payments: { id: string; state: PaymentState; sentAmount: bigint }[];
     }[]
   ): Promise<void>;
-  storeFinalizedRemoteQuotes(updates: FinalizedRemoteQuoteUpdate[]): Promise<void>;
+  storeFinalizedRemoteQuotes(
+    updates: FinalizedRemoteQuoteUpdate[]
+  ): Promise<void>;
 }

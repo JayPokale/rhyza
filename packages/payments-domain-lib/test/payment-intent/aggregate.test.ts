@@ -147,7 +147,9 @@ describe('PaymentIntentAggregate.handleBatch', () => {
     );
   });
 
-  function makeRemotePaymentIntentWithPendingQuote(quoteId: string): IPaymentIntent {
+  function makeRemotePaymentIntentWithPendingQuote(
+    quoteId: string
+  ): IPaymentIntent {
     return {
       id: crypto.randomUUID(),
       receivedAmount: 0n,
@@ -366,8 +368,14 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         assert.equal(payload.paymentIntentId, paymentIntent.id);
         assert.equal(payload.quoteId, cmd.payload.id);
         assert.equal(payload.destinationIlpAddress, 'g.peer.123');
-        assert.equal(payload.receiverWalletAddress, paymentIntent.receiverWalletAddress);
-        assert.equal(payload.senderWalletAddress, cmd.payload.senderWalletAddress);
+        assert.equal(
+          payload.receiverWalletAddress,
+          paymentIntent.receiverWalletAddress
+        );
+        assert.equal(
+          payload.senderWalletAddress,
+          cmd.payload.senderWalletAddress
+        );
         assert.equal(payload.senderAssetCode, 'USD');
         assert.equal(payload.senderAssetScale, 2);
         assert.equal(payload.debitAmount, '500');
@@ -451,7 +459,9 @@ describe('PaymentIntentAggregate.handleBatch', () => {
       });
 
       it('fails when quote not found', async () => {
-        const paymentIntent = makeRemotePaymentIntentWithPendingQuote(crypto.randomUUID());
+        const paymentIntent = makeRemotePaymentIntentWithPendingQuote(
+          crypto.randomUUID()
+        );
         await repo.storeMany([paymentIntent]);
 
         const cmd = makeCompleteRemoteQuoteCmd({
@@ -519,7 +529,9 @@ describe('PaymentIntentAggregate.handleBatch', () => {
       });
 
       it('fails when quote not found', async () => {
-        const paymentIntent = makeRemotePaymentIntentWithPendingQuote(crypto.randomUUID());
+        const paymentIntent = makeRemotePaymentIntentWithPendingQuote(
+          crypto.randomUUID()
+        );
         await repo.storeMany([paymentIntent]);
 
         const cmd = makeFailRemoteQuoteCmd({
@@ -542,7 +554,8 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         return new ImportRemotePaymentIntentCmd(
           {
             id: overrides.id ?? crypto.randomUUID(),
-            url: overrides.url ?? 'https://remote.domain.com/incoming-payments/abc'
+            url:
+              overrides.url ?? 'https://remote.domain.com/incoming-payments/abc'
           },
           crypto.randomUUID()
         );
@@ -586,7 +599,9 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         };
         await repo.storeMany([existingPaymentIntent]);
 
-        const cmd = makeImportRemotePaymentIntentCmd({ id: existingPaymentIntent.id });
+        const cmd = makeImportRemotePaymentIntentCmd({
+          id: existingPaymentIntent.id
+        });
         const { events } = await aggregate.handleBatch([cmd]);
 
         assert.equal(events.length, 1);
@@ -606,8 +621,12 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         const { events } = await aggregate.handleBatch([cmd]);
 
         assert.equal(events.length, 1);
-        assert.equal(events[0].msgName, RemotePaymentIntentImportFailedEvent.name);
-        const payload = (events[0] as RemotePaymentIntentImportFailedEvent).payload;
+        assert.equal(
+          events[0].msgName,
+          RemotePaymentIntentImportFailedEvent.name
+        );
+        const payload = (events[0] as RemotePaymentIntentImportFailedEvent)
+          .payload;
         assert.equal(payload.paymentIntentId, cmd.payload.id);
         assert.match(payload.message, /Connection refused/);
       });

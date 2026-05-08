@@ -73,7 +73,9 @@ export class MockPaymentIntentRepo implements IPaymentIntentRepository {
     }
   }
 
-  async storeFinalizedRemoteQuotes(updates: FinalizedRemoteQuoteUpdate[]): Promise<void> {
+  async storeFinalizedRemoteQuotes(
+    updates: FinalizedRemoteQuoteUpdate[]
+  ): Promise<void> {
     for (const update of updates) {
       const paymentIntent = this._store.get(update.paymentIntentId);
       if (!paymentIntent) {
