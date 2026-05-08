@@ -18,7 +18,6 @@ import {
   AccessAction,
   AccessType,
   GrantFinalization,
-  GrantState,
   IAccessItem,
   IAccessLimit,
   IFinishMethod,
