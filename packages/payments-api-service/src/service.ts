@@ -10,17 +10,23 @@ import {
   MessageSerializationFactory,
   PinoLogger
 } from 'implementations-lib';
+import { MongoDbPaymentIntentRepo } from 'payments-implementations-lib';
 
 const INSTANCE_ID = `PAYMENTS_API_SVC_${crypto.randomUUID()}`;
 const KAFKA_URL = process.env['KAFKA_URL'] || 'localhost:9092';
+const MONGODB_URL = process.env['MONGODB_URL'] || 'mongodb://localhost:27017';
 
 export class PaymentsApiService {
   private static grpcService: PaymentsServiceServer;
   private static msgProducer: KafkaProducer;
   private static msgConsumer: KafkaConsumer;
+  private static repo: MongoDbPaymentIntentRepo;
 
   static async start(): Promise<void> {
     const logger = new PinoLogger();
+
+    this.repo = new MongoDbPaymentIntentRepo(MONGODB_URL, logger);
+    await this.repo.init();
 
     const kafkaBuilder = new KafkaBuilder()
       .withLogger(logger)
@@ -42,7 +48,8 @@ export class PaymentsApiService {
       '1',
       '0.0.0.0:50052',
       this.msgProducer,
-      this.msgConsumer
+      this.msgConsumer,
+      this.repo
     );
 
     await this.grpcService.start();
@@ -53,5 +60,6 @@ export class PaymentsApiService {
     await this.msgConsumer.stop();
     await this.msgProducer.disconnect();
     await this.msgConsumer.disconnect();
+    await this.repo.destroy();
   }
 }

@@ -1,12 +1,16 @@
 import * as grpc from '@grpc/grpc-js';
-import { ServiceError } from '@grpc/grpc-js';
+import { ServiceError, status } from '@grpc/grpc-js';
 import { v5 as uuidv5 } from 'uuid';
-import { RemoteQuotingNotConfiguredError } from './errors';
+import {
+  PaymentIntentNotFoundError,
+  RemoteQuotingNotConfiguredError
+} from './errors';
 import {
   ICreateIncomingPaymentResponse,
   ICreateQuoteResponse,
   ICreateOutgoingPaymentResponse,
-  IApproveOutgoingPaymentResponse
+  IApproveOutgoingPaymentResponse,
+  IGetPaymentIntentResponse
 } from './local-types';
 import {
   CreateIncomingPaymentRequest,
@@ -19,7 +23,9 @@ import {
   ApproveOutgoingPaymentRequest,
   ApproveOutgoingPaymentResponse,
   ImportRemoteIncomingPaymentRequest,
-  ImportRemoteIncomingPaymentResponse
+  ImportRemoteIncomingPaymentResponse,
+  GetPaymentIntentRequest,
+  GetPaymentIntentResponse
 } from 'payments-public-types-lib';
 
 type IncomingPaymentInput =
@@ -241,6 +247,43 @@ export class PaymentsClient {
 
           return resolve({
             id: response.getId()
+          });
+        }
+      );
+    });
+  }
+
+  async getPaymentIntent(id: string): Promise<IGetPaymentIntentResponse> {
+    const request = new GetPaymentIntentRequest();
+    request.setId(id);
+
+    return new Promise((resolve, reject) => {
+      this._grpcClient.getPaymentIntent(
+        request,
+        (error: ServiceError | null, response: GetPaymentIntentResponse) => {
+          if (error) {
+            if (error.code === status.NOT_FOUND) {
+              return reject(new PaymentIntentNotFoundError(id));
+            }
+            console.error(error);
+            return reject(error);
+          }
+
+          const incomingAmount = response.getIncomingAmount();
+          const expiresAt = response.getExpiresAt();
+          const destinationIlpAddress = response.getDestinationIlpAddress();
+
+          return resolve({
+            id: response.getId(),
+            receiverWalletAddress: response.getWalletAddress(),
+            state: response.getState(),
+            destination: response.getDestination(),
+            receivedAmount: BigInt(response.getReceivedAmount()),
+            assetCode: response.getAssetCode(),
+            assetScale: response.getAssetScale(),
+            incomingAmount: incomingAmount ? BigInt(incomingAmount) : undefined,
+            expiresAt: expiresAt || undefined,
+            destinationIlpAddress: destinationIlpAddress || undefined
           });
         }
       );

@@ -45,7 +45,7 @@ export class PaymentsCommandHandlerService {
       .withClientId(INSTANCE_ID)
       .withSerializerFactory(MessageSerializationFactory.instance());
 
-    this.repo = new MongoDbPaymentIntentRepo(MONGODB_URL);
+    this.repo = new MongoDbPaymentIntentRepo(MONGODB_URL, logger);
     await this.repo.init();
 
     const palClient = new PalClient(PAL_GRPC_URL);

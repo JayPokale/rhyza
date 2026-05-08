@@ -21,11 +21,14 @@ import {
   ApproveOutgoingPaymentResponse,
   ImportRemoteIncomingPaymentRequest,
   ImportRemoteIncomingPaymentResponse,
+  GetPaymentIntentRequest,
+  GetPaymentIntentResponse,
   HealthCheckRequest,
   HealthCheckResponse,
   HealthService,
   PaymentsGrpcService
 } from 'payments-public-types-lib';
+import { IPaymentIntentRepository } from 'payments-domain-lib';
 import { IMessage, IMessageConsumer, IMessageProducer } from 'common-types-lib';
 import {
   CreatePaymentIntentCmd,
@@ -51,6 +54,7 @@ export class PaymentsServiceServer {
   private readonly _server: grpc.Server;
   private readonly _msgProducer: IMessageProducer;
   private readonly _msgConsumer: IMessageConsumer;
+  private readonly _repo: IPaymentIntentRepository;
   private readonly _responseTimeoutMs: number;
   // Holds pending gRPC callbacks keyed by command ID (UUID).
   // Kafka consumer resolves/rejects these when response events arrive.
@@ -64,6 +68,7 @@ export class PaymentsServiceServer {
     serverUrl: string,
     msgProducer: IMessageProducer,
     msgConsumer: IMessageConsumer,
+    repo: IPaymentIntentRepository,
     responseTimeoutMs: number = DEFAULT_RESPONSE_TIMEOUT_MS
   ) {
     this._responseTimeoutMs = responseTimeoutMs;
@@ -71,6 +76,7 @@ export class PaymentsServiceServer {
     this._instanceId = instanceId;
     this._msgProducer = msgProducer;
     this._msgConsumer = msgConsumer;
+    this._repo = repo;
 
     this._msgConsumer.setBatchCallbackFn(this._handleBatch.bind(this));
 
@@ -106,7 +112,8 @@ export class PaymentsServiceServer {
       createQuote: this._handleUnary.bind(this),
       createOutgoingPayment: this._handleUnary.bind(this),
       approveOutgoingPayment: this._handleUnary.bind(this),
-      importRemoteIncomingPayment: this._handleUnary.bind(this)
+      importRemoteIncomingPayment: this._handleUnary.bind(this),
+      getPaymentIntent: this._handleGetPaymentIntent.bind(this)
     });
   }
 
@@ -270,6 +277,42 @@ export class PaymentsServiceServer {
       callback(
         new Error(`Invalid request type: ${call.request.constructor.name}`)
       );
+    }
+  }
+
+  private async _handleGetPaymentIntent(
+    call: ServerUnaryCall<GetPaymentIntentRequest, GetPaymentIntentResponse>,
+    callback: sendUnaryData<GetPaymentIntentResponse>
+  ): Promise<void> {
+    const id = call.request.getId();
+    try {
+      const paymentIntent = await this._repo.fetchById(id);
+      if (!paymentIntent) {
+        callback({ code: grpc.status.NOT_FOUND, message: `Payment intent '${id}' not found` });
+        return;
+      }
+
+      const response = new GetPaymentIntentResponse();
+      response.setId(paymentIntent.id);
+      response.setWalletAddress(paymentIntent.receiverWalletAddress);
+      response.setState(paymentIntent.state);
+      response.setDestination(paymentIntent.destination);
+      response.setReceivedAmount(Number(paymentIntent.receivedAmount));
+      response.setAssetCode(paymentIntent.assetCode);
+      response.setAssetScale(paymentIntent.assetScale);
+      if (paymentIntent.incomingAmount != null) {
+        response.setIncomingAmount(Number(paymentIntent.incomingAmount));
+      }
+      if (paymentIntent.expiresAt) {
+        response.setExpiresAt(new Date(paymentIntent.expiresAt).toISOString());
+      }
+      if (paymentIntent.destinationIlpAddress) {
+        response.setDestinationIlpAddress(paymentIntent.destinationIlpAddress);
+      }
+
+      callback(null, response);
+    } catch (err) {
+      callback({ code: grpc.status.INTERNAL, message: (err as Error).message });
     }
   }
 

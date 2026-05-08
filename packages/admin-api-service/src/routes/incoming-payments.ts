@@ -3,24 +3,19 @@
 import { randomUUID } from 'crypto';
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { PalClient, parseAddressToDomainAndPathName } from 'pal-client-lib';
-import { PaymentsClient } from 'payments-client-lib';
-import { MongoDbPaymentIntentRepo } from 'payments-implementations-lib';
+import { PaymentsClient, PaymentIntentNotFoundError } from 'payments-client-lib';
 
 interface IncomingPaymentRouteOptions extends FastifyPluginOptions {
   palClient: PalClient;
   paymentsClient: PaymentsClient;
   openPaymentsUrl: string | undefined;
-  repo: MongoDbPaymentIntentRepo;
 }
-
-// TODO: get properly
-const STUB_DESTINATION_ILP_ADDRESS = 'test.rafiki.bob';
 
 export async function incomingPaymentRoutes(
   server: FastifyInstance,
   opts: IncomingPaymentRouteOptions
 ): Promise<void> {
-  const { palClient, paymentsClient, openPaymentsUrl, repo } = opts;
+  const { palClient, paymentsClient, openPaymentsUrl } = opts;
 
   server.post<{
     Body: {
@@ -70,12 +65,16 @@ export async function incomingPaymentRoutes(
     async (request, reply) => {
       const { id } = request.params;
 
-      const [paymentIntent] = await repo.fetchByIdsWithPayments([id]);
-
-      if (!paymentIntent) {
-        return reply
-          .status(404)
-          .send({ error: `Incoming payment '${id}' not found` });
+      let paymentIntent;
+      try {
+        paymentIntent = await paymentsClient.getPaymentIntent(id);
+      } catch (err) {
+        if (err instanceof PaymentIntentNotFoundError) {
+          return reply
+            .status(404)
+            .send({ error: `Incoming payment '${id}' not found` });
+        }
+        throw err;
       }
 
       const response: {
@@ -91,18 +90,17 @@ export async function incomingPaymentRoutes(
           assetScale: number;
         };
         expiresAt?: string;
-        destinationIlpAddress: string;
+        destinationIlpAddress?: string;
       } = {
         walletAddress: paymentIntent.receiverWalletAddress,
         receivedAmount: {
           value: String(paymentIntent.receivedAmount),
           assetCode: paymentIntent.assetCode,
           assetScale: paymentIntent.assetScale
-        },
-        destinationIlpAddress: STUB_DESTINATION_ILP_ADDRESS
+        }
       };
 
-      if (paymentIntent.incomingAmount) {
+      if (paymentIntent.incomingAmount != null) {
         response.incomingAmount = {
           value: String(paymentIntent.incomingAmount),
           assetCode: paymentIntent.assetCode,
@@ -111,7 +109,11 @@ export async function incomingPaymentRoutes(
       }
 
       if (paymentIntent.expiresAt) {
-        response.expiresAt = new Date(paymentIntent.expiresAt).toISOString();
+        response.expiresAt = paymentIntent.expiresAt;
+      }
+
+      if (paymentIntent.destinationIlpAddress) {
+        response.destinationIlpAddress = paymentIntent.destinationIlpAddress;
       }
 
       return reply.status(200).send(response);

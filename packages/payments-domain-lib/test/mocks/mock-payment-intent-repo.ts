@@ -15,6 +15,10 @@ export class MockPaymentIntentRepo implements IPaymentIntentRepository {
     }
   }
 
+  async fetchById(id: string): Promise<IPaymentIntent | undefined> {
+    return this._store.get(id);
+  }
+
   async fetchByIdsWithPayments(ids: string[]): Promise<IPaymentIntent[]> {
     const results: IPaymentIntent[] = [];
     for (const id of ids) {

@@ -5,3 +5,9 @@ export class RemoteQuotingNotConfiguredError extends Error {
     );
   }
 }
+
+export class PaymentIntentNotFoundError extends Error {
+  constructor(id: string) {
+    super(`Payment intent '${id}' not found`);
+  }
+}

@@ -41,12 +41,6 @@ importers:
       payments-client-lib:
         specifier: workspace:*
         version: link:../payments-client-lib
-      payments-domain-lib:
-        specifier: workspace:*
-        version: link:../payments-domain-lib
-      payments-implementations-lib:
-        specifier: workspace:*
-        version: link:../payments-implementations-lib
     devDependencies:
       tsx:
         specifier: ^4.19.3
@@ -387,6 +381,9 @@ importers:
 
   packages/payments-implementations-lib:
     dependencies:
+      common-types-lib:
+        specifier: workspace:*
+        version: link:../common-types-lib
       mongodb:
         specifier: ~7.1.0
         version: 7.1.1

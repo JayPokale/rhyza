@@ -133,6 +133,7 @@ export type FinalizedRemoteQuoteUpdate =
 
 export interface IPaymentIntentRepository {
   storeMany(paymentIntents: IPaymentIntent[]): Promise<void>;
+  fetchById(id: string): Promise<IPaymentIntent | undefined>;
   fetchByIdsWithPayments(ids: string[]): Promise<IPaymentIntent[]>;
   storeQuotes(
     quoteUpdates: { quoteIds: string[]; paymentIntent: IPaymentIntent }[]
