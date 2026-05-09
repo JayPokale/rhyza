@@ -13,41 +13,184 @@ import {
   QuoteExpiredError
 } from './errors';
 import {
+  IBaseQuote,
   IPaymentIntent,
+  IQuote,
   PaymentIntentDestination,
   PaymentIntentState,
   PaymentState,
-  QuoteState
+  QuoteState,
+  ICompletedQuote,
+  IFailedQuote
 } from './interfaces';
 
 const MAX_PAYMENT_INTENT_EXPIRY_MS = 1000 * 60 * 60 * 24 * 30; // 30 days
 const QUOTE_EXPIRY_MS = 1000 * 60 * 10;
 
-type Quote = PendingQuote | CompletedQuote | FailedQuote;
+class Quote implements IBaseQuote {
+  private _id: string;
+  private _state: QuoteState;
+  private _senderWalletAddress: string;
+  private _senderWalletAddressId: string;
+  private _debitAmount?: bigint;
+  private _receiveAmount?: bigint;
+  private _exchangeRate?: number;
+  private _expiresAt?: Date;
+  private _errorName?: string;
+  private _message?: string;
 
-interface BaseQuote {
-  id: string;
-  state: QuoteState;
-  senderWalletAddress: string;
-  senderWalletAddressId: string;
-}
+  private constructor(
+    id: string,
+    state: QuoteState,
+    senderWalletAddress: string,
+    senderWalletAddressId: string,
+    debitAmount?: bigint,
+    receiveAmount?: bigint,
+    exchangeRate?: number,
+    expiresAt?: Date,
+    errorName?: string,
+    message?: string
+  ) {
+    this._id = id;
+    this._state = state;
+    this._senderWalletAddress = senderWalletAddress;
+    this._senderWalletAddressId = senderWalletAddressId;
+    this._debitAmount = debitAmount;
+    this._receiveAmount = receiveAmount;
+    this._exchangeRate = exchangeRate;
+    this._expiresAt = expiresAt;
+    this._errorName = errorName;
+    this._message = message;
+  }
 
-interface PendingQuote extends BaseQuote {
-  state: 'PENDING';
-}
+  static createPending(
+    id: string,
+    senderWalletAddress: string,
+    senderWalletAddressId: string
+  ): Quote {
+    return new Quote(id, 'PENDING', senderWalletAddress, senderWalletAddressId);
+  }
 
-interface CompletedQuote extends BaseQuote {
-  state: 'COMPLETED';
-  expiresAt: Date;
-  receiveAmount: bigint;
-  debitAmount: bigint;
-  exchangeRate: number;
-}
+  static fromObject(obj: IQuote): Quote {
+    if (obj.state === 'COMPLETED') {
+      return new Quote(
+        obj.id,
+        obj.state,
+        obj.senderWalletAddress,
+        obj.senderWalletAddressId,
+        obj.debitAmount,
+        obj.receiveAmount,
+        obj.exchangeRate,
+        obj.expiresAt
+      );
+    } else if (obj.state === 'FAILED') {
+      return new Quote(
+        obj.id,
+        obj.state,
+        obj.senderWalletAddress,
+        obj.senderWalletAddressId,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        obj.errorName,
+        obj.message
+      );
+    } else {
+      return new Quote(
+        obj.id,
+        obj.state,
+        obj.senderWalletAddress,
+        obj.senderWalletAddressId
+      );
+    }
+  }
 
-interface FailedQuote extends BaseQuote {
-  state: 'FAILED';
-  errorName: string;
-  message: string;
+  complete(args: {
+    debitAmount: bigint;
+    receiveAmount: bigint;
+    exchangeRate: number;
+    paymentIntentExpiresAt: Date;
+  }): void {
+    if (this._state !== 'PENDING') {
+      throw new InvalidQuoteStateError(
+        `Quote ${this._id} is not in PENDING state, cannot complete`
+      );
+    }
+    const { debitAmount, receiveAmount, exchangeRate, paymentIntentExpiresAt } =
+      args;
+    const quoteDefaultExpiryMs = Date.now() + QUOTE_EXPIRY_MS;
+    this._state = 'COMPLETED';
+    this._debitAmount = debitAmount;
+    this._receiveAmount = receiveAmount;
+    this._exchangeRate = exchangeRate;
+    this._expiresAt = new Date(
+      Math.min(paymentIntentExpiresAt.getTime(), quoteDefaultExpiryMs)
+    );
+  }
+
+  fail(args: { errorName: string; message: string }): void {
+    if (this._state !== 'PENDING') {
+      throw new InvalidQuoteStateError(
+        `Quote ${this._id} is not in PENDING state, cannot fail`
+      );
+    }
+    this._state = 'FAILED';
+    this._errorName = args.errorName;
+    this._message = args.message;
+  }
+
+  toObject(): IQuote {
+    const base = {
+      id: this._id,
+      senderWalletAddress: this._senderWalletAddress,
+      senderWalletAddressId: this._senderWalletAddressId
+    };
+    // if (this._state === 'COMPLETED') {
+    if (this.isCompleted()) {
+      return {
+        ...base,
+        state: 'COMPLETED',
+        debitAmount: this._debitAmount,
+        receiveAmount: this._receiveAmount,
+        exchangeRate: this._exchangeRate,
+        expiresAt: this._expiresAt
+      };
+    } else if (this.isFailed()) {
+      return {
+        ...base,
+        state: 'FAILED',
+        errorName: this._errorName,
+        message: this._message
+      };
+    } else {
+      return { ...base, state: 'PENDING' };
+    }
+  }
+
+  private isCompleted(): this is ICompletedQuote {
+    return this._state === 'COMPLETED';
+  }
+
+  private isFailed(): this is IFailedQuote {
+    return this._state === 'FAILED';
+  }
+
+  get id(): string {
+    return this._id;
+  }
+
+  get state(): QuoteState {
+    return this._state;
+  }
+
+  get senderWalletAddress(): string {
+    return this._senderWalletAddress;
+  }
+
+  get senderWalletAddressId(): string {
+    return this._senderWalletAddressId;
+  }
 }
 
 interface Payment {
@@ -181,26 +324,7 @@ export class PaymentIntent implements IPaymentIntent {
       obj.incomingAmount,
       obj.receivedAmount,
       obj.state,
-      obj.quotes.map((quote) => ({
-        id: quote.id,
-        senderWalletAddress: quote.senderWalletAddress,
-        senderWalletAddressId: quote.senderWalletAddressId,
-        ...(quote.state === 'COMPLETED'
-          ? {
-              state: quote.state,
-              debitAmount: quote.debitAmount,
-              receiveAmount: quote.receiveAmount,
-              expiresAt: quote.expiresAt,
-              exchangeRate: quote.exchangeRate
-            }
-          : quote.state === 'FAILED'
-            ? {
-                state: quote.state,
-                errorName: quote.errorName,
-                message: quote.message
-              }
-            : { state: quote.state })
-      })),
+      obj.quotes.map((q) => Quote.fromObject(q)),
       obj.payments.map((payment) => ({
         id: payment.id,
         senderWalletAddress: payment.senderWalletAddress,
@@ -231,26 +355,7 @@ export class PaymentIntent implements IPaymentIntent {
       expiresAt: this._expiresAt,
       incomingAmount: this._incomingAmount,
       receivedAmount: this._receivedAmount,
-      quotes: this._quotes.map((quote) => ({
-        id: quote.id,
-        senderWalletAddress: quote.senderWalletAddress,
-        senderWalletAddressId: quote.senderWalletAddressId,
-        ...(quote.state === 'COMPLETED'
-          ? {
-              state: quote.state,
-              debitAmount: quote.debitAmount,
-              receiveAmount: quote.receiveAmount,
-              expiresAt: quote.expiresAt,
-              exchangeRate: quote.exchangeRate
-            }
-          : quote.state === 'FAILED'
-            ? {
-                state: quote.state,
-                errorName: quote.errorName,
-                message: quote.message
-              }
-            : { state: quote.state })
-      })),
+      quotes: this._quotes.map((q) => q.toObject()),
       payments: this._payments.map((payment) => ({
         id: payment.id,
         state: payment.state,
@@ -301,7 +406,7 @@ export class PaymentIntent implements IPaymentIntent {
       );
     }
 
-    if (this.quotes.find((quote) => quote.id === id)) {
+    if (this._quotes.find((q) => q.id === id)) {
       throw new InvalidQuoteIdError(
         `Duplicate quote id ${id} exists for ${this.id} payment intent`
       );
@@ -334,20 +439,17 @@ export class PaymentIntent implements IPaymentIntent {
       );
     }
 
-    const quoteDefaultExpiryMs = Date.now() + QUOTE_EXPIRY_MS;
-    const quote: Quote = {
+    const quote = Quote.createPending(
       id,
+      senderWalletAddress.address,
+      senderWalletAddress.id
+    );
+    quote.complete({
       debitAmount: quoteDebitAmount,
       receiveAmount: quoteReceiveAmount,
-      state: 'COMPLETED',
-      senderWalletAddress: senderWalletAddress.address,
-      senderWalletAddressId: senderWalletAddress.id,
-      expiresAt: new Date(
-        Math.min(this.expiresAt.getTime(), quoteDefaultExpiryMs)
-      ),
-      exchangeRate
-    };
-
+      exchangeRate,
+      paymentIntentExpiresAt: this.expiresAt
+    });
     this._quotes.push(quote);
   }
 
@@ -372,20 +474,19 @@ export class PaymentIntent implements IPaymentIntent {
       );
     }
 
-    if (this.quotes.find((quote) => quote.id === id)) {
+    if (this._quotes.find((quote) => quote.id === id)) {
       throw new InvalidQuoteIdError(
         `Duplicate quote id ${id} exists for ${this.id} payment intent`
       );
     }
 
-    const quote: Quote = {
-      id,
-      state: 'PENDING',
-      senderWalletAddress: senderWalletAddress.address,
-      senderWalletAddressId: senderWalletAddress.id
-    };
-
-    this._quotes.push(quote);
+    this._quotes.push(
+      Quote.createPending(
+        id,
+        senderWalletAddress.address,
+        senderWalletAddress.id
+      )
+    );
   }
 
   completeRemoteQuote(args: {
@@ -396,18 +497,10 @@ export class PaymentIntent implements IPaymentIntent {
   }): void {
     const { id, debitAmount, receiveAmount, exchangeRate } = args;
 
-    const idx = this._quotes.findIndex((q) => q.id === id);
-    if (idx === -1) {
+    const quote = this._quotes.find((q) => q.id === id);
+    if (!quote) {
       throw new InvalidQuoteIdError(
         `Quote ${id} not found for ${this.id} payment intent`
-      );
-    }
-
-    const quote = this._quotes[idx];
-
-    if (quote.state !== 'PENDING') {
-      throw new InvalidQuoteStateError(
-        `Quote ${id} is not in PENDING state, cannot complete`
       );
     }
 
@@ -417,20 +510,12 @@ export class PaymentIntent implements IPaymentIntent {
       );
     }
 
-    const quoteDefaultExpiryMs = Date.now() + QUOTE_EXPIRY_MS;
-    const completedQuote: CompletedQuote = {
-      id: quote.id,
-      state: 'COMPLETED',
-      senderWalletAddress: quote.senderWalletAddress,
-      senderWalletAddressId: quote.senderWalletAddressId,
+    quote.complete({
       debitAmount,
       receiveAmount,
       exchangeRate,
-      expiresAt: new Date(
-        Math.min(this.expiresAt.getTime(), quoteDefaultExpiryMs)
-      )
-    };
-    this._quotes[idx] = completedQuote;
+      paymentIntentExpiresAt: this.expiresAt
+    });
   }
 
   failRemoteQuote(args: {
@@ -440,30 +525,14 @@ export class PaymentIntent implements IPaymentIntent {
   }): void {
     const { id, errorName, message } = args;
 
-    const idx = this._quotes.findIndex((q) => q.id === id);
-    if (idx === -1) {
+    const quote = this._quotes.find((q) => q.id === id);
+    if (!quote) {
       throw new InvalidQuoteIdError(
         `Quote ${id} not found for ${this.id} payment intent`
       );
     }
 
-    const quote = this._quotes[idx];
-
-    if (quote.state !== 'PENDING') {
-      throw new InvalidQuoteStateError(
-        `Quote ${id} is not in PENDING state, cannot fail`
-      );
-    }
-
-    const failedQuote: FailedQuote = {
-      id: quote.id,
-      state: 'FAILED',
-      senderWalletAddress: quote.senderWalletAddress,
-      senderWalletAddressId: quote.senderWalletAddressId,
-      errorName,
-      message
-    };
-    this._quotes[idx] = failedQuote;
+    quote.fail({ errorName, message });
   }
 
   addLocalPayment(args: {
@@ -666,8 +735,8 @@ export class PaymentIntent implements IPaymentIntent {
     return this._receivedAmount;
   }
 
-  get quotes(): Quote[] {
-    return this._quotes;
+  get quotes(): IQuote[] {
+    return this._quotes.map((q) => q.toObject());
   }
 
   get payments(): Payment[] {

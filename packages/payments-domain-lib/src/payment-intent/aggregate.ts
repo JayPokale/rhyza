@@ -9,7 +9,7 @@ import {
   PaymentIntentDestination,
   PaymentIntentState,
   PaymentState,
-  WalletAddress
+  IWalletAddress
 } from './interfaces';
 import { PaymentIntent } from './entity';
 import {
@@ -51,7 +51,7 @@ export class PaymentIntentAggregate {
   private completedLocalPayments = new Map<string, string[]>(); // paymentIntentId, paymentIds
   private finalizedRemoteQuotes = new Map<string, string[]>(); // paymentIntentId, quoteIds
   private paymentIntentMap = new Map<string, IPaymentIntent>();
-  private walletAddressMap = new Map<string, WalletAddress>();
+  private walletAddressMap = new Map<string, IWalletAddress>();
   private remotePaymentIntentFetchErrors = new Map<string, Error>();
 
   constructor(

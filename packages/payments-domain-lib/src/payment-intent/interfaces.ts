@@ -17,18 +17,18 @@ export const QuoteState = {
 } as const;
 export type QuoteState = keyof typeof QuoteState;
 
-interface BaseQuote {
+export interface IBaseQuote {
   id: string;
   state: QuoteState;
   senderWalletAddress: string;
   senderWalletAddressId: string;
 }
 
-interface PendingQuote extends BaseQuote {
+export interface IPendingQuote extends IBaseQuote {
   state: 'PENDING';
 }
 
-interface CompletedQuote extends BaseQuote {
+export interface ICompletedQuote extends IBaseQuote {
   state: 'COMPLETED';
   expiresAt: Date;
   debitAmount: bigint;
@@ -36,13 +36,13 @@ interface CompletedQuote extends BaseQuote {
   exchangeRate: number;
 }
 
-interface FailedQuote extends BaseQuote {
+export interface IFailedQuote extends IBaseQuote {
   state: 'FAILED';
   errorName: string;
   message: string;
 }
 
-export type IQuote = PendingQuote | CompletedQuote | FailedQuote;
+export type IQuote = IPendingQuote | ICompletedQuote | IFailedQuote;
 
 export const PaymentState = {
   CREATED: 'CREATED',
@@ -81,7 +81,7 @@ export interface IPaymentIntent {
   remoteUrl?: string;
 }
 
-export interface WalletAddress {
+export interface IWalletAddress {
   id: string;
   isActive: boolean;
   assetCode: string;
@@ -89,7 +89,7 @@ export interface WalletAddress {
 }
 
 export interface IWalletAddressService {
-  fetchByIds(ids: string[]): Promise<WalletAddress[]>;
+  fetchByIds(ids: string[]): Promise<IWalletAddress[]>;
 }
 
 export interface IRatesService {
@@ -99,7 +99,7 @@ export interface IRatesService {
   ): Promise<number | undefined>;
 }
 
-export interface RemotePaymentIntentDetails {
+export interface IRemotePaymentIntentDetails {
   walletAddress: string;
   assetCode: string;
   assetScale: number;
@@ -110,7 +110,7 @@ export interface RemotePaymentIntentDetails {
 }
 
 export interface IRemotePaymentIntentService {
-  fetchIncomingPayment(url: string): Promise<RemotePaymentIntentDetails>;
+  fetchIncomingPayment(url: string): Promise<IRemotePaymentIntentDetails>;
 }
 
 export type FinalizedRemoteQuoteUpdate =
