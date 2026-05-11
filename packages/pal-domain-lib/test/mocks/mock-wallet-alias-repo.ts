@@ -14,7 +14,9 @@ import {
   IPalWalletAddressAliasRepository
 } from '../../src';
 
-export class MockWalletAddressAliasRepo implements IPalWalletAddressAliasRepository {
+export class MockWalletAddressAliasRepo
+  implements IPalWalletAddressAliasRepository
+{
   private _data: IPalWalletAddressAlias[] = [];
 
   store(alias: IPalWalletAddressAlias): Promise<void> {
