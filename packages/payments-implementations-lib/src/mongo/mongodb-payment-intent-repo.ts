@@ -123,26 +123,7 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
           receivedAmount: p.receivedAmount,
           destinationIlpAddress: p.destinationIlpAddress,
           remoteUrl: p.remoteUrl,
-          quotes: p.quotes.map((quote) => ({
-            id: quote.id,
-            senderWalletAddress: quote.senderWalletAddress,
-            senderWalletAddressId: quote.senderWalletAddressId,
-            ...(quote.state === 'COMPLETED'
-              ? {
-                  state: quote.state,
-                  debitAmount: quote.debitAmount,
-                  receiveAmount: quote.receiveAmount,
-                  expiresAt: quote.expiresAt,
-                  exchangeRate: quote.exchangeRate
-                }
-              : quote.state === 'FAILED'
-                ? {
-                    state: quote.state,
-                    errorName: quote.errorName,
-                    message: quote.message
-                  }
-                : { state: quote.state })
-          }))
+          quotes: p.quotes
         }))
       );
     } catch (e) {
