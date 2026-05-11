@@ -5,6 +5,10 @@ export const AccessType = {
 } as const;
 export type AccessType = keyof typeof AccessType;
 
+export const InteractiveAccessType: AccessType[] = [
+  AccessType.OUTGOING_PAYMENT
+] as const;
+
 export interface IAccessLimit {
   receiver: string;
   assetCode: string;
@@ -31,13 +35,9 @@ export interface IAccessItem {
   identifier?: string;
 }
 
-export interface SubjectId {
+export interface ISubjectId {
   format: string;
   id: string;
-}
-
-export interface ISubject {
-  sub_ids: SubjectId[];
 }
 
 export type InteractionChoice =
@@ -69,11 +69,6 @@ export const IFinishMethod = {
 } as const;
 export type IFinishMethod = keyof typeof IFinishMethod;
 
-export interface ISubjectId {
-  format: string;
-  id: string;
-}
-
 export interface IGrantFinishMethod {
   method: IFinishMethod;
   uri: string;
@@ -98,28 +93,37 @@ export const GrantState = {
 } as const;
 export type GrantState = keyof typeof GrantState;
 
+export const GrantFinalization = {
+  ISSUED: 'ISSUED',
+  REVOKED: 'REVOKED',
+  REJECTED: 'REJECTED'
+} as const;
+export type GrantFinalization = keyof typeof GrantFinalization;
+
 export interface IInteraction {
   interactRef: string;
   clientNonce: string;
   state: InteractionState;
-  expiresIn: number;
+  expiresInMs: number;
 }
+
+export type IGrantEntity = Omit<IGrant, 'id'>;
 
 export interface IGrant {
   id: string;
-  tenantId: string;
-  startMethod: IStartMethod[];
-  identifier: string;
-  continueToken: string;
-  continueId: string;
+  startMethods: IStartMethod[];
+  continueToken?: string;
+  continueId?: string;
   state: GrantState;
-  client?: string;
-  subject?: ISubject;
-  access?: IAccessItem[];
+  finalizationReason?: GrantFinalization;
+  client?: string | IJsonWebKey;
+  subjectIds?: ISubjectId[];
+  accesses?: IAccessItem[];
   finishMethod?: IFinishMethod;
   finishUri?: string;
   interaction?: IInteraction;
   lastContinuedAt?: Date;
+  accessTokens: Map<string, IAccessToken>;
 }
 
 export type NewAccessToken = Omit<IAccessToken, 'revokedAt'>;
@@ -130,8 +134,22 @@ export type RevokedAccessToken = IAccessToken & {
 
 export interface IAccessToken {
   value: string;
-  grantId: string;
   managementId: string;
-  expiresIn: number;
+  expiresInMs: number;
+  createdAt: Date;
   revokedAt?: Date;
+}
+
+export interface IJsonWebKey {
+  kty: string;
+  kid: string;
+  use?: string;
+  alg: string;
+  crv: string;
+  x: string;
+}
+
+export interface IAccessRequest {
+  actions: AccessAction[];
+  identifier?: string;
 }
