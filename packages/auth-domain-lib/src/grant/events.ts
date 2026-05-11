@@ -44,20 +44,20 @@ export class GrantCreateFailedEvent extends DomainEvent {
   }
 }
 
-export interface GrantContinuePayload {
+export interface GrantContinuedPayload {
   id: string;
   result: GrantFinalization;
 }
 
-export class GrantContinueEvent extends DomainEvent {
+export class GrantContinuedEvent extends DomainEvent {
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateId: string;
   aggregateName: string = AGGREGATE_NAME;
   msgKey: string;
   msgTopic: string = DomainEventTopics.AuthEvents;
-  payload: GrantContinuePayload;
+  payload: GrantContinuedPayload;
 
-  constructor(payload: GrantContinuePayload, requestId?: string) {
+  constructor(payload: GrantContinuedPayload, requestId?: string) {
     super(payload.id);
     this.aggregateId = this.msgKey = payload.id;
     this.payload = payload;
@@ -86,41 +86,41 @@ export class GrantContinueFailedEvent extends DomainEvent {
   }
 }
 
-export interface GrantInteractionChoicePayload {
+export interface GrantInteractionChoiceHandledPayload {
   id: string;
   interactId: string;
 }
 
-export class GrantInteractionChoiceEvent extends DomainEvent {
+export class GrantInteractionChoiceHandledEvent extends DomainEvent {
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateId: string;
   aggregateName: string = AGGREGATE_NAME;
   msgKey: string;
   msgTopic: string = DomainEventTopics.AuthEvents;
-  payload: GrantInteractionChoicePayload;
+  payload: GrantInteractionChoiceHandledPayload;
 
-  constructor(payload: GrantInteractionChoicePayload) {
+  constructor(payload: GrantInteractionChoiceHandledPayload) {
     super(payload.id);
     this.aggregateId = this.msgKey = payload.id;
     this.payload = payload;
   }
 }
 
-export interface GrantInteractionChoiceFailurePayload {
+export interface GrantInteractionChoiceFailedPayload {
   grantId: string;
   errName: string;
   message: string;
 }
 
-export class GrantInteractionChoiceFailureEvent extends DomainEvent {
+export class GrantInteractionChoiceFailedEvent extends DomainEvent {
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateId: string;
   aggregateName: string = AGGREGATE_NAME;
   msgKey: string;
   msgTopic: string = DomainEventTopics.AuthEvents;
-  payload: GrantInteractionChoiceFailurePayload;
+  payload: GrantInteractionChoiceFailedPayload;
 
-  constructor(payload: GrantInteractionChoiceFailurePayload) {
+  constructor(payload: GrantInteractionChoiceFailedPayload) {
     super(payload.grantId);
     this.aggregateId = this.msgKey = payload.grantId;
     this.payload = payload;

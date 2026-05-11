@@ -9,10 +9,10 @@ import { DuplicateGrantError, GrantNotFoundError } from './errors';
 import {
   GrantCreatedEvent,
   GrantCreateFailedEvent,
-  GrantContinueEvent,
+  GrantContinuedEvent,
   GrantContinueFailedEvent,
-  GrantInteractionChoiceEvent,
-  GrantInteractionChoiceFailureEvent
+  GrantInteractionChoiceHandledEvent,
+  GrantInteractionChoiceFailedEvent
 } from './events';
 import {
   AccessAction,
@@ -141,7 +141,7 @@ export class GrantAggregate {
       grant.continue(continueToken, continueId, interactRef);
 
       this.grantMap.set(id, grant.toObject());
-      return new GrantContinueEvent({
+      return new GrantContinuedEvent({
         id,
         result: grant.finalizationReason as GrantFinalization
       });
@@ -169,12 +169,12 @@ export class GrantAggregate {
       grant.handleInteractionChoice(choice);
       this.grantMap.set(id, grant.toObject());
 
-      return new GrantInteractionChoiceEvent({
+      return new GrantInteractionChoiceHandledEvent({
         id,
         interactId
       });
     } catch (error) {
-      return new GrantInteractionChoiceFailureEvent({
+      return new GrantInteractionChoiceFailedEvent({
         grantId: id,
         errName: (error as Error).name,
         message: (error as Error).message
