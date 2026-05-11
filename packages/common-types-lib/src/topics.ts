@@ -13,7 +13,8 @@ export enum CommandTopics {
   'PaymentCommands' = 'payment-commands',
   'AuthCommands' = 'auth-commands',
   'LedgerCommands' = 'ledger-commands',
-  'AssetCommands' = 'asset-commands'
+  'AssetCommands' = 'asset-commands',
+  'NotificationCommands' = 'notification-commands'
 }
 
 // for private event-sourcing events

@@ -16,12 +16,14 @@ export class NotificationsEventHandlerService {
     const kafkaBuilder = new KafkaBuilder();
     kafkaBuilder
       .withBrokerList(KAFKA_URL)
-      .withClientId('notifications-event-handler-service');
+      .withClientId(`NOTIFICATIONS_EVENT_HANDLER_SVC_${crypto.randomUUID()}`);
 
     this.msgProducer = kafkaBuilder.buildProducer({});
     await this.msgProducer.connect();
 
-    this.msgConsumer = kafkaBuilder.buildConsumer({});
+    this.msgConsumer = kafkaBuilder.buildConsumer({
+      consumerGroupId: 'notifications-event-handler'
+    });
 
     this.eventHandler = new NotificationsEventHandler(
       this.msgConsumer,

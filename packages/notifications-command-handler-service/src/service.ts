@@ -33,11 +33,15 @@ export class NotificationsCommandHandlerService {
     const kafkaBuilder = new KafkaBuilder();
     kafkaBuilder
       .withBrokerList(KAFKA_URL)
-      .withClientId('notifications-cmd-handler');
+      .withClientId(`NOTIFICATIONS_CMD_HANDLER_SVC_${crypto.randomUUID()}`);
 
     this.msgProducer = kafkaBuilder.buildProducer({});
 
     await this.msgProducer.connect();
+
+    this.msgConsumer = kafkaBuilder.buildConsumer({
+      consumerGroupId: 'notifications-command-handler'
+    });
 
     this.commandHandler = new NotificationsCommandHandler(
       this.msgConsumer,

@@ -13,7 +13,7 @@ export class CreateNotificationCmd extends CommandMsg {
   aggregateId: string;
   aggregateName: string = NOTIFICATION_AGG_NAME;
   msgKey: string;
-  msgTopic: string = CommandTopics.PaymentCommands;
+  msgTopic: string = CommandTopics.NotificationCommands;
   payload: CreateNotificationCmdPayload;
   constructor(payload: CreateNotificationCmdPayload, requestId?: string) {
     super(payload.id);

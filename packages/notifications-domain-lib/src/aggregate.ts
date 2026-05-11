@@ -23,6 +23,7 @@ export class NotificationAggregate {
   ): Promise<string> {
     const id = crypto.randomUUID();
     const notification = new Notification(id, data);
+    await this._repo.store(notification.toObject());
     try {
       await this._notificationSenderService.send(notification);
       notification.markAsSent();
