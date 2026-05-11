@@ -34,7 +34,7 @@ export interface IGrantService {
 }
 
 export class GrantAggregate {
-  private grantMap = new Map<string, IGrant>();
+  private grantMap = new Map<string, GrantEntity>();
 
   constructor(private _grantService: IGrantService) {}
 
@@ -62,7 +62,7 @@ export class GrantAggregate {
       const grants = await this._grantService.fetchByIds([...grantIdSet]);
 
       for (const grant of grants) {
-        this.grantMap.set(grant.id, grant);
+        this.grantMap.set(grant.id, GrantEntity.fromObject(grant));
       }
 
       for (const cmd of cmds) {
@@ -115,7 +115,7 @@ export class GrantAggregate {
         accesses: accessItems
       });
 
-      this.grantMap.set(id, entity.toObject());
+      this.grantMap.set(id, entity);
 
       return new GrantCreatedEvent({
         id
@@ -132,15 +132,14 @@ export class GrantAggregate {
   private handleContinueGrantCommand(cmd: ContinueGrantCmd) {
     const { id, continueId, continueToken, interactRef } = cmd.payload;
     try {
-      const grantObj = this.grantMap.get(id);
-      if (!grantObj) {
+      const grant = this.grantMap.get(id);
+      if (!grant) {
         throw new GrantNotFoundError(`Grant ${id} not found`);
       }
 
-      const grant = GrantEntity.fromObject(grantObj);
       grant.continue(continueToken, continueId, interactRef);
 
-      this.grantMap.set(id, grant.toObject());
+      this.grantMap.set(id, grant);
       return new GrantContinuedEvent({
         id,
         result: grant.finalizationReason as GrantFinalization
@@ -160,14 +159,13 @@ export class GrantAggregate {
     interactId: string
   ) {
     try {
-      const grantObj = this.grantMap.get(id);
-      if (!grantObj) {
+      const grant = this.grantMap.get(id);
+      if (!grant) {
         throw new GrantNotFoundError(`Grant ${id} not found`);
       }
 
-      const grant = GrantEntity.fromObject(grantObj);
       grant.handleInteractionChoice(choice);
-      this.grantMap.set(id, grant.toObject());
+      this.grantMap.set(id, grant);
 
       return new GrantInteractionChoiceHandledEvent({
         id,
