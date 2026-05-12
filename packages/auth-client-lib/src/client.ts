@@ -11,11 +11,7 @@ import {
   TokenRotationRequest,
   AccessToken,
   TokenRevocationRequest,
-  StartInteractionRequest,
-  StartOrFinishInteractionResponse,
-  FinishInteractionRequest,
-  GetGrantDetailsRequest,
-  GrantDetails,
+  GetGrantRequest,
   InteractionChoiceRequest,
   InteractionChoiceResponse,
   AccessItem,
@@ -59,6 +55,24 @@ export class AuthClient {
   async disconnect(): Promise<void> {
     this._grpcClient.close();
     return Promise.resolve();
+  }
+
+  getGrant(id: string): Promise<Grant> {
+    const request = new GetGrantRequest();
+    request.setId(id);
+
+    return new Promise((resolve, reject) => {
+      this._grpcClient.getGrant(
+        request,
+        (error: ServiceError | null, response: Grant) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve(response);
+          }
+        }
+      );
+    });
   }
 
   createGrant(
@@ -182,75 +196,6 @@ export class AuthClient {
       this._grpcClient.revokeToken(
         request,
         (error: ServiceError | null, response: AccessToken) => {
-          if (error) {
-            reject(error);
-          } else {
-            resolve(response);
-          }
-        }
-      );
-    });
-  }
-
-  startInteraction(
-    interactId: string,
-    nonce: string
-  ): Promise<StartOrFinishInteractionResponse> {
-    const request = new StartInteractionRequest();
-    request.setInteractId(interactId);
-    request.setNonce(nonce);
-
-    return new Promise((resolve, reject) => {
-      this._grpcClient.startInteraction(
-        request,
-        (
-          error: ServiceError | null,
-          response: StartOrFinishInteractionResponse
-        ) => {
-          if (error) {
-            reject(error);
-          } else {
-            resolve(response);
-          }
-        }
-      );
-    });
-  }
-
-  finishInteraction(
-    interactId: string,
-    nonce: string
-  ): Promise<StartOrFinishInteractionResponse> {
-    const request = new FinishInteractionRequest();
-    request.setInteractId(interactId);
-    request.setNonce(nonce);
-
-    return new Promise((resolve, reject) => {
-      this._grpcClient.finishInteraction(
-        request,
-        (
-          error: ServiceError | null,
-          response: StartOrFinishInteractionResponse
-        ) => {
-          if (error) {
-            reject(error);
-          } else {
-            resolve(response);
-          }
-        }
-      );
-    });
-  }
-
-  getGrantDetails(interactId: string, nonce: string): Promise<GrantDetails> {
-    const request = new GetGrantDetailsRequest();
-    request.setInteractId(interactId);
-    request.setNonce(nonce);
-
-    return new Promise((resolve, reject) => {
-      this._grpcClient.getGrantDetails(
-        request,
-        (error: ServiceError | null, response: GrantDetails) => {
           if (error) {
             reject(error);
           } else {
