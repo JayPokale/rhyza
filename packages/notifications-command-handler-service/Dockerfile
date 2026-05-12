@@ -18,6 +18,9 @@ RUN apk update && apk add --no-cache \
     make \
     musl-dev
 
+COPY pnpm-lock.yaml ./
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm fetch
+
 FROM base AS prod-deps
 COPY package.json pnpm-workspace.yaml ./
 COPY packages/common-types-lib/package.json ./packages/common-types-lib/package.json
@@ -38,11 +41,11 @@ RUN pnpm --filter notifications-implementations-lib build
 RUN pnpm --filter notifications-command-handler-service build
 
 FROM node:24-alpine AS runner
+RUN apk update && apk add --no-cache librdkafka
 WORKDIR /workspace
 
 # root + per-package node_modules from prod-deps
 COPY --from=prod-deps /workspace/node_modules ./node_modules
-COPY --from=prod-deps /workspace/packages/common-types-lib/node_modules ./packages/common-types-lib/node_modules
 COPY --from=prod-deps /workspace/packages/implementations-lib/node_modules ./packages/implementations-lib/node_modules
 COPY --from=prod-deps /workspace/packages/notifications-domain-lib/node_modules ./packages/notifications-domain-lib/node_modules
 COPY --from=prod-deps /workspace/packages/notifications-implementations-lib/node_modules ./packages/notifications-implementations-lib/node_modules

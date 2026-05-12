@@ -39,11 +39,11 @@ RUN pnpm --filter notifications-domain-lib build
 RUN pnpm --filter notifications-event-handler-service build
 
 FROM node:24-alpine AS runner
+RUN apk update && apk add --no-cache librdkafka
 WORKDIR /workspace
 
 # root + per-package node_modules from prod-deps
 COPY --from=prod-deps /workspace/node_modules ./node_modules
-COPY --from=prod-deps /workspace/packages/common-types-lib/node_modules ./packages/common-types-lib/node_modules
 COPY --from=prod-deps /workspace/packages/implementations-lib/node_modules ./packages/implementations-lib/node_modules
 COPY --from=prod-deps /workspace/packages/notifications-domain-lib/node_modules ./packages/notifications-domain-lib/node_modules
 COPY --from=prod-deps /workspace/packages/notifications-event-handler-service/node_modules ./packages/notifications-event-handler-service/node_modules
