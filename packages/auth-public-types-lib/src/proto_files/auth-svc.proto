@@ -4,6 +4,7 @@ package rafiki.auth.service;
 service RafikiAuth {
 	// Grant RPCs
 	rpc CreateGrant(GrantRequest) returns (Grant) {}
+	rpc GetGrant(GetGrantRequest) returns (Grant) {}
 	rpc ContinueGrant(GrantContinuationRequest) returns (Grant) {}
 	rpc RevokeGrant(GrantRevocationRequest) returns (Grant) {}
 	// Access Token RPCs
@@ -13,7 +14,6 @@ service RafikiAuth {
 	// Interaction RPCs
 	rpc StartInteraction(StartInteractionRequest) returns (StartOrFinishInteractionResponse) {}
 	rpc FinishInteraction(FinishInteractionRequest) returns (StartOrFinishInteractionResponse) {}
-	rpc GetGrantDetails(GetGrantDetailsRequest) returns (GrantDetails) {}
 	rpc AcceptInteraction(InteractionChoiceRequest)  returns (InteractionChoiceResponse) {}
 	rpc RejectInteraction(InteractionChoiceRequest) returns (InteractionChoiceResponse) {}
 }
@@ -25,21 +25,36 @@ message AccessItem {
 	string identifier = 4;
 }
 
-message GrantAccessToken {
+message AccessToken {
 	string value = 1;
 	string management_id = 2;
 	int32 expires_in = 3;
-	repeated AccessItem access = 4;
+	string created_at = 4; // Date string
+	string revoked_at = 5; // Date string
 }
 
-message GrantContinuation {
-	string continue_token = 1;
-	string continue_id = 2;
+message Interaction {
+	string interact_ref = 1;
+	string client_nonce = 2;
+	string state = 3;
+	int64 expires_in_ms = 4;
 }
 
 message Grant {
-	GrantAccessToken access_token = 1;
-	GrantContinuation continue = 2; 
+	string id = 1;
+	repeated StartMethod start = 2;
+	string continue_token = 3;
+	string continue_id = 4;
+	string state = 5;
+	string finalization = 6;
+	string client = 7;
+	Subject subject = 8;
+	repeated AccessItem accesses = 9;
+	repeated FinishMethod finishMethods = 10;
+	repeated string finishUris = 11;
+	Interaction interaction = 12;
+	string last_continued_at = 13; // Date string
+	repeated AccessToken access_tokens = 14;
 }
 
 enum AccessType {
@@ -101,6 +116,10 @@ message GrantRequest {
 	GrantRequestFinish finish = 5;
 }
 
+message GetGrantRequest {
+	string id = 1;
+}
+
 message GrantContinuationRequest {
 	string id = 1;
 	string continue_id = 2;
@@ -111,14 +130,7 @@ message GrantContinuationRequest {
 message GrantRevocationRequest {
 	string id = 1;
 	string continue_id = 2;
-	string continue_token = 2;
-}
-
-message AccessToken {
-	repeated AccessItem access = 1;
-	string value = 2;
-	string management_id = 3;
-	int32 expires_in = 4;
+	string continue_token = 3;
 }
 
 message TokenInfo {
@@ -152,12 +164,6 @@ message StartInteractionRequest {
 	string nonce = 3;
 }
 
-enum InteractionState {
-	PENDING = 0;
-	APPROVED = 1;
-	DENIED = 2;
-}
-
 message StartOrFinishInteractionResponse {
 	string redirect_uri = 1;
 }
@@ -166,22 +172,6 @@ message FinishInteractionRequest {
 	string id = 1; // grant id
 	string interact_id = 2;
 	string nonce = 3;
-}
-
-message GetGrantDetailsRequest {
-	string id = 1; // grant id
-	string interact_id = 2;
-	string nonce = 3;
-}
-
-message GrantDetails {
-	message GrantDetailsSubject {
-		repeated SubjectId sub_ids = 1;
-	}
-	string grant_id = 1;
-	repeated AccessItem access = 2;
-	Subject subject = 3;
-	InteractionState state = 4;
 }
 
 message InteractionChoiceResponse {
