@@ -75,7 +75,7 @@ services:
     restart: always
     environment:
       KAFKA_URL: kafka:19092
-      MONGO_URL: mongodb://root:mongoPass@mongodb:27017/
+      MONGODB_URL: mongodb://root:mongoPass@mongodb:27017/
     ports:
       - '5100:5100'
     depends_on:
@@ -93,7 +93,6 @@ services:
     restart: always
     environment:
       KAFKA_URL: kafka:19092
-      MONGODB_URL: mongodb://root:mongoPass@mongodb:27017
       UV_THREADPOOL_SIZE: 128
     ports:
       - '5101:5101'

@@ -2,7 +2,8 @@ import { NotificationsEventHandler } from './event-handler';
 import {
   KafkaBuilder,
   KafkaConsumer,
-  KafkaProducer
+  KafkaProducer,
+  PinoLogger
 } from 'implementations-lib';
 
 const KAFKA_URL = process.env.KAFKA_URL || 'localhost:9093';
@@ -16,7 +17,8 @@ export class NotificationsEventHandlerService {
     const kafkaBuilder = new KafkaBuilder();
     kafkaBuilder
       .withBrokerList(KAFKA_URL)
-      .withClientId(`NOTIFICATIONS_EVENT_HANDLER_SVC_${crypto.randomUUID()}`);
+      .withClientId(`NOTIFICATIONS_EVENT_HANDLER_SVC_${crypto.randomUUID()}`)
+      .withLogger(new PinoLogger());
 
     this.msgProducer = kafkaBuilder.buildProducer({});
     await this.msgProducer.connect();

@@ -1,7 +1,8 @@
 import {
   KafkaBuilder,
   KafkaConsumer,
-  KafkaProducer
+  KafkaProducer,
+  PinoLogger
 } from 'implementations-lib';
 import { NotificationAggregate } from 'notifications-domain-lib';
 import {
@@ -33,7 +34,8 @@ export class NotificationsCommandHandlerService {
     const kafkaBuilder = new KafkaBuilder();
     kafkaBuilder
       .withBrokerList(KAFKA_URL)
-      .withClientId(`NOTIFICATIONS_CMD_HANDLER_SVC_${crypto.randomUUID()}`);
+      .withClientId(`NOTIFICATIONS_CMD_HANDLER_SVC_${crypto.randomUUID()}`)
+      .withLogger(new PinoLogger());
 
     this.msgProducer = kafkaBuilder.buildProducer({});
 

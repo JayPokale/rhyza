@@ -17,7 +17,11 @@ export class NotificationsEventHandler {
 
   async start(): Promise<void> {
     this._msgConsumer.setTopics([DomainEventTopics.PaymentEvents]);
-    this._msgConsumer.setCallbackFn(this._handleEvent.bind(this));
+    this._msgConsumer.setBatchCallbackFn(async (messages: IMessage[]) => {
+      for (const message of messages) {
+        await this._handleEvent(message);
+      }
+    });
     await this._msgConsumer.connect();
   }
 
@@ -27,8 +31,7 @@ export class NotificationsEventHandler {
   }
 
   private async _handleEvent(message: IMessage) {
-    const payload = message.payload;
-    const cmd = new CreateNotificationCmd(payload, message.requestId);
+    const cmd = new CreateNotificationCmd(message.payload, message.requestId);
     await this._msgProducer.send(cmd);
   }
 }
