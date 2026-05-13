@@ -53,7 +53,7 @@ export class PaymentIntentAggregate {
   private paymentIntentMap = new Map<string, IPaymentIntent>();
   private walletAddressMap = new Map<string, IWalletAddress>();
   private remotePaymentIntentFetchErrors = new Map<string, Error>();
-  private remoteIntentIdRemap = new Map<string, string>(); // incoming id -> existing id
+  private proposedToExistingRemoteIntentIds = new Map<string, string>(); // proposed id -> existing id
 
   constructor(
     private _repo: IPaymentIntentRepository,
@@ -98,7 +98,7 @@ export class PaymentIntentAggregate {
         const existingIdForUrl = remoteUrlToId.get(payload.url);
         if (existingIdForUrl) {
           // duplicate URL within this batch — remap immediately, skip fetch
-          this.remoteIntentIdRemap.set(payload.id, existingIdForUrl);
+          this.proposedToExistingRemoteIntentIds.set(payload.id, existingIdForUrl);
         } else {
           remotePaymentIntentUrlMap.set(payload.id, payload.url);
           remoteUrlToId.set(payload.url, payload.id);
@@ -548,10 +548,10 @@ export class PaymentIntentAggregate {
     const { id } = cmd.payload;
 
     // use pre-existing ID in case where remote payment intent was already imported
-    const remappedId = this.remoteIntentIdRemap.get(id);
-    if (remappedId) {
+    const existingId = this.proposedToExistingRemoteIntentIds.get(id);
+    if (existingId) {
       return new RemotePaymentIntentImportedEvent(
-        { id: remappedId },
+        { id: existingId },
         cmd.requestId
       );
     }
@@ -581,22 +581,21 @@ export class PaymentIntentAggregate {
     for (const { id: existingId, remoteUrl } of existingByUrl) {
       const incomingId = remoteUrlToId.get(remoteUrl);
       if (incomingId) {
-        this.remoteIntentIdRemap.set(incomingId, existingId);
+        this.proposedToExistingRemoteIntentIds.set(incomingId, existingId);
       }
     }
 
-    // Collapse two-hop chains: Beta->Alpha->BBB becomes Beta->BBB.
-    // Occurs when a batch-level duplicate also matches an existing DB record.
-    for (const [id, target] of this.remoteIntentIdRemap) {
-      const finalTarget = this.remoteIntentIdRemap.get(target);
+    // handle intra-batch duplicates by using the first seen id
+    for (const [id, target] of this.proposedToExistingRemoteIntentIds) {
+      const finalTarget = this.proposedToExistingRemoteIntentIds.get(target);
       if (finalTarget) {
-        this.remoteIntentIdRemap.set(id, finalTarget);
+        this.proposedToExistingRemoteIntentIds.set(id, finalTarget);
       }
     }
 
     const urlsToFetch: Array<[string, string]> = [];
     for (const [id, url] of remotePaymentIntentUrlMap) {
-      if (!this.paymentIntentMap.has(id) && !this.remoteIntentIdRemap.has(id)) {
+      if (!this.paymentIntentMap.has(id) && !this.proposedToExistingRemoteIntentIds.has(id)) {
         urlsToFetch.push([id, url]);
       }
     }
@@ -819,7 +818,7 @@ export class PaymentIntentAggregate {
       this.newPaymentIntentQuotes.clear();
       this.newPaymentIntentIds = [];
       this.remotePaymentIntentFetchErrors.clear();
-      this.remoteIntentIdRemap.clear();
+      this.proposedToExistingRemoteIntentIds.clear();
     }
   }
 }
