@@ -122,70 +122,11 @@ export class PaymentIntentAggregate {
       this.paymentIntentMap.set(paymentIntent.id, paymentIntent);
     }
 
-    // if the remote intent was already imported (with a different ID), point this
-    // proposed ID at the one that already exists rather so that we dont create a duplicate
-    for (const { id: existingId, remoteUrl } of existingByUrl) {
-      const incomingId = remoteUrlToId.get(remoteUrl);
-      if (incomingId) {
-        this.remoteIntentIdRemap.set(incomingId, existingId);
-      }
-    }
-
-    // handle intra-batch duplicates by using the first seen id
-    for (const [id, target] of this.remoteIntentIdRemap) {
-      const finalTarget = this.remoteIntentIdRemap.get(target);
-      if (finalTarget) {
-        this.remoteIntentIdRemap.set(id, finalTarget);
-      }
-    }
-
-    // get truely new remote payment intents to fetch
-    // - not already in DB identified by url, not already seen in the batch
-    const urlsToFetch: Array<[string, string]> = [];
-    for (const [id, url] of remotePaymentIntentUrlMap) {
-      if (!this.paymentIntentMap.has(id) && !this.remoteIntentIdRemap.has(id)) {
-        urlsToFetch.push([id, url]);
-      }
-    }
-
-    const remotePaymentIntentResults = await Promise.all(
-      urlsToFetch.map(async ([id, url]) => {
-        try {
-          const remotePaymentIntent =
-            await this._remotePaymentIntentService.fetchIncomingPayment(url);
-          return { id, url, remotePaymentIntent, error: null };
-        } catch (err) {
-          return { id, url, remotePaymentIntent: null, error: err as Error };
-        }
-      })
+    await this._resolveAndFetchRemotePaymentIntents(
+      remotePaymentIntentUrlMap,
+      remoteUrlToId,
+      existingByUrl
     );
-
-    for (const {
-      id,
-      url,
-      remotePaymentIntent,
-      error
-    } of remotePaymentIntentResults) {
-      if (error) {
-        this.remotePaymentIntentFetchErrors.set(id, error);
-      } else {
-        const entity = PaymentIntent.create(
-          id,
-          undefined,
-          remotePaymentIntent.walletAddress,
-          PaymentIntentDestination.REMOTE,
-          remotePaymentIntent.assetCode,
-          remotePaymentIntent.assetScale,
-          remotePaymentIntent.expiresAt ?? null,
-          remotePaymentIntent.incomingAmount ?? null,
-          remotePaymentIntent.receivedAmount,
-          remotePaymentIntent.destinationIlpAddress,
-          url
-        );
-        this.paymentIntentMap.set(id, entity.toObject());
-        this.newPaymentIntentIds.push(id);
-      }
-    }
 
     for (const cmd of cmds) {
       let event: IMessage;
@@ -348,7 +289,7 @@ export class PaymentIntentAggregate {
         });
 
         this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
-        this.appendToMap(
+        this._appendToMap(
           this.newPaymentIntentQuotes,
           paymentIntent.id,
           quoteId
@@ -367,7 +308,7 @@ export class PaymentIntentAggregate {
       });
 
       this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
-      this.appendToMap(this.newPaymentIntentQuotes, paymentIntent.id, quoteId);
+      this._appendToMap(this.newPaymentIntentQuotes, paymentIntent.id, quoteId);
 
       const { destinationIlpAddress } = paymentIntent;
       if (!destinationIlpAddress) {
@@ -468,7 +409,7 @@ export class PaymentIntentAggregate {
       });
 
       this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
-      this.appendToMap(this.newPaymentsMap, paymentIntent.id, paymentId);
+      this._appendToMap(this.newPaymentsMap, paymentIntent.id, paymentId);
 
       return new PaymentCreatedEvent({ id: paymentId }, cmd.requestId);
     } catch (err) {
@@ -512,7 +453,7 @@ export class PaymentIntentAggregate {
       });
 
       this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
-      this.appendToMap(this.finalizedRemoteQuotes, paymentIntent.id, quoteId);
+      this._appendToMap(this.finalizedRemoteQuotes, paymentIntent.id, quoteId);
 
       return new QuoteCompletedEvent({ id: quoteId }, cmd.requestId);
     } catch (err) {
@@ -543,7 +484,7 @@ export class PaymentIntentAggregate {
       paymentIntent.failRemoteQuote({ id: quoteId, errorName, message });
 
       this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
-      this.appendToMap(this.finalizedRemoteQuotes, paymentIntent.id, quoteId);
+      this._appendToMap(this.finalizedRemoteQuotes, paymentIntent.id, quoteId);
 
       return new QuoteCreateFailedEvent(
         { paymentIntentId, errorName, message },
@@ -582,7 +523,7 @@ export class PaymentIntentAggregate {
 
       paymentIntent.completeLocalPayment({ id: paymentId });
       this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
-      this.appendToMap(
+      this._appendToMap(
         this.completedLocalPayments,
         paymentIntent.id,
         paymentId
@@ -630,7 +571,72 @@ export class PaymentIntentAggregate {
     return new RemotePaymentIntentImportedEvent({ id }, cmd.requestId);
   }
 
-  private appendToMap(
+  private async _resolveAndFetchRemotePaymentIntents(
+    remotePaymentIntentUrlMap: Map<string, string>,
+    remoteUrlToId: Map<string, string>,
+    existingByUrl: Array<{ id: string; remoteUrl: string }>
+  ): Promise<void> {
+    // if the remote intent was already imported (with a different ID), point this
+    // proposed ID at the one that already exists so that we don't create a duplicate
+    for (const { id: existingId, remoteUrl } of existingByUrl) {
+      const incomingId = remoteUrlToId.get(remoteUrl);
+      if (incomingId) {
+        this.remoteIntentIdRemap.set(incomingId, existingId);
+      }
+    }
+
+    // Collapse two-hop chains: Beta->Alpha->BBB becomes Beta->BBB.
+    // Occurs when a batch-level duplicate also matches an existing DB record.
+    for (const [id, target] of this.remoteIntentIdRemap) {
+      const finalTarget = this.remoteIntentIdRemap.get(target);
+      if (finalTarget) {
+        this.remoteIntentIdRemap.set(id, finalTarget);
+      }
+    }
+
+    const urlsToFetch: Array<[string, string]> = [];
+    for (const [id, url] of remotePaymentIntentUrlMap) {
+      if (!this.paymentIntentMap.has(id) && !this.remoteIntentIdRemap.has(id)) {
+        urlsToFetch.push([id, url]);
+      }
+    }
+
+    const results = await Promise.all(
+      urlsToFetch.map(async ([id, url]) => {
+        try {
+          const remotePaymentIntent =
+            await this._remotePaymentIntentService.fetchIncomingPayment(url);
+          return { id, url, remotePaymentIntent, error: null };
+        } catch (err) {
+          return { id, url, remotePaymentIntent: null, error: err as Error };
+        }
+      })
+    );
+
+    for (const { id, url, remotePaymentIntent, error } of results) {
+      if (error) {
+        this.remotePaymentIntentFetchErrors.set(id, error);
+      } else {
+        const entity = PaymentIntent.create(
+          id,
+          undefined,
+          remotePaymentIntent.walletAddress,
+          PaymentIntentDestination.REMOTE,
+          remotePaymentIntent.assetCode,
+          remotePaymentIntent.assetScale,
+          remotePaymentIntent.expiresAt ?? null,
+          remotePaymentIntent.incomingAmount ?? null,
+          remotePaymentIntent.receivedAmount,
+          remotePaymentIntent.destinationIlpAddress,
+          url
+        );
+        this.paymentIntentMap.set(id, entity.toObject());
+        this.newPaymentIntentIds.push(id);
+      }
+    }
+  }
+
+  private _appendToMap(
     map: Map<string, string[]>,
     paymentIntentId: string,
     idToAppend: string
