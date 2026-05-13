@@ -1,6 +1,6 @@
 import * as grpc from '@grpc/grpc-js';
 import { ServiceError, status } from '@grpc/grpc-js';
-import { v5 as uuidv5 } from 'uuid';
+import { randomUUID } from 'node:crypto';
 import {
   PaymentIntentNotFoundError,
   RemoteQuotingNotConfiguredError
@@ -141,7 +141,7 @@ export class PaymentsClient {
       ) {
         paymentIntentId = incomingPayment.incomingPaymentUrl.split('/').at(-1)!;
       } else {
-        const localId = uuidv5(incomingPayment.incomingPaymentUrl, uuidv5.URL);
+        const localId = randomUUID();
         const remoteResult = await this._importRemotePaymentIntent(
           localId,
           incomingPayment.incomingPaymentUrl

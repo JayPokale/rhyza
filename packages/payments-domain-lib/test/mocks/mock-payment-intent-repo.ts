@@ -28,6 +28,18 @@ export class MockPaymentIntentRepo implements IPaymentIntentRepository {
     return results;
   }
 
+  async fetchIdsByRemoteUrls(
+    urls: string[]
+  ): Promise<Array<{ id: string; remoteUrl: string }>> {
+    const results: Array<{ id: string; remoteUrl: string }> = [];
+    for (const p of this._store.values()) {
+      if (p.remoteUrl && urls.includes(p.remoteUrl)) {
+        results.push({ id: p.id, remoteUrl: p.remoteUrl });
+      }
+    }
+    return results;
+  }
+
   async storeQuotes(
     quoteUpdates: { quoteIds: string[]; paymentIntent: IPaymentIntent }[]
   ): Promise<void> {

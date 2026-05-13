@@ -67,6 +67,10 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
           { id: 1 },
           { unique: true }
         );
+        await this._paymentIntentCollection.createIndex(
+          { remoteUrl: 1 },
+          { unique: true, sparse: true }
+        );
       }
 
       const paymentsCollectionExists = collections.some(
@@ -231,6 +235,30 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
       this._logger.error(err);
       throw new Error(
         `Unable to fetch payment intents - error: ${(err as Error).message}`
+      );
+    }
+  }
+
+  async fetchIdsByRemoteUrls(
+    urls: string[]
+  ): Promise<Array<{ id: string; remoteUrl: string }>> {
+    this._checkInitialisedOrThrow();
+
+    if (urls.length === 0) return [];
+
+    try {
+      const docs = (await this._paymentIntentCollection
+        .find(
+          { remoteUrl: { $in: urls } },
+          { projection: { _id: 0, id: 1, remoteUrl: 1 } }
+        )
+        .toArray()) as Array<{ id: string; remoteUrl: string }>;
+
+      return docs;
+    } catch (err) {
+      this._logger.error(err);
+      throw new Error(
+        `Unable to fetch payment intent ids by remote URLs - error: ${(err as Error).message}`
       );
     }
   }
