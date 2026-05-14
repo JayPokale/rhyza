@@ -39,7 +39,7 @@ export class PaymentsEventHandler {
   }
 
   async start(): Promise<void> {
-    this._msgConsumer.setTopics([DomainEventTopics.ILPEvents]);
+    this._msgConsumer.setTopics([DomainEventTopics.IlpEvents]);
     this._msgConsumer.setCallbackFn(this._handleEvent.bind(this));
     await this._msgConsumer.connect();
     await this._msgConsumer.startAndWaitForRebalance();
