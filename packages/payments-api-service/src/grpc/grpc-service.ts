@@ -288,7 +288,10 @@ export class PaymentsServiceServer {
     try {
       const paymentIntent = await this._repo.fetchById(id);
       if (!paymentIntent) {
-        callback({ code: grpc.status.NOT_FOUND, message: `Payment intent '${id}' not found` });
+        callback({
+          code: grpc.status.NOT_FOUND,
+          message: `Payment intent '${id}' not found`
+        });
         return;
       }
 

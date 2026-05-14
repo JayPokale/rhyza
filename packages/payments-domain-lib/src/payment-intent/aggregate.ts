@@ -98,7 +98,10 @@ export class PaymentIntentAggregate {
         const existingIdForUrl = remoteUrlToId.get(payload.url);
         if (existingIdForUrl) {
           // duplicate URL within this batch — remap immediately, skip fetch
-          this.proposedToExistingRemoteIntentIds.set(payload.id, existingIdForUrl);
+          this.proposedToExistingRemoteIntentIds.set(
+            payload.id,
+            existingIdForUrl
+          );
         } else {
           remotePaymentIntentUrlMap.set(payload.id, payload.url);
           remoteUrlToId.set(payload.url, payload.id);
@@ -595,7 +598,10 @@ export class PaymentIntentAggregate {
 
     const urlsToFetch: Array<[string, string]> = [];
     for (const [id, url] of remotePaymentIntentUrlMap) {
-      if (!this.paymentIntentMap.has(id) && !this.proposedToExistingRemoteIntentIds.has(id)) {
+      if (
+        !this.paymentIntentMap.has(id) &&
+        !this.proposedToExistingRemoteIntentIds.has(id)
+      ) {
         urlsToFetch.push([id, url]);
       }
     }

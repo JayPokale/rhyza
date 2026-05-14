@@ -3,7 +3,10 @@
 import { randomUUID } from 'crypto';
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { PalClient, parseAddressToDomainAndPathName } from 'pal-client-lib';
-import { PaymentsClient, PaymentIntentNotFoundError } from 'payments-client-lib';
+import {
+  PaymentsClient,
+  PaymentIntentNotFoundError
+} from 'payments-client-lib';
 
 interface IncomingPaymentRouteOptions extends FastifyPluginOptions {
   palClient: PalClient;

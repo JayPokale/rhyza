@@ -66,23 +66,38 @@ class Quote implements IBaseQuote {
 
   static fromObject(obj: IQuote): Quote {
     if (obj.state === 'COMPLETED') {
-      return new Quote(obj.id, obj.senderWalletAddress, obj.senderWalletAddressId, {
-        state: 'COMPLETED',
-        debitAmount: obj.debitAmount,
-        receiveAmount: obj.receiveAmount,
-        exchangeRate: obj.exchangeRate,
-        expiresAt: obj.expiresAt
-      });
+      return new Quote(
+        obj.id,
+        obj.senderWalletAddress,
+        obj.senderWalletAddressId,
+        {
+          state: 'COMPLETED',
+          debitAmount: obj.debitAmount,
+          receiveAmount: obj.receiveAmount,
+          exchangeRate: obj.exchangeRate,
+          expiresAt: obj.expiresAt
+        }
+      );
     } else if (obj.state === 'FAILED') {
-      return new Quote(obj.id, obj.senderWalletAddress, obj.senderWalletAddressId, {
-        state: 'FAILED',
-        errorName: obj.errorName,
-        message: obj.message
-      });
+      return new Quote(
+        obj.id,
+        obj.senderWalletAddress,
+        obj.senderWalletAddressId,
+        {
+          state: 'FAILED',
+          errorName: obj.errorName,
+          message: obj.message
+        }
+      );
     } else {
-      return new Quote(obj.id, obj.senderWalletAddress, obj.senderWalletAddressId, {
-        state: 'PENDING'
-      });
+      return new Quote(
+        obj.id,
+        obj.senderWalletAddress,
+        obj.senderWalletAddressId,
+        {
+          state: 'PENDING'
+        }
+      );
     }
   }
 
@@ -97,7 +112,8 @@ class Quote implements IBaseQuote {
         `Quote ${this._id} is not in PENDING state, cannot complete`
       );
     }
-    const { debitAmount, receiveAmount, exchangeRate, paymentIntentExpiresAt } = args;
+    const { debitAmount, receiveAmount, exchangeRate, paymentIntentExpiresAt } =
+      args;
     this._data = {
       state: 'COMPLETED',
       debitAmount,
@@ -115,7 +131,11 @@ class Quote implements IBaseQuote {
         `Quote ${this._id} is not in PENDING state, cannot fail`
       );
     }
-    this._data = { state: 'FAILED', errorName: args.errorName, message: args.message };
+    this._data = {
+      state: 'FAILED',
+      errorName: args.errorName,
+      message: args.message
+    };
   }
 
   toObject(): IQuote {
@@ -125,8 +145,16 @@ class Quote implements IBaseQuote {
       senderWalletAddressId: this._senderWalletAddressId
     };
     if (this._data.state === 'COMPLETED') {
-      const { debitAmount, receiveAmount, exchangeRate, expiresAt } = this._data;
-      return { ...base, state: 'COMPLETED', debitAmount, receiveAmount, exchangeRate, expiresAt };
+      const { debitAmount, receiveAmount, exchangeRate, expiresAt } =
+        this._data;
+      return {
+        ...base,
+        state: 'COMPLETED',
+        debitAmount,
+        receiveAmount,
+        exchangeRate,
+        expiresAt
+      };
     }
     if (this._data.state === 'FAILED') {
       const { errorName, message } = this._data;
