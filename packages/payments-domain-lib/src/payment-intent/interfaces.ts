@@ -26,6 +26,8 @@ export interface IBaseQuote {
 
 export interface IPendingQuote extends IBaseQuote {
   state: 'PENDING';
+  debitAmount?: bigint;
+  receiveAmount?: bigint;
 }
 
 export interface ICompletedQuote extends IBaseQuote {
