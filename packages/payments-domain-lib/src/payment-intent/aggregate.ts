@@ -113,7 +113,10 @@ export class PaymentIntentAggregate {
       this.paymentIntentMap.set(paymentIntent.id, paymentIntent);
     }
 
-    await this._resolveAndFetchRemotePaymentIntents(remoteUrlByProposedId, existingByUrl);
+    await this._resolveAndFetchRemotePaymentIntents(
+      remoteUrlByProposedId,
+      existingByUrl
+    );
 
     for (const cmd of cmds) {
       let event: IMessage;
@@ -600,12 +603,22 @@ export class PaymentIntentAggregate {
             await this._remotePaymentIntentService.fetchIncomingPayment(url);
           return { canonicalId, url, remotePaymentIntent, error: null };
         } catch (err) {
-          return { canonicalId, url, remotePaymentIntent: null, error: err as Error };
+          return {
+            canonicalId,
+            url,
+            remotePaymentIntent: null,
+            error: err as Error
+          };
         }
       })
     );
 
-    for (const { canonicalId, url, remotePaymentIntent, error } of fetchResults) {
+    for (const {
+      canonicalId,
+      url,
+      remotePaymentIntent,
+      error
+    } of fetchResults) {
       if (error) {
         this.remotePaymentIntentFetchErrors.set(canonicalId, error);
       } else {
