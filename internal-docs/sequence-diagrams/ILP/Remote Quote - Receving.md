@@ -6,12 +6,15 @@ sequenceDiagram
 
 
     box ILP BC
-    participant ILPAPI as ILP Connector API
-    participant ILPC as ILP Client
+    participant EC as Connector
 	participant ILP as ILP Command Handler
     participant ILPEH as ILP Event Handler
     participant ILPET as ILP Events Topic
     end
+
+    %% Aggregate <-> Connector hops go via Kafka commands
+    %% (ilp-commands and ilp-connector-commands).
+    %% See `ILP BC - Connector Integration.md`.
 
     %% box PAL (Peers, Accounts, Liquidity) BC
     %% participant PALEH as Accounts & Liquidity Event Handler
@@ -27,9 +30,8 @@ sequenceDiagram
 
 
 
-    ILPAPI-->>ILPAPI: Receive prepare (quote) packet
-    ILPAPI -->> ILP: Process quote packet command
-    %% Or we decode in the ILPAPI
+    EC-->>EC: Receive prepare (quote) packet
+    EC -->> ILP: ProcessPreparePacketCmd
     ILP-->>ILP: Decode prepare packet: get incoming payment id,<br>determine incoming peer (from auth)
     ILP-->>ILPET: Quote received event
     PEH -->> ILPET: Read quote packet received event
@@ -43,7 +45,7 @@ sequenceDiagram
     ILPEH -->> ILP: Finalize destination quote command
     ILP ->> ILP: Fetch original incoming peer from packetId
     ILP ->> ILP: Build reject packet as response with <br>destination amount, FX, minSendAmount etc
-    ILP -->> ILPC: Send reject packet (quote response packet)
+    ILP -->> EC: DispatchRejectPacketCmd (quote response)
 
 
     %% PALCH ->> PALCH: If necessary, get the FX rate for destination amount

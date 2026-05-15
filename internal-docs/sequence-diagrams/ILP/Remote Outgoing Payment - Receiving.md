@@ -6,12 +6,15 @@ sequenceDiagram
 
 
     box ILP BC
-    participant ILPAPI as ILP Connector API
-    participant ILPC as ILP Client
+    participant EC as Connector
 	participant ILP as ILP Command Handler
     participant ILPEH as ILP Event Handler
     participant ILPET as ILP Events Topic
     end
+
+    %% Aggregate <-> Connector hops go via Kafka commands
+    %% (ilp-commands and ilp-connector-commands).
+    %% See `ILP BC - Connector Integration.md`.
 
     box PAL (Peers, Accounts, Liquidity) BC
     participant PALC as PAL Client
@@ -37,9 +40,8 @@ sequenceDiagram
 
 
 
-    ILPAPI-->>ILPAPI: Receive prepare packet
-    ILPAPI -->> ILP: Process prepare packet command
-    %% Or we decode in the ILPAPI
+    EC-->>EC: Receive prepare packet
+    EC -->> ILP: ProcessPreparePacketCmd
     ILP-->>ILP: Decode prepare packet: get incoming payment id,<br>determine incoming peer (from auth), <br> sending ASE (KYC) data
     ILP-->>ILPET: Prepare packet received event
     %% We need the FX data.
@@ -83,7 +85,7 @@ sequenceDiagram
     and Process packet response
     ILPEH -->> PET: Read partial incoming payment approved event
     ILPEH -->> ILP: Create fulfillment for prepare packet command
-    ILP -->> ILPAPI: Return fulfillment for prepare packet
+    ILP -->> EC: DispatchFulfillPacketCmd
 
 
     end

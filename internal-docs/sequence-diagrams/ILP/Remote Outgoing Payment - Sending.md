@@ -27,9 +27,12 @@ sequenceDiagram
     participant ILPET as ILP Events Topic
     participant ILPEH as ILP Event Handler
 	participant ILP as ILP Command Handler
-    participant ILPPC as ILP peer to peer client
-    participant ILPCAPI as ILP Connector API
+    participant EC as Connector
     end
+
+    %% Aggregate <-> Connector hops go via Kafka commands
+    %% (ilp-commands and ilp-connector-commands).
+    %% See `ILP BC - Connector Integration.md`.
 
 
     AGW ->> PC: Approve outgoing payment
@@ -55,18 +58,18 @@ sequenceDiagram
     ILP ->> ILP: Fetch peer connector details
     ILP ->> ILP: Store packet & its expiry (put it on a worker and handle expiries separately)
 
-    ILP ->> ILPPC: Send prepare packet
-    ILPPC -->> ILPPC: Send prepare packet to peer
+    ILP -->> EC: DispatchPreparePacketCmd
+    EC -->> EC: Send prepare packet to peer
     alt Fulfill packet received
-    ILPAPI ->> ILPAPI: Receive fulfill packet
-    ILPAPI -->> ILP: Process fulfill packet received command
+    EC -->> EC: Receive fulfill packet
+    EC -->> ILP: ProcessFulfillPacketCmd
     ILP ->>ILP: Retrieve stored packet & mark fulfilled
     %% ILP -->> ILP: Finalize liquidity transfer
     ILP -->> ILPET: ILP payment confirmation received event
 
     else Reject packet received
-    ILPAPI ->> ILPAPI: Receive reject packet
-    ILPAPI -->> ILP: Process reject packet command
+    EC -->> EC: Receive reject packet
+    EC -->> ILP: ProcessRejectPacketCmd
     ILP ->>ILP: Retrieve stored packet & mark rejected
     ILP -->> ILPET: ILP payment confirmation failed event
     else No packets received, error

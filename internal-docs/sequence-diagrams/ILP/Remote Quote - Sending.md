@@ -20,9 +20,12 @@ sequenceDiagram
     participant ILPET as ILP Events Topic
     participant ILPEH as ILP Event Handler
 	participant ILP as ILP Command Handler
-    participant ILPPC as ILP peer to peer client
-    participant ILPCAPI as ILP Connector API
+    participant EC as Connector
     end
+
+    %% Aggregate <-> Connector hops go via Kafka commands
+    %% (ilp-commands and ilp-connector-commands).
+    %% See `ILP BC - Connector Integration.md`.
 
 
     PCH ->> PCH: Quote requested command
@@ -41,12 +44,12 @@ sequenceDiagram
     ILP ->> ILP: Fetch peer connector details
     ILP ->> ILP: Store packet & its expiry (put it on a worker and handle expiries separately)
 
-    ILP ->> ILPPC: Send unfulfillable prepare packet (quoting packet)
-    ILPPC -->> ILPPC: Send prepare packet to peer
+    ILP -->> EC: DispatchPreparePacketCmd (unfulfillable / quoting packet)
+    EC -->> EC: Send prepare packet to peer
 
     alt Quote packet received
-    ILPCAPI ->> ILPCAPI: Receive reject packet
-    ILPCAPI -->> ILP: Process quote response (reject packet) command
+    EC -->> EC: Receive reject packet
+    EC -->> ILP: ProcessRejectPacketCmd (quote response)
     ILP ->> ILP: Fetch peer based on original outgoing packet
     ILP -->> ILPET: ILP Quote determined event
 
