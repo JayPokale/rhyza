@@ -583,6 +583,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
       });
 
       it('emits RemotePaymentIntentImportedEvent when payment intent already in repo', async () => {
+        const REMOTE_URL = 'https://remote.domain.com/incoming-payments/abc';
         const existingPaymentIntent: IPaymentIntent = {
           id: crypto.randomUUID(),
           receivedAmount: 0n,
@@ -595,12 +596,13 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           incomingAmount: null,
           quotes: [],
           payments: [],
-          destinationIlpAddress: 'g.peer.123'
+          destinationIlpAddress: 'g.peer.123',
+          remoteUrl: REMOTE_URL
         };
         await repo.storeMany([existingPaymentIntent]);
 
         const cmd = makeImportRemotePaymentIntentCmd({
-          id: existingPaymentIntent.id
+          url: REMOTE_URL
         });
         const { events } = await aggregate.handleBatch([cmd]);
 
@@ -610,6 +612,35 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           (events[0] as RemotePaymentIntentImportedEvent).payload.id,
           existingPaymentIntent.id
         );
+      });
+
+      it('fetches a url only once for intra-batch duplicates', async () => {
+        let fetchCount = 0;
+        mockRemotePaymentIntentService.fetchIncomingPayment = async () => {
+          fetchCount++;
+          return {
+            walletAddress: 'remote.domain.com/alice',
+            assetCode: 'USD',
+            assetScale: 2,
+            receivedAmount: 0n,
+            destinationIlpAddress: 'g.peer.123',
+            expiresAt: new Date(Date.now() + 60_000).toISOString()
+          };
+        };
+
+        const REMOTE_URL = 'https://remote.domain.com/incoming-payments/abc';
+        const cmd1 = makeImportRemotePaymentIntentCmd({ url: REMOTE_URL });
+        const cmd2 = makeImportRemotePaymentIntentCmd({ url: REMOTE_URL });
+        const { events } = await aggregate.handleBatch([cmd1, cmd2]);
+
+        assert.equal(fetchCount, 1);
+        assert.equal(events.length, 2);
+        assert.equal(events[0].msgName, RemotePaymentIntentImportedEvent.name);
+        assert.equal(events[1].msgName, RemotePaymentIntentImportedEvent.name);
+        const id1 = (events[0] as RemotePaymentIntentImportedEvent).payload.id;
+        const id2 = (events[1] as RemotePaymentIntentImportedEvent).payload.id;
+        assert.equal(id1, cmd1.payload.id);
+        assert.equal(id2, cmd1.payload.id);
       });
 
       it('emits RemotePaymentIntentImportFailedEvent when fetch throws', async () => {

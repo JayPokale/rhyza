@@ -53,7 +53,6 @@ export class PaymentIntentAggregate {
   private paymentIntentMap = new Map<string, IPaymentIntent>();
   private walletAddressMap = new Map<string, IWalletAddress>();
   private remotePaymentIntentFetchErrors = new Map<string, Error>();
-  private proposedToExistingRemoteIntentIds = new Map<string, string>(); // proposed id -> existing id
 
   constructor(
     private _repo: IPaymentIntentRepository,
@@ -69,8 +68,7 @@ export class PaymentIntentAggregate {
     // prefetch any external data needed to process the batch
     const walletAddressIdSet = new Set<string>();
     const paymentIntentIdsSet = new Set<string>();
-    const remotePaymentIntentUrlMap = new Map<string, string>(); // id -> url
-    const remoteUrlToId = new Map<string, string>(); // url -> id
+    const remoteUrlByProposedId = new Map<string, string>(); // proposed id -> url
     for (const cmd of cmds) {
       if (cmd.msgName === CreatePaymentIntentCmd.name) {
         const payload = (cmd as CreatePaymentIntentCmd).payload;
@@ -95,26 +93,16 @@ export class PaymentIntentAggregate {
         paymentIntentIdsSet.add(payload.paymentIntentId);
       } else if (cmd.msgName === ImportRemotePaymentIntentCmd.name) {
         const payload = (cmd as ImportRemotePaymentIntentCmd).payload;
-        const existingIdForUrl = remoteUrlToId.get(payload.url);
-        if (existingIdForUrl) {
-          // duplicate URL within this batch — remap immediately, skip fetch
-          this.proposedToExistingRemoteIntentIds.set(
-            payload.id,
-            existingIdForUrl
-          );
-        } else {
-          remotePaymentIntentUrlMap.set(payload.id, payload.url);
-          remoteUrlToId.set(payload.url, payload.id);
-          paymentIntentIdsSet.add(payload.id);
-        }
+        remoteUrlByProposedId.set(payload.id, payload.url);
       }
     }
 
+    const uniqueRemoteUrls = [...new Set(remoteUrlByProposedId.values())];
     const [walletAddresses, existingPaymentIntents, existingByUrl] =
       await Promise.all([
         this._walletAddressService.fetchByIds([...walletAddressIdSet]),
         this._repo.fetchByIdsWithPayments([...paymentIntentIdsSet]),
-        this._repo.fetchIdsByRemoteUrls([...remoteUrlToId.keys()])
+        this._repo.fetchIdsByRemoteUrls(uniqueRemoteUrls)
       ]);
 
     for (const walletAddress of walletAddresses) {
@@ -125,11 +113,7 @@ export class PaymentIntentAggregate {
       this.paymentIntentMap.set(paymentIntent.id, paymentIntent);
     }
 
-    await this._resolveAndFetchRemotePaymentIntents(
-      remotePaymentIntentUrlMap,
-      remoteUrlToId,
-      existingByUrl
-    );
+    await this._resolveAndFetchRemotePaymentIntents(remoteUrlByProposedId, existingByUrl);
 
     for (const cmd of cmds) {
       let event: IMessage;
@@ -550,80 +534,82 @@ export class PaymentIntentAggregate {
   ) {
     const { id } = cmd.payload;
 
-    // use pre-existing ID in case where remote payment intent was already imported
-    const existingId = this.proposedToExistingRemoteIntentIds.get(id);
-    if (existingId) {
+    try {
+      const fetchError = this.remotePaymentIntentFetchErrors.get(id);
+      if (fetchError) throw fetchError;
+
+      const intent = this.paymentIntentMap.get(id);
+      if (!intent) {
+        throw new PaymentIntentNotFoundError(`Payment intent ${id} not found`);
+      }
+
       return new RemotePaymentIntentImportedEvent(
-        { id: existingId },
+        { id: intent.id },
         cmd.requestId
       );
-    }
-
-    const error = this.remotePaymentIntentFetchErrors.get(id);
-    if (error) {
+    } catch (err) {
       return new RemotePaymentIntentImportFailedEvent(
         {
           paymentIntentId: id,
-          errorName: error.constructor.name,
-          message: error.message
+          errorName: (err as Error).constructor.name,
+          message: (err as Error).message
         },
         cmd.requestId
       );
     }
-
-    return new RemotePaymentIntentImportedEvent({ id }, cmd.requestId);
   }
 
   private async _resolveAndFetchRemotePaymentIntents(
-    remotePaymentIntentUrlMap: Map<string, string>,
-    remoteUrlToId: Map<string, string>,
+    remoteUrlByProposedId: Map<string, string>,
     existingByUrl: Array<{ id: string; remoteUrl: string }>
   ): Promise<void> {
-    // if the remote intent was already imported (with a different ID), point this
-    // proposed ID at the one that already exists so that we don't create a duplicate
-    for (const { id: existingId, remoteUrl } of existingByUrl) {
-      const incomingId = remoteUrlToId.get(remoteUrl);
-      if (incomingId) {
-        this.proposedToExistingRemoteIntentIds.set(incomingId, existingId);
+    if (remoteUrlByProposedId.size === 0) return;
+
+    // map url to existing DB id for cross-batch dedup
+    const dbIdByUrl = new Map<string, string>();
+    for (const { id, remoteUrl } of existingByUrl) {
+      dbIdByUrl.set(remoteUrl, id);
+    }
+
+    // load existing intents from DB that weren't already prefetched by their own ID
+    const dbIdsToLoad = [...new Set(dbIdByUrl.values())].filter(
+      (id) => !this.paymentIntentMap.has(id)
+    );
+    if (dbIdsToLoad.length > 0) {
+      const loaded = await this._repo.fetchByIdsWithPayments(dbIdsToLoad);
+      for (const intent of loaded) {
+        this.paymentIntentMap.set(intent.id, intent);
       }
     }
 
-    // handle intra-batch duplicates by using the first seen id
-    for (const [id, target] of this.proposedToExistingRemoteIntentIds) {
-      const finalTarget = this.proposedToExistingRemoteIntentIds.get(target);
-      if (finalTarget) {
-        this.proposedToExistingRemoteIntentIds.set(id, finalTarget);
+    // map url to an authoritative ID for inter-batch dedupe.
+    // for new URLs, first proposed ID in the batch becomes the intent's ID.
+    const canonicalIdByUrl = new Map<string, string>();
+    for (const [proposedId, url] of remoteUrlByProposedId) {
+      if (!dbIdByUrl.has(url) && !canonicalIdByUrl.has(url)) {
+        canonicalIdByUrl.set(url, proposedId);
       }
     }
 
-    const urlsToFetch: Array<[string, string]> = [];
-    for (const [id, url] of remotePaymentIntentUrlMap) {
-      if (
-        !this.paymentIntentMap.has(id) &&
-        !this.proposedToExistingRemoteIntentIds.has(id)
-      ) {
-        urlsToFetch.push([id, url]);
-      }
-    }
-
-    const results = await Promise.all(
-      urlsToFetch.map(async ([id, url]) => {
+    // fetch the payment intents
+    const fetchResults = await Promise.all(
+      [...canonicalIdByUrl.entries()].map(async ([url, canonicalId]) => {
         try {
           const remotePaymentIntent =
             await this._remotePaymentIntentService.fetchIncomingPayment(url);
-          return { id, url, remotePaymentIntent, error: null };
+          return { canonicalId, url, remotePaymentIntent, error: null };
         } catch (err) {
-          return { id, url, remotePaymentIntent: null, error: err as Error };
+          return { canonicalId, url, remotePaymentIntent: null, error: err as Error };
         }
       })
     );
 
-    for (const { id, url, remotePaymentIntent, error } of results) {
+    for (const { canonicalId, url, remotePaymentIntent, error } of fetchResults) {
       if (error) {
-        this.remotePaymentIntentFetchErrors.set(id, error);
+        this.remotePaymentIntentFetchErrors.set(canonicalId, error);
       } else {
         const entity = PaymentIntent.create(
-          id,
+          canonicalId,
           undefined,
           remotePaymentIntent.walletAddress,
           PaymentIntentDestination.REMOTE,
@@ -635,8 +621,24 @@ export class PaymentIntentAggregate {
           remotePaymentIntent.destinationIlpAddress,
           url
         );
-        this.paymentIntentMap.set(id, entity.toObject());
-        this.newPaymentIntentIds.push(id);
+        this.paymentIntentMap.set(canonicalId, entity.toObject());
+        this.newPaymentIntentIds.push(canonicalId);
+      }
+    }
+
+    // alias every duplicate proposed ID to the resolved intent/error so the
+    // handler can look up using the proposed (but ultimately discarded) ID from the command
+    for (const [proposedId, url] of remoteUrlByProposedId) {
+      const resolvedId = dbIdByUrl.get(url) ?? canonicalIdByUrl.get(url);
+      if (!resolvedId || resolvedId === proposedId) continue;
+
+      const resolvedIntent = this.paymentIntentMap.get(resolvedId);
+      if (resolvedIntent) {
+        this.paymentIntentMap.set(proposedId, resolvedIntent);
+      }
+      const resolvedError = this.remotePaymentIntentFetchErrors.get(resolvedId);
+      if (resolvedError) {
+        this.remotePaymentIntentFetchErrors.set(proposedId, resolvedError);
       }
     }
   }
@@ -824,7 +826,6 @@ export class PaymentIntentAggregate {
       this.newPaymentIntentQuotes.clear();
       this.newPaymentIntentIds = [];
       this.remotePaymentIntentFetchErrors.clear();
-      this.proposedToExistingRemoteIntentIds.clear();
     }
   }
 }
