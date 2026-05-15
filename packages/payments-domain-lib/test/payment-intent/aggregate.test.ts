@@ -576,6 +576,13 @@ describe('PaymentIntentAggregate.handleBatch', () => {
       });
 
       it('deduplicates intra-batch: second cmd with same url uses first intent id', async () => {
+        let fetchCount = 0;
+        const originalFetch = mockRemotePaymentIntentService.fetchIncomingPayment.bind(mockRemotePaymentIntentService);
+        mockRemotePaymentIntentService.fetchIncomingPayment = async (url) => {
+          fetchCount++;
+          return originalFetch(url);
+        };
+
         const cmd1 = makeCreateQuoteCmd({
           remoteUrl: REMOTE_URL,
           debitAmount: 100
@@ -586,6 +593,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         });
         const { events } = await aggregate.handleBatch([cmd1, cmd2]);
 
+        assert.equal(fetchCount, 1);
         assert.equal(events.length, 2);
         assert.equal(events[0].msgName, RemoteQuoteRequestedEvent.name);
         assert.equal(events[1].msgName, RemoteQuoteRequestedEvent.name);
