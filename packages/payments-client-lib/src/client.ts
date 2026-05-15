@@ -140,8 +140,8 @@ export class PaymentsClient {
       ) {
         paymentIntentId = incomingPayment.incomingPaymentUrl.split('/').at(-1)!;
       } else {
-        paymentIntentId = randomUUID()
-        remoteUrl = incomingPayment.incomingPaymentUrl
+        paymentIntentId = randomUUID();
+        remoteUrl = incomingPayment.incomingPaymentUrl;
       }
     } else {
       paymentIntentId = incomingPayment.incomingPaymentId;
@@ -287,5 +287,4 @@ export class PaymentsClient {
       );
     });
   }
-
 }

@@ -35,7 +35,6 @@ export abstract class PaymentIntentCommand extends CommandMsg {
   static isFailRemoteQuoteCmd(cmd: CommandMsg): cmd is FailRemoteQuoteCmd {
     return cmd.msgName === FailRemoteQuoteCmd.name;
   }
-
 }
 
 export type CreatePaymentIntentCmdPayload = {
@@ -145,4 +144,3 @@ export class FailRemoteQuoteCmd extends PaymentIntentCommand {
     this.payload = payload;
   }
 }
-

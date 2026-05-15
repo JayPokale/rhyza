@@ -111,7 +111,10 @@ export class PaymentIntentAggregate {
       this.paymentIntentMap.set(paymentIntent.id, paymentIntent);
     }
 
-    await this._importRemotePaymentIntents(remoteUrlByProposedId, existingByUrl);
+    await this._importRemotePaymentIntents(
+      remoteUrlByProposedId,
+      existingByUrl
+    );
 
     for (const cmd of cmds) {
       let event: IMessage;
@@ -235,7 +238,8 @@ export class PaymentIntentAggregate {
       }
 
       if (remoteUrl) {
-        const fetchError = this.remotePaymentIntentFetchErrors.get(paymentIntentId);
+        const fetchError =
+          this.remotePaymentIntentFetchErrors.get(paymentIntentId);
         if (fetchError) throw fetchError;
       }
 
@@ -560,7 +564,7 @@ export class PaymentIntentAggregate {
 
     // map url to an authoritative ID for inter-batch dedupe.
     // for new URLs, first proposed ID in the batch becomes the intent's ID.
-    const canonicalIdByUrl = new Map<string, string>()
+    const canonicalIdByUrl = new Map<string, string>();
     for (const [proposedId, url] of remoteUrlByProposedId) {
       if (!dbIdByUrl.has(url) && !canonicalIdByUrl.has(url)) {
         canonicalIdByUrl.set(url, proposedId);
@@ -585,7 +589,12 @@ export class PaymentIntentAggregate {
       })
     );
 
-    for (const { canonicalId, url, remotePaymentIntent, error } of fetchResults) {
+    for (const {
+      canonicalId,
+      url,
+      remotePaymentIntent,
+      error
+    } of fetchResults) {
       if (error) {
         this.remotePaymentIntentFetchErrors.set(canonicalId, error);
       } else {

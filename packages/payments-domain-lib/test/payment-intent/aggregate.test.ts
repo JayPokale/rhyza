@@ -439,7 +439,9 @@ describe('PaymentIntentAggregate.handleBatch', () => {
 
         assert.equal(events.length, 1);
         assert.equal(events[0].msgName, QuoteCompletedEvent.name);
-        assert.equal((events[0] as QuoteCompletedEvent).payload.id, quoteId);
+        const payload = (events[0] as QuoteCompletedEvent).payload;
+        assert.equal(payload.id, quoteId);
+        assert.equal(payload.paymentIntentId, paymentIntent.id);
       });
 
       it('fails when payment intent not found', async () => {
@@ -558,7 +560,10 @@ describe('PaymentIntentAggregate.handleBatch', () => {
       });
 
       it('fetches remote intent and emits RemoteQuoteRequestedEvent', async () => {
-        const cmd = makeCreateQuoteCmd({ remoteUrl: REMOTE_URL, debitAmount: 500 });
+        const cmd = makeCreateQuoteCmd({
+          remoteUrl: REMOTE_URL,
+          debitAmount: 500
+        });
         const { events } = await aggregate.handleBatch([cmd]);
 
         assert.equal(events.length, 1);
@@ -571,8 +576,14 @@ describe('PaymentIntentAggregate.handleBatch', () => {
       });
 
       it('deduplicates intra-batch: second cmd with same url uses first intent id', async () => {
-        const cmd1 = makeCreateQuoteCmd({ remoteUrl: REMOTE_URL, debitAmount: 100 });
-        const cmd2 = makeCreateQuoteCmd({ remoteUrl: REMOTE_URL, debitAmount: 200 });
+        const cmd1 = makeCreateQuoteCmd({
+          remoteUrl: REMOTE_URL,
+          debitAmount: 100
+        });
+        const cmd2 = makeCreateQuoteCmd({
+          remoteUrl: REMOTE_URL,
+          debitAmount: 200
+        });
         const { events } = await aggregate.handleBatch([cmd1, cmd2]);
 
         assert.equal(events.length, 2);
@@ -602,7 +613,10 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         };
         await repo.storeMany([existingPaymentIntent]);
 
-        const cmd = makeCreateQuoteCmd({ remoteUrl: REMOTE_URL, debitAmount: 300 });
+        const cmd = makeCreateQuoteCmd({
+          remoteUrl: REMOTE_URL,
+          debitAmount: 300
+        });
         const { events } = await aggregate.handleBatch([cmd]);
 
         assert.equal(events.length, 1);
@@ -806,6 +820,28 @@ describe('PaymentIntentAggregate.handleBatch', () => {
       assert.equal(stored[0].id, paymentIntentId);
     });
 
+    it('stores a remote payment intent created during quote', async () => {
+      const REMOTE_URL = 'https://remote.domain.com/incoming-payments/abc';
+      mockRemotePaymentIntentService.fetchIncomingPayment = async () => ({
+        walletAddress: 'remote.domain.com/alice',
+        assetCode: 'USD',
+        assetScale: 2,
+        receivedAmount: 0n,
+        destinationIlpAddress: 'g.peer.123',
+        expiresAt: new Date(Date.now() + 60_000).toISOString()
+      });
+
+      const cmd = makeCreateQuoteCmd({ remoteUrl: REMOTE_URL });
+      await aggregate.handleBatch([cmd]);
+      await aggregate.flush();
+
+      const stored = repo.getAll();
+      assert.equal(stored.length, 1);
+      assert.equal(stored[0].id, cmd.payload.paymentIntentId);
+      assert.equal(stored[0].destination, 'REMOTE');
+      assert.equal(stored[0].remoteUrl, REMOTE_URL);
+    });
+
     it('stores quotes for a payment intent', async () => {
       const paymentIntentId = crypto.randomUUID();
       const setupCmd = makeCreatePaymentIntentCmd({ id: paymentIntentId });
@@ -818,7 +854,10 @@ describe('PaymentIntentAggregate.handleBatch', () => {
       const { events } = await aggregate.handleBatch([quoteCmd]);
       assert.equal(events.length, 1);
       assert.equal(events[0].msgName, QuoteCompletedEvent.name);
-      assert.equal((events[0] as QuoteCompletedEvent).payload.paymentIntentId, paymentIntentId);
+      assert.equal(
+        (events[0] as QuoteCompletedEvent).payload.paymentIntentId,
+        paymentIntentId
+      );
 
       await aggregate.flush();
 

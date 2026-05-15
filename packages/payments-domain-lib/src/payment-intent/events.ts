@@ -58,7 +58,6 @@ export abstract class PaymentIntentDomainEvent extends DomainEvent {
   ): evt is RemoteQuoteRequestedEvent {
     return evt.msgName === RemoteQuoteRequestedEvent.name;
   }
-
 }
 
 export type PaymentIntentCreatedPayload = {
@@ -209,4 +208,3 @@ export class RemoteQuoteRequestedEvent extends PaymentIntentDomainEvent {
     this.requestId = requestId;
   }
 }
-
