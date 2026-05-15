@@ -1369,7 +1369,8 @@ describe('PaymentIntent Entity', () => {
 
       paymentIntent.addPendingRemoteQuote({
         id: quoteId,
-        senderWalletAddress: { id: senderWalletAddressId, address: 'sender' }
+        senderWalletAddress: { id: senderWalletAddressId, address: 'sender' },
+        receiveAmount: 100n
       });
 
       assert.equal(paymentIntent.quotes.length, 1);
@@ -1378,6 +1379,7 @@ describe('PaymentIntent Entity', () => {
       assert.equal(quote.state, 'PENDING');
       assert.equal(quote.senderWalletAddress, 'sender');
       assert.equal(quote.senderWalletAddressId, senderWalletAddressId);
+      assert.equal(quote.receiveAmount, 100n);
     });
 
     it('throws InvalidQuoteIdError on duplicate quote id', () => {
@@ -1393,7 +1395,8 @@ describe('PaymentIntent Entity', () => {
 
       const args = {
         id: crypto.randomUUID(),
-        senderWalletAddress: { id: crypto.randomUUID(), address: 'sender' }
+        senderWalletAddress: { id: crypto.randomUUID(), address: 'sender' },
+        receiveAmount: 100n
       };
 
       paymentIntent.addPendingRemoteQuote(args);
@@ -1465,6 +1468,30 @@ describe('PaymentIntent Entity', () => {
         }
       );
     });
+
+    it('throws InvalidQuoteAmountError if neither debitAmount nor receiveAmount is provided', () => {
+      const paymentIntent = PaymentIntent.create(
+        crypto.randomUUID(),
+        crypto.randomUUID(),
+        'receiver',
+        PaymentIntentDestination.REMOTE,
+        'USD',
+        2,
+        null
+      );
+
+      assert.throws(
+        () =>
+          paymentIntent.addPendingRemoteQuote({
+            id: crypto.randomUUID(),
+            senderWalletAddress: { id: crypto.randomUUID(), address: 'sender' }
+          }),
+        (err: Error) => {
+          assert(err instanceof InvalidQuoteAmountError);
+          return true;
+        }
+      );
+    });
   });
 
   describe('completeRemoteQuote', () => {
@@ -1481,7 +1508,8 @@ describe('PaymentIntent Entity', () => {
       );
       paymentIntent.addPendingRemoteQuote({
         id: quoteId,
-        senderWalletAddress: { id: crypto.randomUUID(), address: 'sender' }
+        senderWalletAddress: { id: crypto.randomUUID(), address: 'sender' },
+        receiveAmount: 100n
       });
       return { paymentIntent, quoteId };
     };
@@ -1629,7 +1657,8 @@ describe('PaymentIntent Entity', () => {
       );
       paymentIntent.addPendingRemoteQuote({
         id: quoteId,
-        senderWalletAddress: { id: crypto.randomUUID(), address: 'sender' }
+        senderWalletAddress: { id: crypto.randomUUID(), address: 'sender' },
+        receiveAmount: 100n
       });
       return { paymentIntent, quoteId };
     };

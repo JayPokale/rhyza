@@ -14,6 +14,7 @@ import {
 } from './errors';
 import {
   IBaseQuote,
+  IPendingQuote,
   IPaymentIntent,
   IQuote,
   PaymentIntentDestination,
@@ -26,7 +27,7 @@ const MAX_PAYMENT_INTENT_EXPIRY_MS = 1000 * 60 * 60 * 24 * 30; // 30 days
 const QUOTE_EXPIRY_MS = 1000 * 60 * 10;
 
 type QuoteData =
-  | { state: 'PENDING' }
+  | { state: 'PENDING'; debitAmount?: bigint; receiveAmount?: bigint }
   | {
       state: 'COMPLETED';
       debitAmount: bigint;
@@ -57,10 +58,14 @@ class Quote implements IBaseQuote {
   static createPending(
     id: string,
     senderWalletAddress: string,
-    senderWalletAddressId: string
+    senderWalletAddressId: string,
+    debitAmount?: bigint,
+    receiveAmount?: bigint
   ): Quote {
     return new Quote(id, senderWalletAddress, senderWalletAddressId, {
-      state: 'PENDING'
+      state: 'PENDING',
+      debitAmount,
+      receiveAmount
     });
   }
 
@@ -95,7 +100,9 @@ class Quote implements IBaseQuote {
         obj.senderWalletAddress,
         obj.senderWalletAddressId,
         {
-          state: 'PENDING'
+          state: 'PENDING',
+          debitAmount: obj.debitAmount,
+          receiveAmount: obj.receiveAmount
         }
       );
     }
@@ -160,7 +167,12 @@ class Quote implements IBaseQuote {
       const { errorName, message } = this._data;
       return { ...base, state: 'FAILED', errorName, message };
     }
-    return { ...base, state: 'PENDING' };
+    return {
+      ...base,
+      state: 'PENDING',
+      debitAmount: this._data.debitAmount,
+      receiveAmount: this._data.receiveAmount
+    };
   }
 
   get id(): string {
@@ -446,8 +458,11 @@ export class PaymentIntent implements IPaymentIntent {
       id: string;
       address: string;
     };
-  }): void {
-    const { id, senderWalletAddress } = args;
+    debitAmount?: bigint;
+    receiveAmount?: bigint;
+  }): IPendingQuote {
+    const { id, senderWalletAddress, debitAmount } = args;
+    const receiveAmount = args.receiveAmount ?? this._incomingAmount ?? undefined;
 
     if (this.state !== 'CREATED') {
       throw new PaymentIntentInvalidState(
@@ -467,13 +482,21 @@ export class PaymentIntent implements IPaymentIntent {
       );
     }
 
-    this._quotes.push(
-      Quote.createPending(
-        id,
-        senderWalletAddress.address,
-        senderWalletAddress.id
-      )
+    if (!debitAmount && !receiveAmount) {
+      throw new InvalidQuoteAmountError(
+        'Pending remote quote must have debitAmount or receiveAmount'
+      );
+    }
+
+    const quote = Quote.createPending(
+      id,
+      senderWalletAddress.address,
+      senderWalletAddress.id,
+      debitAmount,
+      receiveAmount
     );
+    this._quotes.push(quote);
+    return quote.toObject() as IPendingQuote;
   }
 
   completeRemoteQuote(args: {

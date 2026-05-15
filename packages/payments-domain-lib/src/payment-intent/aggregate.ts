@@ -295,12 +295,14 @@ export class PaymentIntentAggregate {
       }
 
       // REMOTE: create pending quote, emit event to initiate quoting
-      paymentIntent.addPendingRemoteQuote({
+      const pendingQuote = paymentIntent.addPendingRemoteQuote({
         id: quoteId,
         senderWalletAddress: {
           id: senderWalletAddressId,
           address: senderWalletAddress
-        }
+        },
+        debitAmount: debitAmount ? BigInt(debitAmount) : undefined,
+        receiveAmount: receiveAmount ? BigInt(receiveAmount) : undefined
       });
 
       this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
@@ -323,9 +325,8 @@ export class PaymentIntentAggregate {
           senderAssetScale: walletAddress.assetScale,
           receiverAssetCode: paymentIntent.assetCode,
           receiverAssetScale: paymentIntent.assetScale,
-          debitAmount: debitAmount != null ? String(debitAmount) : undefined,
-          receiveAmount:
-            receiveAmount != null ? String(receiveAmount) : undefined,
+          debitAmount: pendingQuote.debitAmount?.toString(),
+          receiveAmount: pendingQuote.receiveAmount?.toString(),
           destinationIlpAddress
         },
         cmd.requestId
