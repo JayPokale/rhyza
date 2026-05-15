@@ -19,8 +19,6 @@ import {
   CreateOutgoingPaymentResponse,
   ApproveOutgoingPaymentRequest,
   ApproveOutgoingPaymentResponse,
-  ImportRemoteIncomingPaymentRequest,
-  ImportRemoteIncomingPaymentResponse,
   GetPaymentIntentRequest,
   GetPaymentIntentResponse,
   HealthCheckRequest,
@@ -35,7 +33,6 @@ import {
   CreateQuoteCmd,
   CreatePaymentCmd,
   ApprovePaymentCmd,
-  ImportRemotePaymentIntentCmd,
   PaymentIntentDomainEvent
 } from 'payments-domain-lib';
 
@@ -112,7 +109,6 @@ export class PaymentsServiceServer {
       createQuote: this._handleUnary.bind(this),
       createOutgoingPayment: this._handleUnary.bind(this),
       approveOutgoingPayment: this._handleUnary.bind(this),
-      importRemoteIncomingPayment: this._handleUnary.bind(this),
       getPaymentIntent: this._handleGetPaymentIntent.bind(this)
     });
   }
@@ -216,6 +212,7 @@ export class PaymentsServiceServer {
       this._storePendingResponse(commandId, call, callback);
       const receiveAmount = call.request.getReceiveAmount();
       const debitAmount = call.request.getDebitAmount();
+      const remoteUrl = call.request.getRemoteUrl();
       const cmd = new CreateQuoteCmd(
         {
           id: commandId,
@@ -223,7 +220,8 @@ export class PaymentsServiceServer {
           senderWalletAddressId: call.request.getWalletAddressId(),
           senderWalletAddress: call.request.getWalletAddress(),
           receiveAmount: receiveAmount ? receiveAmount : undefined,
-          debitAmount: debitAmount ? debitAmount : undefined
+          debitAmount: debitAmount ? debitAmount : undefined,
+          remoteUrl: remoteUrl ? remoteUrl : undefined
         },
         commandId
       );
@@ -255,21 +253,6 @@ export class PaymentsServiceServer {
       this._storePendingResponse(commandId, call, callback);
       const cmd = new ApprovePaymentCmd(
         { id: commandId, paymentIntentId: call.request.getIncomingPaymentId() },
-        commandId
-      );
-      await this._msgProducer.send(cmd);
-    } else if (call.request instanceof ImportRemoteIncomingPaymentRequest) {
-      const commandId = call.request.getId();
-      if (!PaymentsServiceServer.UUID_REGEX.test(commandId)) {
-        callback({
-          code: grpc.status.INVALID_ARGUMENT,
-          message: 'id must be a valid UUID'
-        });
-        return;
-      }
-      this._storePendingResponse(commandId, call, callback);
-      const cmd = new ImportRemotePaymentIntentCmd(
-        { id: commandId, url: call.request.getUrl() },
         commandId
       );
       await this._msgProducer.send(cmd);
@@ -382,7 +365,9 @@ export class PaymentsServiceServer {
         metadata: new grpc.Metadata()
       });
     } else if (PaymentIntentDomainEvent.isQuoteCompletedEvent(evt)) {
-      const response = new CreateQuoteResponse().setId(evt.payload.id);
+      const response = new CreateQuoteResponse()
+        .setId(evt.payload.id)
+        .setPaymentIntentId(evt.payload.paymentIntentId);
       this._resolvePendingResponse(pending, requestId, null, response);
     } else if (PaymentIntentDomainEvent.isQuoteCreateFailedEvent(evt)) {
       this._resolvePendingResponse(pending, requestId, {
@@ -412,23 +397,6 @@ export class PaymentsServiceServer {
       this._resolvePendingResponse(pending, requestId, null, response);
     } else if (
       PaymentIntentDomainEvent.isLocalPaymentCompleteFailedEvent(evt)
-    ) {
-      this._resolvePendingResponse(pending, requestId, {
-        code: grpc.status.INTERNAL,
-        message: evt.payload.message || 'Command processing failed',
-        details: evt.payload.message,
-        name: evt.payload.errorName || 'CommandError',
-        metadata: new grpc.Metadata()
-      });
-    } else if (
-      PaymentIntentDomainEvent.isRemotePaymentIntentImportedEvent(evt)
-    ) {
-      const response = new ImportRemoteIncomingPaymentResponse().setId(
-        evt.payload.id
-      );
-      this._resolvePendingResponse(pending, requestId, null, response);
-    } else if (
-      PaymentIntentDomainEvent.isRemotePaymentIntentImportFailedEvent(evt)
     ) {
       this._resolvePendingResponse(pending, requestId, {
         code: grpc.status.INTERNAL,
