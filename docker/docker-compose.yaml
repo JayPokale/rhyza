@@ -50,9 +50,12 @@ services:
     restart: always
     environment:
       KAFKA_URL: kafka:19092
+      MONGODB_URL: mongodb://root:mongoPass@mongodb:27017
     ports:
       - '50052:50052'
     depends_on:
+      mongodb:
+        condition: service_healthy
       init-kafka:
         condition: service_completed_successfully
     networks:
@@ -68,6 +71,7 @@ services:
       MONGODB_URL: mongodb://root:mongoPass@mongodb:27017
       PAL_GRPC_URL: pal-api-service:50051
       UV_THREADPOOL_SIZE: 128
+      LOG_LEVEL: debug
     depends_on:
       mongodb:
         condition: service_healthy
@@ -88,6 +92,8 @@ services:
     depends_on:
       init-kafka:
         condition: service_completed_successfully
+    networks:
+      - rafiki-v2
   notifications-command-handler-service:
     build:
       context: ../

@@ -40,7 +40,11 @@ export class PaymentsEventHandler {
 
   async start(): Promise<void> {
     this._msgConsumer.setTopics([DomainEventTopics.IlpEvents]);
-    this._msgConsumer.setCallbackFn(this._handleEvent.bind(this));
+    this._msgConsumer.setBatchCallbackFn(async (messages: IMessage[]) => {
+      for (const message of messages) {
+        await this._handleEvent(message);
+      }
+    });
     await this._msgConsumer.connect();
     await this._msgConsumer.startAndWaitForRebalance();
   }
