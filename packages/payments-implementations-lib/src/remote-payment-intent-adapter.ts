@@ -44,7 +44,8 @@ export class RemotePaymentIntentAdapter implements IRemotePaymentIntentService {
         : undefined,
       receivedAmount: BigInt(data.receivedAmount.value),
       expiresAt: data.expiresAt,
-      destinationIlpAddress: data.destinationIlpAddress ?? STUB_DESTINATION_ILP_ADDRESS
+      destinationIlpAddress:
+        data.destinationIlpAddress ?? STUB_DESTINATION_ILP_ADDRESS
     };
   }
 }

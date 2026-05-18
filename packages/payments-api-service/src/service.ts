@@ -25,7 +25,10 @@ export class PaymentsApiService {
   static async start(): Promise<void> {
     const logger = new PinoLogger({ service: 'payments-api-service' });
 
-    this.repo = new MongoDbPaymentIntentRepo(MONGODB_URL, logger.child({ component: 'payment-intent-repo' }));
+    this.repo = new MongoDbPaymentIntentRepo(
+      MONGODB_URL,
+      logger.child({ component: 'payment-intent-repo' })
+    );
     await this.repo.init();
 
     const kafkaBuilder = new KafkaBuilder()

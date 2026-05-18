@@ -13,14 +13,18 @@ export class PinoLogger implements ILogger {
     });
   }
 
-  private static _fromInstance(instance: pino.Logger<never, boolean>): PinoLogger {
+  private static _fromInstance(
+    instance: pino.Logger<never, boolean>
+  ): PinoLogger {
     const wrapper = new PinoLogger();
     wrapper._logger = instance;
     return wrapper;
   }
 
   child(bindings: Record<string, unknown>): PinoLogger {
-    return PinoLogger._fromInstance(this._logger.child(bindings) as pino.Logger<never, boolean>);
+    return PinoLogger._fromInstance(
+      this._logger.child(bindings) as pino.Logger<never, boolean>
+    );
   }
 
   private _log(fn: ILoggerParams, ...args: any[]): void {

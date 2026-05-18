@@ -27,7 +27,12 @@ import {
   PaymentsGrpcService
 } from 'payments-public-types-lib';
 import { IPaymentIntentRepository } from 'payments-domain-lib';
-import { ILogger, IMessage, IMessageConsumer, IMessageProducer } from 'common-types-lib';
+import {
+  ILogger,
+  IMessage,
+  IMessageConsumer,
+  IMessageProducer
+} from 'common-types-lib';
 import {
   CreatePaymentIntentCmd,
   CreateQuoteCmd,
@@ -119,7 +124,9 @@ export class PaymentsServiceServer {
   async start(): Promise<void> {
     return new Promise((resolve, reject) => {
       const credentials = grpc.ServerCredentials.createInsecure();
-      this._logger.info(`Starting Payments GRPC service at: ${this._serverUrl}...`);
+      this._logger.info(
+        `Starting Payments GRPC service at: ${this._serverUrl}...`
+      );
 
       this._server.bindAsync(this._serverUrl, credentials, (error) => {
         if (error !== null) {
