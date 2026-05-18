@@ -60,9 +60,7 @@ export class PaymentIntentAggregate {
   ) {}
 
   async handleBatch(cmds: IMessage[]): Promise<{ events: IMessage[] }> {
-    this._logger.debug(
-      `handleBatch — ${cmds.length} cmd(s)`
-    );
+    this._logger.debug(`handleBatch — ${cmds.length} cmd(s)`);
     const outputEvents: IMessage[] = [];
 
     // prefetch any external data needed to process the batch
@@ -202,7 +200,9 @@ export class PaymentIntentAggregate {
       this.paymentIntentMap.set(id, entity.toObject());
       this.newPaymentIntentIds.push(id);
 
-      this._logger.debug(`handleCreatePaymentIntentCommand — created id: ${id}`);
+      this._logger.debug(
+        `handleCreatePaymentIntentCommand — created id: ${id}`
+      );
       const event = new PaymentIntentCreatedEvent({ id }, cmd.requestId);
 
       return event;
@@ -305,7 +305,9 @@ export class PaymentIntentAggregate {
           quoteId
         );
 
-        this._logger.debug(`handleCreateQuoteCommand — LOCAL quote completed quoteId: ${quoteId}, paymentIntentId: ${paymentIntent.id}`);
+        this._logger.debug(
+          `handleCreateQuoteCommand — LOCAL quote completed quoteId: ${quoteId}, paymentIntentId: ${paymentIntent.id}`
+        );
         return new QuoteCompletedEvent(
           { id: quoteId, paymentIntentId: paymentIntent.id },
           cmd.requestId
@@ -433,7 +435,9 @@ export class PaymentIntentAggregate {
       this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
       this._appendToMap(this.newPaymentsMap, paymentIntent.id, paymentId);
 
-      this._logger.debug(`handleCreatePaymentCommand — created paymentId: ${paymentId}`);
+      this._logger.debug(
+        `handleCreatePaymentCommand — created paymentId: ${paymentId}`
+      );
       return new PaymentCreatedEvent({ id: paymentId }, cmd.requestId);
     } catch (err) {
       this._logger.debug(
@@ -615,14 +619,20 @@ export class PaymentIntentAggregate {
     // fetch the payment intents
     const fetchResults = await Promise.all(
       [...canonicalIdByUrl.entries()].map(async ([url, canonicalId]) => {
-        this._logger.debug(`_importRemotePaymentIntents — fetching url: ${url} canonicalId: ${canonicalId}`);        
+        this._logger.debug(
+          `_importRemotePaymentIntents — fetching url: ${url} canonicalId: ${canonicalId}`
+        );
         try {
           const remotePaymentIntent =
             await this._remotePaymentIntentService.fetchIncomingPayment(url);
-          this._logger.debug(`_importRemotePaymentIntents — fetched url: ${url} assetCode: ${remotePaymentIntent.assetCode}`);
+          this._logger.debug(
+            `_importRemotePaymentIntents — fetched url: ${url} assetCode: ${remotePaymentIntent.assetCode}`
+          );
           return { canonicalId, url, remotePaymentIntent, error: null };
         } catch (err) {
-          this._logger.debug(`_importRemotePaymentIntents — fetch failed url: ${url} error: ${(err as Error).message}`);
+          this._logger.debug(
+            `_importRemotePaymentIntents — fetch failed url: ${url} error: ${(err as Error).message}`
+          );
           return {
             canonicalId,
             url,

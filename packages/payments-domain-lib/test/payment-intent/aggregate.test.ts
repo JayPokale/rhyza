@@ -577,7 +577,10 @@ describe('PaymentIntentAggregate.handleBatch', () => {
 
       it('deduplicates intra-batch: second cmd with same url uses first intent id', async () => {
         let fetchCount = 0;
-        const originalFetch = mockRemotePaymentIntentService.fetchIncomingPayment.bind(mockRemotePaymentIntentService);
+        const originalFetch =
+          mockRemotePaymentIntentService.fetchIncomingPayment.bind(
+            mockRemotePaymentIntentService
+          );
         mockRemotePaymentIntentService.fetchIncomingPayment = async (url) => {
           fetchCount++;
           return originalFetch(url);
