@@ -63,9 +63,7 @@ export class PaymentIntentAggregate {
   ) {}
 
   async handleBatch(cmds: IMessage[]): Promise<{ events: IMessage[] }> {
-    this._logger.debug(
-      `handleBatch — ${cmds.length} cmd(s)`
-    );
+    this._logger.debug(`handleBatch — ${cmds.length} cmd(s)`);
     const outputEvents: IMessage[] = [];
 
     // prefetch any external data needed to process the batch
@@ -208,7 +206,9 @@ export class PaymentIntentAggregate {
       this.paymentIntentMap.set(id, entity.toObject());
       this.newPaymentIntentIds.push(id);
 
-      this._logger.debug(`handleCreatePaymentIntentCommand — created id: ${id}`);
+      this._logger.debug(
+        `handleCreatePaymentIntentCommand — created id: ${id}`
+      );
       const event = new PaymentIntentCreatedEvent({ id }, cmd.requestId);
 
       return event;
@@ -302,7 +302,9 @@ export class PaymentIntentAggregate {
           quoteId
         );
 
-        this._logger.debug(`handleCreateQuoteCommand — LOCAL quote completed quoteId: ${quoteId}`);
+        this._logger.debug(
+          `handleCreateQuoteCommand — LOCAL quote completed quoteId: ${quoteId}`
+        );
         return new QuoteCompletedEvent({ id: quoteId }, cmd.requestId);
       }
 
@@ -429,7 +431,9 @@ export class PaymentIntentAggregate {
       this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
       this._appendToMap(this.newPaymentsMap, paymentIntent.id, paymentId);
 
-      this._logger.debug(`handleCreatePaymentCommand — created paymentId: ${paymentId}`);
+      this._logger.debug(
+        `handleCreatePaymentCommand — created paymentId: ${paymentId}`
+      );
       return new PaymentCreatedEvent({ id: paymentId }, cmd.requestId);
     } catch (err) {
       this._logger.debug(
@@ -576,7 +580,9 @@ export class PaymentIntentAggregate {
   private handleImportRemotePaymentIntentCommand(
     cmd: ImportRemotePaymentIntentCmd
   ) {
-    this._logger.debug(`handleImportRemotePaymentIntentCommand — id: ${cmd.payload.id}`);
+    this._logger.debug(
+      `handleImportRemotePaymentIntentCommand — id: ${cmd.payload.id}`
+    );
     const { id } = cmd.payload;
 
     try {
@@ -588,7 +594,9 @@ export class PaymentIntentAggregate {
         throw new PaymentIntentNotFoundError(`Payment intent ${id} not found`);
       }
 
-      this._logger.debug(`handleImportRemotePaymentIntentCommand — imported id: ${intent.id}`);
+      this._logger.debug(
+        `handleImportRemotePaymentIntentCommand — imported id: ${intent.id}`
+      );
       return new RemotePaymentIntentImportedEvent(
         { id: intent.id },
         cmd.requestId
@@ -643,14 +651,20 @@ export class PaymentIntentAggregate {
     // fetch the payment intents
     const fetchResults = await Promise.all(
       [...canonicalIdByUrl.entries()].map(async ([url, canonicalId]) => {
-        this._logger.debug(`_resolveAndFetchRemotePaymentIntents — fetching url: ${url} canonicalId: ${canonicalId}`);
+        this._logger.debug(
+          `_resolveAndFetchRemotePaymentIntents — fetching url: ${url} canonicalId: ${canonicalId}`
+        );
         try {
           const remotePaymentIntent =
             await this._remotePaymentIntentService.fetchIncomingPayment(url);
-          this._logger.debug(`_resolveAndFetchRemotePaymentIntents — fetched url: ${url} assetCode: ${remotePaymentIntent.assetCode}`);
+          this._logger.debug(
+            `_resolveAndFetchRemotePaymentIntents — fetched url: ${url} assetCode: ${remotePaymentIntent.assetCode}`
+          );
           return { canonicalId, url, remotePaymentIntent, error: null };
         } catch (err) {
-          this._logger.debug(`_resolveAndFetchRemotePaymentIntents — fetch failed url: ${url} error: ${(err as Error).message}`);
+          this._logger.debug(
+            `_resolveAndFetchRemotePaymentIntents — fetch failed url: ${url} error: ${(err as Error).message}`
+          );
           return {
             canonicalId,
             url,
