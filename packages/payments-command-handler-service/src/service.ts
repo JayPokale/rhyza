@@ -74,7 +74,8 @@ export class PaymentsCommandHandlerService {
     this.commandHandler = new PaymentsCommandHandler(
       this.msgConsumer,
       this.msgProducer,
-      aggregate
+      aggregate,
+      logger.child({ component: 'command-handler' })
     );
     await this.commandHandler.start();
   }
