@@ -37,7 +37,9 @@ export class PaymentsCommandHandlerService {
   private static repo: MongoDbPaymentIntentRepo;
 
   static async start(): Promise<void> {
-    const logger = new PinoLogger({ service: 'payments-command-handler-service' });
+    const logger = new PinoLogger({
+      service: 'payments-command-handler-service'
+    });
 
     const kafkaBuilder = new KafkaBuilder()
       .withLogger(logger.child({ component: 'kafka' }))
@@ -45,7 +47,10 @@ export class PaymentsCommandHandlerService {
       .withClientId(INSTANCE_ID)
       .withSerializerFactory(MessageSerializationFactory.instance());
 
-    this.repo = new MongoDbPaymentIntentRepo(MONGODB_URL, logger.child({ component: 'payment-intent-repo' }));
+    this.repo = new MongoDbPaymentIntentRepo(
+      MONGODB_URL,
+      logger.child({ component: 'payment-intent-repo' })
+    );
     await this.repo.init();
 
     const palClient = new PalClient(PAL_GRPC_URL);
