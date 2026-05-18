@@ -35,12 +35,6 @@ export abstract class PaymentIntentCommand extends CommandMsg {
   static isFailRemoteQuoteCmd(cmd: CommandMsg): cmd is FailRemoteQuoteCmd {
     return cmd.msgName === FailRemoteQuoteCmd.name;
   }
-
-  static isImportRemotePaymentIntentCmd(
-    cmd: CommandMsg
-  ): cmd is ImportRemotePaymentIntentCmd {
-    return cmd.msgName === ImportRemotePaymentIntentCmd.name;
-  }
 }
 
 export type CreatePaymentIntentCmdPayload = {
@@ -69,6 +63,7 @@ export type CreateQuoteCmdPayload = {
   senderWalletAddressId: string;
   debitAmount?: number;
   receiveAmount?: number;
+  remoteUrl?: string;
 };
 
 export class CreateQuoteCmd extends PaymentIntentCommand {
@@ -145,21 +140,6 @@ export class FailRemoteQuoteCmd extends PaymentIntentCommand {
 
   constructor(payload: FailRemoteQuoteCmdPayload, requestId: string) {
     super(payload.paymentIntentId);
-    this.requestId = requestId;
-    this.payload = payload;
-  }
-}
-
-export type ImportRemotePaymentIntentCmdPayload = {
-  id: string;
-  url: string;
-};
-
-export class ImportRemotePaymentIntentCmd extends PaymentIntentCommand {
-  payload: ImportRemotePaymentIntentCmdPayload;
-
-  constructor(payload: ImportRemotePaymentIntentCmdPayload, requestId: string) {
-    super(payload.id);
     this.requestId = requestId;
     this.payload = payload;
   }

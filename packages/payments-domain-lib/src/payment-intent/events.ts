@@ -58,18 +58,6 @@ export abstract class PaymentIntentDomainEvent extends DomainEvent {
   ): evt is RemoteQuoteRequestedEvent {
     return evt.msgName === RemoteQuoteRequestedEvent.name;
   }
-
-  static isRemotePaymentIntentImportedEvent(
-    evt: DomainEvent
-  ): evt is RemotePaymentIntentImportedEvent {
-    return evt.msgName === RemotePaymentIntentImportedEvent.name;
-  }
-
-  static isRemotePaymentIntentImportFailedEvent(
-    evt: DomainEvent
-  ): evt is RemotePaymentIntentImportFailedEvent {
-    return evt.msgName === RemotePaymentIntentImportFailedEvent.name;
-  }
 }
 
 export type PaymentIntentCreatedPayload = {
@@ -105,6 +93,7 @@ export class PaymentIntentCreateFailedEvent extends PaymentIntentDomainEvent {
 
 export type QuoteCompletedPayload = {
   id: string;
+  paymentIntentId: string;
 };
 
 export class QuoteCompletedEvent extends PaymentIntentDomainEvent {
@@ -214,40 +203,6 @@ export class RemoteQuoteRequestedEvent extends PaymentIntentDomainEvent {
   payload: RemoteQuoteRequestedPayload;
 
   constructor(payload: RemoteQuoteRequestedPayload, requestId?: string) {
-    super(payload.paymentIntentId);
-    this.payload = payload;
-    this.requestId = requestId;
-  }
-}
-
-export type RemotePaymentIntentImportedPayload = {
-  id: string;
-};
-
-export class RemotePaymentIntentImportedEvent extends PaymentIntentDomainEvent {
-  payload: RemotePaymentIntentImportedPayload;
-
-  constructor(payload: RemotePaymentIntentImportedPayload, requestId?: string) {
-    super(payload.id);
-    this.payload = payload;
-    this.requestId = requestId;
-  }
-}
-
-export type RemotePaymentIntentImportFailedPayload = {
-  paymentIntentId: string;
-  errorName: string;
-  message: string;
-};
-
-export class RemotePaymentIntentImportFailedEvent extends PaymentIntentDomainEvent {
-  payload: RemotePaymentIntentImportFailedPayload;
-  isErrorEvent = true;
-
-  constructor(
-    payload: RemotePaymentIntentImportFailedPayload,
-    requestId?: string
-  ) {
     super(payload.paymentIntentId);
     this.payload = payload;
     this.requestId = requestId;

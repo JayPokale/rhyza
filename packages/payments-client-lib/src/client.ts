@@ -22,8 +22,6 @@ import {
   CreateOutgoingPaymentResponse,
   ApproveOutgoingPaymentRequest,
   ApproveOutgoingPaymentResponse,
-  ImportRemoteIncomingPaymentRequest,
-  ImportRemoteIncomingPaymentResponse,
   GetPaymentIntentRequest,
   GetPaymentIntentResponse
 } from 'payments-public-types-lib';
@@ -131,6 +129,7 @@ export class PaymentsClient {
     receiveAmount?: number
   ): Promise<ICreateQuoteResponse> {
     let paymentIntentId: string;
+    let remoteUrl: string | undefined;
 
     if ('incomingPaymentUrl' in incomingPayment) {
       if (!this._openPaymentsUrl) {
@@ -141,12 +140,8 @@ export class PaymentsClient {
       ) {
         paymentIntentId = incomingPayment.incomingPaymentUrl.split('/').at(-1)!;
       } else {
-        const localId = randomUUID();
-        const remoteResult = await this._importRemotePaymentIntent(
-          localId,
-          incomingPayment.incomingPaymentUrl
-        );
-        paymentIntentId = remoteResult.id;
+        paymentIntentId = randomUUID();
+        remoteUrl = incomingPayment.incomingPaymentUrl;
       }
     } else {
       paymentIntentId = incomingPayment.incomingPaymentId;
@@ -164,6 +159,9 @@ export class PaymentsClient {
     if (receiveAmount) {
       request.setReceiveAmount(receiveAmount);
     }
+    if (remoteUrl) {
+      request.setRemoteUrl(remoteUrl);
+    }
 
     return new Promise((resolve, reject) => {
       this._grpcClient.createQuote(
@@ -176,7 +174,7 @@ export class PaymentsClient {
 
           return resolve({
             id: response.getId(),
-            paymentIntentId
+            paymentIntentId: response.getPaymentIntentId()
           });
         }
       );
@@ -284,34 +282,6 @@ export class PaymentsClient {
             incomingAmount: incomingAmount ? BigInt(incomingAmount) : undefined,
             expiresAt: expiresAt || undefined,
             destinationIlpAddress: destinationIlpAddress || undefined
-          });
-        }
-      );
-    });
-  }
-
-  private async _importRemotePaymentIntent(
-    id: string,
-    url: string
-  ): Promise<{ id: string }> {
-    const request = new ImportRemoteIncomingPaymentRequest();
-    request.setId(id);
-    request.setUrl(url);
-
-    return new Promise((resolve, reject) => {
-      this._grpcClient.importRemoteIncomingPayment(
-        request,
-        (
-          error: ServiceError | null,
-          response: ImportRemoteIncomingPaymentResponse
-        ) => {
-          if (error) {
-            console.error(error);
-            return reject(error);
-          }
-
-          return resolve({
-            id: response.getId()
           });
         }
       );

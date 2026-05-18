@@ -18,8 +18,7 @@ import {
   CreatePaymentCmd,
   ApprovePaymentCmd,
   CompleteRemoteQuoteCmd,
-  FailRemoteQuoteCmd,
-  ImportRemotePaymentIntentCmd
+  FailRemoteQuoteCmd
 } from '../commands';
 import {
   CannotCreateDuplicatePaymentIntentError,
@@ -39,9 +38,7 @@ import {
   LocalPaymentCompletedEvent,
   LocalPaymentCompleteFailedEvent,
   PaymentCreatedEvent,
-  RemoteQuoteRequestedEvent,
-  RemotePaymentIntentImportedEvent,
-  RemotePaymentIntentImportFailedEvent
+  RemoteQuoteRequestedEvent
 } from './events';
 
 export class PaymentIntentAggregate {
@@ -77,8 +74,12 @@ export class PaymentIntentAggregate {
         paymentIntentIdsSet.add(payload.id);
       } else if (cmd.msgName === CreateQuoteCmd.name) {
         const payload = (cmd as CreateQuoteCmd).payload;
-        paymentIntentIdsSet.add(payload.paymentIntentId);
         walletAddressIdSet.add(payload.senderWalletAddressId);
+        if (payload.remoteUrl) {
+          remoteUrlByProposedId.set(payload.paymentIntentId, payload.remoteUrl);
+        } else {
+          paymentIntentIdsSet.add(payload.paymentIntentId);
+        }
       } else if (cmd.msgName === CreatePaymentCmd.name) {
         const payload = (cmd as CreatePaymentCmd).payload;
         walletAddressIdSet.add(payload.senderWalletAddressId);
@@ -92,9 +93,6 @@ export class PaymentIntentAggregate {
       } else if (cmd.msgName === FailRemoteQuoteCmd.name) {
         const payload = (cmd as FailRemoteQuoteCmd).payload;
         paymentIntentIdsSet.add(payload.paymentIntentId);
-      } else if (cmd.msgName === ImportRemotePaymentIntentCmd.name) {
-        const payload = (cmd as ImportRemotePaymentIntentCmd).payload;
-        remoteUrlByProposedId.set(payload.id, payload.url);
       }
     }
 
@@ -114,7 +112,7 @@ export class PaymentIntentAggregate {
       this.paymentIntentMap.set(paymentIntent.id, paymentIntent);
     }
 
-    await this._resolveAndFetchRemotePaymentIntents(
+    await this._importRemotePaymentIntents(
       remoteUrlByProposedId,
       existingByUrl
     );
@@ -139,10 +137,6 @@ export class PaymentIntentAggregate {
         );
       } else if (cmd.msgName === FailRemoteQuoteCmd.name) {
         event = this.handleFailRemoteQuoteCommand(cmd as FailRemoteQuoteCmd);
-      } else if (cmd.msgName === ImportRemotePaymentIntentCmd.name) {
-        event = this.handleImportRemotePaymentIntentCommand(
-          cmd as ImportRemotePaymentIntentCmd
-        );
       } else {
         throw new Error('Unexpected command');
       }
@@ -240,7 +234,8 @@ export class PaymentIntentAggregate {
         senderWalletAddress,
         receiveAmount,
         debitAmount,
-        paymentIntentId
+        paymentIntentId,
+        remoteUrl
       } = cmd.payload;
 
       const walletAddress = this.walletAddressMap.get(senderWalletAddressId);
@@ -255,6 +250,12 @@ export class PaymentIntentAggregate {
         );
       }
 
+      if (remoteUrl) {
+        const fetchError =
+          this.remotePaymentIntentFetchErrors.get(paymentIntentId);
+        if (fetchError) throw fetchError;
+      }
+
       const paymentIntentObj = this.paymentIntentMap.get(paymentIntentId);
       if (!paymentIntentObj) {
         throw new PaymentIntentNotFoundError(
@@ -266,6 +267,8 @@ export class PaymentIntentAggregate {
       // Or is payment intent deactivation something that we could handle on a "wallet deactivated" event,
       // where we just mark all of the payment intents as EXPIRED/COMPLETED?
 
+      // paymentIntent.id is authoritative from here — may differ from
+      // paymentIntentId (proposed from cmd) when deduped to an existing id
       const paymentIntent = PaymentIntent.fromObject(paymentIntentObj);
 
       this._logger.debug(
@@ -303,9 +306,12 @@ export class PaymentIntentAggregate {
         );
 
         this._logger.debug(
-          `handleCreateQuoteCommand — LOCAL quote completed quoteId: ${quoteId}`
+          `handleCreateQuoteCommand — LOCAL quote completed quoteId: ${quoteId}, paymentIntentId: ${paymentIntent.id}`
         );
-        return new QuoteCompletedEvent({ id: quoteId }, cmd.requestId);
+        return new QuoteCompletedEvent(
+          { id: quoteId, paymentIntentId: paymentIntent.id },
+          cmd.requestId
+        );
       }
 
       // REMOTE: create pending quote, emit event to initiate quoting
@@ -334,7 +340,7 @@ export class PaymentIntentAggregate {
       );
       return new RemoteQuoteRequestedEvent(
         {
-          paymentIntentId,
+          paymentIntentId: paymentIntent.id,
           quoteId,
           senderWalletAddress,
           receiverWalletAddress: paymentIntent.receiverWalletAddress,
@@ -352,7 +358,7 @@ export class PaymentIntentAggregate {
       this._logger.debug(
         `handleCreateQuoteCommand — failed paymentIntentId: ${cmd.payload.paymentIntentId} error: ${(err as Error).message}`
       );
-      const event = new QuoteCreateFailedEvent(
+      return new QuoteCreateFailedEvent(
         {
           paymentIntentId: cmd.payload.paymentIntentId,
           errorName: (err as Error).constructor.name,
@@ -360,8 +366,6 @@ export class PaymentIntentAggregate {
         },
         cmd.requestId
       );
-
-      return event;
     }
   }
 
@@ -484,7 +488,10 @@ export class PaymentIntentAggregate {
       this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
       this._appendToMap(this.finalizedRemoteQuotes, paymentIntent.id, quoteId);
 
-      return new QuoteCompletedEvent({ id: quoteId }, cmd.requestId);
+      return new QuoteCompletedEvent(
+        { id: quoteId, paymentIntentId },
+        cmd.requestId
+      );
     } catch (err) {
       return new QuoteCreateFailedEvent(
         {
@@ -577,46 +584,7 @@ export class PaymentIntentAggregate {
     }
   }
 
-  private handleImportRemotePaymentIntentCommand(
-    cmd: ImportRemotePaymentIntentCmd
-  ) {
-    this._logger.debug(
-      `handleImportRemotePaymentIntentCommand — id: ${cmd.payload.id}`
-    );
-    const { id } = cmd.payload;
-
-    try {
-      const fetchError = this.remotePaymentIntentFetchErrors.get(id);
-      if (fetchError) throw fetchError;
-
-      const intent = this.paymentIntentMap.get(id);
-      if (!intent) {
-        throw new PaymentIntentNotFoundError(`Payment intent ${id} not found`);
-      }
-
-      this._logger.debug(
-        `handleImportRemotePaymentIntentCommand — imported id: ${intent.id}`
-      );
-      return new RemotePaymentIntentImportedEvent(
-        { id: intent.id },
-        cmd.requestId
-      );
-    } catch (err) {
-      this._logger.debug(
-        `handleImportRemotePaymentIntentCommand — failed id: ${id} error: ${(err as Error).message}`
-      );
-      return new RemotePaymentIntentImportFailedEvent(
-        {
-          paymentIntentId: id,
-          errorName: (err as Error).constructor.name,
-          message: (err as Error).message
-        },
-        cmd.requestId
-      );
-    }
-  }
-
-  private async _resolveAndFetchRemotePaymentIntents(
+  private async _importRemotePaymentIntents(
     remoteUrlByProposedId: Map<string, string>,
     existingByUrl: Array<{ id: string; remoteUrl: string }>
   ): Promise<void> {
@@ -652,18 +620,18 @@ export class PaymentIntentAggregate {
     const fetchResults = await Promise.all(
       [...canonicalIdByUrl.entries()].map(async ([url, canonicalId]) => {
         this._logger.debug(
-          `_resolveAndFetchRemotePaymentIntents — fetching url: ${url} canonicalId: ${canonicalId}`
+          `_importRemotePaymentIntents — fetching url: ${url} canonicalId: ${canonicalId}`
         );
         try {
           const remotePaymentIntent =
             await this._remotePaymentIntentService.fetchIncomingPayment(url);
           this._logger.debug(
-            `_resolveAndFetchRemotePaymentIntents — fetched url: ${url} assetCode: ${remotePaymentIntent.assetCode}`
+            `_importRemotePaymentIntents — fetched url: ${url} assetCode: ${remotePaymentIntent.assetCode}`
           );
           return { canonicalId, url, remotePaymentIntent, error: null };
         } catch (err) {
           this._logger.debug(
-            `_resolveAndFetchRemotePaymentIntents — fetch failed url: ${url} error: ${(err as Error).message}`
+            `_importRemotePaymentIntents — fetch failed url: ${url} error: ${(err as Error).message}`
           );
           return {
             canonicalId,
