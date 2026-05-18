@@ -462,7 +462,8 @@ export class PaymentIntent implements IPaymentIntent {
     receiveAmount?: bigint;
   }): IPendingQuote {
     const { id, senderWalletAddress, debitAmount } = args;
-    const receiveAmount = args.receiveAmount ?? this._incomingAmount ?? undefined;
+    const receiveAmount =
+      args.receiveAmount ?? this._incomingAmount ?? undefined;
 
     if (this.state !== 'CREATED') {
       throw new PaymentIntentInvalidState(

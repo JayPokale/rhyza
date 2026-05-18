@@ -1,5 +1,6 @@
 import {
   CommandTopics,
+  ILogger,
   IMessage,
   IMessageConsumer,
   IMessageProducer
@@ -18,15 +19,18 @@ export class PaymentsCommandHandler {
   private _msgConsumer: IMessageConsumer;
   private _msgProducer: IMessageProducer;
   private _paymentIntentAggregate: PaymentIntentAggregate;
+  private _logger: ILogger;
 
   constructor(
     msgConsumer: IMessageConsumer,
     msgProducer: IMessageProducer,
-    paymentIntentAggregate: PaymentIntentAggregate
+    paymentIntentAggregate: PaymentIntentAggregate,
+    logger: ILogger
   ) {
     this._msgConsumer = msgConsumer;
     this._msgProducer = msgProducer;
     this._paymentIntentAggregate = paymentIntentAggregate;
+    this._logger = logger;
   }
 
   async start(): Promise<void> {
@@ -72,7 +76,7 @@ export class PaymentsCommandHandler {
     }
 
     if (unhandled.length > 0) {
-      console.warn(
+      this._logger.warn(
         `Unhandled command types: ${[...new Set(unhandled.map((m) => m.msgName))].join(', ')}`
       );
     }

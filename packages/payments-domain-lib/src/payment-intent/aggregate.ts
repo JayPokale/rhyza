@@ -60,12 +60,15 @@ export class PaymentIntentAggregate {
   ) {}
 
   async handleBatch(cmds: IMessage[]): Promise<{ events: IMessage[] }> {
+    this._logger.debug(
+      `handleBatch — ${cmds.length} cmd(s)`
+    );
     const outputEvents: IMessage[] = [];
 
     // prefetch any external data needed to process the batch
     const walletAddressIdSet = new Set<string>();
     const paymentIntentIdsSet = new Set<string>();
-    const remoteUrlByProposedId = new Map<string, string>(); // proposed id -> remoteUrl
+    const remoteUrlByProposedId = new Map<string, string>(); // proposed id -> url
     for (const cmd of cmds) {
       if (cmd.msgName === CreatePaymentIntentCmd.name) {
         const payload = (cmd as CreatePaymentIntentCmd).payload;
@@ -147,6 +150,9 @@ export class PaymentIntentAggregate {
   }
 
   private handleCreatePaymentIntentCommand(cmd: CreatePaymentIntentCmd) {
+    this._logger.debug(
+      `handleCreatePaymentIntentCommand — id: ${cmd.payload.id} walletAddressId: ${cmd.payload.receiverWalletAddressId}`
+    );
     try {
       const {
         id,
@@ -196,10 +202,14 @@ export class PaymentIntentAggregate {
       this.paymentIntentMap.set(id, entity.toObject());
       this.newPaymentIntentIds.push(id);
 
+      this._logger.debug(`handleCreatePaymentIntentCommand — created id: ${id}`);
       const event = new PaymentIntentCreatedEvent({ id }, cmd.requestId);
 
       return event;
     } catch (err) {
+      this._logger.debug(
+        `handleCreatePaymentIntentCommand — failed id: ${cmd.payload.id} error: ${(err as Error).message}`
+      );
       const event = new PaymentIntentCreateFailedEvent(
         {
           paymentIntentId: cmd.payload.id,
@@ -214,6 +224,9 @@ export class PaymentIntentAggregate {
   }
 
   private async handleCreateQuoteCommand(cmd: CreateQuoteCmd) {
+    this._logger.debug(
+      `handleCreateQuoteCommand — quoteId: ${cmd.payload.id} paymentIntentId: ${cmd.payload.paymentIntentId}`
+    );
     try {
       const {
         id: quoteId,
@@ -258,6 +271,10 @@ export class PaymentIntentAggregate {
       // paymentIntentId (proposed from cmd) when deduped to an existing id
       const paymentIntent = PaymentIntent.fromObject(paymentIntentObj);
 
+      this._logger.debug(
+        `handleCreateQuoteCommand — destination: ${paymentIntent.destination} paymentIntentId: ${paymentIntentId}`
+      );
+
       if (paymentIntent.destination === 'LOCAL') {
         const exchangeRate = await this._ratesService.getRate(
           walletAddress.assetCode,
@@ -288,6 +305,7 @@ export class PaymentIntentAggregate {
           quoteId
         );
 
+        this._logger.debug(`handleCreateQuoteCommand — LOCAL quote completed quoteId: ${quoteId}, paymentIntentId: ${paymentIntent.id}`);
         return new QuoteCompletedEvent(
           { id: quoteId, paymentIntentId: paymentIntent.id },
           cmd.requestId
@@ -315,6 +333,9 @@ export class PaymentIntentAggregate {
         );
       }
 
+      this._logger.debug(
+        `handleCreateQuoteCommand — REMOTE quote pending quoteId: ${quoteId} destinationIlpAddress: ${destinationIlpAddress}`
+      );
       return new RemoteQuoteRequestedEvent(
         {
           paymentIntentId: paymentIntent.id,
@@ -332,6 +353,9 @@ export class PaymentIntentAggregate {
         cmd.requestId
       );
     } catch (err) {
+      this._logger.debug(
+        `handleCreateQuoteCommand — failed paymentIntentId: ${cmd.payload.paymentIntentId} error: ${(err as Error).message}`
+      );
       return new QuoteCreateFailedEvent(
         {
           paymentIntentId: cmd.payload.paymentIntentId,
@@ -344,6 +368,9 @@ export class PaymentIntentAggregate {
   }
 
   private async handleCreatePaymentCommand(cmd: CreatePaymentCmd) {
+    this._logger.debug(
+      `handleCreatePaymentCommand — paymentId: ${cmd.payload.id} paymentIntentId: ${cmd.payload.paymentIntentId} quoteId: ${cmd.payload.quoteId}`
+    );
     const {
       id: paymentId,
       senderWalletAddressId,
@@ -406,8 +433,12 @@ export class PaymentIntentAggregate {
       this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
       this._appendToMap(this.newPaymentsMap, paymentIntent.id, paymentId);
 
+      this._logger.debug(`handleCreatePaymentCommand — created paymentId: ${paymentId}`);
       return new PaymentCreatedEvent({ id: paymentId }, cmd.requestId);
     } catch (err) {
+      this._logger.debug(
+        `handleCreatePaymentCommand — failed paymentIntentId: ${cmd.payload.paymentIntentId} error: ${(err as Error).message}`
+      );
       const event = new PaymentCreateFailedEvent(
         {
           paymentIntentId: cmd.payload.paymentIntentId,
@@ -422,6 +453,9 @@ export class PaymentIntentAggregate {
   }
 
   private handleCompleteRemoteQuoteCommand(cmd: CompleteRemoteQuoteCmd) {
+    this._logger.debug(
+      `handleCompleteRemoteQuoteCommand — quoteId: ${cmd.payload.quoteId} paymentIntentId: ${cmd.payload.paymentIntentId}`
+    );
     const {
       quoteId,
       paymentIntentId,
@@ -467,6 +501,9 @@ export class PaymentIntentAggregate {
   }
 
   private handleFailRemoteQuoteCommand(cmd: FailRemoteQuoteCmd) {
+    this._logger.debug(
+      `handleFailRemoteQuoteCommand — quoteId: ${cmd.payload.quoteId} paymentIntentId: ${cmd.payload.paymentIntentId} error: ${cmd.payload.message}`
+    );
     const { quoteId, paymentIntentId, errorName, message } = cmd.payload;
 
     try {
@@ -501,6 +538,9 @@ export class PaymentIntentAggregate {
   }
 
   private async handleApprovePaymentCommand(cmd: ApprovePaymentCmd) {
+    this._logger.debug(
+      `handleApprovePaymentCommand — paymentId: ${cmd.payload.id} paymentIntentId: ${cmd.payload.paymentIntentId}`
+    );
     const { id: paymentId, paymentIntentId } = cmd.payload;
 
     try {
@@ -575,11 +615,14 @@ export class PaymentIntentAggregate {
     // fetch the payment intents
     const fetchResults = await Promise.all(
       [...canonicalIdByUrl.entries()].map(async ([url, canonicalId]) => {
+        this._logger.debug(`_importRemotePaymentIntents — fetching url: ${url} canonicalId: ${canonicalId}`);        
         try {
           const remotePaymentIntent =
             await this._remotePaymentIntentService.fetchIncomingPayment(url);
+          this._logger.debug(`_importRemotePaymentIntents — fetched url: ${url} assetCode: ${remotePaymentIntent.assetCode}`);
           return { canonicalId, url, remotePaymentIntent, error: null };
         } catch (err) {
+          this._logger.debug(`_importRemotePaymentIntents — fetch failed url: ${url} error: ${(err as Error).message}`);
           return {
             canonicalId,
             url,

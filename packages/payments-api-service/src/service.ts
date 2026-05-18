@@ -23,13 +23,13 @@ export class PaymentsApiService {
   private static repo: MongoDbPaymentIntentRepo;
 
   static async start(): Promise<void> {
-    const logger = new PinoLogger();
+    const logger = new PinoLogger({ service: 'payments-api-service' });
 
-    this.repo = new MongoDbPaymentIntentRepo(MONGODB_URL, logger);
+    this.repo = new MongoDbPaymentIntentRepo(MONGODB_URL, logger.child({ component: 'payment-intent-repo' }));
     await this.repo.init();
 
     const kafkaBuilder = new KafkaBuilder()
-      .withLogger(logger)
+      .withLogger(logger.child({ component: 'kafka' }))
       .withBrokerList(KAFKA_URL)
       .withClientId(INSTANCE_ID)
       .withSerializerFactory(MessageSerializationFactory.instance());
@@ -49,7 +49,8 @@ export class PaymentsApiService {
       '0.0.0.0:50052',
       this.msgProducer,
       this.msgConsumer,
-      this.repo
+      this.repo,
+      logger.child({ component: 'grpc' })
     );
 
     await this.grpcService.start();

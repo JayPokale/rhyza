@@ -114,21 +114,24 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
 
     try {
       await this._paymentIntentCollection.insertMany(
-        payments.map((p) => ({
-          id: p.id,
-          receiverWalletAddressId: p.receiverWalletAddressId,
-          receiverWalletAddress: p.receiverWalletAddress,
-          state: p.state,
-          destination: p.destination,
-          assetCode: p.assetCode,
-          assetScale: p.assetScale,
-          expiresAt: p.expiresAt,
-          incomingAmount: p.incomingAmount,
-          receivedAmount: p.receivedAmount,
-          destinationIlpAddress: p.destinationIlpAddress,
-          remoteUrl: p.remoteUrl,
-          quotes: p.quotes
-        }))
+        payments.map((p) => {
+          const doc: Omit<IPaymentIntent, 'payments'> = {
+            id: p.id,
+            receiverWalletAddressId: p.receiverWalletAddressId,
+            receiverWalletAddress: p.receiverWalletAddress,
+            state: p.state,
+            destination: p.destination,
+            assetCode: p.assetCode,
+            assetScale: p.assetScale,
+            expiresAt: p.expiresAt,
+            incomingAmount: p.incomingAmount,
+            receivedAmount: p.receivedAmount,
+            destinationIlpAddress: p.destinationIlpAddress,
+            quotes: p.quotes
+          };
+          if (p.remoteUrl != null) doc.remoteUrl = p.remoteUrl;
+          return doc;
+        })
       );
     } catch (e) {
       this._logger.error(e);

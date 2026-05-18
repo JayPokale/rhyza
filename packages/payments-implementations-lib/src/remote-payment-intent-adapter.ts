@@ -5,6 +5,9 @@ import {
   IRemotePaymentIntentDetails
 } from 'payments-domain-lib';
 
+// TODO: fetch from peer/node config once ILP addressing is wired up
+const STUB_DESTINATION_ILP_ADDRESS = 'ilp.rafiki.0';
+
 // TODO: Consider replacing fetch with the open-payments-node client.
 // That would require either: (a) key pair initialization for authenticated
 // requests, or (b) the remote server exposing asset details on the public
@@ -26,30 +29,22 @@ export class RemotePaymentIntentAdapter implements IRemotePaymentIntentService {
 
     const data = (await response.json()) as {
       walletAddress: string;
-      assetCode: string;
-      assetScale: number;
       incomingAmount?: { value: string; assetCode: string; assetScale: number };
       receivedAmount: { value: string; assetCode: string; assetScale: number };
       expiresAt?: string;
       destinationIlpAddress?: string;
     };
 
-    if (!data.destinationIlpAddress) {
-      throw new Error(
-        `Remote incoming payment at ${url} did not include destinationIlpAddress`
-      );
-    }
-
     return {
       walletAddress: data.walletAddress,
-      assetCode: data.assetCode,
-      assetScale: data.assetScale,
+      assetCode: data.receivedAmount.assetCode,
+      assetScale: data.receivedAmount.assetScale,
       incomingAmount: data.incomingAmount
         ? BigInt(data.incomingAmount.value)
         : undefined,
       receivedAmount: BigInt(data.receivedAmount.value),
       expiresAt: data.expiresAt,
-      destinationIlpAddress: data.destinationIlpAddress
+      destinationIlpAddress: data.destinationIlpAddress ?? STUB_DESTINATION_ILP_ADDRESS
     };
   }
 }
