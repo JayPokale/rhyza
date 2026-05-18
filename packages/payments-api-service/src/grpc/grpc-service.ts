@@ -29,7 +29,7 @@ import {
   PaymentsGrpcService
 } from 'payments-public-types-lib';
 import { IPaymentIntentRepository } from 'payments-domain-lib';
-import { IMessage, IMessageConsumer, IMessageProducer } from 'common-types-lib';
+import { ILogger, IMessage, IMessageConsumer, IMessageProducer } from 'common-types-lib';
 import {
   CreatePaymentIntentCmd,
   CreateQuoteCmd,
@@ -60,6 +60,7 @@ export class PaymentsServiceServer {
   // Kafka consumer resolves/rejects these when response events arrive.
   // Entries are cleaned up on response or when the deadline expires.
   private readonly _responseMap: Map<string, PendingResponse> = new Map();
+  private readonly _logger: ILogger;
   private _startedAt: number = 0;
   private _terminating: boolean = false;
 
@@ -69,8 +70,10 @@ export class PaymentsServiceServer {
     msgProducer: IMessageProducer,
     msgConsumer: IMessageConsumer,
     repo: IPaymentIntentRepository,
+    logger: ILogger,
     responseTimeoutMs: number = DEFAULT_RESPONSE_TIMEOUT_MS
   ) {
+    this._logger = logger;
     this._responseTimeoutMs = responseTimeoutMs;
     this._serverUrl = serverUrl;
     this._instanceId = instanceId;
@@ -120,11 +123,11 @@ export class PaymentsServiceServer {
   async start(): Promise<void> {
     return new Promise((resolve, reject) => {
       const credentials = grpc.ServerCredentials.createInsecure();
-      console.info(`Starting Payments GRPC service at: ${this._serverUrl}...`);
+      this._logger.info(`Starting Payments GRPC service at: ${this._serverUrl}...`);
 
       this._server.bindAsync(this._serverUrl, credentials, (error) => {
         if (error !== null) {
-          console.error(error);
+          this._logger.error(error);
           reject(error);
           return;
         }
@@ -137,17 +140,17 @@ export class PaymentsServiceServer {
 
   async stop(): Promise<void> {
     this._terminating = true;
-    console.info('Stopping the server...');
+    this._logger.info('Stopping the server...');
 
     return new Promise((resolve, reject) => {
       this._server.tryShutdown((error) => {
         if (error !== undefined) {
-          console.info(`Shutdown completed with error: ${error}`);
+          this._logger.info(`Shutdown completed with error: ${error}`);
           reject(error);
           return;
         }
 
-        console.info('Shutdown completed successfully');
+        this._logger.info('Shutdown completed successfully');
         resolve();
       });
     });
@@ -438,7 +441,7 @@ export class PaymentsServiceServer {
         metadata: new grpc.Metadata()
       });
     } else {
-      console.warn(
+      this._logger.warn(
         `Unknown response event — msgName: ${message.msgName}, requestId: ${requestId}`
       );
     }
