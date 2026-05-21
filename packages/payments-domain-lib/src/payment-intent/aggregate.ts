@@ -308,8 +308,23 @@ export class PaymentIntentAggregate {
         this._logger.debug(
           `handleCreateQuoteCommand — LOCAL quote completed quoteId: ${quoteId}, paymentIntentId: ${paymentIntent.id}`
         );
+        const completedLocalQuote = paymentIntent.quotes.find(
+          (q) => q.id === quoteId && q.state === 'COMPLETED'
+        );
+        if (!completedLocalQuote || completedLocalQuote.state !== 'COMPLETED') {
+          throw new Error(`Completed quote ${quoteId} not found after addLocalQuote`);
+        }
         return new QuoteCompletedEvent(
-          { id: quoteId, paymentIntentId: paymentIntent.id },
+          {
+            id: quoteId,
+            paymentIntentId: paymentIntent.id,
+            senderWalletAddress: completedLocalQuote.senderWalletAddress,
+            senderWalletAddressId: completedLocalQuote.senderWalletAddressId,
+            expiresAt: completedLocalQuote.expiresAt.toISOString(),
+            debitAmount: String(completedLocalQuote.debitAmount),
+            receiveAmount: String(completedLocalQuote.receiveAmount),
+            exchangeRate: completedLocalQuote.exchangeRate
+          },
           cmd.requestId
         );
       }
@@ -488,8 +503,23 @@ export class PaymentIntentAggregate {
       this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
       this._appendToMap(this.finalizedRemoteQuotes, paymentIntent.id, quoteId);
 
+      const completedRemoteQuote = paymentIntent.quotes.find(
+        (q) => q.id === quoteId && q.state === 'COMPLETED'
+      );
+      if (!completedRemoteQuote || completedRemoteQuote.state !== 'COMPLETED') {
+        throw new Error(`Completed quote ${quoteId} not found after completeRemoteQuote`);
+      }
       return new QuoteCompletedEvent(
-        { id: quoteId, paymentIntentId },
+        {
+          id: quoteId,
+          paymentIntentId,
+          senderWalletAddress: completedRemoteQuote.senderWalletAddress,
+          senderWalletAddressId: completedRemoteQuote.senderWalletAddressId,
+          expiresAt: completedRemoteQuote.expiresAt.toISOString(),
+          debitAmount: String(completedRemoteQuote.debitAmount),
+          receiveAmount: String(completedRemoteQuote.receiveAmount),
+          exchangeRate: completedRemoteQuote.exchangeRate
+        },
         cmd.requestId
       );
     } catch (err) {
