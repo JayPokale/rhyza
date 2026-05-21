@@ -26,8 +26,8 @@ sequenceDiagram
     Note over Peer, ICH: Inbound prepare (we are either destination or a hop)
     Peer ->> EC: ILP prepare
     EC -->> ICT: ProcessPreparePacketCmd
-    ICT -->> ICH: consume
-    ICH ->> ICH: Decode STREAM/ILP, resolve destination,<br/>persist packet correlation,<br/>decide fulfill / reject / forward
+    ICT -->> ICH: consume (by packetId)
+    ICH ->> ICH: Decode STREAM/ILP, resolve destination,<br/>persist packet correlation,<br/>decide fulfill / reject / forward,<br/>emit domain events
     ICH -->> ICCT: DispatchFulfillPacketCmd / DispatchRejectPacketCmd
     ICCT -->> EC: consume (by peerId)
     EC ->> Peer: ILP fulfill / reject
@@ -38,8 +38,8 @@ sequenceDiagram
     EC ->> Peer: ILP prepare
     Peer -->> EC: ILP fulfill / reject
     EC -->> ICT: ProcessFulfillPacketCmd / ProcessRejectPacketCmd
-    ICT -->> ICH: consume
-    ICH ->> ICH: Validate fulfillment hash, check expiry,emit domain events to Payments / PAL
+    ICT -->> ICH: consume (by paymentIntentId)
+    ICH ->> ICH: Validate fulfillment hash, check expiry,<br/>emit domain events to Payments / PAL
 ```
 
 Cross-BC integration (PAL liquidity, Payments BC events, Notifications, etc.) flows are captured in the per-flow diagrams in this folder. This diagram focuses only on the ILP BC - Connector boundary.
@@ -72,7 +72,7 @@ Command verbs match existing ILP BC conventions: `Process*` for commands handled
 Kafka guarantees ordering only within a partition, so message keys are chosen to match the unit of work the consumer cares about.
 
 - **`ilp-connector-commands` - partition by `peerId`.** The connector's per-peer state (connection pool, credentials, in-flight tracking) lives behind a single partition consumer per peer. Per-peer order on the wire is preserved.
-- **`ilp-commands` (outbound result path: `ProcessFulfillPacketCmd` / `ProcessRejectPacketCmd`) -> partition by `paymentIntentId`.** Avoids the hot-partition problem with few peers and scales with payment workload.
+- **`ilp-commands` (outbound result path: `ProcessFulfillPacketCmd` / `ProcessRejectPacketCmd`) -> partition by `paymentIntentId`.** Avoids the hot-partition problem with few peers and scales with payment workload. The connector does not need to decode/decrypt the response packet to obtain `paymentIntentId`: it was included in the original `DispatchPreparePacketCmd` and is held in the connector's in-flight correlation map keyed by `packetId` until the terminal response arrives.
 - **`ilp-commands` (inbound: `ProcessPreparePacketCmd`) -> partition by `packetId`.** The connector does not have a `paymentIntentId` at this point (decoding STREAM/ILP is a domain concern), `peerId` shouldn't be used for hot-partition reasons, and inbound packet ordering does not matter. Correlation state for forwarding / response is resolved from the repository on the aggregate side.
 
 ## Peer deactivation
