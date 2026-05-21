@@ -319,17 +319,8 @@ export class PaymentsServiceServer {
     call: ServerUnaryCall<GetPaymentRequest, GetPaymentResponse>,
     callback: sendUnaryData<GetPaymentResponse>
   ): Promise<void> {
-    const compositeId = call.request.getId();
-    const separatorIndex = compositeId.indexOf('_');
-    if (separatorIndex === -1) {
-      callback({
-        code: grpc.status.INVALID_ARGUMENT,
-        message: 'id must be a concatenated paymentIntentId_paymentId'
-      });
-      return;
-    }
-    const paymentIntentId = compositeId.slice(0, separatorIndex);
-    const paymentId = compositeId.slice(separatorIndex + 1);
+    const paymentIntentId = call.request.getPaymentIntentId();
+    const paymentId = call.request.getId();
 
     try {
       const [paymentIntent] = await this._repo.fetchByIds([paymentIntentId]);

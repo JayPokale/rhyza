@@ -57,7 +57,7 @@ export async function paymentRoutes(
 
       let payment;
       try {
-        payment = await paymentsClient.getPayment(`${intentId}_${id}`);
+        payment = await paymentsClient.getPayment(intentId, id);
       } catch (err) {
         if (err instanceof PaymentNotFoundError) {
           return reply.status(404).send({ error: `Payment '${id}' not found` });
@@ -85,7 +85,7 @@ export async function paymentRoutes(
     const { intentId, id } = request.params;
 
     try {
-      await paymentsClient.approvePayment(id, intentId);
+      await paymentsClient.approvePayment(intentId, id);
       return reply.status(200).send({ id });
     } catch (err) {
       server.log.error(err);

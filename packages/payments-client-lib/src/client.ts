@@ -234,8 +234,8 @@ export class PaymentsClient {
   }
 
   async approvePayment(
-    id: string,
-    paymentIntentId: string
+    paymentIntentId: string,
+    id: string
   ): Promise<IApprovePaymentResponse> {
     const request = new ApprovePaymentRequest();
     request.setId(id);
@@ -298,9 +298,10 @@ export class PaymentsClient {
     });
   }
 
-  async getPayment(id: string): Promise<IGetPaymentResponse> {
+  async getPayment(paymentIntentId: string, id: string): Promise<IGetPaymentResponse> {
     const request = new GetPaymentRequest();
     request.setId(id);
+    request.setPaymentIntentId(paymentIntentId);
 
     return new Promise((resolve, reject) => {
       this._grpcClient.getPayment(

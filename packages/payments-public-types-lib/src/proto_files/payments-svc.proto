@@ -125,9 +125,10 @@ message GetPaymentIntentResponse {
  * Get Payment messages
  */
 
-// Request to fetch a payment by concatenated ID (paymentIntentId_paymentId).
+// Request to fetch a payment by its parent intent ID and its own ID.
 message GetPaymentRequest {
-  string id = 1;
+  string payment_intent_id = 1;
+  string id = 2;
 }
 
 // Response containing the payment details.
