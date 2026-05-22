@@ -19,6 +19,7 @@ export class MockPaymentIntentRepo implements IPaymentIntentRepository {
     return ids.flatMap((id) => {
       const p = this._store.get(id);
       if (!p) return [];
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/naming-convention
       const { payments: _payments, ...rest } = p;
       return [rest];
     });
