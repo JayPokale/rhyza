@@ -141,7 +141,7 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
     }
   }
 
-  async fetchByIds(ids: string[]): Promise<IPaymentIntent[]> {
+  async fetchByIds(ids: string[]): Promise<Omit<IPaymentIntent, 'payments'>[]> {
     this._checkInitialisedOrThrow();
 
     if (ids.length === 0) return [];
@@ -183,8 +183,7 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
                   message: quote.message
                 }
               : { state: quote.state })
-        })),
-        payments: []
+        }))
       }));
     } catch (err) {
       this._logger.error(err);
