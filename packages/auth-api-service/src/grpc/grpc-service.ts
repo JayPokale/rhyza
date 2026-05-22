@@ -16,38 +16,56 @@ import {
   HealthCheckRequest,
   HealthCheckResponse,
   GrantRequest,
-  GrantContinuationRequest,
-  GrantRevocationRequest,
-  TokenIntrospectionRequest,
-  TokenRotationRequest,
-  TokenRevocationRequest,
-  StartInteractionRequest,
-  FinishInteractionRequest,
-  GetGrantDetailsRequest,
-  InteractionChoiceRequest,
+  CreateGrantResponse,
+  ContinueGrantRequest,
+  RevokeGrantRequest,
+  IntrospectTokenRequest,
+  RotateTokenRequest,
+  RevokeTokenRequest,
   Grant,
-  StartOrFinishInteractionResponse,
-  TokenInfo,
+  AcceptInteractionRequest,
+  RejectInteractionRequest,
+  GetGrantRequest,
+  Interaction,
+  AccessItem,
+  AccessLimits,
   AccessToken,
-  GrantDetails,
-  InteractionChoiceResponse
+  SubjectId,
+  ContinueGrantResponse,
+  RevokeGrantResponse,
+  IntrospectTokenResponse,
+  RotateTokenResponse
 } from 'auth-public-types-lib';
 
-import { IMessage, IMessageConsumer, IMessageProducer, DomainEvent } from 'common-types-lib';
+import {
+  IMessage,
+  IMessageConsumer,
+  IMessageProducer,
+  DomainEvent
+} from 'common-types-lib';
 import {
   CreateGrantCmd,
   ContinueGrantCmd,
   RevokeGrantCmd,
-  RotateAccessTokenCmd,
-  RevokeAccessTokenCommand,
-  InteractionApprovedCommand,
-  InteractionDeniedCommand,
-  GrantCreatedEvent,
+  RotateTokenCmd,
+  RevokeTokenCmd,
+  AcceptInteractionCommand,
+  RejectInteractionCommand,
   GrantCreateFailedEvent,
   GrantContinuedEvent,
   GrantContinueFailedEvent,
-  GrantInteractionChoiceHandledEvent,
-  GrantInteractionChoiceFailedEvent
+  GetGrantCmd,
+  IntrospectTokenCmd,
+  IStartMethod,
+  GrantDomainEvent,
+  GrantCreatedEvent,
+  GrantRevokedEvent,
+  GrantRevokeFailedEvent,
+  TokenIntrospectedEvent,
+  TokenIntrospectionFailedEvent,
+  TokenRotatedEvent,
+  TokenRotationFailedEvent,
+  IAccessItem
 } from 'auth-domain-lib';
 import crypto from 'crypto';
 
@@ -160,6 +178,28 @@ export class AuthServiceServer {
     });
   }
 
+  private getAccessListResponse(accessItem: IAccessItem): AccessItem {
+    const responseAccessItem = new AccessItem();
+    responseAccessItem.setType(accessItem.type);
+    responseAccessItem.setActionsList(accessItem.actions);
+    accessItem.identifier &&
+      responseAccessItem.setIdentifier(accessItem.identifier);
+    if (accessItem.limits) {
+      const limits = new AccessLimits();
+      limits.setReceiver(accessItem.limits.receiver);
+      accessItem.limits.sendAmount &&
+        limits.setSendAmountValue(String(accessItem.limits.sendAmount));
+      accessItem.limits.debitAmount &&
+        limits.setDebitAmountValue(String(accessItem.limits.debitAmount));
+      accessItem.limits.assetCode &&
+        limits.setAssetCode(accessItem.limits.assetCode);
+      accessItem.limits.interval &&
+        limits.setInterval(accessItem.limits.interval);
+      responseAccessItem.setLimits(limits);
+    }
+    return responseAccessItem;
+  }
+
   private async _handleUnaryHealthCheck(
     call: ServerUnaryCall<HealthCheckRequest, HealthCheckResponse>,
     callback: sendUnaryData<HealthCheckResponse>
@@ -193,24 +233,37 @@ export class AuthServiceServer {
         type: item.getType().toString(),
         actions: item.getActionsList().map((a: any) => a.toString()),
         identifier: item.getIdentifier(),
-        limits: item.getLimits() ? {
-          receiver: item.getLimits().getReceiver(),
-          assetCode: item.getLimits().getAssetCode(),
-          assetScale: item.getLimits().getDebitAmount() ? item.getLimits().getDebitAmount().getScale() : 0,
-        } : undefined
+        limits: item.getLimits()
+          ? {
+              receiver: item.getLimits().getReceiver(),
+              assetCode: item.getLimits().getAssetCode(),
+              assetScale: item.getLimits().getDebitAmount()
+                ? item.getLimits().getDebitAmount().getScale()
+                : 0
+            }
+          : undefined
       }));
 
       const subject = call.request.getSubject();
-      const subjectIds = subject ? subject.getSubIdsList().map((s: any) => ({ format: s.getFormat(), id: s.getId() })) : [];
+      const subjectIds = subject
+        ? subject
+            .getSubIdsList()
+            .map((s: any) => ({ format: s.getFormat(), id: s.getId() }))
+        : [];
 
       const finishObj = call.request.getFinish();
-      const finish = finishObj ? {
-        method: finishObj.getFinish().toString(),
-        uri: finishObj.getUri(),
-        nonce: finishObj.getNonce()
-      } : undefined;
+      const finish = finishObj
+        ? {
+            method: finishObj.getFinish().toString(),
+            uri: finishObj.getUri(),
+            nonce: finishObj.getNonce()
+          }
+        : undefined;
 
-      const startMethods = call.request.getStartList().map((s: any) => s.toString());
+      // TODO: should this be handled here, in the aggregate, or in the application?
+      const startMethods = call.request
+        .getStartList()
+        .map((s: any) => s.toString());
       if (startMethods.length === 0) {
         callback({
           code: grpc.status.INVALID_ARGUMENT,
@@ -225,18 +278,31 @@ export class AuthServiceServer {
           access: accessList,
           client: call.request.getClient(),
           subjectIds: subjectIds,
-          interact: finish ? { start: startMethods, finish } : { start: startMethods }
+          interact: finish
+            ? { start: startMethods, finish }
+            : { start: startMethods }
         },
         commandId
       );
       await this._msgProducer.send(cmd);
-    } else if (call.request instanceof GrantContinuationRequest) {
+    } else if (call.request instanceof GetGrantRequest) {
+      const commandId = call.request.getId();
+      this._storePendingResponse(commandId, call, callback);
+
+      const cmd = new GetGrantCmd(
+        {
+          id: call.request.getId()
+        },
+        commandId
+      );
+      await this._msgProducer.send(cmd);
+    } else if (call.request instanceof ContinueGrantRequest) {
       const commandId = crypto.randomUUID();
       this._storePendingResponse(commandId, call, callback);
 
       const cmd = new ContinueGrantCmd(
         {
-          id: call.request.getContinueId(),
+          id: call.request.getId(),
           continueId: call.request.getContinueId(),
           continueToken: call.request.getContinueToken(),
           interactRef: call.request.getInteractRef()
@@ -244,18 +310,96 @@ export class AuthServiceServer {
         commandId
       );
       await this._msgProducer.send(cmd);
-    } else if (call.request instanceof InteractionChoiceRequest) {
-      // acceptInteraction and rejectInteraction
-      const commandId = crypto.randomUUID();
+    } else if (call.request instanceof RevokeGrantRequest) {
+      const commandId = call.request.getId();
       this._storePendingResponse(commandId, call, callback);
 
-      // we need to know the grant id. Use interactId as grant ID for now, similar to continueId.
-      const interactId = call.request.getInteractId();
+      const cmd = new RevokeGrantCmd(
+        {
+          id: call.request.getId(),
+          continueId: call.request.getContinueId(),
+          continueToken: call.request.getContinueToken()
+        },
+        commandId
+      );
+      await this._msgProducer.send(cmd);
+    } else if (call.request instanceof AcceptInteractionRequest) {
+      const commandId = call.request.getId();
+      this._storePendingResponse(commandId, call, callback);
 
-      // Determine if it was called via Accept or Reject based on call.path or something else?
-      // Actually, ServerUnaryCall does not easily give the method if we just bind to _handleUnary.
-      // So let's separate them in addService or handle it manually.
-      // We will fix this in a separate method if needed.
+      const cmd = new AcceptInteractionCommand(
+        {
+          id: call.request.getId(),
+          interactRef: call.request.getInteractRef(),
+          nonce: call.request.getNonce()
+        },
+        commandId
+      );
+      await this._msgProducer.send(cmd);
+    } else if (call.request instanceof RejectInteractionRequest) {
+      const commandId = call.request.getId();
+      this._storePendingResponse(commandId, call, callback);
+
+      const cmd = new RejectInteractionCommand(
+        {
+          id: call.request.getId(),
+          nonce: call.request.getNonce()
+        },
+        commandId
+      );
+      await this._msgProducer.send(cmd);
+    } else if (call.request instanceof IntrospectTokenRequest) {
+      const commandId = call.request.getId();
+      this._storePendingResponse(commandId, call, callback);
+
+      const cmd = new IntrospectTokenCmd(
+        {
+          id: call.request.getId(),
+          tokenValue: call.request.getTokenValue(),
+          access: call.request.getAccessList().map((item: any) => ({
+            type: item.getType().toString(),
+            actions: item.getActionsList().map((a: any) => a.toString()),
+            identifier: item.getIdentifier(),
+            limits: item.getLimits()
+              ? {
+                  receiver: item.getLimits().getReceiver(),
+                  assetCode: item.getLimits().getAssetCode(),
+                  assetScale: item.getLimits().getDebitAmount()
+                    ? item.getLimits().getDebitAmount().getScale()
+                    : 0
+                }
+              : undefined
+          }))
+        },
+        commandId
+      );
+      await this._msgProducer.send(cmd);
+    } else if (call.request instanceof RotateTokenRequest) {
+      const commandId = call.request.getId();
+      this._storePendingResponse(commandId, call, callback);
+
+      const cmd = new RotateTokenCmd(
+        {
+          id: call.request.getId(),
+          value: call.request.getTokenValue(),
+          managementId: call.request.getManagementId()
+        },
+        commandId
+      );
+      await this._msgProducer.send(cmd);
+    } else if (call.request instanceof RevokeTokenRequest) {
+      const commandId = call.request.getId();
+      this._storePendingResponse(commandId, call, callback);
+
+      const cmd = new RevokeTokenCmd(
+        {
+          id: call.request.getId(),
+          value: call.request.getTokenValue(),
+          managementId: call.request.getManagementId()
+        },
+        commandId
+      );
+      await this._msgProducer.send(cmd);
     } else {
       callback(
         new Error(`Invalid request type: ${call.request.constructor.name}`)
@@ -308,30 +452,142 @@ export class AuthServiceServer {
     const pending = this._responseMap.get(requestId);
     if (!pending) return;
 
-    const event = message as DomainEvent;
+    const event = message as GrantDomainEvent;
 
-    if (event.msgName === GrantCreatedEvent.name) {
-      // Create response object
-      const response = new Grant();
-      // Need to populate it fully, but empty for now based on what event returns
+    if (GrantDomainEvent.isGrantCreatedEvent(event)) {
+      const response = new CreateGrantResponse();
+      const payload: GrantCreatedEvent['payload'] = event.payload;
+      response.setId(payload.id);
+
+      payload.continueToken && response.setContinueToken(payload.continueToken);
+      payload.continueId && response.setContinueId(payload.continueId);
+
+      payload.interactNonce && response.setInteractNonce(payload.interactNonce);
+
+      payload.accessTokenValue &&
+        response.setAccessTokenValue(payload.accessTokenValue);
+      payload.accessTokenManagementId &&
+        response.setAccessTokenManagementId(payload.accessTokenManagementId);
+      payload.accessTokenExpiresIn &&
+        response.setAccessTokenExpiresIn(payload.accessTokenExpiresIn);
+
+      for (const access of payload.access || []) {
+        response.addAccess(this.getAccessListResponse(access));
+      }
+
+      if (payload.subjectIds) {
+        for (const sub of payload.subjectIds) {
+          const subItem = new SubjectId();
+          subItem.setId(sub.id);
+          subItem.setFormat(sub.format);
+          response.addSubIds(subItem);
+        }
+      }
+
       this._resolvePendingResponse(pending, requestId, null, response);
-    } else if (event.msgName === GrantCreateFailedEvent.name) {
+    } else if (GrantDomainEvent.isGrantCreateFailedEvent(event)) {
+      const payload: GrantCreateFailedEvent['payload'] = event.payload;
       this._resolvePendingResponse(pending, requestId, {
         code: grpc.status.INTERNAL,
-        message: (event.payload as GrantCreateFailedEvent['payload']).message || 'Command processing failed',
-        details: (event.payload as GrantCreateFailedEvent['payload']).message,
-        name: (event.payload as GrantCreateFailedEvent['payload']).errorName || 'CommandError',
+        message: payload.message || 'Command processing failed',
+        details: payload.message,
+        name: payload.errorName || 'CommandError',
         metadata: new grpc.Metadata()
       });
-    } else if (event.msgName === GrantContinuedEvent.name) {
-      const response = new Grant();
+    } else if (GrantDomainEvent.isGrantContinuedEvent(event)) {
+      const response = new ContinueGrantResponse();
+      const payload: GrantContinuedEvent['payload'] = event.payload;
+
+      response.setId(payload.id);
+      response.setFinalizationReason(payload.finalizationReason);
+
+      payload.accessTokenValue &&
+        response.setAccessTokenValue(payload.accessTokenValue);
+      payload.accessTokenManagementId &&
+        response.setAccessTokenManagementId(payload.accessTokenManagementId);
+      payload.accessTokenExpiresIn &&
+        response.setAccessTokenExpiresIn(payload.accessTokenExpiresIn);
+
+      for (const access of payload.access || []) {
+        response.addAccess(this.getAccessListResponse(access));
+      }
+      payload.continueId && response.setContinueId(payload.continueId);
+      payload.continueToken && response.setContinueToken(payload.continueToken);
       this._resolvePendingResponse(pending, requestId, null, response);
-    } else if (event.msgName === GrantContinueFailedEvent.name) {
+    } else if (GrantDomainEvent.isGrantContinueFailedEvent(event)) {
       this._resolvePendingResponse(pending, requestId, {
         code: grpc.status.INTERNAL,
-        message: (event.payload as GrantContinueFailedEvent['payload']).message || 'Command processing failed',
+        message:
+          (event.payload as GrantContinueFailedEvent['payload']).message ||
+          'Command processing failed',
         details: (event.payload as GrantContinueFailedEvent['payload']).message,
-        name: (event.payload as GrantContinueFailedEvent['payload']).errorName || 'CommandError',
+        name:
+          (event.payload as GrantContinueFailedEvent['payload']).errorName ||
+          'CommandError',
+        metadata: new grpc.Metadata()
+      });
+    } else if (GrantDomainEvent.isGrantRevokedEvent(event)) {
+      const response = new RevokeGrantResponse();
+      const payload: GrantRevokedEvent['payload'] = event.payload;
+      response.setId(payload.id);
+      this._resolvePendingResponse(pending, requestId, null, response);
+    } else if (GrantDomainEvent.isGrantRevokeFailedEvent(event)) {
+      this._resolvePendingResponse(pending, requestId, {
+        code: grpc.status.INTERNAL,
+        message:
+          (event.payload as GrantRevokeFailedEvent['payload']).message ||
+          'Command processing failed',
+        details: (event.payload as GrantRevokeFailedEvent['payload']).message,
+        name:
+          (event.payload as GrantRevokeFailedEvent['payload']).errorName ||
+          'CommandError',
+        metadata: new grpc.Metadata()
+      });
+    } else if (GrantDomainEvent.isTokenIntrospectedEvent(event)) {
+      const response = new IntrospectTokenResponse();
+      const payload: TokenIntrospectedEvent['payload'] = event.payload;
+      response.setGrantId(payload.id);
+      response.setActive(payload.active);
+      for (const access of payload.access || []) {
+        response.addAccess(this.getAccessListResponse(access));
+      }
+      this._resolvePendingResponse(pending, requestId, null, response);
+    } else if (GrantDomainEvent.isTokenIntrospectionFailedEvent(event)) {
+      this._resolvePendingResponse(pending, requestId, {
+        code: grpc.status.INTERNAL,
+        message:
+          (event.payload as TokenIntrospectionFailedEvent['payload']).message ||
+          'Command processing failed',
+        details: (event.payload as TokenIntrospectionFailedEvent['payload'])
+          .message,
+        name:
+          (event.payload as TokenIntrospectionFailedEvent['payload'])
+            .errorName || 'CommandError',
+        metadata: new grpc.Metadata()
+      });
+    } else if (GrantDomainEvent.isTokenRotatedEvent(event)) {
+      const response = new RotateTokenResponse();
+      const payload: TokenRotatedEvent['payload'] = event.payload;
+      response.setGrantId(payload.id);
+      response.setNewAccessTokenValue(payload.newAccessTokenValue);
+      response.setNewAccessTokenManagementId(
+        payload.newAccessTokenManagementId
+      );
+      response.setNewAccessTokenExpiresIn(payload.newAccessTokenExpiresIn);
+      for (const access of payload.access || []) {
+        response.addAccess(this.getAccessListResponse(access));
+      }
+      this._resolvePendingResponse(pending, requestId, null, response);
+    } else if (GrantDomainEvent.isTokenRotationFailedEvent(event)) {
+      this._resolvePendingResponse(pending, requestId, {
+        code: grpc.status.INTERNAL,
+        message:
+          (event.payload as TokenRotationFailedEvent['payload']).message ||
+          'Command processing failed',
+        details: (event.payload as TokenRotationFailedEvent['payload']).message,
+        name:
+          (event.payload as TokenRotationFailedEvent['payload']).errorName ||
+          'CommandError',
         metadata: new grpc.Metadata()
       });
     } else {

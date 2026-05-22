@@ -1,4 +1,5 @@
 import { CommandMsg, CommandTopics } from 'common-types-lib';
+import { IAccessItem } from './grant/interfaces';
 
 const BOUNDED_CONTEXT_NAME = 'auth';
 const GRANT_AGGREGATE_NAME = 'grant';
@@ -61,9 +62,27 @@ export class CreateGrantCmd extends CommandMsg {
   }
 }
 
+export interface GetGrantCmdPayload {
+  id: string;
+}
+
+export class GetGrantCmd extends CommandMsg {
+  contextName: string = BOUNDED_CONTEXT_NAME;
+  aggregateName: string = GRANT_AGGREGATE_NAME;
+  msgKey: string;
+  msgTopic: string = CommandTopics.AuthCommands;
+  payload: GetGrantCmdPayload;
+
+  constructor(payload: GetGrantCmdPayload, requestId: string) {
+    super(payload.id);
+    this.requestId = requestId;
+    this.msgKey = payload.id;
+    this.payload = payload;
+  }
+}
+
 export interface RevokeGrantCmdPayload {
   id: string;
-  tenantId: string;
   continueId: string;
   continueToken: string;
 }
@@ -105,20 +124,20 @@ export class ContinueGrantCmd extends CommandMsg {
   }
 }
 
-export interface RotateAccessTokenCmdPayload {
+export interface IntrospectTokenCmdPayload {
   id: string;
-  value: string;
-  managementId: string;
+  tokenValue: string;
+  access?: IAccessItem[];
 }
 
-export class RotateAccessTokenCmd extends CommandMsg {
+export class IntrospectTokenCmd extends CommandMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateName: string = GRANT_AGGREGATE_NAME;
   msgKey: string;
   msgTopic: string = CommandTopics.AuthCommands;
-  payload: RotateAccessTokenCmdPayload;
+  payload: IntrospectTokenCmdPayload;
 
-  constructor(payload: RotateAccessTokenCmdPayload, requestId: string) {
+  constructor(payload: IntrospectTokenCmdPayload, requestId: string) {
     super(payload.id);
     this.requestId = requestId;
     this.msgKey = payload.id;
@@ -126,20 +145,20 @@ export class RotateAccessTokenCmd extends CommandMsg {
   }
 }
 
-export interface RevokeAccessTokenCmdPayload {
+export interface RotateTokenCmdPayload {
   id: string;
   value: string;
   managementId: string;
 }
 
-export class RevokeAccessTokenCommand extends CommandMsg {
+export class RotateTokenCmd extends CommandMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateName: string = GRANT_AGGREGATE_NAME;
   msgKey: string;
   msgTopic: string = CommandTopics.AuthCommands;
-  payload: RevokeAccessTokenCmdPayload;
+  payload: RotateTokenCmdPayload;
 
-  constructor(payload: RevokeAccessTokenCmdPayload, requestId: string) {
+  constructor(payload: RotateTokenCmdPayload, requestId: string) {
     super(payload.id);
     this.requestId = requestId;
     this.msgKey = payload.id;
@@ -147,20 +166,41 @@ export class RevokeAccessTokenCommand extends CommandMsg {
   }
 }
 
-export interface InteractionChoiceCmdPayload {
+export interface RevokeTokenCmdPayload {
   id: string;
-  interactId: string;
+  value: string;
+  managementId: string;
+}
+
+export class RevokeTokenCmd extends CommandMsg {
+  contextName: string = BOUNDED_CONTEXT_NAME;
+  aggregateName: string = GRANT_AGGREGATE_NAME;
+  msgKey: string;
+  msgTopic: string = CommandTopics.AuthCommands;
+  payload: RevokeTokenCmdPayload;
+
+  constructor(payload: RevokeTokenCmdPayload, requestId: string) {
+    super(payload.id);
+    this.requestId = requestId;
+    this.msgKey = payload.id;
+    this.payload = payload;
+  }
+}
+
+export interface HandleInteractionChoiceCmdPayload {
+  id: string;
   nonce: string;
+  interactRef?: string;
 }
 
-class InteractionChoiceCommand extends CommandMsg {
+class HandleInteractionChoiceCmd extends CommandMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateName: string = GRANT_AGGREGATE_NAME;
   msgKey: string;
   msgTopic: string = CommandTopics.AuthCommands;
-  payload: InteractionChoiceCmdPayload;
+  payload: HandleInteractionChoiceCmdPayload;
 
-  constructor(payload: InteractionChoiceCmdPayload, requestId: string) {
+  constructor(payload: HandleInteractionChoiceCmdPayload, requestId: string) {
     super(payload.id);
     this.requestId = requestId;
     this.msgKey = payload.id;
@@ -168,5 +208,5 @@ class InteractionChoiceCommand extends CommandMsg {
   }
 }
 
-export class InteractionApprovedCommand extends InteractionChoiceCommand {}
-export class InteractionDeniedCommand extends InteractionChoiceCommand {}
+export class AcceptInteractionCommand extends HandleInteractionChoiceCmd {}
+export class RejectInteractionCommand extends HandleInteractionChoiceCmd {}
