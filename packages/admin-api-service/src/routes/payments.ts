@@ -81,15 +81,18 @@ export async function paymentRoutes(
 
   server.post<{
     Params: { intentId: string; id: string };
-  }>('/payment-intent/:intentId/payment/:id/approve', async (request, reply) => {
-    const { intentId, id } = request.params;
+  }>(
+    '/payment-intent/:intentId/payment/:id/approve',
+    async (request, reply) => {
+      const { intentId, id } = request.params;
 
-    try {
-      await paymentsClient.approvePayment(intentId, id);
-      return reply.status(200).send({ id });
-    } catch (err) {
-      server.log.error(err);
-      return reply.status(500).send({ error: (err as Error).message });
+      try {
+        await paymentsClient.approvePayment(intentId, id);
+        return reply.status(200).send({ id });
+      } catch (err) {
+        server.log.error(err);
+        return reply.status(500).send({ error: (err as Error).message });
+      }
     }
-  });
+  );
 }

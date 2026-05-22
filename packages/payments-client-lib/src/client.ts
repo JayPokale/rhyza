@@ -107,10 +107,7 @@ export class PaymentsClient {
     return new Promise((resolve, reject) => {
       this._grpcClient.createPaymentIntent(
         request,
-        (
-          error: ServiceError | null,
-          response: CreatePaymentIntentResponse
-        ) => {
+        (error: ServiceError | null, response: CreatePaymentIntentResponse) => {
           if (error) {
             console.error(error);
             return reject(error);
@@ -216,10 +213,7 @@ export class PaymentsClient {
     return new Promise((resolve, reject) => {
       this._grpcClient.createPayment(
         request,
-        (
-          error: ServiceError | null,
-          response: CreatePaymentResponse
-        ) => {
+        (error: ServiceError | null, response: CreatePaymentResponse) => {
           if (error) {
             console.error(error);
             return reject(error);
@@ -244,10 +238,7 @@ export class PaymentsClient {
     return new Promise((resolve, reject) => {
       this._grpcClient.approvePayment(
         request,
-        (
-          error: ServiceError | null,
-          response: ApprovePaymentResponse
-        ) => {
+        (error: ServiceError | null, response: ApprovePaymentResponse) => {
           if (error) {
             console.error(error);
             return reject(error);
@@ -298,7 +289,10 @@ export class PaymentsClient {
     });
   }
 
-  async getPayment(paymentIntentId: string, id: string): Promise<IGetPaymentResponse> {
+  async getPayment(
+    paymentIntentId: string,
+    id: string
+  ): Promise<IGetPaymentResponse> {
     const request = new GetPaymentRequest();
     request.setId(id);
     request.setPaymentIntentId(paymentIntentId);

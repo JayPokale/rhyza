@@ -323,7 +323,9 @@ export class PaymentsServiceServer {
     const paymentId = call.request.getId();
 
     try {
-      const [paymentIntent] = await this._repo.fetchByIdsWithPayments([paymentIntentId]);
+      const [paymentIntent] = await this._repo.fetchByIdsWithPayments([
+        paymentIntentId
+      ]);
       if (!paymentIntent) {
         callback({
           code: grpc.status.NOT_FOUND,
