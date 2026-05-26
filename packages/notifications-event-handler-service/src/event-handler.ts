@@ -39,7 +39,7 @@ export class NotificationsEventHandler {
     switch (message.msgName) {
       case PaymentIntentCreatedEvent.name: {
         console.log(
-          `Payment created event received with id ${message.payload.id}`
+          `PaymentIntentCreated event received with id ${message.payload.id}`
         );
         const { id, ...data } = message.payload as PaymentCreatedPayload;
         const cmd = new CreateNotificationCmd({ id, data }, message.requestId);
