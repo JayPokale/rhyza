@@ -225,6 +225,9 @@ importers:
       notifications-domain-lib:
         specifier: workspace:*
         version: link:../notifications-domain-lib
+      payments-domain-lib:
+        specifier: workspace:*
+        version: link:../payments-domain-lib
     devDependencies:
       tsx:
         specifier: ^4.19.3
