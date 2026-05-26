@@ -6,8 +6,8 @@ import {
 } from 'common-types-lib';
 import { CreateNotificationCmd } from 'notifications-domain-lib';
 import {
-  PaymentCreatedPayload,
-  PaymentIntentCreatedEvent
+  PaymentIntentCreatedEvent,
+  PaymentIntentCreatedPayload
 } from 'payments-domain-lib';
 
 export class NotificationsEventHandler {
@@ -41,7 +41,7 @@ export class NotificationsEventHandler {
         console.log(
           `PaymentIntentCreated event received with id ${message.payload.id}`
         );
-        const { id, ...data } = message.payload as PaymentCreatedPayload;
+        const { id, ...data } = message.payload as PaymentIntentCreatedPayload;
         const cmd = new CreateNotificationCmd({ id, data }, message.requestId);
         await this._msgProducer.send(cmd);
         break;
