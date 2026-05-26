@@ -22,14 +22,11 @@ import {
   IntrospectTokenRequest,
   RotateTokenRequest,
   RevokeTokenRequest,
-  Grant,
   AcceptInteractionRequest,
   RejectInteractionRequest,
   GetGrantRequest,
-  Interaction,
   AccessItem,
   AccessLimits,
-  AccessToken,
   SubjectId,
   ContinueGrantResponse,
   RevokeGrantResponse,
@@ -37,12 +34,7 @@ import {
   RotateTokenResponse
 } from 'auth-public-types-lib';
 
-import {
-  IMessage,
-  IMessageConsumer,
-  IMessageProducer,
-  DomainEvent
-} from 'common-types-lib';
+import { IMessage, IMessageConsumer, IMessageProducer } from 'common-types-lib';
 import {
   CreateGrantCmd,
   ContinueGrantCmd,
@@ -56,7 +48,6 @@ import {
   GrantContinueFailedEvent,
   GetGrantCmd,
   IntrospectTokenCmd,
-  IStartMethod,
   GrantDomainEvent,
   GrantCreatedEvent,
   GrantRevokedEvent,
@@ -182,19 +173,25 @@ export class AuthServiceServer {
     const responseAccessItem = new AccessItem();
     responseAccessItem.setType(accessItem.type);
     responseAccessItem.setActionsList(accessItem.actions);
-    accessItem.identifier &&
+    if (accessItem.identifier) {
       responseAccessItem.setIdentifier(accessItem.identifier);
+    }
+
     if (accessItem.limits) {
       const limits = new AccessLimits();
       limits.setReceiver(accessItem.limits.receiver);
-      accessItem.limits.sendAmount &&
+      if (accessItem.limits.sendAmount) {
         limits.setSendAmountValue(String(accessItem.limits.sendAmount));
-      accessItem.limits.debitAmount &&
+      }
+      if (accessItem.limits.debitAmount) {
         limits.setDebitAmountValue(String(accessItem.limits.debitAmount));
-      accessItem.limits.assetCode &&
+      }
+      if (accessItem.limits.assetCode) {
         limits.setAssetCode(accessItem.limits.assetCode);
-      accessItem.limits.interval &&
+      }
+      if (accessItem.limits.interval) {
         limits.setInterval(accessItem.limits.interval);
+      }
       responseAccessItem.setLimits(limits);
     }
     return responseAccessItem;
@@ -459,17 +456,25 @@ export class AuthServiceServer {
       const payload: GrantCreatedEvent['payload'] = event.payload;
       response.setId(payload.id);
 
-      payload.continueToken && response.setContinueToken(payload.continueToken);
-      payload.continueId && response.setContinueId(payload.continueId);
+      if (payload.continueToken) {
+        response.setContinueToken(payload.continueToken);
+      }
+      if (payload.continueId) {
+        response.setContinueId(payload.continueId);
+      }
+      if (payload.interactNonce) {
+        response.setInteractNonce(payload.interactNonce);
+      }
 
-      payload.interactNonce && response.setInteractNonce(payload.interactNonce);
-
-      payload.accessTokenValue &&
+      if (payload.accessTokenValue) {
         response.setAccessTokenValue(payload.accessTokenValue);
-      payload.accessTokenManagementId &&
+      }
+      if (payload.accessTokenManagementId) {
         response.setAccessTokenManagementId(payload.accessTokenManagementId);
-      payload.accessTokenExpiresIn &&
+      }
+      if (payload.accessTokenExpiresIn) {
         response.setAccessTokenExpiresIn(payload.accessTokenExpiresIn);
+      }
 
       for (const access of payload.access || []) {
         response.addAccess(this.getAccessListResponse(access));
@@ -501,18 +506,29 @@ export class AuthServiceServer {
       response.setId(payload.id);
       response.setFinalizationReason(payload.finalizationReason);
 
-      payload.accessTokenValue &&
+      if (payload.accessTokenValue) {
         response.setAccessTokenValue(payload.accessTokenValue);
-      payload.accessTokenManagementId &&
+      }
+
+      if (payload.accessTokenManagementId) {
         response.setAccessTokenManagementId(payload.accessTokenManagementId);
-      payload.accessTokenExpiresIn &&
+      }
+
+      if (payload.accessTokenExpiresIn) {
         response.setAccessTokenExpiresIn(payload.accessTokenExpiresIn);
+      }
 
       for (const access of payload.access || []) {
         response.addAccess(this.getAccessListResponse(access));
       }
-      payload.continueId && response.setContinueId(payload.continueId);
-      payload.continueToken && response.setContinueToken(payload.continueToken);
+
+      if (payload.continueId) {
+        response.setContinueId(payload.continueId);
+      }
+
+      if (payload.continueToken) {
+        response.setContinueToken(payload.continueToken);
+      }
       this._resolvePendingResponse(pending, requestId, null, response);
     } else if (GrantDomainEvent.isGrantContinueFailedEvent(event)) {
       this._resolvePendingResponse(pending, requestId, {
