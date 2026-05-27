@@ -3,7 +3,9 @@
 import { randomUUID } from 'crypto';
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { PalClient, parseAddressToDomainAndPathName } from 'pal-client-lib';
-import { PaymentsClient } from 'payments-client-lib';
+import {
+  PaymentsClient
+} from 'payments-client-lib';
 import { OpenPaymentsResourceServerRouteError } from '../errors';
 
 interface IncomingPaymentRouteOptions extends FastifyPluginOptions {
@@ -32,7 +34,7 @@ export async function incomingPaymentRoutes(
     '/incoming-payments',
     {
       schema: {
-        body: { $ref: '#/components/schemas/createIncomingPaymentRequest#' }
+        body: { $ref: '#/components/schemas/create-incoming-payment-request#' }
       }
     },
     async (request, reply) => {
@@ -94,6 +96,66 @@ export async function incomingPaymentRoutes(
       );
 
       return reply.status(201).send({ id: result.id });
+    }
+  );
+
+  server.get<{ Params: { id: string } }>(
+    '/incoming-payments/:id',
+    async (request, reply) => {
+      const { id } = request.params;
+
+      let paymentIntent;
+      try {
+        paymentIntent = await paymentsClient.getPaymentIntent(id);
+      } catch (err) {
+        throw new OpenPaymentsResourceServerRouteError(
+          400,
+          'Incoming payment not found',
+          'not_found'
+        );
+      }
+
+      const response: {
+        walletAddress: string;
+        incomingAmount?: {
+          value: string;
+          assetCode: string;
+          assetScale: number;
+        };
+        receivedAmount: {
+          value: string;
+          assetCode: string;
+          assetScale: number;
+        };
+        expiresAt?: string;
+        destinationIlpAddress?: string;
+      } = {
+        expiresAt: paymentIntent.expiresAt,
+        walletAddress: paymentIntent.receiverWalletAddress,
+        receivedAmount: {
+          value: String(paymentIntent.receivedAmount),
+          assetCode: paymentIntent.assetCode,
+          assetScale: paymentIntent.assetScale
+        }
+      };
+
+      if (paymentIntent.incomingAmount != null) {
+        response.incomingAmount = {
+          value: String(paymentIntent.incomingAmount),
+          assetCode: paymentIntent.assetCode,
+          assetScale: paymentIntent.assetScale
+        };
+      }
+
+      if (paymentIntent.expiresAt) {
+        response.expiresAt = paymentIntent.expiresAt
+      }
+
+      if (paymentIntent.destinationIlpAddress) {
+        response.destinationIlpAddress = paymentIntent.destinationIlpAddress;
+      }
+
+      return reply.status(200).send(response);
     }
   );
 }
