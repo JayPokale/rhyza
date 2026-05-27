@@ -21,7 +21,7 @@ export const options = {
 };
 
 const ADMIN_API_URL = 'http://localhost:3001';
-const PEER_OPEN_PAYMENTS_URL = 'http://peer-open-payments-svc:3001';
+const PEER_OPEN_PAYMENTS_URL = 'http://peer-open-payments-svc:3002';
 const RECEIVER_WALLET_ADDRESS = 'test.com/receiver';
 const SENDER_WALLET_ADDRESS = 'test.com/sender';
 
