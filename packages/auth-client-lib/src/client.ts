@@ -106,11 +106,13 @@ export class AuthClient {
   }
 
   continueGrant(
+    id: string,
     continueId: string,
     continueToken: string,
     interactRef: string
   ): Promise<ContinueGrantResponse> {
     const request = new ContinueGrantRequest();
+    request.setId(id);
     request.setContinueId(continueId);
     request.setContinueToken(continueToken);
     request.setInteractRef(interactRef);
@@ -130,10 +132,12 @@ export class AuthClient {
   }
 
   revokeGrant(
+    id: string,
     continueId: string,
     continueToken: string
   ): Promise<RevokeGrantResponse> {
     const request = new RevokeGrantRequest();
+    request.setId(id);
     request.setContinueId(continueId);
     request.setContinueToken(continueToken);
 
@@ -152,10 +156,12 @@ export class AuthClient {
   }
 
   introspectToken(
+    id: string,
     tokenValue: string,
     access: AccessItem[]
   ): Promise<IntrospectTokenResponse> {
     const request = new IntrospectTokenRequest();
+    request.setId(id);
     request.setTokenValue(tokenValue);
     request.setAccessList(access);
 
@@ -174,10 +180,12 @@ export class AuthClient {
   }
 
   rotateToken(
+    id: string,
     tokenValue: string,
     managementId: string
   ): Promise<RotateTokenResponse> {
     const request = new RotateTokenRequest();
+    request.setId(id);
     request.setTokenValue(tokenValue);
     request.setManagementId(managementId);
 
@@ -196,10 +204,12 @@ export class AuthClient {
   }
 
   revokeToken(
+    id: string,
     tokenValue: string,
     managementId: string
   ): Promise<RevokeTokenResponse> {
     const request = new RevokeTokenRequest();
+    request.setId(id);
     request.setTokenValue(tokenValue);
     request.setManagementId(managementId);
 
@@ -218,10 +228,12 @@ export class AuthClient {
   }
 
   acceptInteraction(
+    id: string,
     interactRef: string,
     nonce: string
   ): Promise<HandleInteractionChoiceResponse> {
     const request = new AcceptInteractionRequest();
+    request.setId(id);
     request.setInteractRef(interactRef);
     request.setNonce(nonce);
 
@@ -242,8 +254,12 @@ export class AuthClient {
     });
   }
 
-  rejectInteraction(nonce: string): Promise<HandleInteractionChoiceResponse> {
+  rejectInteraction(
+    id: string,
+    nonce: string
+  ): Promise<HandleInteractionChoiceResponse> {
     const request = new RejectInteractionRequest();
+    request.setId(id);
     request.setNonce(nonce);
 
     return new Promise((resolve, reject) => {
