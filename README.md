@@ -28,14 +28,21 @@ The project follows a modular architecture based on **Domain-Driven Design (DDD)
    nvm use
    ```
 
-2. **Enable corepack and install dependencies**:
+2. **Initialize git submodule**:
+   This repository uses a git submodule for Open Payments specifications located at `open-payments-specifications/`.
+
+   ```shell
+   git submodule update --init --recursive
+   ```
+
+3. **Enable corepack and install dependencies**:
 
    ```shell
    corepack enable
    pnpm install
    ```
 
-3. **Build the project**:
+4. **Build the project**:
    ```shell
    pnpm -r build
    ```
