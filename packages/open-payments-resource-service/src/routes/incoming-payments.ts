@@ -105,7 +105,7 @@ export async function incomingPaymentRoutes(
       let paymentIntent;
       try {
         paymentIntent = await paymentsClient.getPaymentIntent(id);
-      } catch (err) {
+      } catch {
         throw new OpenPaymentsResourceServerRouteError(
           400,
           'Incoming payment not found',
