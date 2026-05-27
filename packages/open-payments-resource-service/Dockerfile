@@ -38,7 +38,6 @@ RUN pnpm --filter pal-client-lib build
 RUN pnpm --filter payments-public-types-lib build
 RUN pnpm --filter payments-client-lib build
 RUN pnpm --filter open-payments-resource-service build
-COPY packages/open-payments-resource-service/src/openapi/ ./packages/open-payments-resource-service/dist/openapi/
 
 FROM node:24-alpine AS runner
 WORKDIR /workspace
@@ -64,6 +63,6 @@ COPY --from=build /workspace/packages/pal-client-lib/dist ./packages/pal-client-
 COPY --from=build /workspace/packages/payments-public-types-lib/dist ./packages/payments-public-types-lib/dist
 COPY --from=build /workspace/packages/payments-client-lib/dist ./packages/payments-client-lib/dist
 COPY --from=build /workspace/packages/open-payments-resource-service/dist ./packages/open-payments-resource-service/dist
-
+COPY --from=build /workspace/open-payments-specifications/json/resource-server.json ./open-payments-specifications/json/resource-server.json
 
 CMD ["node", "packages/open-payments-resource-service/dist/index.js"]

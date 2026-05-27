@@ -8,7 +8,7 @@ import { incomingPaymentRoutes } from './routes/incoming-payments.js';
 import { Ajv } from 'ajv';
 import addFormats from 'ajv-formats';
 
-import resourceServerOpenApiJsonSchema from './openapi/resource-server.json';
+import resourceServerOpenApiJsonSchema from '../../../open-payments-specifications/json/resource-server.json';
 import {
   OpenPaymentsResourceServerErrorResponse,
   OpenPaymentsResourceServerRouteError
