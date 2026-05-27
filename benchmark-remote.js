@@ -73,7 +73,7 @@ export function setup() {
 
 export default function (data) {
   const paymentIntentId = uuidv4();
-  const paymentIntentRes = request(`${ADMIN_API_URL}/payment-intent`, {
+  const paymentIntentRes = request(`${ADMIN_API_URL}/payment-intents`, {
     id: paymentIntentId,
     walletAddress: data.receiverWalletAddress
   });
@@ -98,7 +98,7 @@ export default function (data) {
   // });
   // if (!openPaymentsUrlDefined) return;
 
-  const quoteRes = request(`${ADMIN_API_URL}/quote`, {
+  const quoteRes = request(`${ADMIN_API_URL}/quotes`, {
     walletAddress: data.senderWalletAddress,
     paymentIntentUrl,
     debitAmount: '100'

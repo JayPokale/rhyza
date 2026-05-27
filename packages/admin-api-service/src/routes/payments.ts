@@ -24,7 +24,7 @@ export async function paymentRoutes(
       quoteId?: string;
       debitAmount?: number;
     };
-  }>('/payment', async (request, reply) => {
+  }>('/payments', async (request, reply) => {
     const { walletAddress, paymentIntentId, quoteId, debitAmount } =
       request.body;
 
@@ -51,7 +51,7 @@ export async function paymentRoutes(
   });
 
   server.get<{ Params: { intentId: string; id: string } }>(
-    '/payment-intent/:intentId/payment/:id',
+    '/payment-intents/:intentId/payments/:id',
     async (request, reply) => {
       const { intentId, id } = request.params;
 
@@ -82,7 +82,7 @@ export async function paymentRoutes(
   server.post<{
     Params: { intentId: string; id: string };
   }>(
-    '/payment-intent/:intentId/payment/:id/approve',
+    '/payment-intents/:intentId/payments/:id/approve',
     async (request, reply) => {
       const { intentId, id } = request.params;
 

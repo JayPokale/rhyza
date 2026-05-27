@@ -25,7 +25,7 @@ export async function quoteRoutes(
       debitAmount?: string;
       receiveAmount?: string;
     };
-  }>('/quote', async (request, reply) => {
+  }>('/quotes', async (request, reply) => {
     const {
       walletAddress,
       debitAmount,

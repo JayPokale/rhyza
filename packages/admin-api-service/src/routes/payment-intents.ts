@@ -28,7 +28,7 @@ export async function paymentIntentRoutes(
       expiresAt?: string;
       metadata?: string;
     };
-  }>('/payment-intent', async (request, reply) => {
+  }>('/payment-intents', async (request, reply) => {
     const { walletAddress, incomingAmount, expiresAt, metadata } = request.body;
 
     const id = request.body.id ?? randomUUID();
@@ -64,7 +64,7 @@ export async function paymentIntentRoutes(
   });
 
   server.get<{ Params: { id: string } }>(
-    '/payment-intent/:id',
+    '/payment-intents/:id',
     async (request, reply) => {
       const { id } = request.params;
 
