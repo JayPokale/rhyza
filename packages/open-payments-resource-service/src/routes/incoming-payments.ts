@@ -3,9 +3,7 @@
 import { randomUUID } from 'crypto';
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { PalClient, parseAddressToDomainAndPathName } from 'pal-client-lib';
-import {
-  PaymentsClient
-} from 'payments-client-lib';
+import { PaymentsClient } from 'payments-client-lib';
 import { OpenPaymentsResourceServerRouteError } from '../errors';
 
 interface IncomingPaymentRouteOptions extends FastifyPluginOptions {
@@ -148,7 +146,7 @@ export async function incomingPaymentRoutes(
       }
 
       if (paymentIntent.expiresAt) {
-        response.expiresAt = paymentIntent.expiresAt
+        response.expiresAt = paymentIntent.expiresAt;
       }
 
       if (paymentIntent.destinationIlpAddress) {
