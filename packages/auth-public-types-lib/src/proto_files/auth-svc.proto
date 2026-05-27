@@ -27,8 +27,7 @@ message AccessToken {
 	string value = 1;
 	string management_id = 2;
 	int32 expires_in = 3;
-	string created_at = 4; // Date string
-	string revoked_at = 5; // Date string
+	string revoked_at = 4; // Date string
 }
 
 message Interaction {
