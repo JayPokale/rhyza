@@ -1,19 +1,11 @@
 meta {
   name: Wallet Address
   type: http
-  seq: 2
+  seq: 1
 }
 
 get {
-  url: http://localhost:3002/receiver
+  url: http://{{openPaymentsResourceServerUrl}}/sender
   body: json
   auth: none
-}
-
-script:post-response {
-  const body = res.getBody();
-  
-  if (body?.id) {
-    bru.setVar("incomingPaymentId", body.id);
-  }
 }
