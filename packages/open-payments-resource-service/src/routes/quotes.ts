@@ -5,16 +5,11 @@ import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { PalClient, parseAddressToDomainAndPathName } from 'pal-client-lib';
 import { PaymentsClient } from 'payments-client-lib';
 import { OpenPaymentsResourceServerRouteError } from '../errors';
+import { components } from '../types/generated/resource-server-types';
 
 interface QuoteRouteOptions extends FastifyPluginOptions {
   palClient: PalClient;
   paymentsClient: PaymentsClient;
-}
-
-interface Amount {
-  assetScale: number;
-  assetCode: string;
-  value: string;
 }
 
 export async function quoteRoutes(
@@ -24,13 +19,7 @@ export async function quoteRoutes(
   const { palClient, paymentsClient } = opts;
 
   server.post<{
-    Body: {
-      walletAddress: string;
-      receiver: string;
-      method: 'ilp';
-      debitAmount?: Amount;
-      receiveAmount?: Amount;
-    };
+    Body: components['schemas']['create-quote-request'];
   }>(
     '/quotes',
     {
@@ -39,12 +28,8 @@ export async function quoteRoutes(
       }
     },
     async (request, reply) => {
-      const {
-        walletAddress: walletAddressUrl,
-        receiver: incomingPaymentUrl,
-        receiveAmount,
-        debitAmount
-      } = request.body;
+      const { walletAddress: walletAddressUrl, receiver: incomingPaymentUrl } =
+        request.body;
 
       const { domain, pathName } =
         parseAddressToDomainAndPathName(walletAddressUrl);
@@ -73,16 +58,26 @@ export async function quoteRoutes(
 
       const walletAddress = walletAddresses[0];
 
-      if (
-        debitAmount &&
-        (debitAmount.assetCode !== walletAddress.assetCode ||
-          debitAmount.assetScale !== walletAddress.assetScale)
+      let debitAmountValue: number | undefined;
+      let receiveAmountValue: number | undefined;
+
+      if ('debitAmount' in request.body && request.body.debitAmount) {
+        if (
+          request.body.debitAmount.assetCode !== walletAddress.assetCode ||
+          request.body.debitAmount.assetScale !== walletAddress.assetScale
+        ) {
+          throw new OpenPaymentsResourceServerRouteError(
+            404,
+            'debitAmount asset does not match wallet address asset',
+            'invalid_request'
+          );
+        }
+        debitAmountValue = Number(request.body.debitAmount);
+      } else if (
+        'receiveAmount' in request.body &&
+        request.body.receiveAmount
       ) {
-        throw new OpenPaymentsResourceServerRouteError(
-          404,
-          'debitAmount asset does not match wallet address asset',
-          'invalid_request'
-        );
+        receiveAmountValue = Number(request.body.receiveAmount);
       }
 
       const id = randomUUID();
@@ -92,8 +87,8 @@ export async function quoteRoutes(
         { incomingPaymentUrl },
         alias.walletAddressId,
         walletAddressUrl,
-        Number(debitAmount?.value),
-        Number(receiveAmount?.value)
+        debitAmountValue,
+        receiveAmountValue
       );
 
       return reply.status(201).send({ id: result.id });

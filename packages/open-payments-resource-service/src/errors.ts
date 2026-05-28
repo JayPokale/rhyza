@@ -4,14 +4,6 @@ const ResourceServerErrorCode = {
 } as const;
 type ResourceServerErrorCode = keyof typeof ResourceServerErrorCode;
 
-export interface OpenPaymentsResourceServerErrorResponse {
-  error: {
-    code: ResourceServerErrorCode;
-    description?: string;
-    details?: Record<string, unknown>;
-  };
-}
-
 type HTTPStatus = 400 | 401 | 403 | 404 | 500;
 
 export class OpenPaymentsResourceServerRouteError extends Error {

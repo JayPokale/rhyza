@@ -5,6 +5,7 @@ import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { PalClient, parseAddressToDomainAndPathName } from 'pal-client-lib';
 import { PaymentsClient } from 'payments-client-lib';
 import { OpenPaymentsResourceServerRouteError } from '../errors';
+import { components } from '../types/generated/resource-server-types';
 
 interface IncomingPaymentRouteOptions extends FastifyPluginOptions {
   palClient: PalClient;
@@ -18,16 +19,8 @@ export async function incomingPaymentRoutes(
   const { palClient, paymentsClient } = opts;
 
   server.post<{
-    Body: {
-      walletAddress: string;
-      incomingAmount?: {
-        assetScale: number;
-        assetCode: string;
-        value: string;
-      };
-      expiresAt?: string;
-      metadata?: Record<string, unknown>;
-    };
+    Body: components['schemas']['create-incoming-payment-request'];
+    // Reply: components['schemas']['incoming-payment']
   }>(
     '/incoming-payments',
     {
@@ -97,63 +90,56 @@ export async function incomingPaymentRoutes(
     }
   );
 
-  server.get<{ Params: { id: string } }>(
-    '/incoming-payments/:id',
-    async (request, reply) => {
-      const { id } = request.params;
+  server.get<{
+    Params: { id: string };
+    Reply: components['schemas']['incoming-payment'] & {
+      destinationIlpAddress?: string;
+    };
+  }>('/incoming-payments/:id', async (request, reply) => {
+    const { id } = request.params;
 
-      let paymentIntent;
-      try {
-        paymentIntent = await paymentsClient.getPaymentIntent(id);
-      } catch {
-        throw new OpenPaymentsResourceServerRouteError(
-          400,
-          'Incoming payment not found',
-          'not_found'
-        );
-      }
-
-      const response: {
-        walletAddress: string;
-        incomingAmount?: {
-          value: string;
-          assetCode: string;
-          assetScale: number;
-        };
-        receivedAmount: {
-          value: string;
-          assetCode: string;
-          assetScale: number;
-        };
-        expiresAt?: string;
-        destinationIlpAddress?: string;
-      } = {
-        expiresAt: paymentIntent.expiresAt,
-        walletAddress: paymentIntent.receiverWalletAddress,
-        receivedAmount: {
-          value: String(paymentIntent.receivedAmount),
-          assetCode: paymentIntent.assetCode,
-          assetScale: paymentIntent.assetScale
-        }
-      };
-
-      if (paymentIntent.incomingAmount != null) {
-        response.incomingAmount = {
-          value: String(paymentIntent.incomingAmount),
-          assetCode: paymentIntent.assetCode,
-          assetScale: paymentIntent.assetScale
-        };
-      }
-
-      if (paymentIntent.expiresAt) {
-        response.expiresAt = paymentIntent.expiresAt;
-      }
-
-      if (paymentIntent.destinationIlpAddress) {
-        response.destinationIlpAddress = paymentIntent.destinationIlpAddress;
-      }
-
-      return reply.status(200).send(response);
+    let paymentIntent;
+    try {
+      paymentIntent = await paymentsClient.getPaymentIntent(id);
+    } catch {
+      throw new OpenPaymentsResourceServerRouteError(
+        400,
+        'Incoming payment not found',
+        'not_found'
+      );
     }
-  );
+
+    const response: components['schemas']['incoming-payment'] & {
+      destinationIlpAddress?: string;
+    } = {
+      id: paymentIntent.id,
+      expiresAt: paymentIntent.expiresAt,
+      completed: paymentIntent.state === 'COMPLETED',
+      walletAddress: paymentIntent.receiverWalletAddress,
+      createdAt: new Date().toISOString(),
+      receivedAmount: {
+        value: String(paymentIntent.receivedAmount),
+        assetCode: paymentIntent.assetCode,
+        assetScale: paymentIntent.assetScale
+      }
+    };
+
+    if (paymentIntent.incomingAmount != null) {
+      response.incomingAmount = {
+        value: String(paymentIntent.incomingAmount),
+        assetCode: paymentIntent.assetCode,
+        assetScale: paymentIntent.assetScale
+      };
+    }
+
+    if (paymentIntent.expiresAt) {
+      response.expiresAt = paymentIntent.expiresAt;
+    }
+
+    if (paymentIntent.destinationIlpAddress) {
+      response.destinationIlpAddress = paymentIntent.destinationIlpAddress;
+    }
+
+    return reply.status(200).send(response);
+  });
 }

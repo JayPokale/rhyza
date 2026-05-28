@@ -9,11 +9,9 @@ import { Ajv } from 'ajv';
 import addFormats from 'ajv-formats';
 
 import resourceServerOpenApiJsonSchema from '../../../open-payments-specifications/json/resource-server.json';
-import {
-  OpenPaymentsResourceServerErrorResponse,
-  OpenPaymentsResourceServerRouteError
-} from './errors.js';
+import { OpenPaymentsResourceServerRouteError } from './errors.js';
 import { quoteRoutes } from './routes/quotes.js';
+import { components } from './types/generated/resource-server-types.js';
 
 const PORT = parseInt(process.env['PORT'] || '3002', 10);
 const HOST = process.env['HOST'] || '0.0.0.0';
@@ -67,7 +65,7 @@ export class OpenPaymentsResourceServer {
     this.server.setValidatorCompiler(({ schema }) => ajv.compile(schema));
 
     this.server.setErrorHandler((error, _, reply) => {
-      let resourceServerError: OpenPaymentsResourceServerErrorResponse;
+      let resourceServerError: components['schemas']['error-response'];
       let statusCode: number;
 
       if (error.validation) {
