@@ -1,5 +1,5 @@
 meta {
-  name: Outgoing Payment
+  name: Create Payment
   type: http
   seq: 6
 }
@@ -20,7 +20,7 @@ body:json {
 
 script:post-response {
   const body = res.getBody();
-
+  
   if (body?.id) {
     bru.setVar("paymentId", body.id);
   }
