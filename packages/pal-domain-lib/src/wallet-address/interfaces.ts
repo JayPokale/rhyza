@@ -1,23 +1,11 @@
-/*****
- Copyright © 2026 & Interledger Foundation
- ----------------------------------------------
- Contributors
-
- * Cyberbones Digital Solutions
- - Pedro Sousa Barreto <pedrosousabarreto@gmail.com>
- ******/
-
-'use strict';
-
-export interface IPalWalletAddress {
-  id: string;
-  publicName: string;
-  assetCode: string;
-  assetScale: number;
-  isActive: boolean;
-}
+import { IPalWalletAddressDto } from 'pal-public-types-lib';
 
 export interface IPalWalletAddressRepository {
-  store(walletAddress: IPalWalletAddress): Promise<void>;
-  fetch(ids: string[]): Promise<IPalWalletAddress[]>;
+  store(walletAddress: IPalWalletAddressDto): Promise<void>;
+  fetch(ids: string[]): Promise<IPalWalletAddressDto[]>;
+
+  getByAlias(
+    domain: string | null,
+    pathName: string
+  ): Promise<IPalWalletAddressDto | null>;
 }

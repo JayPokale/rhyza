@@ -1,49 +1,29 @@
-/*****
- Copyright © 2026 & Interledger Foundation
- ----------------------------------------------
- Contributors
+import { IPalAssetDto } from 'pal-public-types-lib';
 
- * Cyberbones Digital Solutions
- - Pedro Sousa Barreto <pedrosousabarreto@gmail.com>
- ******/
-
-'use strict';
-
-import { IPalAsset } from './interfaces';
-
-export class PalAsset implements IPalAsset {
-  private _code: string;
-  private _scale: number;
-  private _liquidityLowThreshold: bigint | null;
-  private _liquidityHighThreshold: bigint | null;
+export class PalAsset {
+  private readonly _code: string;
+  private readonly _scale: number;
+  private _ledgerAccountId: string | null;
 
   constructor(
     code: string,
     scale: number,
-    liquidityLowThreshold: bigint | null = null,
-    liquidityHighThreshold: bigint | null = null
+    ledgerAccountId: string | null = null
   ) {
     this._code = code;
     this._scale = scale;
-    this._liquidityLowThreshold = liquidityLowThreshold;
-    this._liquidityHighThreshold = liquidityHighThreshold;
+    this._ledgerAccountId = ledgerAccountId;
   }
 
-  static fromObject(json: IPalAsset): PalAsset {
-    return new PalAsset(
-      json.code,
-      json.scale,
-      json.liquidityLowThreshold,
-      json.liquidityHighThreshold
-    );
+  static fromDto(json: IPalAssetDto): PalAsset {
+    return new PalAsset(json.code, json.scale, json.ledgerAccountId);
   }
 
-  toObject(): IPalAsset {
+  toDto(): IPalAssetDto {
     return {
       code: this._code,
       scale: this._scale,
-      liquidityLowThreshold: this._liquidityLowThreshold,
-      liquidityHighThreshold: this._liquidityHighThreshold
+      ledgerAccountId: this._ledgerAccountId
     };
   }
 
@@ -55,11 +35,11 @@ export class PalAsset implements IPalAsset {
     return this._scale;
   }
 
-  get liquidityLowThreshold(): bigint | null {
-    return this._liquidityLowThreshold;
+  get ledgerAccountId(): string | null {
+    return this._ledgerAccountId;
   }
 
-  get liquidityHighThreshold(): bigint | null {
-    return this._liquidityHighThreshold;
+  associateLedgerAccount(ledgerAccountId: string): void {
+    this._ledgerAccountId = ledgerAccountId;
   }
 }

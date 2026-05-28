@@ -1,62 +1,54 @@
-/*****
- Copyright © 2026 & Interledger Foundation
- ----------------------------------------------
- Contributors
-
- * Cyberbones Digital Solutions
- - Pedro Sousa Barreto <pedrosousabarreto@gmail.com>
- ******/
-
 syntax = "proto3";
 package rafiki.pal.svc;
 
 import "google/protobuf/empty.proto";
 
 service PalGrpc {
-  rpc CreateAsset(CreateAssetRequest) returns (CreateAssetResponse);
-  rpc GetAsset(GetAssetRequest) returns (GetAssetResponse);
+  rpc CreateAsset(PbCreateAssetRequest) returns (google.protobuf.Empty);
+  rpc GetAsset(PbGetAssetRequest) returns (PbGetAssetResponse);
 
-  rpc CreateWalletAddress(CreateWalletAddressRequest) returns (CreateWalletAddressResponse);
-  rpc GetWalletAddresses(GetWalletAddressesRequest) returns (GetWalletAddressesResponse);
+  rpc CreateWalletAddress(PbCreateWalletAddressRequest) returns (PbCreateWalletAddressResponse);
+  rpc GetWalletAddresses(PbGetWalletAddressesRequest) returns (PbGetWalletAddressesResponse);
 
-  rpc ResolveWalletAddressAlias(ResolveWalletAddressAliasRequest) returns (ResolveWalletAddressAliasResponse);
-  rpc CreateWalletAddressAlias(CreateWalletAddressAliasRequest) returns (google.protobuf.Empty);
+  rpc ResolveWalletAddressAlias(PbResolveWalletAddressAliasRequest) returns (PbResolveWalletAddressAliasResponse);
+  rpc CreateWalletAddressAlias(PbCreateWalletAddressAliasRequest) returns (google.protobuf.Empty);
+
+  rpc CreatePeer(PbCreatePeerRequest) returns (google.protobuf.Empty);
+  rpc GetPeer(PbGetPeerRequest) returns (PbGetPeerResponse);
+  rpc GetPeerByIlpAddress(PbGetPeerByIlpAddressRequest) returns (PbGetPeerResponse);
+  rpc SetPeerCommunicationMethod(PbSetPeerCommunicationMethodRequest) returns (google.protobuf.Empty);
+  rpc ActivatePeer(PbActivatePeerRequest) returns (google.protobuf.Empty);
+  rpc DeactivatePeer(PbDeactivatePeerRequest) returns (google.protobuf.Empty);
+
+  // ledger queries
+  rpc GetLedgerAccounts(PbGetLedgerAccountsRequest) returns (PbGetLedgerAccountsResponse);
 }
 
 /*
 Asset messages
 */
-message CreateAssetRequest{
+message PbCreateAssetRequest{
   string code = 1;
   uint32 scale = 2;
-  optional uint64 liquidity_low_threshold = 3;
-  optional uint64 liquidity_high_threshold = 4;
-}
-message CreateAssetResponse{
-  string code = 1;
-  uint32 scale = 2;
-  optional uint64 liquidity_low_threshold = 3;
-  optional uint64 liquidity_high_threshold = 4;
 }
 
-message GetAssetRequest{
+message PbGetAssetRequest{
   string code = 1;
 }
-message GetAssetResponse{
-  optional GetNonEmptyAssetResponse asset = 1;
+message PbGetAssetResponse{
+  optional PbAsset asset = 1;
 }
-message GetNonEmptyAssetResponse{
+message PbAsset{
   string code = 1;
   uint32 scale = 2;
-  optional uint64 liquidity_low_threshold = 3;
-  optional uint64 liquidity_high_threshold = 4;
+  optional string ledger_account_id = 3;
 }
 
 /*
 Wallet Address messages
 */
 
-message CreateWalletAddressRequest {
+message PbCreateWalletAddressRequest {
   string path_name = 1;
   string asset_code = 2;
   string public_name = 3;
@@ -64,7 +56,7 @@ message CreateWalletAddressRequest {
   optional string domain = 5;
 }
 
-message CreateWalletAddressResponse {
+message PbCreateWalletAddressResponse {
   string path_name = 1;
   string public_name = 2;
   string asset_code = 3;
@@ -73,14 +65,14 @@ message CreateWalletAddressResponse {
   optional string domain = 6;
 }
 
-message GetWalletAddressesRequest {
+message PbGetWalletAddressesRequest {
   repeated string ids = 1;
 }
 
-message GetWalletAddressesResponse {
-  repeated SingleWalletAddressResponse wallet_addresses = 1;
+message PbGetWalletAddressesResponse {
+  repeated PbSingleWalletAddressResponse wallet_addresses = 1;
 }
-message SingleWalletAddressResponse {
+message PbSingleWalletAddressResponse {
   string id = 1;
   string public_name = 2;
   string asset_code = 3;
@@ -91,21 +83,99 @@ message SingleWalletAddressResponse {
 /*
 Wallet Address Aliases messages
 */
-message ResolveWalletAddressAliasRequest {
+message PbResolveWalletAddressAliasRequest {
   string path_name = 1;
   optional string domain =2;
 }
-message ResolveWalletAddressAliasResponse {
-  optional ResolveWalletAddressNonEmptyResponse alias = 1;
+message PbResolveWalletAddressAliasResponse {
+  optional PbResolveWalletAddressNonEmptyResponse alias = 1;
 }
-message ResolveWalletAddressNonEmptyResponse {
+message PbResolveWalletAddressNonEmptyResponse {
   string path_name = 1;
   optional string domain = 2;
   string wallet_address_id = 3;
 }
 
-message CreateWalletAddressAliasRequest {
+message PbCreateWalletAddressAliasRequest {
   string path_name = 1;
   optional string domain = 2;
   string wallet_address_id = 3;
+}
+
+/*
+Peer messages
+*/
+message PbCreatePeerRequest{
+  string id = 1;
+  string name = 2;
+  string asset_code = 3;
+  uint32 asset_scale = 4;
+  PbPeerCommsMethodDefinition comms_method_definition = 5;
+}
+
+message PbGetPeerRequest{
+  string id = 1;
+}
+message PbGetPeerResponse{
+  optional PbPeer peer = 1;
+}
+message PbPeer{
+  string id = 1;
+  string name = 2;
+  string asset_code = 3;
+  uint32 asset_scale = 4;
+  bool active = 5;
+  optional PbPeerLedgerAccounts ledger_accounts = 6;
+  optional PbPeerCommsMethodDefinition comms_method_definition = 7;
+}
+
+message PbPeerCommsMethodDefinition{
+  string comms_type = 1; // for now can only be ILP
+  string static_address = 2;
+}
+message PbPeerLedgerAccounts{
+  string peer_liquidity_account_id = 1;
+  string peer_clearing_account_id = 2;
+  string ase_liquidity_account_id = 3;
+  string ase_clearing_account_id = 4;
+  string suspense_account_id = 5;
+}
+
+message PbGetPeerByIlpAddressRequest{
+  string address = 1;
+}
+message PbSetPeerCommunicationMethodRequest{
+  string peer_id = 1;
+  PbPeerCommsMethodDefinition comms_method = 2;
+}
+message PbActivatePeerRequest{
+  string peer_id = 1;
+}
+message PbDeactivatePeerRequest{
+  string peer_id = 1;
+}
+
+
+
+/*
+Liquidity messages
+*/
+
+// query messages
+message PbGetLedgerAccountsRequest{
+  repeated string account_ids = 1;
+}
+
+message PbLedgerAccount {
+  string id = 1;
+  string asset_code = 2;
+  uint32 asset_display_scale = 3;
+  string name = 4;
+  string debited_amount = 5;
+  string credited_amount = 6;
+  optional string external_id = 7;
+}
+
+message PbGetLedgerAccountsResponse{
+  repeated PbLedgerAccount accounts = 1;
 }

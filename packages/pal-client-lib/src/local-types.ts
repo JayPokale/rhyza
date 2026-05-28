@@ -1,22 +1,3 @@
-/*****
- Copyright © 2026 & Interledger Foundation
- ----------------------------------------------
- Contributors
-
- * Cyberbones Digital Solutions
- - Pedro Sousa Barreto <pedrosousabarreto@gmail.com>
- ******/
-
-'use strict';
-
-// for returned assets objects
-export interface IPalClientAsset {
-  code: string;
-  scale: number;
-  liquidityLowThreshold: bigint | null;
-  liquidityHighThreshold: bigint | null;
-}
-
 // for returned wallet address objects
 export interface IPalClientWalletAddress {
   domain: string | null;
@@ -38,3 +19,19 @@ export interface IGetWalletAddressResponse {
   assetScale: number;
   isActive: boolean;
 }
+
+/**
+ * Local error types
+ */
+export class PalClientUnknownError extends Error {}
+
+// ledger errors
+export class PalClientLedgerUnknownError extends Error {}
+export class PalClientLedgerNotFoundError extends Error {}
+export class PalClientLedgerAlreadyExistsError extends Error {}
+export class PalClientLedgerAccountAlreadyExistsError extends Error {}
+export class PalClientLedgerAccountCreationFailedError extends Error {}
+
+// peer errors
+export class PalClientPeerAlreadyExistsError extends Error {}
+export class PalClientPeerNotFoundError extends Error {}

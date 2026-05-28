@@ -1,60 +1,137 @@
-/*****
- Copyright © 2026 & Interledger Foundation
- ----------------------------------------------
- Contributors
-
- * Cyberbones Digital Solutions
- - Pedro Sousa Barreto <pedrosousabarreto@gmail.com>
- ******/
-
-'use strict';
-
-import { CannotCreateDuplicateWalletAddressError } from './errors';
-import { IPalWalletAddress, IPalWalletAddressRepository } from './interfaces';
-import { PalWalletAddress } from './entity';
+import {
+  CannotCreateDuplicateWalletAddressAliasError,
+  CannotCreateDuplicateWalletAddressError,
+  WalletAddressAliasNotFoundError
+} from './errors';
+import { IPalWalletAddressRepository } from './interfaces';
+import { PalWalletAddress } from './entities/wallet-address';
+import crypto from 'node:crypto';
+import { ILogger } from 'common-types-lib';
+import {
+  IPalWalletAddressDto,
+  WalletAddressAliasCreatedEvent,
+  WalletAddressCreatedEvent,
+  WalletAddressDomainEvent
+} from 'pal-public-types-lib';
 
 export class WalletAddressAggregate {
+  private readonly _logger: ILogger;
   private _repo: IPalWalletAddressRepository;
+  private readonly _uncommittedDomainEvents: WalletAddressDomainEvent[];
 
-  constructor(repo: IPalWalletAddressRepository) {
+  constructor(repo: IPalWalletAddressRepository, logger: ILogger) {
+    this._logger = logger;
     this._repo = repo;
+    this._uncommittedDomainEvents = [];
+  }
+
+  get uncommittedDomainEvents(): WalletAddressDomainEvent[] {
+    return this._uncommittedDomainEvents;
+  }
+
+  clearUncommittedDomainEvents(): void {
+    this._uncommittedDomainEvents.length = 0;
   }
 
   async createWalletAddress(
-    id: string,
+    domain: string | null,
+    pathName: string,
     publicName: string,
     assetCode: string,
     assetScale: number,
-    isActive: boolean = true
+    isActive?: boolean
   ): Promise<string> {
-    const existing = await this._repo.fetch([id]);
+    const alias = await this.resolveWalletAddressAlias(domain, pathName);
 
-    if (existing.length > 0) {
+    if (alias) {
+      this._logger.warn(
+        `Wallet Address with that domain and pathName ${domain}/${pathName} already exists`
+      );
       throw new CannotCreateDuplicateWalletAddressError(
-        'Wallet with id: ' + id + ' already exists'
+        `Wallet Address with that domain and pathName ${domain}/${pathName} already exists`
       );
     }
 
-    // TODO: validate inputs
+    const newAddressId = crypto.randomUUID();
 
     const newWallet = new PalWalletAddress(
-      id,
+      newAddressId,
       publicName,
       assetCode,
       assetScale,
       isActive
     );
 
-    await this._repo.store(newWallet.toObject());
+    newWallet.addAlias(domain, pathName);
+
+    await this._repo.store(newWallet.toDto());
+
+    this._uncommittedDomainEvents.push(
+      new WalletAddressCreatedEvent({
+        id: newWallet.id,
+        domain: domain,
+        pathName: pathName,
+        assetCode: newWallet.assetCode,
+        assetScale: newWallet.assetScale,
+        publicName: newWallet.publicName,
+        isActive: newWallet.isActive
+      })
+    );
 
     return newWallet.id;
   }
 
-  async getWalletAddresses(ids: string[]): Promise<IPalWalletAddress[]> {
+  async getWalletAddresses(ids: string[]): Promise<IPalWalletAddressDto[]> {
     const found = await this._repo.fetch(ids);
 
     if (!found || found.length == 0) return [];
 
-    return found.map(PalWalletAddress.fromObject);
+    return found.map(PalWalletAddress.fromDto);
+  }
+
+  async resolveWalletAddressAlias(
+    domain: string | null,
+    pathName: string
+  ): Promise<string | null> {
+    const found = await this._repo.getByAlias(domain || null, pathName);
+
+    if (!found) return null;
+    return found.id;
+  }
+
+  async createWalletAddressAlias(
+    domain: string | null,
+    pathName: string,
+    walletId: string
+  ): Promise<void> {
+    // ensure the requested alias does not already exist
+    const existingAlias = await this._repo.getByAlias(domain, pathName);
+    if (existingAlias) {
+      throw new CannotCreateDuplicateWalletAddressAliasError(
+        'Alias already exists'
+      );
+    }
+
+    const [walletDto] = await this._repo.fetch([walletId]);
+    if (!walletDto) {
+      throw new WalletAddressAliasNotFoundError(
+        `Wallet Address with id ${walletId} does not exist`
+      );
+    }
+
+    const wallet = PalWalletAddress.fromDto(walletDto);
+    // TODO: validate inputs, especially domain and pathName characters
+
+    wallet.addAlias(domain, pathName);
+
+    await this._repo.store(wallet.toDto());
+
+    this._uncommittedDomainEvents.push(
+      new WalletAddressAliasCreatedEvent({
+        walletId: wallet.id,
+        domain: domain,
+        pathName: pathName
+      })
+    );
   }
 }

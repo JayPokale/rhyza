@@ -4,17 +4,27 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "test": "node --import tsx --test test/*.test.ts",
-    "build": "tsc --build"
+    "build": "tsc --build",
+    "gen-types": "node gen-types.js",
+    "prebuild": "pnpm run gen-types"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "mongodb": "~7.1.0",
-    "pal-domain-lib": "workspace: *"
+    "ioredis": "~5.10.1",
+    "google-protobuf": "~4.0.2",
+    "pal-domain-lib": "workspace: *",
+    "common-types-lib": "workspace: *",
+    "pal-public-types-lib": "workspace: *",
+    "implementations-lib": "workspace: *"
   },
   "devDependencies": {
     "tsx": "^4.19.3",
-    "tslib": "~2.8.1"
+    "tslib": "~2.8.1",
+    "grpc_tools_node_protoc_ts": "~5.3.3",
+    "grpc-tools": "~1.13.1",
+    "@types/google-protobuf": "~3.15.12"
   }
 }

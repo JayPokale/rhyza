@@ -1,61 +1,203 @@
-/*****
- Copyright © 2026 & Interledger Foundation
- ----------------------------------------------
- Contributors
-
- * Cyberbones Digital Solutions
- - Pedro Sousa Barreto <pedrosousabarreto@gmail.com>
- ******/
-
-'use strict';
-
 import {
   AssetAggregate,
+  IPalAssetRepository,
+  IPalWalletAddressRepository,
   WalletAddressAggregate,
-  WalletAddressAliasAggregate,
-  WalletDomainService
+  ILedgerReadSideRepository,
+  PeerAggregate,
+  IPalPeerRepository
 } from 'pal-domain-lib';
-import { PalServiceServer } from './grpc/grpc-service';
+import { PalGrpcServer } from './grpc/grpc-service';
 import process from 'process';
 import {
+  CreateLedgerAccountForAssetCmdSerde,
+  CreateLedgerAccountsForPeerCmdSerde,
+  CreateLedgerCmdSerde,
   MongoDbAssetRepo,
-  MongoDbWalletRepoRepo,
-  MongoWalletAddressAliasRepo
+  MongoDbLedgerReadSideRepo,
+  MongoDbPeerRepo,
+  MongoDbWalletRepo
 } from 'pal-implementations-lib';
+import {
+  CommandTopics,
+  DomainEventTopics,
+  ILogger,
+  IMessageConsumer,
+  IMessageProducer,
+  IRawMessageSerializerFactory,
+  SnapshotEventTopics,
+  StateEventTopics
+} from 'common-types-lib';
+import {
+  IKafkaBuilder,
+  KafkaBuilder,
+  KafkaConsumerOptions,
+  KafkaProducerCompressionCodecs,
+  KafkaProducerOptions,
+  MessageSerializationFactory,
+  PinoLogger
+} from 'implementations-lib';
+import crypto from 'crypto';
+
+const SVC_PORT = process.env['SVC_PORT']
+  ? parseInt(process.env['SVC_PORT'])
+  : 50051;
+const INSTANCE_ID = `ES_LEDGER_POC_SVC__${crypto.randomUUID()}`;
+
+// Message Consumer/Publisher
+const KAFKA_URL =
+  process.env['KAFKA_URL'] || '127.0.0.1:29092,127.0.0.1:39092,127.0.0.1:49092';
+// const KAFKA_AUTH_ENABLED = process.env["KAFKA_AUTH_ENABLED"] && process.env["KAFKA_AUTH_ENABLED"].toUpperCase()==="TRUE" || false;
+// const KAFKA_AUTH_PROTOCOL = process.env["KAFKA_AUTH_PROTOCOL"] || "sasl_plaintext";
+// const KAFKA_AUTH_MECHANISM = process.env["KAFKA_AUTH_MECHANISM"] || "plain";
+// const KAFKA_AUTH_USERNAME = process.env["KAFKA_AUTH_USERNAME"] || "user";
+// const KAFKA_AUTH_PASSWORD = process.env["KAFKA_AUTH_PASSWORD"] || "password";
+
+// kafka common options
+const kafkaProducerCommonOptions: KafkaProducerOptions = {
+  queueBufferingMaxMessages: 100_000,
+  compressionCodec: KafkaProducerCompressionCodecs.GZIP,
+  messageMaxBytes: 20971520
+};
+const kafkaConsumerCommonOptions: KafkaConsumerOptions = {
+  consumerGroupId: 'PAL_API_SVC',
+  batchTimeoutMs: 50,
+  batchSize: 50_000
+};
 
 const MONGO_URL = process.env['MONGO_URL'] || 'mongodb://localhost:27017/';
 
+// these params are for non-productive environments, by default we don't create topics
+const CREATE_TOPICS =
+  (process.env['CREATE_TOPICS'] &&
+    process.env['CREATE_TOPICS'].toUpperCase() === 'TRUE') ||
+  false;
+const DEFAULT_PARTITION_COUNT = 3;
+const DEFAULT_ISR = 2;
+const REQUIRED_TOPICS = [
+  SnapshotEventTopics.LedgerSnapshotEvents,
+  StateEventTopics.LedgerStateEvents,
+  DomainEventTopics.LedgerEvents,
+  DomainEventTopics.AssetEvents,
+  DomainEventTopics.PeerEvents,
+  CommandTopics.LedgerCommands
+];
+
 export class PalApiService {
-  private static grpcService: PalServiceServer;
+  private static _logger: ILogger;
+  private static _msgSerializationFactory: IRawMessageSerializerFactory;
+  private static _kafkaBuilder: IKafkaBuilder;
+  private static _assetRepo: IPalAssetRepository;
+  private static _walletRepo: IPalWalletAddressRepository;
+  private static _peerRepo: IPalPeerRepository;
+  private static _ledgerReadSideRepo: ILedgerReadSideRepository;
+  private static _producer: IMessageProducer;
+  private static _consumer: IMessageConsumer;
+  private static grpcService: PalGrpcServer;
 
-  static async start(): Promise<void> {
-    const assetRepo = new MongoDbAssetRepo(MONGO_URL);
-    await assetRepo.init();
+  static async start(
+    logger?: ILogger,
+    msgSerializationFactory?: IRawMessageSerializerFactory,
+    kafkaBuilder?: IKafkaBuilder,
+    assetRepo?: IPalAssetRepository,
+    walletRepo?: IPalWalletAddressRepository,
+    peerRepo?: IPalPeerRepository,
+    ledgerReadSideRepo?: ILedgerReadSideRepository
+  ): Promise<void> {
+    if (!logger) {
+      logger = new PinoLogger();
+    }
+    this._logger = logger;
 
-    const walletRepo = new MongoDbWalletRepoRepo(MONGO_URL);
-    await walletRepo.init();
+    this._logger.info(`Starting ${this.constructor.name}...`);
 
-    const walletAliasRepo = new MongoWalletAddressAliasRepo(MONGO_URL);
-    await walletAliasRepo.init();
+    if (!msgSerializationFactory) {
+      MessageSerializationFactory.instance()
+        // we only need the commands
+        .register(new CreateLedgerCmdSerde())
+        .register(new CreateLedgerAccountForAssetCmdSerde())
+        .register(new CreateLedgerAccountsForPeerCmdSerde());
 
-    const assetAggregate = new AssetAggregate(assetRepo);
-    const walletAggregate = new WalletAddressAggregate(walletRepo);
-    const walletAddressAliasAggregate = new WalletAddressAliasAggregate(
-      walletAliasRepo
+      msgSerializationFactory = MessageSerializationFactory.instance();
+    }
+    this._msgSerializationFactory = msgSerializationFactory;
+
+    if (!kafkaBuilder) {
+      kafkaBuilder = new KafkaBuilder()
+        .withLogger(this._logger)
+        .withBrokerList(KAFKA_URL)
+        .withClientId(INSTANCE_ID)
+        .withSerializerFactory(this._msgSerializationFactory);
+    }
+    this._kafkaBuilder = kafkaBuilder;
+
+    if (CREATE_TOPICS) {
+      const topicsToCreate = REQUIRED_TOPICS.map((topicName) => {
+        return {
+          topic: topicName,
+          numPartitions: DEFAULT_PARTITION_COUNT,
+          replicationFactor: DEFAULT_ISR
+        };
+      });
+      const admin = this._kafkaBuilder.buildAdmin();
+      await admin.connect();
+      // if the topics already exist, this won't have an effect
+      await admin.createTopics(topicsToCreate);
+    }
+
+    if (!assetRepo) {
+      assetRepo = new MongoDbAssetRepo(MONGO_URL, logger);
+      await (assetRepo as MongoDbAssetRepo).init();
+    }
+    this._assetRepo = assetRepo;
+
+    if (!walletRepo) {
+      walletRepo = new MongoDbWalletRepo(MONGO_URL, logger);
+      await (walletRepo as MongoDbWalletRepo).init();
+    }
+    this._walletRepo = walletRepo;
+
+    if (!peerRepo) {
+      peerRepo = new MongoDbPeerRepo(MONGO_URL, logger);
+      await (peerRepo as MongoDbPeerRepo).init();
+    }
+    this._peerRepo = peerRepo;
+
+    if (!ledgerReadSideRepo) {
+      const repo = new MongoDbLedgerReadSideRepo(MONGO_URL, logger);
+      await repo.init();
+      ledgerReadSideRepo = repo;
+    }
+    this._ledgerReadSideRepo = ledgerReadSideRepo;
+
+    // create producer from kafka builder
+    this._producer = this._kafkaBuilder.buildProducer(
+      kafkaProducerCommonOptions
+    );
+    this._consumer = this._kafkaBuilder.buildConsumer(
+      kafkaConsumerCommonOptions
     );
 
-    const walletDomainService = new WalletDomainService(
-      walletAggregate,
-      walletAddressAliasAggregate
+    // create aggregates driven by this gRPC port
+    const assetAggregate = new AssetAggregate(this._assetRepo, this._logger);
+
+    const walletAggregate = new WalletAddressAggregate(
+      this._walletRepo,
+      this._logger
     );
 
-    this.grpcService = new PalServiceServer(
-      '1',
-      '0.0.0.0:50051',
+    const peerAggregate = new PeerAggregate(this._peerRepo, this._logger);
+
+    this.grpcService = new PalGrpcServer(
+      INSTANCE_ID,
+      `0.0.0.0:${SVC_PORT}`,
       assetAggregate,
       walletAggregate,
-      walletAddressAliasAggregate,
-      walletDomainService
+      peerAggregate,
+      this._producer,
+      this._consumer,
+      this._ledgerReadSideRepo,
+      this._logger
     );
 
     await this.grpcService.start();
@@ -63,5 +205,9 @@ export class PalApiService {
 
   static async stop(): Promise<void> {
     await this.grpcService.stop();
+
+    if (this._producer) {
+      await this._producer.disconnect();
+    }
   }
 }

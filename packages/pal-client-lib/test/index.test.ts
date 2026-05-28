@@ -1,32 +1,36 @@
-/*****
- Copyright © 2026 & Interledger Foundation
- ----------------------------------------------
- Contributors
-
- * Cyberbones Digital Solutions
- - Pedro Sousa Barreto <pedrosousabarreto@gmail.com>
- ******/
-
-'use strict';
-
 import { after, before, test } from 'node:test';
+import { randomBytes } from 'node:crypto';
 import * as assert from 'node:assert/strict';
 import { PalClient, parseAddressToDomainAndPathName } from '../src';
+import { IPalPeerDto } from 'pal-public-types-lib';
 
 let client: PalClient;
+const testPrefix = `TEST-${randomBytes(3).toString('hex')}`;
 
-const ASSET_CODE = 'EUR';
+// const assetCode = `USD`;
+const ASSET_CODE = `${testPrefix}_EUR`;
 const ASSET_SCALE = 2;
 
-const ALIAS_DOMAIN = 'domain.com';
-const ALIAS_PATHNAME = 'pedrobarreto';
+const PEER_ONE_ID = `${testPrefix}_peer1`;
+const PEER_ONE_NAME = `${testPrefix} Peer One`;
+const PEER_ONE_ILP_STATIC_ADDRESS = `${testPrefix}_peer1.static.address`;
+const PEER_ONE_ILP_ALTERNATE_STATIC_ADDRESS = `${testPrefix}_peer1.static.alt-address`;
+
+const ALIAS_DOMAIN = `${testPrefix}_domain.com`;
+const ALIAS_PATHNAME = `${testPrefix}_pedrobarreto`;
 const PUBLIC_NAME = 'Pedro Barreto';
 
 let createdWalletAddressId: string;
+let createdAssetLedgerAccountId: string;
+
+let peerOneDto: IPalPeerDto;
 
 before(async () => {
   client = new PalClient('0.0.0.0:50051');
   await client.init();
+});
+after(async () => {
+  await client.disconnect();
 });
 
 /*
@@ -34,22 +38,41 @@ before(async () => {
  * */
 
 test('pal client - create asset', async () => {
-  await client.createAsset(ASSET_CODE, ASSET_SCALE, undefined, undefined);
+  await client.createAsset(ASSET_CODE, ASSET_SCALE);
+  assert.ok(true);
 });
 
-test('pal client - get asset', async () => {
+test('pal client - created asset must exist', async () => {
   const asset = await client.getAsset(ASSET_CODE);
 
   assert.ok(asset);
   assert.equal(asset.code, ASSET_CODE);
   assert.equal(asset.scale, ASSET_SCALE);
-  assert.equal(asset.liquidityLowThreshold, null);
-  assert.equal(asset.liquidityHighThreshold, null);
+
+  assert.ok(asset.ledgerAccountId);
+  createdAssetLedgerAccountId = asset.ledgerAccountId;
+});
+
+test('pal client - created asset must exist and have an new ledger in the liquidity system', async () => {
+  // we have to wait for the ledger account to be created in the read side of the ledger
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+  const [assetAccount] = await client.getLedgerAccounts([
+    createdAssetLedgerAccountId
+  ]);
+
+  assert.ok(assetAccount);
+  assert.ok(assetAccount.id, createdAssetLedgerAccountId);
+  assert.equal(assetAccount.assetCode, ASSET_CODE);
+  // asset id is the code (and that's the ext id for the ledger account
+  assert.ok(assetAccount.externalId);
+  assert.equal(assetAccount.externalId, ASSET_CODE);
+  assert.equal(assetAccount.creditedAmount, '0');
+  assert.equal(assetAccount.debitedAmount, '0');
 });
 
 test('pal client - created duplicate asset should fail', async () => {
   try {
-    await client.createAsset(ASSET_CODE, ASSET_SCALE, undefined, undefined);
+    await client.createAsset(ASSET_CODE, ASSET_SCALE);
 
     assert.fail();
   } catch (e) {
@@ -62,6 +85,189 @@ test('pal client - get non existing asset should fail', async () => {
   const asset = await client.getAsset('NON EXISTING');
 
   assert.ok(asset === null);
+});
+
+/*
+ * Peer tests
+ * */
+
+test('pal client - create peer', async () => {
+  await client.createPeer(
+    PEER_ONE_ID,
+    PEER_ONE_NAME,
+    ASSET_CODE,
+    ASSET_SCALE,
+    PEER_ONE_ILP_STATIC_ADDRESS
+  );
+  assert.ok(true);
+});
+
+test('pal client - created peer must exist', async () => {
+  const peer = await client.getPeer(PEER_ONE_ID);
+
+  assert.ok(peer);
+  assert.equal(peer.id, PEER_ONE_ID);
+  assert.equal(peer.name, PEER_ONE_NAME);
+  assert.equal(peer.assetCode, ASSET_CODE);
+  assert.equal(peer.assetScale, ASSET_SCALE);
+  assert.ok(peer.ledgerAccounts);
+  assert.ok(peer.ledgerAccounts.peerLiquidityAccId);
+  assert.ok(peer.ledgerAccounts.peerClearingAccId);
+  assert.ok(peer.ledgerAccounts.aseLiquidityAccId);
+  assert.ok(peer.ledgerAccounts.aseClearingAccId);
+  assert.ok(peer.ledgerAccounts.suspenseAccId);
+
+  assert.ok(peer.communicationMethodDefinition);
+  assert.equal(peer.communicationMethodDefinition.type, 'ILP');
+  assert.equal(
+    peer.communicationMethodDefinition.staticAddress,
+    PEER_ONE_ILP_STATIC_ADDRESS
+  );
+  peerOneDto = peer;
+});
+
+test('pal client - get created peer by ILP Address', async () => {
+  const peer = await client.getPeerByIlpAddress(PEER_ONE_ILP_STATIC_ADDRESS);
+
+  assert.ok(peer);
+  assert.equal(peer.id, PEER_ONE_ID);
+  assert.equal(peer.name, PEER_ONE_NAME);
+  assert.equal(peer.assetCode, ASSET_CODE);
+  assert.equal(peer.assetScale, ASSET_SCALE);
+  assert.ok(peer.ledgerAccounts);
+  assert.ok(peer.ledgerAccounts.peerLiquidityAccId);
+  assert.ok(peer.ledgerAccounts.peerClearingAccId);
+  assert.ok(peer.ledgerAccounts.aseLiquidityAccId);
+  assert.ok(peer.ledgerAccounts.aseClearingAccId);
+  assert.ok(peer.ledgerAccounts.suspenseAccId);
+
+  assert.ok(peer.communicationMethodDefinition);
+  assert.equal(peer.communicationMethodDefinition.type, 'ILP');
+  assert.equal(
+    peer.communicationMethodDefinition.staticAddress,
+    PEER_ONE_ILP_STATIC_ADDRESS
+  );
+  peerOneDto = peer;
+});
+
+test('pal client - update peer ILP Address', async () => {
+  await client.setPeerCommunicationMethod(
+    PEER_ONE_ID,
+    PEER_ONE_ILP_ALTERNATE_STATIC_ADDRESS
+  );
+
+  let peer = await client.getPeerByIlpAddress(
+    PEER_ONE_ILP_ALTERNATE_STATIC_ADDRESS
+  );
+
+  assert.ok(peer);
+  assert.equal(peer.id, PEER_ONE_ID);
+
+  assert.ok(peer.communicationMethodDefinition);
+  assert.equal(peer.communicationMethodDefinition.type, 'ILP');
+  assert.equal(
+    peer.communicationMethodDefinition.staticAddress,
+    PEER_ONE_ILP_ALTERNATE_STATIC_ADDRESS
+  );
+
+  // revert for remaining tests
+
+  await client.setPeerCommunicationMethod(
+    PEER_ONE_ID,
+    PEER_ONE_ILP_STATIC_ADDRESS
+  );
+
+  peer = await client.getPeerByIlpAddress(PEER_ONE_ILP_STATIC_ADDRESS);
+  assert.ok(peer);
+  assert.equal(peer.id, PEER_ONE_ID);
+
+  assert.ok(peer.communicationMethodDefinition);
+  assert.equal(peer.communicationMethodDefinition.type, 'ILP');
+  assert.equal(
+    peer.communicationMethodDefinition.staticAddress,
+    PEER_ONE_ILP_STATIC_ADDRESS
+  );
+});
+
+test('pal client - deactivate peer', async () => {
+  await client.deactivatePeer(PEER_ONE_ID);
+
+  const peer = await client.getPeer(PEER_ONE_ID);
+
+  assert.ok(peer);
+  assert.equal(peer.id, PEER_ONE_ID);
+  assert.equal(peer.active, false);
+});
+
+test('pal client - re-activating peer', async () => {
+  await client.activatePeer(PEER_ONE_ID);
+
+  const peer = await client.getPeer(PEER_ONE_ID);
+
+  assert.ok(peer);
+  assert.equal(peer.id, PEER_ONE_ID);
+  assert.equal(peer.active, true);
+});
+
+test('pal client - created peer must have an new set of ledger accounts', async () => {
+  // we have to wait for the ledger acount to be created in the read side of the ledger
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+  const accountIds: string[] = Object.values(peerOneDto.ledgerAccounts);
+
+  const accounts = await client.getLedgerAccounts(accountIds);
+
+  assert.ok(accounts);
+  assert.equal(accounts.length, 5);
+
+  const peerLiqAcc = accounts.find(
+    (a) => a.id === peerOneDto.ledgerAccounts.peerLiquidityAccId
+  );
+  assert.ok(peerLiqAcc);
+  assert.equal(peerLiqAcc.id, peerOneDto.ledgerAccounts.peerLiquidityAccId);
+  assert.equal(peerLiqAcc.assetCode, ASSET_CODE);
+  assert.equal(peerLiqAcc.externalId, PEER_ONE_ID);
+  assert.equal(peerLiqAcc.creditedAmount, '0');
+  assert.equal(peerLiqAcc.debitedAmount, '0');
+
+  const peerCleAcc = accounts.find(
+    (a) => a.id === peerOneDto.ledgerAccounts.peerClearingAccId
+  );
+  assert.ok(peerCleAcc);
+  assert.equal(peerCleAcc.id, peerOneDto.ledgerAccounts.peerClearingAccId);
+  assert.equal(peerCleAcc.assetCode, ASSET_CODE);
+  assert.equal(peerCleAcc.externalId, PEER_ONE_ID);
+  assert.equal(peerCleAcc.creditedAmount, '0');
+  assert.equal(peerCleAcc.debitedAmount, '0');
+
+  const aseLiqAcc = accounts.find(
+    (a) => a.id === peerOneDto.ledgerAccounts.aseLiquidityAccId
+  );
+  assert.ok(aseLiqAcc);
+  assert.equal(aseLiqAcc.id, peerOneDto.ledgerAccounts.aseLiquidityAccId);
+  assert.equal(aseLiqAcc.assetCode, ASSET_CODE);
+  assert.equal(aseLiqAcc.externalId, PEER_ONE_ID);
+  assert.equal(aseLiqAcc.creditedAmount, '0');
+  assert.equal(aseLiqAcc.debitedAmount, '0');
+
+  const aseCleAcc = accounts.find(
+    (a) => a.id === peerOneDto.ledgerAccounts.aseClearingAccId
+  );
+  assert.ok(aseCleAcc);
+  assert.equal(aseCleAcc.id, peerOneDto.ledgerAccounts.aseClearingAccId);
+  assert.equal(aseCleAcc.assetCode, ASSET_CODE);
+  assert.equal(aseCleAcc.externalId, PEER_ONE_ID);
+  assert.equal(aseCleAcc.creditedAmount, '0');
+  assert.equal(aseCleAcc.debitedAmount, '0');
+
+  const suspenseAcc = accounts.find(
+    (a) => a.id === peerOneDto.ledgerAccounts.suspenseAccId
+  );
+  assert.ok(suspenseAcc);
+  assert.equal(suspenseAcc.id, peerOneDto.ledgerAccounts.suspenseAccId);
+  assert.equal(suspenseAcc.assetCode, ASSET_CODE);
+  assert.equal(suspenseAcc.externalId, PEER_ONE_ID);
+  assert.equal(suspenseAcc.creditedAmount, '0');
+  assert.equal(suspenseAcc.debitedAmount, '0');
 });
 
 /*
@@ -246,3 +452,7 @@ test('pal client - parseAddressToDomainAndPathName should work with an odd FQDN 
   assert.equal(domain, null);
   assert.equal(pathName, '.path/name');
 });
+
+/*
+ * pal client ledger low-level tests
+ * */

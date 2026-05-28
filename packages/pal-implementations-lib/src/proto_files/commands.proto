@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+// ledger commands
+message PbCreateLedgerCmdPayload{
+  string ledger_id = 1;
+}
+
+message PbCreateLedgerAccountCmdPayload{
+  string account_id = 1;
+  string asset_code = 2;
+  string name = 3;
+  optional uint32 asset_display_scale = 4;
+}
+
+message PbCreateLedgerAccountForAssetCmdPayload{
+  string account_id = 1;
+  string asset_code = 2;
+}
+
+message PbCreateLedgerAccountsForPeerCmdPayload{
+  string peer_id = 1;
+  string asset_code = 2;
+  string peer_liquidity_account_id = 3;
+  string peer_clearing_account_id = 4;
+  string ase_liquidity_account_id = 5;
+  string ase_clearing_account_id = 6;
+  string suspense_account_id = 7;
+}
+
+message PbPostTransactionCmdPayload{
+  string id = 1;
+  string debited_account_id = 2;
+  string credited_account_id = 3;
+  string amount =4;
+  uint32 amount_scale = 5;
+}

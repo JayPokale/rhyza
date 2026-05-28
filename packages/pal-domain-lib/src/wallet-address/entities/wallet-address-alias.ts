@@ -1,0 +1,37 @@
+import { IPalWalletAddressAliasDto } from 'pal-public-types-lib';
+
+export class PalWalletAddressAlias {
+  private readonly _domain: string | null;
+  private readonly _pathName: string;
+  private readonly _walletId: string;
+
+  constructor(domain: string | null, pathName: string, walletId: string) {
+    this._domain = domain;
+    this._pathName = pathName;
+    this._walletId = walletId;
+  }
+
+  get domain(): string | null {
+    return this._domain;
+  }
+
+  get pathName(): string {
+    return this._pathName;
+  }
+
+  get walletId(): string {
+    return this._walletId;
+  }
+
+  static fromObject(json: IPalWalletAddressAliasDto): PalWalletAddressAlias {
+    return new PalWalletAddressAlias(json.domain, json.pathName, json.walletId);
+  }
+
+  toObject(): IPalWalletAddressAliasDto {
+    return {
+      domain: this._domain,
+      pathName: this._pathName,
+      walletId: this._walletId
+    };
+  }
+}

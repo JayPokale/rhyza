@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+/*
+Specific payload messages
+*/
+
+message PbLedgerAccountState{
+    string id = 1;
+    string name = 2;
+    string asset_code = 3;
+    uint32 asset_display_scale = 4;
+    string debited_amount = 5;
+    string credited_amount = 6;
+}
+
+message PbLedgerSnapshotPayload{
+    repeated PbLedgerAccountState accounts = 1;
+    uint64 transaction_count = 2;
+    uint32 asset_scale = 3;
+}
+
+message PbLedgerAccountsCreatedStatePayload{
+    repeated PbLedgerAccountState accounts = 1;
+}
+
+message PbLedgerCreatedStatePayload{
+    string ledger_id = 1;
+    uint32 asset_scale = 2;
+}
+
+message PbLedgerTransactionRecordedStatePayload{
+    string id = 1;
+    string debited_account_id = 2;
+    string credited_account_id = 3;
+    string amount =4;
+    uint32 amount_scale = 5;
+    uint64 timestamp = 6;
+}
