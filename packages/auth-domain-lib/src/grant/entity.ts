@@ -142,26 +142,28 @@ export class GrantEntity implements IGrantEntity {
       InteractiveAccessType.includes(access.type)
     );
 
-    const entity = new GrantEntity({
-      ...input,
-      state: isContinuableGrant ? GrantState.PENDING : GrantState.FINALIZED,
-      finalizationReason: !isContinuableGrant
-        ? GrantFinalization.ISSUED
-        : undefined,
-      continueToken: isContinuableGrant ? generateContinueToken() : undefined,
-      continueId: isContinuableGrant ? uuid() : undefined
-    });
-
-    let accessToken: IAccessToken | undefined;
     if (isContinuableGrant) {
-      accessToken = entity.createAccessToken();
+      const entity = new GrantEntity({
+        ...input,
+        state: GrantState.PENDING,
+        continueToken: generateContinueToken(),
+        continueId: uuid()
+      });
 
       return {
-        entity,
-        accessToken
+        entity
       };
     } else {
-      return { entity };
+      const entity = new GrantEntity({
+        ...input,
+        state: GrantState.FINALIZED,
+        finalizationReason: GrantFinalization.ISSUED
+      });
+
+      let accessToken: IAccessToken | undefined;
+      accessToken = entity.createAccessToken();
+
+      return { entity, accessToken };
     }
   }
 
