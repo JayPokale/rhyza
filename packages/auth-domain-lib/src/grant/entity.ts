@@ -153,11 +153,16 @@ export class GrantEntity implements IGrantEntity {
     });
 
     let accessToken: IAccessToken | undefined;
-    if (!isContinuableGrant) {
+    if (isContinuableGrant) {
       accessToken = entity.createAccessToken();
-    }
 
-    return { entity, accessToken };
+      return {
+        entity,
+        accessToken
+      };
+    } else {
+      return { entity };
+    }
   }
 
   toObject(): IGrant {

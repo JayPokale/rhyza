@@ -257,17 +257,9 @@ export class AuthServiceServer {
           }
         : undefined;
 
-      // TODO: should this be handled here, in the aggregate, or in the application?
       const startMethods = call.request
         .getStartList()
         .map((s: any) => s.toString());
-      if (startMethods.length === 0) {
-        callback({
-          code: grpc.status.INVALID_ARGUMENT,
-          message: 'At least one start method must be provided'
-        });
-        return;
-      }
 
       const cmd = new CreateGrantCmd(
         {

@@ -57,9 +57,10 @@ message Grant {
 message AccessLimits {
 	string receiver = 1;
 	string debit_amount_value = 2;
-	string send_amount_value = 3;
+	string receive_amount_value = 3;
 	string asset_code = 4;
-	string interval = 5;
+	int32 asset_scale = 5;
+	string interval = 6;
 }
 
 message GrantRequestFinish {
