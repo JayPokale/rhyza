@@ -84,7 +84,7 @@ export async function incomingPaymentRoutes(
         );
       }
 
-      const result = await paymentsClient.createIncomingPayment(
+      const result = await paymentsClient.createPaymentIntent(
         id,
         walletAddress.id,
         `${domain}/${pathName}`,
