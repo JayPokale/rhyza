@@ -41,7 +41,6 @@ export class NotificationsEventHandler {
       case PaymentCreatedEvent.name:
         await this.handleNotificationMessage(message);
         break;
-
       default:
         console.warn(`Unhandled message: ${message.msgName}`);
     }
@@ -49,11 +48,8 @@ export class NotificationsEventHandler {
 
   private async handleNotificationMessage(message: IMessage) {
     console.log(`${message.msgName} received with id ${message.payload.id}`);
-
     const { id, ...data } = message.payload;
-
     const cmd = new CreateNotificationCmd({ id, data }, message.requestId);
-
     await this._msgProducer.send(cmd);
   }
 }
