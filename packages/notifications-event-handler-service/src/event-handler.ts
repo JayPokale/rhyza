@@ -6,6 +6,8 @@ import {
 } from 'common-types-lib';
 import { CreateNotificationCmd } from 'notifications-domain-lib';
 import {
+  PaymentCreatedEvent,
+  PaymentCreatedPayload,
   PaymentIntentCreatedEvent,
   PaymentIntentCreatedPayload
 } from 'payments-domain-lib';
@@ -37,17 +39,23 @@ export class NotificationsEventHandler {
 
   private async _handleEvent(message: IMessage) {
     switch (message.msgName) {
-      case PaymentIntentCreatedEvent.name: {
-        console.log(
-          `PaymentIntentCreated event received with id ${message.payload.id}`
-        );
-        const { id, ...data } = message.payload as PaymentIntentCreatedPayload;
-        const cmd = new CreateNotificationCmd({ id, data }, message.requestId);
-        await this._msgProducer.send(cmd);
+      case PaymentIntentCreatedEvent.name:
+      case PaymentCreatedEvent.name:
+        await this.handleNotificationMessage(message);
         break;
-      }
+
       default:
         console.warn(`Unhandled message: ${message.msgName}`);
     }
+  }
+
+  private async handleNotificationMessage(message: IMessage) {
+    console.log(`${message.msgName} received with id ${message.payload.id}`);
+
+    const { id, ...data } = message.payload;
+
+    const cmd = new CreateNotificationCmd({ id, data }, message.requestId);
+
+    await this._msgProducer.send(cmd);
   }
 }
