@@ -7,9 +7,7 @@ import {
 import { CreateNotificationCmd } from 'notifications-domain-lib';
 import {
   PaymentCreatedEvent,
-  PaymentCreatedPayload,
-  PaymentIntentCreatedEvent,
-  PaymentIntentCreatedPayload
+  PaymentIntentCreatedEvent
 } from 'payments-domain-lib';
 
 export class NotificationsEventHandler {
