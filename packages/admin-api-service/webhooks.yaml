@@ -87,9 +87,7 @@ components:
         state:
           type: string
           enum:
-            - FUNDING
-            - SENDING
-            - FAILED
+            - CREATED
             - COMPLETED
         paymentIntentId:
           type: string
