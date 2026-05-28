@@ -160,9 +160,7 @@ export class GrantEntity implements IGrantEntity {
         finalizationReason: GrantFinalization.ISSUED
       });
 
-      let accessToken: IAccessToken | undefined;
-      accessToken = entity.createAccessToken();
-
+      const accessToken = entity.createAccessToken();
       return { entity, accessToken };
     }
   }
