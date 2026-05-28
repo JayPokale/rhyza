@@ -181,13 +181,16 @@ export class AuthServiceServer {
       const limits = new AccessLimits();
       limits.setReceiver(accessItem.limits.receiver);
       if (accessItem.limits.sendAmount) {
-        limits.setSendAmountValue(String(accessItem.limits.sendAmount));
+        limits.setReceiveAmountValue(String(accessItem.limits.sendAmount));
       }
       if (accessItem.limits.debitAmount) {
         limits.setDebitAmountValue(String(accessItem.limits.debitAmount));
       }
       if (accessItem.limits.assetCode) {
         limits.setAssetCode(accessItem.limits.assetCode);
+      }
+      if (accessItem.limits.assetScale) {
+        limits.setAssetScale(accessItem.limits.assetScale);
       }
       if (accessItem.limits.interval) {
         limits.setInterval(accessItem.limits.interval);
