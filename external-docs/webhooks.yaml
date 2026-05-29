@@ -42,6 +42,9 @@ components:
           format: uuid
         type:
           type: string
+          enum:
+            - payment_intent.created
+            - payment.created
         data:
           type: object
 
@@ -50,6 +53,10 @@ components:
         - $ref: '#/components/schemas/webhookEvent'
         - type: object
           properties:
+            type:
+              type: string
+              enum:
+                - payment_intent.created
             data:
               type: object
               required:
@@ -57,7 +64,7 @@ components:
                 - walletAddressId
                 - createdAt
                 - expiresAt
-                - receivedAmount
+                - receiveAmount
               properties:
                 id:
                   type: string
@@ -71,9 +78,9 @@ components:
                   type: string
                   format: uuid
                 incomingAmount:
-                  type: number
-                receivedAmount:
-                  type: number
+                  $ref: '#/components/schemas/amount'
+                receiveAmount:
+                  $ref: '#/components/schemas/amount'
                 createdAt:
                   type: string
                   format: date-time
@@ -86,6 +93,10 @@ components:
         - $ref: '#/components/schemas/webhookEvent'
         - type: object
           properties:
+            type:
+              type: string
+              enum:
+                - payment.created
             data:
               type: object
               required:
@@ -112,11 +123,24 @@ components:
                   type: string
                   format: uri
                 debitAmount:
-                  type: number
+                  $ref: '#/components/schemas/amount'
                 sentAmount:
-                  type: number
+                  $ref: '#/components/schemas/amount'
                 receiveAmount:
-                  type: number
+                  $ref: '#/components/schemas/amount'
                 createdAt:
                   type: string
                   format: date-time
+    amount:
+      type: object
+      required:
+        - value
+        - assetCode
+        - assetScale
+      properties:
+        value:
+          type: string
+        assetCode:
+          type: string
+        assetScale:
+          type: integer
