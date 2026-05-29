@@ -1,0 +1,122 @@
+openapi: 3.1.0
+info:
+  title: Rafiki Webhooks
+  version: 0.0.0
+webhooks:
+  paymentIntentCreated:
+    post:
+      summary: Payment intent created
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/paymentIntentEvent'
+      responses:
+        '200':
+          description: Payment intent created
+  paymentCreated:
+    post:
+      summary: Payment created
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/paymentEvent'
+      responses:
+        '200':
+          description: Payment created
+
+components:
+  schemas:
+    webhookEvent:
+      type: object
+      required:
+        - id
+        - type
+        - data
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+        data:
+          type: object
+
+    paymentIntentEvent:
+      allOf:
+        - $ref: '#/components/schemas/webhookEvent'
+        - type: object
+          properties:
+            data:
+              type: object
+              required:
+                - id
+                - walletAddressId
+                - createdAt
+                - expiresAt
+                - receivedAmount
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                state:
+                  type: string
+                  enum:
+                    - CREATED
+                    - COMPLETED
+                walletAddressId:
+                  type: string
+                  format: uuid
+                incomingAmount:
+                  type: number
+                receivedAmount:
+                  type: number
+                createdAt:
+                  type: string
+                  format: date-time
+                expiresAt:
+                  type: string
+                  format: date-time
+
+    paymentEvent:
+      allOf:
+        - $ref: '#/components/schemas/webhookEvent'
+        - type: object
+          properties:
+            data:
+              type: object
+              required:
+                - id
+                - walletAddressId
+                - createdAt
+                - debitAmount
+                - sentAmount
+                - receiveAmount
+                - state
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                walletAddressId:
+                  type: string
+                  format: uuid
+                state:
+                  type: string
+                  enum:
+                    - CREATED
+                    - COMPLETED
+                paymentIntentId:
+                  type: string
+                  format: uri
+                debitAmount:
+                  type: number
+                sentAmount:
+                  type: number
+                receiveAmount:
+                  type: number
+                createdAt:
+                  type: string
+                  format: date-time
