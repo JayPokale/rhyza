@@ -4,20 +4,24 @@ import {
   RafikiAuthClient,
   GrantRequest,
   Grant,
-  GrantContinuationRequest,
-  GrantRevocationRequest,
-  TokenIntrospectionRequest,
-  TokenInfo,
-  TokenRotationRequest,
-  AccessToken,
-  TokenRevocationRequest,
   GetGrantRequest,
-  InteractionChoiceRequest,
-  InteractionChoiceResponse,
   AccessItem,
-  StartMethod,
   GrantRequestFinish,
-  Subject
+  Subject,
+  RevokeGrantResponse,
+  ContinueGrantResponse,
+  RotateTokenResponse,
+  RevokeTokenResponse,
+  CreateGrantResponse,
+  HandleInteractionChoiceResponse,
+  AcceptInteractionRequest,
+  RejectInteractionRequest,
+  ContinueGrantRequest,
+  RevokeGrantRequest,
+  IntrospectTokenResponse,
+  IntrospectTokenRequest,
+  RotateTokenRequest,
+  RevokeTokenRequest
 } from 'auth-public-types-lib';
 
 export class AuthClient {
@@ -79,20 +83,18 @@ export class AuthClient {
     access: AccessItem[],
     client: string,
     subject: Subject,
-    start: StartMethod[],
     finish: GrantRequestFinish
-  ): Promise<Grant> {
+  ): Promise<CreateGrantResponse> {
     const request = new GrantRequest();
     request.setAccessList(access);
     request.setClient(client);
     request.setSubject(subject);
-    request.setStartList(start);
     request.setFinish(finish);
 
     return new Promise((resolve, reject) => {
       this._grpcClient.createGrant(
         request,
-        (error: ServiceError | null, response: Grant) => {
+        (error: ServiceError | null, response: CreateGrantResponse) => {
           if (error) {
             reject(error);
           } else {
@@ -104,11 +106,13 @@ export class AuthClient {
   }
 
   continueGrant(
+    id: string,
     continueId: string,
     continueToken: string,
     interactRef: string
-  ): Promise<Grant> {
-    const request = new GrantContinuationRequest();
+  ): Promise<ContinueGrantResponse> {
+    const request = new ContinueGrantRequest();
+    request.setId(id);
     request.setContinueId(continueId);
     request.setContinueToken(continueToken);
     request.setInteractRef(interactRef);
@@ -116,7 +120,7 @@ export class AuthClient {
     return new Promise((resolve, reject) => {
       this._grpcClient.continueGrant(
         request,
-        (error: ServiceError | null, response: Grant) => {
+        (error: ServiceError | null, response: ContinueGrantResponse) => {
           if (error) {
             reject(error);
           } else {
@@ -127,15 +131,20 @@ export class AuthClient {
     });
   }
 
-  revokeGrant(continueId: string, continueToken: string): Promise<Grant> {
-    const request = new GrantRevocationRequest();
+  revokeGrant(
+    id: string,
+    continueId: string,
+    continueToken: string
+  ): Promise<RevokeGrantResponse> {
+    const request = new RevokeGrantRequest();
+    request.setId(id);
     request.setContinueId(continueId);
     request.setContinueToken(continueToken);
 
     return new Promise((resolve, reject) => {
       this._grpcClient.revokeGrant(
         request,
-        (error: ServiceError | null, response: Grant) => {
+        (error: ServiceError | null, response: RevokeGrantResponse) => {
           if (error) {
             reject(error);
           } else {
@@ -147,17 +156,19 @@ export class AuthClient {
   }
 
   introspectToken(
+    id: string,
     tokenValue: string,
     access: AccessItem[]
-  ): Promise<TokenInfo> {
-    const request = new TokenIntrospectionRequest();
+  ): Promise<IntrospectTokenResponse> {
+    const request = new IntrospectTokenRequest();
+    request.setId(id);
     request.setTokenValue(tokenValue);
     request.setAccessList(access);
 
     return new Promise((resolve, reject) => {
       this._grpcClient.introspectToken(
         request,
-        (error: ServiceError | null, response: TokenInfo) => {
+        (error: ServiceError | null, response: IntrospectTokenResponse) => {
           if (error) {
             reject(error);
           } else {
@@ -168,15 +179,20 @@ export class AuthClient {
     });
   }
 
-  rotateToken(tokenValue: string, managementId: string): Promise<AccessToken> {
-    const request = new TokenRotationRequest();
+  rotateToken(
+    id: string,
+    tokenValue: string,
+    managementId: string
+  ): Promise<RotateTokenResponse> {
+    const request = new RotateTokenRequest();
+    request.setId(id);
     request.setTokenValue(tokenValue);
     request.setManagementId(managementId);
 
     return new Promise((resolve, reject) => {
       this._grpcClient.rotateToken(
         request,
-        (error: ServiceError | null, response: AccessToken) => {
+        (error: ServiceError | null, response: RotateTokenResponse) => {
           if (error) {
             reject(error);
           } else {
@@ -187,15 +203,20 @@ export class AuthClient {
     });
   }
 
-  revokeToken(tokenValue: string, managementId: string): Promise<AccessToken> {
-    const request = new TokenRevocationRequest();
+  revokeToken(
+    id: string,
+    tokenValue: string,
+    managementId: string
+  ): Promise<RevokeTokenResponse> {
+    const request = new RevokeTokenRequest();
+    request.setId(id);
     request.setTokenValue(tokenValue);
     request.setManagementId(managementId);
 
     return new Promise((resolve, reject) => {
       this._grpcClient.revokeToken(
         request,
-        (error: ServiceError | null, response: AccessToken) => {
+        (error: ServiceError | null, response: RevokeTokenResponse) => {
           if (error) {
             reject(error);
           } else {
@@ -207,17 +228,22 @@ export class AuthClient {
   }
 
   acceptInteraction(
-    interactId: string,
+    id: string,
+    interactRef: string,
     nonce: string
-  ): Promise<InteractionChoiceResponse> {
-    const request = new InteractionChoiceRequest();
-    request.setInteractId(interactId);
+  ): Promise<HandleInteractionChoiceResponse> {
+    const request = new AcceptInteractionRequest();
+    request.setId(id);
+    request.setInteractRef(interactRef);
     request.setNonce(nonce);
 
     return new Promise((resolve, reject) => {
       this._grpcClient.acceptInteraction(
         request,
-        (error: ServiceError | null, response: InteractionChoiceResponse) => {
+        (
+          error: ServiceError | null,
+          response: HandleInteractionChoiceResponse
+        ) => {
           if (error) {
             reject(error);
           } else {
@@ -229,17 +255,20 @@ export class AuthClient {
   }
 
   rejectInteraction(
-    interactId: string,
+    id: string,
     nonce: string
-  ): Promise<InteractionChoiceResponse> {
-    const request = new InteractionChoiceRequest();
-    request.setInteractId(interactId);
+  ): Promise<HandleInteractionChoiceResponse> {
+    const request = new RejectInteractionRequest();
+    request.setId(id);
     request.setNonce(nonce);
 
     return new Promise((resolve, reject) => {
       this._grpcClient.rejectInteraction(
         request,
-        (error: ServiceError | null, response: InteractionChoiceResponse) => {
+        (
+          error: ServiceError | null,
+          response: HandleInteractionChoiceResponse
+        ) => {
           if (error) {
             reject(error);
           } else {

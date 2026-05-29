@@ -3,23 +3,23 @@ package rafiki.auth.service;
 
 service RafikiAuth {
 	// Grant RPCs
-	rpc CreateGrant(GrantRequest) returns (Grant) {}
+	rpc CreateGrant(GrantRequest) returns (CreateGrantResponse) {}
 	rpc GetGrant(GetGrantRequest) returns (Grant) {}
-	rpc ContinueGrant(GrantContinuationRequest) returns (Grant) {}
-	rpc RevokeGrant(GrantRevocationRequest) returns (Grant) {}
+	rpc ContinueGrant(ContinueGrantRequest) returns (ContinueGrantResponse) {}
+	rpc RevokeGrant(RevokeGrantRequest) returns (RevokeGrantResponse) {}
 	// Access Token RPCs
-	rpc IntrospectToken(TokenIntrospectionRequest) returns (TokenInfo) {}
-	rpc RotateToken(TokenRotationRequest) returns (AccessToken) {}
-	rpc RevokeToken(TokenRevocationRequest) returns (AccessToken) {}
+	rpc IntrospectToken(IntrospectTokenRequest) returns (IntrospectTokenResponse) {}
+	rpc RotateToken(RotateTokenRequest) returns (RotateTokenResponse) {}
+	rpc RevokeToken(RevokeTokenRequest) returns (RevokeTokenResponse) {}
 	// Interaction RPCs
-	rpc AcceptInteraction(InteractionChoiceRequest)  returns (InteractionChoiceResponse) {}
-	rpc RejectInteraction(InteractionChoiceRequest) returns (InteractionChoiceResponse) {}
+	rpc AcceptInteraction(AcceptInteractionRequest)  returns (HandleInteractionChoiceResponse) {}
+	rpc RejectInteraction(RejectInteractionRequest) returns (HandleInteractionChoiceResponse) {}
 }
 
 message AccessItem {
-	AccessType type = 1;
+	string type = 1;
 	AccessLimits limits = 2;
-	repeated AccessAction actions = 3;
+	repeated string actions = 3;
 	string identifier = 4;
 }
 
@@ -39,7 +39,7 @@ message Interaction {
 
 message Grant {
 	string id = 1;
-	repeated StartMethod start = 2;
+	repeated string start = 2;
 	string continue_token = 3;
 	string continue_id = 4;
 	string state = 5;
@@ -47,51 +47,24 @@ message Grant {
 	string client = 7;
 	Subject subject = 8;
 	repeated AccessItem accesses = 9;
-	repeated FinishMethod finishMethods = 10;
-	repeated string finishUris = 11;
+	string finish_method = 10;
+	string finish_uri = 11;
 	Interaction interaction = 12;
 	string last_continued_at = 13; // Date string
 	repeated AccessToken access_tokens = 14;
 }
 
-enum AccessType {
-	INCOMING_PAYMENT = 0;
-	OUTGOING_PAYMENT = 1;
-	QUOTE = 2;
-}
-
-enum AccessAction {
-	CREATE = 0;
-	COMPLETE = 1;
-	READ = 2;
-	READ_ALL = 3;
-	LIST = 4;
-	LIST_ALL = 5;
-}
-
-message Amount {
-	string value = 1;
-	int32 scale = 2;	
-}
-
 message AccessLimits {
 	string receiver = 1;
-	Amount debit_amount = 2;
-	Amount send_amount = 3;
+	string debit_amount_value = 2;
+	string receive_amount_value = 3;
 	string asset_code = 4;
-	string interval = 5;
-}
-
-enum StartMethod {
-	START_REDIRECT = 0;
-}
-
-enum FinishMethod {
-	FINISH_REDIRECT = 0;
+	int32 asset_scale = 5;
+	string interval = 6;
 }
 
 message GrantRequestFinish {
-	FinishMethod finish = 1;
+	string finish = 1;
 	string uri = 2;
 	string nonce = 3;
 }
@@ -109,58 +82,101 @@ message GrantRequest {
 	repeated AccessItem access = 1;
 	string client = 2;
 	Subject subject = 3;
-	repeated StartMethod start = 4;
+	repeated string start = 4;
 	GrantRequestFinish finish = 5;
+}
+
+message CreateGrantResponse {
+	string id = 1;
+	string continue_id = 2;
+	string continue_token = 3;
+	string interact_nonce = 4;
+	string access_token_value = 5;
+	string access_token_management_id = 6;
+	int32 access_token_expires_in = 7;
+	repeated AccessItem access = 8;
+	repeated SubjectId sub_ids = 9;
 }
 
 message GetGrantRequest {
 	string id = 1;
 }
 
-message GrantContinuationRequest {
+message ContinueGrantRequest {
 	string id = 1;
 	string continue_id = 2;
 	string continue_token = 3;
 	string interact_ref = 4;
 }
 
-message GrantRevocationRequest {
+message ContinueGrantResponse {
+	string id = 1;
+	string finalization_reason = 2;
+	string access_token_value = 3;
+	string access_token_management_id = 4;
+	int32 access_token_expires_in = 5;
+	repeated AccessItem access = 6;
+	string continue_id = 7;
+	string continue_token = 8;
+}
+
+message RevokeGrantRequest {
 	string id = 1;
 	string continue_id = 2;
 	string continue_token = 3;
 }
 
-message TokenInfo {
+message RevokeGrantResponse {
+	string id = 1;
+}
+
+message IntrospectTokenResponse {
 	bool active = 1;
 	string grant_id = 2;
 	repeated AccessItem access = 3;
-	string client = 4;
 }
 
-message TokenIntrospectionRequest {
+message IntrospectTokenRequest {
 	string id = 1; // grant id
 	string token_value = 2;
 	repeated AccessItem access = 3;
 }
 
-message TokenRotationRequest {
+message RotateTokenRequest {
 	string id = 1; // grant id
 	string token_value = 2;
 	string management_id = 3;
 }
 
-message TokenRevocationRequest {
+message RotateTokenResponse {
+	string grant_id = 1;
+	string new_access_token_value = 2;
+	string new_access_token_management_id = 3;
+	int32 new_access_token_expires_in = 4;
+	repeated AccessItem access = 5;
+}
+
+message RevokeTokenRequest {
 	string id = 1; // grant id
 	string token_value = 2;
 	string management_id = 3;
 }
 
-message InteractionChoiceResponse {
+message RevokeTokenResponse {
+	string id = 1;
+}
+
+message HandleInteractionChoiceResponse {
 	bool success = 1;
 }
 
-message InteractionChoiceRequest {
+message AcceptInteractionRequest {
 	string id = 1; // grant id
-	string interact_id = 2;
+	string interact_ref = 2;
 	string nonce = 3;
+}
+
+message RejectInteractionRequest {
+	string id = 1; // grant id
+	string nonce = 2;
 }

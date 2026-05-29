@@ -30,7 +30,7 @@ export type AccessAction = keyof typeof AccessAction;
 
 export interface IAccessItem {
   type: AccessType;
-  limits: IAccessLimit;
+  limits?: IAccessLimit;
   actions: AccessAction[];
   identifier?: string;
 }
