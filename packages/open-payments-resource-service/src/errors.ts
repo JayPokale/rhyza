@@ -65,4 +65,4 @@ export function errorHandler(
   }
 
   reply.status(statusCode).send(resourceServerError);
-};
+}
