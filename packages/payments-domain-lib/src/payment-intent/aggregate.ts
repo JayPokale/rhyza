@@ -203,9 +203,20 @@ export class PaymentIntentAggregate {
       this._logger.debug(
         `handleCreatePaymentIntentCommand — created id: ${id}`
       );
-      const event = new PaymentIntentCreatedEvent({ id }, cmd.requestId);
-
-      return event;
+      return new PaymentIntentCreatedEvent(
+        {
+          id: entity.id,
+          createdAt: entity.createdAt,
+          expiresAt: entity.expiresAt,
+          incomingAmount: String(entity.incomingAmount),
+          receivedAmount: String(entity.receivedAmount),
+          state: entity.state,
+          receiverWalletAddressId: entity.receiverWalletAddressId,
+          assetCode: entity.assetCode,
+          assetScale: entity.assetScale
+        },
+        cmd.requestId
+      );
     } catch (err) {
       this._logger.debug(
         `handleCreatePaymentIntentCommand — failed id: ${cmd.payload.id} error: ${(err as Error).message}`
@@ -428,7 +439,7 @@ export class PaymentIntentAggregate {
         throw new RatesError('Could not get rates during quoting');
       }
 
-      paymentIntent.addLocalPayment({
+      const payment = paymentIntent.addLocalPayment({
         id: paymentId,
         senderWalletAddress: {
           id: senderWalletAddressId,
@@ -447,7 +458,24 @@ export class PaymentIntentAggregate {
       this._logger.debug(
         `handleCreatePaymentCommand — created paymentId: ${paymentId}`
       );
-      return new PaymentCreatedEvent({ id: paymentId }, cmd.requestId);
+
+      return new PaymentCreatedEvent(
+        {
+          id: payment.id,
+          paymentIntentId: payment.paymentIntentId,
+          senderWalletAddress: payment.senderWalletAddress,
+          debitAmount: String(payment.debitAmount),
+          receiveAmount: String(payment.receiveAmount),
+          sentAmount: String(payment.sentAmount),
+          state: payment.state,
+          createdAt: payment.createdAt,
+          assetCode: payment.assetCode,
+          assetScale: payment.assetScale,
+          receiveAssetCode: paymentIntent.assetCode,
+          receiveAssetScale: paymentIntent.assetScale
+        },
+        cmd.requestId
+      );
     } catch (err) {
       this._logger.debug(
         `handleCreatePaymentCommand — failed paymentIntentId: ${cmd.payload.paymentIntentId} error: ${(err as Error).message}`

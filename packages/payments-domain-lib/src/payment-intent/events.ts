@@ -1,4 +1,5 @@
 import { DomainEvent, DomainEventTopics } from 'common-types-lib';
+import { PaymentIntentState, PaymentState } from './interfaces';
 
 export abstract class PaymentIntentDomainEvent extends DomainEvent {
   msgTopic: string = DomainEventTopics.PaymentEvents;
@@ -62,6 +63,14 @@ export abstract class PaymentIntentDomainEvent extends DomainEvent {
 
 export type PaymentIntentCreatedPayload = {
   id: string;
+  createdAt: Date;
+  expiresAt: Date;
+  incomingAmount: string | null;
+  receivedAmount: string | null;
+  state: PaymentIntentState;
+  receiverWalletAddressId?: string;
+  assetCode: string;
+  assetScale: number;
 };
 
 export class PaymentIntentCreatedEvent extends PaymentIntentDomainEvent {
@@ -131,6 +140,17 @@ export class QuoteCreateFailedEvent extends PaymentIntentDomainEvent {
 
 export type PaymentCreatedPayload = {
   id: string;
+  paymentIntentId: string;
+  senderWalletAddress: string;
+  debitAmount: string | null;
+  receiveAmount: string | null;
+  sentAmount: string | null;
+  state: PaymentState;
+  createdAt: Date;
+  assetCode: string;
+  assetScale: number;
+  receiveAssetScale: number;
+  receiveAssetCode: string;
 };
 
 export class PaymentCreatedEvent extends PaymentIntentDomainEvent {
