@@ -8,7 +8,8 @@
     "build": "tsc --build",
     "generate:resource-server-types": "openapi-typescript ../../open-payments-specifications/openapi/resource-server.yaml --output src/types/generated/resource-server-types.ts",
     "generate:wallet-address-server-types": "openapi-typescript ../../open-payments-specifications/openapi/wallet-address-server.yaml --output src/types/generated/wallet-address-server-types.ts",
-    "generate:types": "pnpm generate:resource-server-types && pnpm generate:wallet-address-server-types"
+    "generate:types": "pnpm generate:resource-server-types && pnpm generate:wallet-address-server-types",
+    "prebuild": "pnpm generate:types"
   },
   "keywords": [],
   "author": "",
