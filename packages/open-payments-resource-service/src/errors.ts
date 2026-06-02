@@ -1,3 +1,6 @@
+import { FastifyRequest, FastifyReply } from 'fastify';
+import { components } from './types/generated/resource-server-types.js';
+
 const ResourceServerErrorCode = {
   invalid_request: 'invalid_request',
   not_found: 'not_found'
@@ -24,3 +27,42 @@ export class OpenPaymentsResourceServerRouteError extends Error {
     this.details = details;
   }
 }
+
+export function errorHandler(
+  error: any,
+  _: FastifyRequest,
+  reply: FastifyReply
+) {
+  let resourceServerError: components['schemas']['error-response'];
+  let statusCode: number;
+
+  if (error.validation) {
+    statusCode = 400;
+    resourceServerError = {
+      error: {
+        code: 'invalid_request',
+        description: error.message
+      }
+    };
+  } else if (error instanceof OpenPaymentsResourceServerRouteError) {
+    statusCode = error.status;
+    resourceServerError = {
+      error: {
+        code: error.code,
+        description: error.message
+      }
+    };
+  } else {
+    console.error(error);
+
+    statusCode = 500;
+    resourceServerError = {
+      error: {
+        code: 'invalid_request',
+        description: 'Unhandled error'
+      }
+    };
+  }
+
+  reply.status(statusCode).send(resourceServerError);
+};
