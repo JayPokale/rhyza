@@ -1,6 +1,6 @@
 'use strict';
 
-import Fastify, { FastifyInstance, FastifySchema } from 'fastify';
+import Fastify, { FastifyInstance } from 'fastify';
 import { PalClient } from 'pal-client-lib';
 import { PaymentsClient } from 'payments-client-lib';
 import { walletAddressRoutes } from './routes/wallet-addresses.js';
@@ -48,7 +48,7 @@ export class OpenPaymentsResourceServer {
         try {
           const value = BigInt(data);
           return value >= BigInt(0);
-        } catch (e) {
+        } catch {
           return false;
         }
       }

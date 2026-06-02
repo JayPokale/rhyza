@@ -1,4 +1,4 @@
-import { FastifyRequest, FastifyReply } from 'fastify';
+import { FastifyRequest, FastifyReply, FastifyError } from 'fastify';
 import { components } from './types/generated/resource-server-types.js';
 
 const ResourceServerErrorCode = {
@@ -29,7 +29,7 @@ export class OpenPaymentsResourceServerRouteError extends Error {
 }
 
 export function errorHandler(
-  error: any,
+  error: FastifyError,
   _: FastifyRequest,
   reply: FastifyReply
 ) {

@@ -5,7 +5,9 @@ import { FastifySchema } from 'fastify';
 export class FastifyOpenApiValidator {
   private ajv: Ajv;
 
-  constructor(openApiSpec: { components: { schemas: Record<string, any> } }) {
+  constructor(openApiSpec: {
+    components: { schemas: Record<string, object> };
+  }) {
     this.ajv = new Ajv({
       allErrors: false,
       strict: false
