@@ -1,17 +1,15 @@
 'use strict';
 
-import Fastify, { FastifyInstance } from 'fastify';
+import Fastify, { FastifyInstance, FastifySchema } from 'fastify';
 import { PalClient } from 'pal-client-lib';
 import { PaymentsClient } from 'payments-client-lib';
 import { walletAddressRoutes } from './routes/wallet-addresses.js';
 import { incomingPaymentRoutes } from './routes/incoming-payments.js';
-import { Ajv } from 'ajv';
-import addFormats from 'ajv-formats';
 
 import resourceServerOpenApiJsonSchema from '../../../open-payments-specifications/json/resource-server.json';
-import { OpenPaymentsResourceServerRouteError } from './errors.js';
 import { quoteRoutes } from './routes/quotes.js';
-import { components } from './types/generated/resource-server-types.js';
+
+import { FastifyOpenApiValidator } from './validator.js';
 
 const PORT = parseInt(process.env['PORT'] || '3002', 10);
 const HOST = process.env['HOST'] || '0.0.0.0';
@@ -40,67 +38,26 @@ export class OpenPaymentsResourceServer {
 
     this.server = Fastify({ logger: true });
 
-    const ajv = new Ajv({
-      allErrors: false,
-      strict: false
-    });
+    const validator = new FastifyOpenApiValidator(
+      resourceServerOpenApiJsonSchema
+    );
 
-    addFormats(ajv);
-
-    ajv.addFormat('uint64', {
-      type: 'string',
-      validate: (data: string) => /^\d+$/.test(data)
-    });
-
-    for (const [name, schemaContent] of Object.entries(
-      resourceServerOpenApiJsonSchema.components.schemas
-    )) {
-      const schema = {
-        ...schemaContent,
-        $id: `#/components/schemas/${name}`
-      };
-      ajv.addSchema(schema);
-    }
-
-    this.server.setValidatorCompiler(({ schema }) => ajv.compile(schema));
-
-    this.server.setErrorHandler((error, _, reply) => {
-      let resourceServerError: components['schemas']['error-response'];
-      let statusCode: number;
-
-      if (error.validation) {
-        statusCode = 400;
-        resourceServerError = {
-          error: {
-            code: 'invalid_request',
-            description: error.message
-          }
-        };
-      } else if (error instanceof OpenPaymentsResourceServerRouteError) {
-        statusCode = error.status;
-        resourceServerError = {
-          error: {
-            code: error.code,
-            description: error.message
-          }
-        };
-      } else {
-        console.error(error);
-
-        statusCode = 500;
-        resourceServerError = {
-          error: {
-            code: 'invalid_request',
-            description: 'Unhandled error'
-          }
-        };
+    validator.addFormat('uint64', {
+      validate: (data: string) => {
+        try {
+          const value = BigInt(data);
+          return value >= BigInt(0);
+        } catch (e) {
+          return false;
+        }
       }
-
-      reply.status(statusCode).send(resourceServerError);
     });
+    this.server.setValidatorCompiler(({ schema }) => validator.compile(schema));
+
 
     this.server.register(incomingPaymentRoutes, {
       palClient: this.palClient,
+
       paymentsClient: this.paymentsClient
     });
 
