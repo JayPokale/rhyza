@@ -4,7 +4,10 @@ import {
   IMessageConsumer,
   IMessageProducer
 } from 'common-types-lib';
-import { CreateNotificationCmd } from 'notifications-domain-lib';
+import {
+  CreateNotificationCmd,
+  NotificationType
+} from 'notifications-domain-lib';
 import {
   PaymentCreatedEvent,
   PaymentIntentCreatedEvent
@@ -35,21 +38,33 @@ export class NotificationsEventHandler {
     await this._msgConsumer.disconnect(true);
   }
 
+  private readonly messageToNotificationType: Record<string, NotificationType> =
+    {
+      [PaymentIntentCreatedEvent.name]: NotificationType.PaymentIntentCreated,
+      [PaymentCreatedEvent.name]: NotificationType.PaymentCreated
+    };
+
   private async _handleEvent(message: IMessage) {
-    switch (message.msgName) {
-      case PaymentIntentCreatedEvent.name:
-      case PaymentCreatedEvent.name:
-        await this.handleNotificationMessage(message);
-        break;
-      default:
-        console.warn(`Unhandled message: ${message.msgName}`);
+    const type = this.messageToNotificationType[message.msgName];
+
+    if (!type) {
+      console.warn(`Unhandled message: ${message.msgName}`);
+      return;
     }
+
+    this.handleNotificationMessage(message, type);
   }
 
-  private async handleNotificationMessage(message: IMessage) {
+  private async handleNotificationMessage(
+    message: IMessage,
+    type: NotificationType
+  ) {
     console.log(`${message.msgName} received with id ${message.payload.id}`);
     const { id, ...data } = message.payload;
-    const cmd = new CreateNotificationCmd({ id, data }, message.requestId);
+    const cmd = new CreateNotificationCmd(
+      { id, type, data },
+      message.requestId
+    );
     await this._msgProducer.send(cmd);
   }
 }

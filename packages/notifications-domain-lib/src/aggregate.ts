@@ -3,7 +3,8 @@
 import { Notification } from './entity';
 import {
   INotificationRepository,
-  INotificationSenderService
+  INotificationSenderService,
+  NotificationType
 } from './interfaces';
 
 export class NotificationAggregate {
@@ -19,10 +20,11 @@ export class NotificationAggregate {
   }
 
   async createAndSendNotification(
+    type: NotificationType,
     data: Record<string, unknown>
   ): Promise<string> {
     const id = crypto.randomUUID();
-    const notification = new Notification(id, data);
+    const notification = new Notification(id, type, data);
     await this._repo.store(notification.toObject());
     try {
       await this._notificationSenderService.send(notification);
@@ -32,6 +34,7 @@ export class NotificationAggregate {
       notification.markAsFailed();
       throw error;
     } finally {
+      notification.incrementAttempts();
       await this._repo.store(notification.toObject());
     }
   }

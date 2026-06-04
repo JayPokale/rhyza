@@ -34,9 +34,11 @@ export class NotificationsCommandHandler {
     for (const msg of messages) {
       switch (msg.msgName) {
         case CreateNotificationCmd.name: {
+          const payload = (msg as CreateNotificationCmd).payload;
           const id =
             await this._notificationAggregate.createAndSendNotification(
-              (msg as CreateNotificationCmd).payload.data
+              payload.type,
+              payload.data
             );
           console.log(
             `Notification created and sent for command: ${msg.msgName} with id ${id}`
