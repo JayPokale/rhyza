@@ -52,7 +52,7 @@ export class NotificationsEventHandler {
       return;
     }
 
-    this.handleNotificationMessage(message, type);
+    await this.handleNotificationMessage(message, type);
   }
 
   private async handleNotificationMessage(
