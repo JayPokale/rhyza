@@ -6,7 +6,7 @@ This document outlines the major architectural changes in Rafiki v2 in compariso
 
 ### Bounded Contexts & Services
 
-For better decoupling and horizontal scalability, Rafiki v2 is divided into five distinct system modules (bounded contexts). Instead of a monolithic `backend` and `auth` service, functionality is split as follows:
+For better decoupling and horizontal scalability, Rafiki v2 is divided into five distinct system modules (bounded contexts). Instead of `backend` and `auth` services, functionality is split as follows:
 
 - **Payments**: Stores, initiates, and receives payments.
 - **ILP**: Handles sending and receiving ILP packets between peers.
@@ -18,39 +18,46 @@ For better decoupling and horizontal scalability, Rafiki v2 is divided into five
 
 In this architecture, the Open Payments & Admin API servers act as mostly stateless layers that translate external requests into internal commands for the relevant modules.
 
-### Admin API
+### Simplified Liquidity
 
-Instead of two separate GraphQL Admin APIs for `auth` and `backend`, Rafiki has a single REST Admin API server which covers all of the possible functionality of Rafiki. This simplifies ASE integration (+ documentation tooling) while also providing us the ability to automatically generate client libraries/SDKs.
+One of the most significant shifts for ASEs is how liquidity is managed:
 
-The OpenAPI specifications for this API can be found [here](../packages/admin-api-service/openapi.yaml).
+- **v1**: Liquidity was tracked for every payment, asset, and wallet address.
+- **v2**: Liquidity is only tracked for **peering relationships**. There are no longer payment-specific or wallet-address-specific liquidity accounts.
 
-#### Infrastructure
+If an ASE only uses Open Payments functionality (and not ILP peering), they no longer need to make liquidity via the Admin API requests or handle liquidity-specific webhook events.
 
-##### MongoDB as default database
+### Simplified Assets
 
-In addition to the different services, we have also changed our default infrastructure dependencies. By default, our database of choice is MongoDB, as 1) our data tends to be document-centric, instead of relational 2) we require high write throughput 3) we can horizontally scale natively. Technically, however, the code is structured in a way where it should be quite easy to write different implementations (e.g. PostgreSQL) for our persistence components.
+In v2, asset have been simplified: instead of assets being unique by both `code` and `scale`, they are now unique by their `code` only (e.g. USD). The `scale` is now a display property. This is enabled by the fact that the ledger operates at a fixed high precision (scale 20). All accounting entries are stored at this scale, regardless of the display scale of the asset, payment, or peer.
 
-##### Kafka
+## Infrastructure & Implementation
+
+### MongoDB as Default Database
+
+Our persistence layer has shifted to use MongoDB as a default to support high write throughput, and native horizontal scalability. The code remains structured to allow for alternative persistence implementations (e.g. PostgreSQL) if required.
+
+### Kafka & Event Streaming
 
 The event streaming platform Kafka is the foundation for our event-driven architecture. In addition to powering our custom event-sourced ledger, it enables asynchronous command-based communication across all system modules, supporting horizontal scalability and the ability to replay event streams for recovery or auditing.
 
-##### Accounting ledger
+### Custom Accounting Ledger
 
-Our accouting ledger is an event-sourcing system without requiring additional dependencies & databases (like PostgreSQL or TigerBeetle).
+Unlike v1, which often relied on external databases or TigerBeetle for ledgering, v2 uses a **custom event-sourced ledger** built directly on Kafka. This provides a highly performant, auditable accounting system without requiring additional infrastructure dependencies.
 
-### Liquidity
+## Integration & Lifecycle
 
-Liquidity is simplified: it is only tracked for peers/peering relationships. There are no payment, asset or wallet address liquidity accounts. This means that if an ASE only wants to use the Open Payments functionality of Rafiki (and not any ILP functionality), they will not need to make any Admin API liquidity requests or handle any liquidity-specific webhook events.
+### Unified Admin API
 
-### Assets
+Instead of two separate GraphQL Admin APIs for `auth` and `backend`, Rafiki has a single REST Admin API server which covers all of the possible functionality of Rafiki. This simplifies ASE integration (+ documentation tooling) while also providing us the ability to automatically generate client libraries/SDKs.
 
-Assets are unique by asset code only, not by both code and scale. In the new architecture, asset scale becomes simply a display value: you could have an asset with code USD and scale 2, while a single wallet address (or a peer) could be on the same asset (USD) but with scale 9 (as an example). This is technically enabled by the fact that the ledger operates at a single, high fixed precision where all of the accounting entries are stored in a asset scale 20.
+**Spec**: [Admin API OpenAPI Specification](../packages/admin-api-service/openapi.yaml)
 
 ### Webhook Events
 
 While Rafiki v2 continues to use webhooks for ASE notifications, the payload structure and event types have been updated to reflect the new language in the system modules.
 
-- **Spec**: [Webhook OpenAPI Specification](../external-docs/webhooks.yaml).
+**Spec**: [Webhook OpenAPI Specification](../external-docs/webhooks.yaml).
 
 ### Multi-tenancy
 
