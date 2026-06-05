@@ -16,7 +16,7 @@ For better decoupling and horizontal scalability, Rafiki v2 is divided into five
 
 ![Simplified architecture](./diagrams/architecture-simplified.png)
 
-In this architecture, the Open Payments & Admin API servers act as mostly stateless layers that translate external requests into internal commands for the relevant modules.
+In this architecture, the Open Payments & Admin API servers act as stateless layers that translate external requests into internal commands for the relevant modules.
 
 ### Simplified Liquidity
 
@@ -47,6 +47,16 @@ Unlike v1, which often relied on external databases or TigerBeetle for ledgering
 
 ## Integration & Lifecycle
 
+### Payment Concept Changes
+
+The Rafiki payment entities has been renamed & restructured for better performance and clarity:
+
+- **Incoming Payments** have been renamed to **Payment Intents**. This better reflects that the resources represent an intention to receive funds rather than the payments themselves.
+- **Outgoing Payments** have been renamed simply to **Payments**. Given that Incoming Payments are renamed to Payment Intents, the "Outgoing" prefix is no longer necessary.
+- In v2, both **Quotes** and **Payments** are now child resources of a **Payment Intent**. This architectural shift was made primarily for internal performance reasons, allowing for more efficient data handling and state management within the system.
+
+This naming change impacts the the language used in the Admin API and webhook events.
+
 ### Unified Admin API
 
 Instead of two separate GraphQL Admin APIs for `auth` and `backend`, Rafiki has a single REST Admin API server which covers all of the possible functionality of Rafiki. This simplifies ASE integration (+ documentation tooling) while also providing us the ability to automatically generate client libraries/SDKs.
@@ -55,7 +65,7 @@ Instead of two separate GraphQL Admin APIs for `auth` and `backend`, Rafiki has 
 
 ### Webhook Events
 
-While Rafiki v2 continues to use webhooks for ASE notifications, the payload structure and event types have been updated to reflect the new language in the system modules.
+While Rafiki v2 continues to use webhooks for ASE notifications, the payload structure and event types have been updated to reflect the [new naming](#payment-concept-changes) in the system modules.
 
 **Spec**: [Webhook OpenAPI Specification](../external-docs/webhooks.yaml).
 
