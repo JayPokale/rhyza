@@ -424,9 +424,7 @@ export class PaymentsServiceServer {
         name: evt.payload.errorName || 'CommandError',
         metadata: new grpc.Metadata()
       });
-    } else if (
-      PaymentIntentDomainEvent.isQuoteCompletedEvent(evt)
-    ) {
+    } else if (PaymentIntentDomainEvent.isQuoteCompletedEvent(evt)) {
       const response = new CreateQuoteResponse()
         .setId(evt.payload.id)
         .setPaymentIntentId(evt.payload.paymentIntentId)
@@ -437,9 +435,7 @@ export class PaymentsServiceServer {
         .setReceiveAmount(Number(evt.payload.receiveAmount))
         .setExchangeRate(evt.payload.exchangeRate);
       this._resolvePendingResponse(pending, requestId, null, response);
-    } else if (
-      PaymentIntentDomainEvent.isQuoteCreateFailedEvent(evt)
-    ) {
+    } else if (PaymentIntentDomainEvent.isQuoteCreateFailedEvent(evt)) {
       this._resolvePendingResponse(pending, requestId, {
         code: grpc.status.INTERNAL,
         message: evt.payload.message || 'Command processing failed',
