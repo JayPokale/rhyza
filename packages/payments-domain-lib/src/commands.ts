@@ -113,9 +113,9 @@ export class ApprovePaymentCmd extends PaymentIntentCommand {
 export type CompleteRemoteQuoteCmdPayload = {
   quoteId: string;
   paymentIntentId: string;
-  maxSourceAmount: number;
-  minDeliveryAmount: number;
-  lowEstimatedExchangeRate: number;
+  receiveAmountValue: string;
+  receiveAssetCode: string;
+  receiveAssetScale: number;
 };
 
 export class CompleteRemoteQuoteCmd extends PaymentIntentCommand {

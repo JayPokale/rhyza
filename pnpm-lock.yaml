@@ -652,6 +652,9 @@ importers:
       common-types-lib:
         specifier: workspace:*
         version: link:../common-types-lib
+      ilp-domain-lib:
+        specifier: workspace:*
+        version: link:../ilp-domain-lib
       implementations-lib:
         specifier: workspace:*
         version: link:../implementations-lib

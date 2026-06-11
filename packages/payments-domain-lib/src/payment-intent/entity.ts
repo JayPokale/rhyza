@@ -28,7 +28,16 @@ const MAX_PAYMENT_INTENT_EXPIRY_MS = 1000 * 60 * 60 * 24 * 30; // 30 days
 const QUOTE_EXPIRY_MS = 1000 * 60 * 10;
 
 type QuoteData =
-  | { state: 'PENDING'; debitAmount?: bigint; receiveAmount?: bigint }
+  | {
+      state: 'PENDING';
+      debitAmount?: bigint;
+      receiveAmount?: bigint;
+      peerId?: string;
+      peerAssetCode?: string;
+      peerAssetScale?: number;
+      sourceAmount?: bigint;
+      senderAssetCode?: string;
+    }
   | {
       state: 'COMPLETED';
       debitAmount: bigint;
@@ -60,11 +69,21 @@ class Quote implements IBaseQuote {
     id: string,
     senderWalletAddress: string,
     senderWalletAddressId: string,
+    peerId?: string,
+    peerAssetCode?: string,
+    peerAssetScale?: number,
+    sourceAmount?: bigint,
+    senderAssetCode?: string,
     debitAmount?: bigint,
     receiveAmount?: bigint
   ): Quote {
     return new Quote(id, senderWalletAddress, senderWalletAddressId, {
       state: 'PENDING',
+      peerId,
+      peerAssetCode,
+      peerAssetScale,
+      sourceAmount,
+      senderAssetCode,
       debitAmount,
       receiveAmount
     });
@@ -102,6 +121,11 @@ class Quote implements IBaseQuote {
         obj.senderWalletAddressId,
         {
           state: 'PENDING',
+          peerId: obj.peerId,
+          peerAssetCode: obj.peerAssetCode,
+          peerAssetScale: obj.peerAssetScale,
+          sourceAmount: obj.sourceAmount,
+          senderAssetCode: obj.senderAssetCode,
           debitAmount: obj.debitAmount,
           receiveAmount: obj.receiveAmount
         }
@@ -171,6 +195,11 @@ class Quote implements IBaseQuote {
     return {
       ...base,
       state: 'PENDING',
+      peerId: this._data.peerId,
+      peerAssetCode: this._data.peerAssetCode,
+      peerAssetScale: this._data.peerAssetScale,
+      sourceAmount: this._data.sourceAmount,
+      senderAssetCode: this._data.senderAssetCode,
       debitAmount: this._data.debitAmount,
       receiveAmount: this._data.receiveAmount
     };
@@ -470,11 +499,26 @@ export class PaymentIntent implements IPaymentIntent {
     senderWalletAddress: {
       id: string;
       address: string;
+      assetCode: string;
+      assetScale: number;
     };
+    peerId: string;
+    peerAssetCode: string;
+    peerAssetScale: number;
+    sourceAmount: bigint;
     debitAmount?: bigint;
     receiveAmount?: bigint;
   }): IPendingQuote {
-    const { id, senderWalletAddress, debitAmount } = args;
+    const {
+      id,
+      senderWalletAddress,
+      peerId,
+      peerAssetCode,
+      peerAssetScale,
+      sourceAmount,
+      debitAmount
+    } = args;
+    const senderAssetCode = senderWalletAddress.assetCode;
     const receiveAmount =
       args.receiveAmount ?? this._incomingAmount ?? undefined;
 
@@ -506,6 +550,11 @@ export class PaymentIntent implements IPaymentIntent {
       id,
       senderWalletAddress.address,
       senderWalletAddress.id,
+      peerId,
+      peerAssetCode,
+      peerAssetScale,
+      sourceAmount,
+      senderAssetCode,
       debitAmount,
       receiveAmount
     );

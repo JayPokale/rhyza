@@ -19,11 +19,15 @@ import {
   MockPaymentIntentRepo,
   MockWalletAddressAdapter,
   MockRatesAdapter,
-  MockRemotePaymentIntentService
+  MockRemotePaymentIntentService,
+  MockFxRatesAdapter,
+  MockPeerService
 } from '../mocks';
-import { QuoteCreateFailedEvent } from '../../src/payment-intent/events';
+import {
+  QuoteCreateFailedEvent,
+  QuoteCompletedEvent
+} from '../../src/payment-intent/events';
 import { CreateQuoteCmd } from '../../src/commands';
-import { QuoteCompletedEvent } from '../../src/payment-intent/events';
 import { IPaymentIntent } from '../../src/payment-intent/interfaces';
 import { ApprovePaymentCmd } from '../../src/commands';
 import {
@@ -122,6 +126,8 @@ describe('PaymentIntentAggregate.handleBatch', () => {
   let walletAddressAdapter: MockWalletAddressAdapter;
   let mockRatesAdapter: MockRatesAdapter;
   let mockRemotePaymentIntentService: MockRemotePaymentIntentService;
+  let mockFxRatesAdapter: MockFxRatesAdapter;
+  let mockPeerService: MockPeerService;
   let aggregate: PaymentIntentAggregate;
 
   beforeEach(() => {
@@ -135,12 +141,16 @@ describe('PaymentIntentAggregate.handleBatch', () => {
     });
     mockRatesAdapter = new MockRatesAdapter();
     mockRemotePaymentIntentService = new MockRemotePaymentIntentService();
+    mockFxRatesAdapter = new MockFxRatesAdapter();
+    mockPeerService = new MockPeerService();
     aggregate = new PaymentIntentAggregate(
       repo,
       walletAddressAdapter,
       mockRatesAdapter,
       mockRemotePaymentIntentService,
-      new ConsoleLogger()
+      new ConsoleLogger(),
+      mockFxRatesAdapter,
+      mockPeerService
     );
   });
 
@@ -155,6 +165,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
       assetScale: 2,
       state: 'CREATED',
       destination: 'REMOTE',
+      createdAt: new Date(),
       expiresAt: new Date(Date.now() + 60_000),
       incomingAmount: null,
       quotes: [
@@ -162,7 +173,13 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           id: quoteId,
           state: 'PENDING',
           senderWalletAddress: 'domain.com/bob',
-          senderWalletAddressId: 'wallet-1'
+          senderWalletAddressId: 'wallet-1',
+          peerId: 'peer-1',
+          peerAssetCode: 'USD',
+          peerAssetScale: 2,
+          sourceAmount: 100n,
+          senderAssetCode: 'USD',
+          debitAmount: 500n
         }
       ],
       payments: [],
@@ -286,6 +303,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           assetScale: 2,
           state: 'CREATED',
           destination: 'LOCAL',
+          createdAt: new Date(),
           expiresAt: new Date(Date.now() + 1000),
           incomingAmount: null,
           quotes: [],
@@ -316,6 +334,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           assetScale: 2,
           state: 'CREATED',
           destination: 'LOCAL',
+          createdAt: new Date(),
           expiresAt: new Date(Date.now() + 1000),
           incomingAmount: null,
           quotes: [],
@@ -344,6 +363,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           assetScale: 2,
           state: 'CREATED',
           destination: 'REMOTE',
+          createdAt: new Date(),
           expiresAt: new Date(Date.now() + 60_000),
           incomingAmount: null,
           quotes: [],
@@ -363,7 +383,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         const payload = (events[0] as RemoteQuoteRequestedEvent).payload;
         assert.equal(payload.paymentIntentId, paymentIntent.id);
         assert.equal(payload.quoteId, cmd.payload.id);
-        assert.equal(payload.destinationIlpAddress, 'g.peer.123');
+        assert.equal(payload.peerId, 'peer-1');
         assert.equal(
           payload.receiverWalletAddress,
           paymentIntent.receiverWalletAddress
@@ -374,8 +394,6 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         );
         assert.equal(payload.senderAssetCode, 'USD');
         assert.equal(payload.senderAssetScale, 2);
-        assert.equal(payload.debitAmount, '500');
-        assert.equal(payload.receiveAmount, undefined);
       });
 
       it('fails with MissingDestinationIlpAddressError for remote intent without ilp address', async () => {
@@ -387,6 +405,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           assetScale: 2,
           state: 'CREATED',
           destination: 'REMOTE',
+          createdAt: new Date(),
           expiresAt: new Date(Date.now() + 60_000),
           incomingAmount: null,
           quotes: [],
@@ -409,18 +428,18 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         overrides: Partial<{
           paymentIntentId: string;
           quoteId: string;
-          maxSourceAmount: number;
-          minDeliveryAmount: number;
-          lowEstimatedExchangeRate: number;
+          receiveAmountValue: string;
+          receiveAssetCode: string;
+          receiveAssetScale: number;
         }> = {}
       ): CompleteRemoteQuoteCmd {
         return new CompleteRemoteQuoteCmd(
           {
             paymentIntentId: overrides.paymentIntentId ?? crypto.randomUUID(),
             quoteId: overrides.quoteId ?? crypto.randomUUID(),
-            maxSourceAmount: overrides.maxSourceAmount ?? 500,
-            minDeliveryAmount: overrides.minDeliveryAmount ?? 450,
-            lowEstimatedExchangeRate: overrides.lowEstimatedExchangeRate ?? 0.9
+            receiveAmountValue: overrides.receiveAmountValue ?? '10000',
+            receiveAssetCode: overrides.receiveAssetCode ?? 'XRP',
+            receiveAssetScale: overrides.receiveAssetScale ?? 6
           },
           crypto.randomUUID()
         );
@@ -473,6 +492,188 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         const payload = (events[0] as QuoteCreateFailedEvent).payload;
         assert.equal(payload.errorName, 'InvalidQuoteIdError');
       });
+
+      describe('FX calculation', () => {
+        function makeCrossAssetPendingQuoteIntent(
+          quoteId: string,
+          amountOverride: { debitAmount: bigint } | { receiveAmount: bigint }
+        ): IPaymentIntent {
+          return {
+            id: crypto.randomUUID(),
+            receivedAmount: 0n,
+            receiverWalletAddress: 'remote.domain.com/alice',
+            assetCode: 'XRP',
+            assetScale: 6,
+            state: 'CREATED',
+            destination: 'REMOTE',
+            createdAt: new Date(),
+            expiresAt: new Date(Date.now() + 60_000),
+            incomingAmount: null,
+            quotes: [
+              {
+                id: quoteId,
+                state: 'PENDING',
+                senderWalletAddress: 'domain.com/bob',
+                senderWalletAddressId: 'wallet-1',
+                peerId: 'peer-1',
+                peerAssetCode: 'EUR',
+                peerAssetScale: 2,
+                sourceAmount: 100n,
+                senderAssetCode: 'USD',
+                ...amountOverride
+              }
+            ],
+            payments: [],
+            destinationIlpAddress: 'g.peer.123'
+          };
+        }
+
+        it('same asset + debitAmount: uses peerToReceiverRate directly', async () => {
+          const quoteId = crypto.randomUUID();
+          const paymentIntent =
+            makeRemotePaymentIntentWithPendingQuote(quoteId);
+          await repo.storeMany([paymentIntent]);
+
+          const cmd = makeCompleteRemoteQuoteCmd({
+            paymentIntentId: paymentIntent.id,
+            quoteId,
+            receiveAmountValue: '10000'
+          });
+          const { events } = await aggregate.handleBatch([cmd]);
+
+          assert.equal(events[0].msgName, QuoteCompletedEvent.name);
+          const payload = (events[0] as QuoteCompletedEvent).payload;
+          // debitAmount = 500 USD
+          // receiveAmount = USD amount * (USD->receiver rate)
+          //              = 500 * (10000 / 100)
+          //              = 50000
+          assert.equal(payload.debitAmount, '500');
+          assert.equal(payload.receiveAmount, '50000');
+          assert.equal(payload.exchangeRate, 100);
+        });
+
+        it('same asset + receiveAmount: inverts peerToReceiverRate', async () => {
+          const quoteId = crypto.randomUUID();
+          const paymentIntent: IPaymentIntent = {
+            id: crypto.randomUUID(),
+            receivedAmount: 0n,
+            receiverWalletAddress: 'remote.domain.com/alice',
+            assetCode: 'USD',
+            assetScale: 2,
+            state: 'CREATED',
+            destination: 'REMOTE',
+            createdAt: new Date(),
+            expiresAt: new Date(Date.now() + 60_000),
+            incomingAmount: null,
+            quotes: [
+              {
+                id: quoteId,
+                state: 'PENDING',
+                senderWalletAddress: 'domain.com/bob',
+                senderWalletAddressId: 'wallet-1',
+                peerId: 'peer-1',
+                peerAssetCode: 'USD',
+                peerAssetScale: 2,
+                sourceAmount: 100n,
+                senderAssetCode: 'USD',
+                receiveAmount: 1000n
+              }
+            ],
+            payments: [],
+            destinationIlpAddress: 'g.peer.123'
+          };
+          await repo.storeMany([paymentIntent]);
+
+          const cmd = makeCompleteRemoteQuoteCmd({
+            paymentIntentId: paymentIntent.id,
+            quoteId,
+            receiveAmountValue: '10000'
+          });
+          const { events } = await aggregate.handleBatch([cmd]);
+
+          assert.equal(events[0].msgName, QuoteCompletedEvent.name);
+          const payload = (events[0] as QuoteCompletedEvent).payload;
+          // receiveAmount = 1000 USD
+          // debitAmount = USD amount * (1 / receiver->USD rate)
+          //            = 1000 * (1 / (10000 / 100))
+          //            = 10
+          assert.equal(payload.debitAmount, '10');
+          assert.equal(payload.receiveAmount, '1000');
+          assert.equal(payload.exchangeRate, 100);
+        });
+
+        it('cross-asset + debitAmount: multiplies debit by getRates(sourceAsset) and peerToReceiverRate', async () => {
+          const quoteId = crypto.randomUUID();
+          const paymentIntent = makeCrossAssetPendingQuoteIntent(quoteId, {
+            debitAmount: 1000n
+          });
+          mockFxRatesAdapter.getRates = async () => 0.9;
+          await repo.storeMany([paymentIntent]);
+
+          const cmd = makeCompleteRemoteQuoteCmd({
+            paymentIntentId: paymentIntent.id,
+            quoteId,
+            receiveAmountValue: '10000'
+          });
+          const { events } = await aggregate.handleBatch([cmd]);
+
+          assert.equal(events[0].msgName, QuoteCompletedEvent.name);
+          const payload = (events[0] as QuoteCompletedEvent).payload;
+          // debitAmount = 1000 USD
+          // receiveAmount = USD amount * (USD->EUR rate) * (EUR->receiver rate)
+          //              = 1000 * (0.9) * (10000 / 100)
+          //              = 90000 XRP
+          assert.equal(payload.debitAmount, '1000');
+          assert.equal(payload.receiveAmount, '90000');
+          assert.equal(payload.exchangeRate, 90);
+        });
+
+        it('cross-asset + receiveAmount: divides receive by peerToReceiverRate and multiplies by getRates(destinationAsset)', async () => {
+          const quoteId = crypto.randomUUID();
+          const paymentIntent = makeCrossAssetPendingQuoteIntent(quoteId, {
+            receiveAmount: 1000n
+          });
+          mockFxRatesAdapter.getRates = async () => 1.1;
+          await repo.storeMany([paymentIntent]);
+
+          const cmd = makeCompleteRemoteQuoteCmd({
+            paymentIntentId: paymentIntent.id,
+            quoteId,
+            receiveAmountValue: '10000'
+          });
+          const { events } = await aggregate.handleBatch([cmd]);
+
+          assert.equal(events[0].msgName, QuoteCompletedEvent.name);
+          const payload = (events[0] as QuoteCompletedEvent).payload;
+          // receiveAmount = 1000 XRP
+          // debitAmount = XRP amount * (1 / XRP->EUR rate) * (EUR->USD rate)
+          //            = 1000 * (1 / (10000 / 100)) * (1.1)
+          //            = 11 USD
+          assert.equal(payload.debitAmount, '11');
+          assert.equal(payload.receiveAmount, '1000');
+          assert.equal(payload.exchangeRate, 1000 / 11);
+        });
+
+        it('fails with RatesError when FX rate is unavailable', async () => {
+          const quoteId = crypto.randomUUID();
+          const paymentIntent = makeCrossAssetPendingQuoteIntent(quoteId, {
+            debitAmount: 1000n
+          });
+          mockFxRatesAdapter.getRates = async () => null;
+          await repo.storeMany([paymentIntent]);
+
+          const cmd = makeCompleteRemoteQuoteCmd({
+            paymentIntentId: paymentIntent.id,
+            quoteId,
+            receiveAmountValue: '10000'
+          });
+          const { events } = await aggregate.handleBatch([cmd]);
+
+          assert.equal(events[0].msgName, QuoteCreateFailedEvent.name);
+          const payload = (events[0] as QuoteCreateFailedEvent).payload;
+          assert.equal(payload.errorName, 'RatesError');
+        });
+      });
     });
 
     describe('handleFailRemoteQuoteCommand', () => {
@@ -495,7 +696,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         );
       }
 
-      it('emits QuoteCreateFailedEvent with ILP error details on success', async () => {
+      it('emits QuoteCreateFailedEvent with ILP error details', async () => {
         const quoteId = crypto.randomUUID();
         const paymentIntent = makeRemotePaymentIntentWithPendingQuote(quoteId);
         await repo.storeMany([paymentIntent]);
@@ -571,8 +772,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         const payload = (events[0] as RemoteQuoteRequestedEvent).payload;
         assert.equal(payload.paymentIntentId, cmd.payload.paymentIntentId);
         assert.equal(payload.quoteId, cmd.payload.id);
-        assert.equal(payload.destinationIlpAddress, 'g.peer.123');
-        assert.equal(payload.debitAmount, '500');
+        assert.equal(payload.peerId, 'peer-1');
       });
 
       it('deduplicates intra-batch: second cmd with same url uses first intent id', async () => {
@@ -615,6 +815,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           assetScale: 2,
           state: 'CREATED',
           destination: 'REMOTE',
+          createdAt: new Date(),
           expiresAt: new Date(Date.now() + 60_000),
           incomingAmount: null,
           quotes: [],
@@ -707,6 +908,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           assetScale: 2,
           state: 'CREATED',
           destination: 'LOCAL',
+          createdAt: new Date(),
           expiresAt: new Date(Date.now() + 1000),
           incomingAmount: null,
           quotes: [],
@@ -737,6 +939,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           assetScale: 2,
           state: 'CREATED',
           destination: 'LOCAL',
+          createdAt: new Date(),
           expiresAt: new Date(Date.now() + 1000),
           incomingAmount: null,
           quotes: [],
@@ -783,6 +986,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           assetScale: 2,
           state: 'CREATED',
           destination: 'LOCAL',
+          createdAt: new Date(),
           expiresAt: new Date(Date.now() + 1000),
           incomingAmount: 100n,
           quotes: [],
@@ -795,6 +999,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
               assetCode: 'USD',
               paymentIntentId: paymentIntentId,
               assetScale: 2,
+              createdAt: new Date(),
               debitAmount: 100n,
               receiveAmount: 100n,
               sentAmount: 0n

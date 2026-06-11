@@ -1,6 +1,9 @@
 import { ILogger, IMessage } from 'common-types-lib';
 import {
   FinalizedRemoteQuoteUpdate,
+  IFxRatesService,
+  IPeerService,
+  IPendingQuote,
   IPaymentIntent,
   IPaymentIntentRepository,
   IRatesService,
@@ -27,7 +30,10 @@ import {
   PaymentIntentNotFoundError,
   PaymentIntentInvalidState,
   RatesError,
-  MissingDestinationIlpAddressError
+  MissingDestinationIlpAddressError,
+  PeerNotFoundError,
+  InvalidQuoteStateError,
+  InvalidQuoteIdError
 } from './errors';
 import {
   QuoteCompletedEvent,
@@ -56,7 +62,9 @@ export class PaymentIntentAggregate {
     private _walletAddressService: IWalletAddressService,
     private _ratesService: IRatesService,
     private _remotePaymentIntentService: IRemotePaymentIntentService,
-    private _logger: ILogger
+    private _logger: ILogger,
+    private _fxRatesService: IFxRatesService,
+    private _peerService: IPeerService
   ) {}
 
   async handleBatch(cmds: IMessage[]): Promise<{ events: IMessage[] }> {
@@ -132,7 +140,7 @@ export class PaymentIntentAggregate {
           cmd as ApprovePaymentCmd
         );
       } else if (cmd.msgName === CompleteRemoteQuoteCmd.name) {
-        event = this.handleCompleteRemoteQuoteCommand(
+        event = await this.handleCompleteRemoteQuoteCommand(
           cmd as CompleteRemoteQuoteCmd
         );
       } else if (cmd.msgName === FailRemoteQuoteCmd.name) {
@@ -334,20 +342,7 @@ export class PaymentIntentAggregate {
         );
       }
 
-      // REMOTE: create pending quote, emit event to initiate quoting
-      const pendingQuote = paymentIntent.addPendingRemoteQuote({
-        id: quoteId,
-        senderWalletAddress: {
-          id: senderWalletAddressId,
-          address: senderWalletAddress
-        },
-        debitAmount: debitAmount ? BigInt(debitAmount) : undefined,
-        receiveAmount: receiveAmount ? BigInt(receiveAmount) : undefined
-      });
-
-      this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
-      this._appendToMap(this.newPaymentIntentQuotes, paymentIntent.id, quoteId);
-
+      // REMOTE: resolve peer, create pending quote, emit event to initiate quoting
       const { destinationIlpAddress } = paymentIntent;
       if (!destinationIlpAddress) {
         throw new MissingDestinationIlpAddressError(
@@ -355,22 +350,55 @@ export class PaymentIntentAggregate {
         );
       }
 
+      const peer = await this._peerService.getPeerByIlpAddress(
+        destinationIlpAddress
+      );
+      if (!peer) {
+        throw new PeerNotFoundError(
+          `No peer found for ILP address ${destinationIlpAddress}`
+        );
+      }
+
+      // probe amount: 1 unit of peer asset (e.g. scale 2 -> 100 = 1.00)
+      const sourceAmount = 10n ** BigInt(peer.assetScale);
+
+      paymentIntent.addPendingRemoteQuote({
+        id: quoteId,
+        senderWalletAddress: {
+          id: senderWalletAddressId,
+          address: senderWalletAddress,
+          assetCode: walletAddress.assetCode,
+          assetScale: walletAddress.assetScale
+        },
+        peerId: peer.peerId,
+        peerAssetCode: peer.assetCode,
+        peerAssetScale: peer.assetScale,
+        sourceAmount,
+        debitAmount: debitAmount ? BigInt(debitAmount) : undefined,
+        receiveAmount: receiveAmount ? BigInt(receiveAmount) : undefined
+      });
+
+      this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
+      this._appendToMap(this.newPaymentIntentQuotes, paymentIntent.id, quoteId);
+
       this._logger.debug(
-        `handleCreateQuoteCommand — REMOTE quote pending quoteId: ${quoteId} destinationIlpAddress: ${destinationIlpAddress}`
+        `handleCreateQuoteCommand — REMOTE quote pending quoteId: ${quoteId} destinationIlpAddress: ${destinationIlpAddress} peerId: ${peer.peerId}`
       );
       return new RemoteQuoteRequestedEvent(
         {
           paymentIntentId: paymentIntent.id,
           quoteId,
+          requestId: cmd.requestId,
           senderWalletAddress,
           receiverWalletAddress: paymentIntent.receiverWalletAddress,
           senderAssetCode: walletAddress.assetCode,
           senderAssetScale: walletAddress.assetScale,
           receiverAssetCode: paymentIntent.assetCode,
           receiverAssetScale: paymentIntent.assetScale,
-          debitAmount: pendingQuote.debitAmount?.toString(),
-          receiveAmount: pendingQuote.receiveAmount?.toString(),
-          destinationIlpAddress
+          peerId: peer.peerId,
+          peerAssetCode: peer.assetCode,
+          peerAssetScale: peer.assetScale,
+          sourceAmount: sourceAmount.toString()
         },
         cmd.requestId
       );
@@ -493,17 +521,12 @@ export class PaymentIntentAggregate {
     }
   }
 
-  private handleCompleteRemoteQuoteCommand(cmd: CompleteRemoteQuoteCmd) {
+  private async handleCompleteRemoteQuoteCommand(cmd: CompleteRemoteQuoteCmd) {
     this._logger.debug(
       `handleCompleteRemoteQuoteCommand — quoteId: ${cmd.payload.quoteId} paymentIntentId: ${cmd.payload.paymentIntentId}`
     );
-    const {
-      quoteId,
-      paymentIntentId,
-      maxSourceAmount,
-      minDeliveryAmount,
-      lowEstimatedExchangeRate
-    } = cmd.payload;
+    const { quoteId, paymentIntentId, receiveAmountValue, receiveAssetCode } =
+      cmd.payload;
 
     try {
       const paymentIntentObj = this.paymentIntentMap.get(paymentIntentId);
@@ -515,11 +538,92 @@ export class PaymentIntentAggregate {
 
       const paymentIntent = PaymentIntent.fromObject(paymentIntentObj);
 
+      const pendingQuoteObj = paymentIntent.quotes.find(
+        (q) => q.id === quoteId
+      );
+      if (!pendingQuoteObj || pendingQuoteObj.state !== 'PENDING') {
+        throw new InvalidQuoteIdError(
+          `Pending quote ${quoteId} not found for payment intent ${paymentIntentId}`
+        );
+      }
+      const pendingQuote = pendingQuoteObj as IPendingQuote;
+
+      const {
+        peerId,
+        peerAssetCode,
+        sourceAmount,
+        senderAssetCode,
+        debitAmount: requestedDebit,
+        receiveAmount: requestedReceive
+      } = pendingQuote;
+
+      if (!peerId || !peerAssetCode || !sourceAmount || !senderAssetCode) {
+        throw new InvalidQuoteStateError(
+          `Pending quote ${quoteId} is missing required remote peer fields`
+        );
+      }
+
+      // peer->receiver rate derived from ILP response (never fetched from rates service)
+      const receiveAmountBigInt = BigInt(receiveAmountValue);
+      const peerToReceiverRate =
+        Number(receiveAmountBigInt) / Number(sourceAmount);
+
+      let computedDebit: bigint;
+      let computedReceive: bigint;
+
+      if (senderAssetCode === peerAssetCode) {
+        if (requestedDebit) {
+          computedDebit = requestedDebit;
+          computedReceive = BigInt(
+            Math.floor(Number(requestedDebit) * peerToReceiverRate)
+          );
+        } else {
+          computedReceive = requestedReceive!;
+          computedDebit = BigInt(
+            Math.ceil(Number(requestedReceive!) / peerToReceiverRate)
+          );
+        }
+      } else if (requestedDebit) {
+        const rate = await this._fxRatesService.getRates({
+          peerId,
+          sourceAssetCode: senderAssetCode
+        });
+        if (rate == null) {
+          throw new RatesError(
+            `Could not get FX rate from PAL for peer ${peerId} source asset ${senderAssetCode}`
+          );
+        }
+        computedDebit = requestedDebit;
+        computedReceive = BigInt(
+          Math.floor(Number(requestedDebit) * rate * peerToReceiverRate)
+        );
+      } else {
+        const rate = await this._fxRatesService.getRates({
+          peerId,
+          destinationAssetCode: senderAssetCode
+        });
+        if (rate == null) {
+          throw new RatesError(
+            `Could not get FX rate from PAL for peer ${peerId} destination asset ${senderAssetCode}`
+          );
+        }
+        computedReceive = requestedReceive!;
+        computedDebit = BigInt(
+          Math.ceil(Number(requestedReceive!) * (1 / peerToReceiverRate) * rate)
+        );
+      }
+
+      const exchangeRate = Number(computedReceive) / Number(computedDebit);
+
+      this._logger.debug(
+        `handleCompleteRemoteQuoteCommand — FX: senderAsset: ${senderAssetCode} peerAsset: ${peerAssetCode} receiveAsset: ${receiveAssetCode} peerToReceiverRate: ${peerToReceiverRate} debit: ${computedDebit} receive: ${computedReceive}`
+      );
+
       const completedQuote = paymentIntent.completeRemoteQuote({
         id: quoteId,
-        debitAmount: BigInt(maxSourceAmount),
-        receiveAmount: BigInt(minDeliveryAmount),
-        exchangeRate: lowEstimatedExchangeRate
+        debitAmount: computedDebit,
+        receiveAmount: computedReceive,
+        exchangeRate
       });
 
       this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
