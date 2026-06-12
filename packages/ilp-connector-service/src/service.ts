@@ -11,7 +11,7 @@ import {
   PinoLogger
 } from 'implementations-lib';
 import { IlpConnector } from './connector';
-import { LoopbackConnectorTransport } from './loopback-transport';
+import { LoopbackConnectorTransport } from '../test/loopback-transport';
 import { IConnectorTransport } from './transport';
 
 const KAFKA_URL = process.env['KAFKA_URL'] || 'localhost:9093';

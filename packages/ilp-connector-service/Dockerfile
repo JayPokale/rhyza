@@ -60,4 +60,4 @@ COPY --from=build /workspace/packages/implementations-lib/dist ./packages/implem
 COPY --from=build /workspace/packages/ilp-domain-lib/dist ./packages/ilp-domain-lib/dist
 COPY --from=build /workspace/packages/ilp-connector-service/dist ./packages/ilp-connector-service/dist
 
-CMD ["node", "packages/ilp-connector-service/dist/index.js"]
+CMD ["node", "packages/ilp-connector-service/dist/src/index.js"]

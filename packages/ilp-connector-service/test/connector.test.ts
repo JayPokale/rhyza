@@ -16,7 +16,7 @@ import {
   ProcessRejectPacketCmd
 } from 'ilp-domain-lib';
 import { IlpConnector } from '../src/connector';
-import { LoopbackConnectorTransport } from '../src/loopback-transport';
+import { LoopbackConnectorTransport } from './loopback-transport';
 import {
   IConnectorTransport,
   WireFulfillOutbound,

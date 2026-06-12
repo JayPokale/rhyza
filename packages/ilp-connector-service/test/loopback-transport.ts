@@ -6,7 +6,7 @@ import {
   WireResponse,
   WireResponseHandler,
   WireInboundPrepareHandler
-} from './transport';
+} from '../src/transport';
 
 export interface LoopbackTransportOptions {
   responder?: (prepare: WirePrepare) => WireResponse;
@@ -20,8 +20,9 @@ const defaultResponder = (prepare: WirePrepare): WireResponse => ({
 });
 
 // Loops every outbound prepare straight back into a response so the full
-// Dispatch -> wire -> Process round trip can be exercised end-to-end.
-// Real transports implement the same port and deliver the response asynchronously from a connection callback instead.
+// Dispatch -> wire -> Process round trip can be exercised end-to-end in tests.
+// Real transports implement the same port and deliver the response asynchronously
+// from a connection callback instead.
 export class LoopbackConnectorTransport implements IConnectorTransport {
   private _responseHandler?: WireResponseHandler;
   private _inboundPrepareHandler?: WireInboundPrepareHandler;
@@ -57,7 +58,7 @@ export class LoopbackConnectorTransport implements IConnectorTransport {
     this._inboundPrepareHandler = handler;
   }
 
-  // Test/local helper: simulate a peer initiating an inbound prepare.
+  // Test helper: simulate a peer initiating an inbound prepare.
   async simulateInboundPrepare(prepare: WirePrepare): Promise<void> {
     if (this._inboundPrepareHandler) {
       await this._inboundPrepareHandler(prepare);
