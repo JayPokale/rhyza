@@ -1022,6 +1022,264 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         );
       });
     });
+
+    describe('prefetch (peers & FX)', () => {
+      function makeRemoteIntentWithIlp(ilpAddress: string): IPaymentIntent {
+        return {
+          id: crypto.randomUUID(),
+          receivedAmount: 0n,
+          receiverWalletAddress: 'remote.domain.com/alice',
+          assetCode: 'USD',
+          assetScale: 2,
+          state: 'CREATED',
+          destination: 'REMOTE',
+          createdAt: new Date(),
+          expiresAt: new Date(Date.now() + 60_000),
+          incomingAmount: null,
+          quotes: [],
+          payments: [],
+          destinationIlpAddress: ilpAddress
+        };
+      }
+
+      function makeCrossAssetPendingQuoteIntent(
+        quoteId: string,
+        amountOverride: { debitAmount: bigint } | { receiveAmount: bigint }
+      ): IPaymentIntent {
+        return {
+          id: crypto.randomUUID(),
+          receivedAmount: 0n,
+          receiverWalletAddress: 'remote.domain.com/alice',
+          assetCode: 'XRP',
+          assetScale: 6,
+          state: 'CREATED',
+          destination: 'REMOTE',
+          createdAt: new Date(),
+          expiresAt: new Date(Date.now() + 60_000),
+          incomingAmount: null,
+          quotes: [
+            {
+              id: quoteId,
+              state: 'PENDING',
+              senderWalletAddress: 'domain.com/bob',
+              senderWalletAddressId: 'wallet-1',
+              peerId: 'peer-1',
+              peerAssetCode: 'EUR',
+              peerAssetScale: 2,
+              sourceAmount: 100n,
+              senderAssetCode: 'USD',
+              ...amountOverride
+            }
+          ],
+          payments: [],
+          destinationIlpAddress: 'g.peer.123'
+        };
+      }
+
+      function makeCompleteRemoteQuoteCmd(
+        overrides: Partial<{
+          paymentIntentId: string;
+          quoteId: string;
+          receiveAmountValue: string;
+        }> = {}
+      ): CompleteRemoteQuoteCmd {
+        return new CompleteRemoteQuoteCmd(
+          {
+            paymentIntentId: overrides.paymentIntentId ?? crypto.randomUUID(),
+            quoteId: overrides.quoteId ?? crypto.randomUUID(),
+            receiveAmountValue: overrides.receiveAmountValue ?? '10000',
+            receiveAssetCode: 'XRP',
+            receiveAssetScale: 6
+          },
+          crypto.randomUUID()
+        );
+      }
+
+      it('peer dedup: two CreateQuoteCmds with same ILP address fetch peer once', async () => {
+        const intentA = makeRemoteIntentWithIlp('g.peer.same');
+        const intentB = makeRemoteIntentWithIlp('g.peer.same');
+        await repo.storeMany([intentA, intentB]);
+
+        let callCount = 0;
+        mockPeerService.getPeerByIlpAddress = async () => {
+          callCount++;
+          return { peerId: 'peer-1', assetCode: 'USD', assetScale: 2 };
+        };
+
+        const cmdA = makeCreateQuoteCmd({ paymentIntentId: intentA.id });
+        const cmdB = makeCreateQuoteCmd({ paymentIntentId: intentB.id });
+        const { events } = await aggregate.handleBatch([cmdA, cmdB]);
+
+        assert.equal(callCount, 1);
+        assert.equal(events.length, 2);
+        assert.equal(events[0].msgName, RemoteQuoteRequestedEvent.name);
+        assert.equal(events[1].msgName, RemoteQuoteRequestedEvent.name);
+      });
+
+      it('FX dedup: two CompleteRemoteQuoteCmds with same (peer, direction, asset) fetch rate once', async () => {
+        const quoteIdA = crypto.randomUUID();
+        const quoteIdB = crypto.randomUUID();
+        const intentA = makeCrossAssetPendingQuoteIntent(quoteIdA, {
+          debitAmount: 1000n
+        });
+        const intentB = makeCrossAssetPendingQuoteIntent(quoteIdB, {
+          debitAmount: 2000n
+        });
+        await repo.storeMany([intentA, intentB]);
+
+        let callCount = 0;
+        mockFxRatesAdapter.getRates = async () => {
+          callCount++;
+          return 0.9;
+        };
+
+        const cmdA = makeCompleteRemoteQuoteCmd({
+          paymentIntentId: intentA.id,
+          quoteId: quoteIdA
+        });
+        const cmdB = makeCompleteRemoteQuoteCmd({
+          paymentIntentId: intentB.id,
+          quoteId: quoteIdB
+        });
+        const { events } = await aggregate.handleBatch([cmdA, cmdB]);
+
+        assert.equal(callCount, 1);
+        assert.equal(events.length, 2);
+        assert.equal(events[0].msgName, QuoteCompletedEvent.name);
+        assert.equal(events[1].msgName, QuoteCompletedEvent.name);
+      });
+
+      it('FX direction split: same peer/asset with debit and receive triggers two distinct fetches', async () => {
+        const quoteIdA = crypto.randomUUID();
+        const quoteIdB = crypto.randomUUID();
+        const intentA = makeCrossAssetPendingQuoteIntent(quoteIdA, {
+          debitAmount: 1000n
+        });
+        const intentB = makeCrossAssetPendingQuoteIntent(quoteIdB, {
+          receiveAmount: 1000n
+        });
+        await repo.storeMany([intentA, intentB]);
+
+        const calls: Array<Record<string, unknown>> = [];
+        mockFxRatesAdapter.getRates = async (req) => {
+          calls.push(req as unknown as Record<string, unknown>);
+          return 0.9;
+        };
+
+        const cmdA = makeCompleteRemoteQuoteCmd({
+          paymentIntentId: intentA.id,
+          quoteId: quoteIdA
+        });
+        const cmdB = makeCompleteRemoteQuoteCmd({
+          paymentIntentId: intentB.id,
+          quoteId: quoteIdB
+        });
+        await aggregate.handleBatch([cmdA, cmdB]);
+
+        assert.equal(calls.length, 2);
+        assert.ok(
+          calls.some(
+            (c) => 'sourceAssetCode' in c && c.sourceAssetCode === 'USD'
+          )
+        );
+        assert.ok(
+          calls.some(
+            (c) =>
+              'destinationAssetCode' in c && c.destinationAssetCode === 'USD'
+          )
+        );
+      });
+
+      it('peer fetch error isolates to dependent command only', async () => {
+        const intentA = makeRemoteIntentWithIlp('g.peer.fails');
+        const intentB = makeRemoteIntentWithIlp('g.peer.ok');
+        await repo.storeMany([intentA, intentB]);
+
+        mockPeerService.getPeerByIlpAddress = async (ilp) => {
+          if (ilp === 'g.peer.fails') throw new Error('peer service down');
+          return { peerId: 'peer-1', assetCode: 'USD', assetScale: 2 };
+        };
+
+        const cmdA = makeCreateQuoteCmd({ paymentIntentId: intentA.id });
+        const cmdB = makeCreateQuoteCmd({ paymentIntentId: intentB.id });
+        const { events } = await aggregate.handleBatch([cmdA, cmdB]);
+
+        assert.equal(events.length, 2);
+        assert.equal(events[0].msgName, QuoteCreateFailedEvent.name);
+        const failed = (events[0] as QuoteCreateFailedEvent).payload;
+        assert.equal(failed.errorName, 'Error');
+        assert.equal(failed.message, 'peer service down');
+        assert.equal(events[1].msgName, RemoteQuoteRequestedEvent.name);
+      });
+
+      it('FX fetch error isolates to dependent command only', async () => {
+        const quoteIdA = crypto.randomUUID();
+        const quoteIdB = crypto.randomUUID();
+        const intentA = makeCrossAssetPendingQuoteIntent(quoteIdA, {
+          debitAmount: 1000n
+        });
+        // intentB takes the same-asset path; doesn't go through FX prefetch
+        const intentB = makeRemotePaymentIntentWithPendingQuote(quoteIdB);
+        await repo.storeMany([intentA, intentB]);
+
+        mockFxRatesAdapter.getRates = async () => {
+          throw new Error('fx service down');
+        };
+
+        const cmdA = makeCompleteRemoteQuoteCmd({
+          paymentIntentId: intentA.id,
+          quoteId: quoteIdA
+        });
+        const cmdB = makeCompleteRemoteQuoteCmd({
+          paymentIntentId: intentB.id,
+          quoteId: quoteIdB
+        });
+        const { events } = await aggregate.handleBatch([cmdA, cmdB]);
+
+        assert.equal(events.length, 2);
+        assert.equal(events[0].msgName, QuoteCreateFailedEvent.name);
+        const failed = (events[0] as QuoteCreateFailedEvent).payload;
+        assert.equal(failed.errorName, 'Error');
+        assert.equal(failed.message, 'fx service down');
+        assert.equal(events[1].msgName, QuoteCompletedEvent.name);
+      });
+
+      it('null peer produces PeerNotFoundError', async () => {
+        const intent = makeRemoteIntentWithIlp('g.peer.none');
+        await repo.storeMany([intent]);
+
+        mockPeerService.getPeerByIlpAddress = async () => null;
+
+        const cmd = makeCreateQuoteCmd({ paymentIntentId: intent.id });
+        const { events } = await aggregate.handleBatch([cmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, QuoteCreateFailedEvent.name);
+        const payload = (events[0] as QuoteCreateFailedEvent).payload;
+        assert.equal(payload.errorName, 'PeerNotFoundError');
+      });
+
+      it('null FX rate produces RatesError', async () => {
+        const quoteId = crypto.randomUUID();
+        const intent = makeCrossAssetPendingQuoteIntent(quoteId, {
+          debitAmount: 1000n
+        });
+        await repo.storeMany([intent]);
+
+        mockFxRatesAdapter.getRates = async () => null;
+
+        const cmd = makeCompleteRemoteQuoteCmd({
+          paymentIntentId: intent.id,
+          quoteId
+        });
+        const { events } = await aggregate.handleBatch([cmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, QuoteCreateFailedEvent.name);
+        const payload = (events[0] as QuoteCreateFailedEvent).payload;
+        assert.equal(payload.errorName, 'RatesError');
+      });
+    });
   });
 
   describe('flush', async () => {

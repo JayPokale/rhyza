@@ -116,10 +116,14 @@ export interface IFxRatesService {
   getRates(request: IFxRateRequest): Promise<number | null>;
 }
 
+export interface IPeer {
+  peerId: string;
+  assetCode: string;
+  assetScale: number;
+}
+
 export interface IPeerService {
-  getPeerByIlpAddress(
-    ilpAddress: string
-  ): Promise<{ peerId: string; assetCode: string; assetScale: number } | null>;
+  getPeerByIlpAddress(ilpAddress: string): Promise<IPeer | null>;
 }
 
 export interface IRemotePaymentIntentDetails {
