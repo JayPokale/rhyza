@@ -219,7 +219,10 @@ describe('ILP command handler <-> connector over Kafka topics', () => {
     const reject = bus.published.find(
       (m) => m.msgName === ProcessRejectPacketCmd.name
     ) as ProcessRejectPacketCmd;
-    assert.ok(reject, 'expected the connector to emit a ProcessRejectPacketCmd');
+    assert.ok(
+      reject,
+      'expected the connector to emit a ProcessRejectPacketCmd'
+    );
     assert.equal(reject.payload.paymentIntentId, 'intent-1');
 
     // The scaffolded connector does not yet decode STREAM amounts, so a reject
@@ -227,10 +230,7 @@ describe('ILP command handler <-> connector over Kafka topics', () => {
     // path and was never surfaced as an ILP transport error.
     const failed = eventsOnTopic(bus, QuoteFailedEvent.name);
     assert.equal(failed.length, 1);
-    assert.equal(
-      (failed[0] as QuoteFailedEvent).payload.quoteId,
-      'quote-1'
-    );
+    assert.equal((failed[0] as QuoteFailedEvent).payload.quoteId, 'quote-1');
 
     // A quote reject must never trigger the payment failure/liquidity path.
     assert.equal(eventsOnTopic(bus, RemotePaymentFailedEvent.name).length, 0);
