@@ -7,8 +7,8 @@ export interface QuoteDeterminedPayload {
   peerId: string;
   paymentIntentId: string;
   quoteId: string;
-  maxSourceAmount: bigint;
-  minDeliveryAmount: bigint;
+  maxSourceAmount: string;
+  minDeliveryAmount: string;
   lowEstimatedExchangeRate: number;
 }
 

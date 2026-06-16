@@ -120,7 +120,8 @@ export class IlpPeerAggregate {
       destinationIlpAddress: payload.destinationIlpAddress,
       sourceAmount: payload.sourceAmount,
       sourceAssetCode: payload.sourceAssetCode,
-      sourceAssetScale: payload.sourceAssetScale
+      sourceAssetScale: payload.sourceAssetScale,
+      expiresAt: expiresAt.toISOString()
     });
 
     return [];
