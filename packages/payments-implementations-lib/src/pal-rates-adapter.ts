@@ -4,6 +4,7 @@ import { PalClient } from 'pal-client-lib';
 export class PalRatesAdapter implements IFxRatesService {
   constructor(private _palClient: PalClient) {}
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async getRates(_request: IFxRateRequest): Promise<number | null> {
     // return this._palClient.getFxRate(_request);
     return null;
