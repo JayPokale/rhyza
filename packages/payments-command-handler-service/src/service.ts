@@ -10,7 +10,6 @@ import {
   RemotePaymentIntentAdapter,
   PalWalletAddressAdapter,
   PalPeerAdapter,
-  PalRatesAdapter,
   StaticRatesAdapter
 } from 'payments-implementations-lib';
 import { PaymentIntentAggregate } from 'payments-domain-lib';
@@ -60,7 +59,6 @@ export class PaymentsCommandHandlerService {
     const walletAddressAdapter = new PalWalletAddressAdapter(palClient);
     const staticRatesAdapter = new StaticRatesAdapter();
     const remotePaymentIntentAdapter = new RemotePaymentIntentAdapter();
-    const palRatesAdapter = new PalRatesAdapter(palClient);
     const palPeerAdapter = new PalPeerAdapter(palClient);
 
     const aggregate = new PaymentIntentAggregate(
@@ -69,7 +67,6 @@ export class PaymentsCommandHandlerService {
       staticRatesAdapter,
       remotePaymentIntentAdapter,
       logger.child({ component: 'aggregate' }),
-      palRatesAdapter,
       palPeerAdapter
     );
 

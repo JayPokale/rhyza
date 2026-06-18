@@ -1,7 +1,6 @@
 import { ILogger, IMessage } from 'common-types-lib';
 import {
   FinalizedRemoteQuoteUpdate,
-  IFxRatesService,
   IPeer,
   IPeerService,
   IPendingQuote,
@@ -74,7 +73,6 @@ export class PaymentIntentAggregate {
     private _ratesService: IRatesService,
     private _remotePaymentIntentService: IRemotePaymentIntentService,
     private _logger: ILogger,
-    private _fxRatesService: IFxRatesService,
     private _peerService: IPeerService
   ) {}
 
@@ -165,7 +163,7 @@ export class PaymentIntentAggregate {
         fxToFetch.entries(),
         async ([key, { peerId, direction, assetCode }]) => {
           try {
-            const rate = await this._fxRatesService.getRates(
+            const rate = await this._peerService.getRates(
               direction === 'source'
                 ? { peerId, sourceAssetCode: assetCode }
                 : { peerId, destinationAssetCode: assetCode }

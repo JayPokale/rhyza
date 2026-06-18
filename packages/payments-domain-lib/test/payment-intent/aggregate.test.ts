@@ -20,7 +20,6 @@ import {
   MockWalletAddressAdapter,
   MockRatesAdapter,
   MockRemotePaymentIntentService,
-  MockFxRatesAdapter,
   MockPeerService
 } from '../mocks';
 import {
@@ -126,7 +125,6 @@ describe('PaymentIntentAggregate.handleBatch', () => {
   let walletAddressAdapter: MockWalletAddressAdapter;
   let mockRatesAdapter: MockRatesAdapter;
   let mockRemotePaymentIntentService: MockRemotePaymentIntentService;
-  let mockFxRatesAdapter: MockFxRatesAdapter;
   let mockPeerService: MockPeerService;
   let aggregate: PaymentIntentAggregate;
 
@@ -141,7 +139,6 @@ describe('PaymentIntentAggregate.handleBatch', () => {
     });
     mockRatesAdapter = new MockRatesAdapter();
     mockRemotePaymentIntentService = new MockRemotePaymentIntentService();
-    mockFxRatesAdapter = new MockFxRatesAdapter();
     mockPeerService = new MockPeerService();
     aggregate = new PaymentIntentAggregate(
       repo,
@@ -149,7 +146,6 @@ describe('PaymentIntentAggregate.handleBatch', () => {
       mockRatesAdapter,
       mockRemotePaymentIntentService,
       new ConsoleLogger(),
-      mockFxRatesAdapter,
       mockPeerService
     );
   });
@@ -607,7 +603,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           const paymentIntent = makeCrossAssetPendingQuoteIntent(quoteId, {
             debitAmount: 1000n
           });
-          mockFxRatesAdapter.getRates = async () => 0.9;
+          mockPeerService.getRates = async () => 0.9;
           await repo.storeMany([paymentIntent]);
 
           const cmd = makeCompleteRemoteQuoteCmd({
@@ -633,7 +629,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           const paymentIntent = makeCrossAssetPendingQuoteIntent(quoteId, {
             receiveAmount: 1000n
           });
-          mockFxRatesAdapter.getRates = async () => 1.1;
+          mockPeerService.getRates = async () => 1.1;
           await repo.storeMany([paymentIntent]);
 
           const cmd = makeCompleteRemoteQuoteCmd({
@@ -659,7 +655,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           const paymentIntent = makeCrossAssetPendingQuoteIntent(quoteId, {
             debitAmount: 1000n
           });
-          mockFxRatesAdapter.getRates = async () => null;
+          mockPeerService.getRates = async () => null;
           await repo.storeMany([paymentIntent]);
 
           const cmd = makeCompleteRemoteQuoteCmd({
@@ -1128,7 +1124,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         await repo.storeMany([intentA, intentB]);
 
         let callCount = 0;
-        mockFxRatesAdapter.getRates = async () => {
+        mockPeerService.getRates = async () => {
           callCount++;
           return 0.9;
         };
@@ -1161,7 +1157,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         await repo.storeMany([intentA, intentB]);
 
         const calls: Array<Record<string, unknown>> = [];
-        mockFxRatesAdapter.getRates = async (req) => {
+        mockPeerService.getRates = async (req) => {
           calls.push(req as unknown as Record<string, unknown>);
           return 0.9;
         };
@@ -1222,7 +1218,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         const intentB = makeRemotePaymentIntentWithPendingQuote(quoteIdB);
         await repo.storeMany([intentA, intentB]);
 
-        mockFxRatesAdapter.getRates = async () => {
+        mockPeerService.getRates = async () => {
           throw new Error('fx service down');
         };
 
@@ -1266,7 +1262,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         });
         await repo.storeMany([intent]);
 
-        mockFxRatesAdapter.getRates = async () => null;
+        mockPeerService.getRates = async () => null;
 
         const cmd = makeCompleteRemoteQuoteCmd({
           paymentIntentId: intent.id,

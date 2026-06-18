@@ -1,4 +1,4 @@
-import { IPeer, IPeerService } from 'payments-domain-lib';
+import { IFxRateRequest, IPeer, IPeerService } from 'payments-domain-lib';
 import { PalClient } from 'pal-client-lib';
 
 export class PalPeerAdapter implements IPeerService {
@@ -17,5 +17,9 @@ export class PalPeerAdapter implements IPeerService {
       assetCode: peer.assetCode,
       assetScale: peer.assetScale
     };
+  }
+
+  async getRates(request: IFxRateRequest): Promise<number | null> {
+    return this._palClient.getFxRate(request);
   }
 }

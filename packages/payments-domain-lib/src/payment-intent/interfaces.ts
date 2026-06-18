@@ -112,10 +112,6 @@ export type IFxRateRequest =
   | { peerId: string; sourceAssetCode: string }
   | { peerId: string; destinationAssetCode: string };
 
-export interface IFxRatesService {
-  getRates(request: IFxRateRequest): Promise<number | null>;
-}
-
 export interface IPeer {
   peerId: string;
   assetCode: string;
@@ -124,6 +120,7 @@ export interface IPeer {
 
 export interface IPeerService {
   getPeerByIlpAddress(ilpAddress: string): Promise<IPeer | null>;
+  getRates(request: IFxRateRequest): Promise<number | null>;
 }
 
 export interface IRemotePaymentIntentDetails {
