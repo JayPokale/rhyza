@@ -8,7 +8,7 @@ services:
     environment:
       PAL_GRPC_URL: pal-api-service:50051
       PAYMENTS_GRPC_URL: payments-api-service:50052
-      OPEN_PAYMENTS_URL: http://open-payments-svc:3000
+      OPEN_PAYMENTS_URL: http://open-payments-svc:3002
       MONGODB_URL: mongodb://root:mongoPass@mongodb:27017
     ports:
       - '3001:3001'
@@ -21,10 +21,29 @@ services:
         condition: service_started
     networks:
       rafiki-v2:
-        # TODO: alias may let us use this admin api as a remote rafiki incoming payment endpoint
+
+  open-payments-resource-service:
+    build:
+      context: ../
+      dockerfile: ./packages/open-payments-resource-service/Dockerfile
+    restart: always
+    environment:
+      PAL_GRPC_URL: pal-api-service:50051
+      PAYMENTS_GRPC_URL: payments-api-service:50052
+      OPEN_PAYMENTS_RESOURCE_SERVER_URL: http://open-payments-svc:3002
+    ports:
+      - '3002:3002'
+    depends_on:
+      pal-api-service:
+        condition: service_started
+      payments-api-service:
+        condition: service_started
+    networks:
+      rafiki-v2:
+        # TODO: alias may let us use this Open Payments Resource Server api as a remote rafiki incoming payment endpoint
         # for the purposes of testing remote quoting. 1) Create a quote with an incomingPaymentUrl
-        # pointing to this alias (which doesnt match OPEN_PAYMENTS_URL), 2) admin api detects as remote
-        # 3) payments domain fetches the "remote" intent from itself via the admin api
+        # pointing to this alias (which doesnt match OPEN_PAYMENTS_URL), 2) Admin API/Open Payments request is detected as remote
+        # 3) payments domain fetches the "remote" intent from itself via the Open Payments API
         aliases:
           - peer-open-payments-svc
 
@@ -142,6 +161,7 @@ services:
     environment:
       KAFKA_URL: kafka:19092
       MONGODB_URL: mongodb://root:mongoPass@mongodb:27017/
+      WEBHOOK_URL: http://ase-mock-service:3000/webhooks
     ports:
       - '5100:5100'
     depends_on:
@@ -167,6 +187,32 @@ services:
         condition: service_healthy
       init-kafka:
         condition: service_completed_successfully
+    networks:
+      - rafiki-v2
+
+  ilp-connector-service:
+    build:
+      context: ../
+      dockerfile: ./packages/ilp-connector-service/Dockerfile
+    restart: always
+    environment:
+      KAFKA_URL: kafka:19092
+    depends_on:
+      init-kafka:
+        condition: service_completed_successfully
+  ase-mock-service:
+    build:
+      context: ../
+      dockerfile: ./packages/ase-mock-service/Dockerfile
+    restart: always
+    environment:
+      HOST: ase-mock-service
+      PORT: 3000
+      ADMIN_URL: http://admin-api-service:3001
+    ports:
+      - '3000:3000'
+    depends_on:
+      - admin-api-service
     networks:
       - rafiki-v2
 
@@ -246,12 +292,15 @@ services:
       ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 24 --topic payment-commands
       ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 24 --topic payment-domain-events
       ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 24 --topic asset-domain-events
+      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 24 --topic peer-domain-events
       ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 24 --topic ledger-commands
       ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 24 --topic ledger-domain-events
       ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 24 --topic ledger-snapshot-events
       ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 24 --topic ledger-state-events
       ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 24 --topic wallet-address-domain-events
       ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 24 --topic ilp-domain-events
+      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 24 --topic ilp-commands
+      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 24 --topic ilp-connector-commands
       ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 24 --topic notification-commands
       echo -e '\nSuccessfully created the following topics:'
       ./kafka-topics.sh --bootstrap-server kafka:19092 --list

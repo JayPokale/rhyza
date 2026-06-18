@@ -1,10 +1,12 @@
 import { CommandMsg, CommandTopics } from 'common-types-lib';
+import { NotificationType } from './interfaces';
 
 const BOUNDED_CONTEXT_NAME = 'notification';
 const NOTIFICATION_AGG_NAME = 'notifications';
 
 export interface CreateNotificationCmdPayload {
   id: string;
+  type: NotificationType;
   data: Record<string, unknown>;
 }
 

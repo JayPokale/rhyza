@@ -1,9 +1,14 @@
 'use strict';
 
-import { INotification, NotificationStatus } from './interfaces';
+import {
+  INotification,
+  NotificationStatus,
+  NotificationType
+} from './interfaces';
 
 export class Notification implements INotification {
   private _id: string;
+  private readonly _type: NotificationType;
   private readonly _data: Record<string, unknown>;
   readonly maxAttempts = 3;
   private _attempts: number;
@@ -13,6 +18,7 @@ export class Notification implements INotification {
 
   constructor(
     id: string,
+    type: NotificationType,
     data: Record<string, unknown> = {},
     attempts: number = 0,
     status: NotificationStatus = NotificationStatus.CREATED,
@@ -20,6 +26,7 @@ export class Notification implements INotification {
     sentAt: Date | null = null
   ) {
     this._id = id;
+    this._type = type;
     this._data = data;
     this._attempts = attempts;
     this._status = status;
@@ -51,9 +58,14 @@ export class Notification implements INotification {
     return this._sentAt;
   }
 
+  get type(): NotificationType {
+    return this._type;
+  }
+
   toObject(): INotification {
     return {
       id: this._id,
+      type: this._type,
       data: this._data,
       attempts: this._attempts,
       status: this._status,
@@ -66,6 +78,7 @@ export class Notification implements INotification {
   static fromObject(obj: INotification): Notification {
     return new Notification(
       obj.id,
+      obj.type,
       obj.data,
       obj.attempts,
       obj.status,

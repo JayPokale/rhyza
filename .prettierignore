@@ -3,3 +3,5 @@
 dist
 build
 pnpm-lock.yaml
+open-payments-specifications/**
+packages/open-payments-resource-service/src/types/generated

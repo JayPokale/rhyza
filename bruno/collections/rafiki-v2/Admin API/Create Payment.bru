@@ -1,11 +1,11 @@
 meta {
-  name: Outgoing Payment
+  name: Create Payment
   type: http
-  seq: 7
+  seq: 6
 }
 
 post {
-  url: http://{{baseUrl}}/payments
+  url: http://{{adminApiUrl}}/payments
   body: json
   auth: none
 }
@@ -20,7 +20,7 @@ body:json {
 
 script:post-response {
   const body = res.getBody();
-
+  
   if (body?.id) {
     bru.setVar("paymentId", body.id);
   }

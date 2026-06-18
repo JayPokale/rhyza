@@ -1,0 +1,11 @@
+meta {
+  name: Get Incoming Payment
+  type: http
+  seq: 3
+}
+
+get {
+  url: http://{{openPaymentsResourceServerUrl}}/incoming-payments/{{incomingPaymentId}}
+  body: json
+  auth: none
+}
