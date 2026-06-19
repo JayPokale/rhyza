@@ -1,0 +1,35 @@
+---
+title: Hello from Rhyza
+description: Rhyza is open source software that provides an efficient solution for an Account Servicing Entity to enable Interledger functionality on its users' accounts.
+template: splash
+hero:
+  tagline: Rhyza is open source software that provides an efficient solution for an account servicing entity (ASE) to enable Interledger functionality on its users' accounts.
+  actions:
+    - text: Read Rhyza docs
+      link: /overview/overview
+      icon: open-book
+      variant: primary
+      attrs:
+        data-umami-event: Landing page - Rhyza docs
+---
+
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+<CardGrid>
+  <a class="card-link" href="/integration/playground/overview">
+    <Card title="Try it out!" icon="document">
+      Test Rhyza by running two mock ASEs that automatically peer with one
+      another.
+    </Card>
+  </a>
+  <a class="card-link" href="/integration/requirements/overview">
+    <Card title="Integration requirements" icon="document">
+      Review the requirements for deploying Rhyza to a production environment.
+    </Card>
+  </a>
+  <a class="card-link" href="/apis/scalar/admin-api">
+    <Card title="View Admin API Specifications" icon="document">
+      Discover the Admin API
+    </Card>
+  </a>
+</CardGrid>

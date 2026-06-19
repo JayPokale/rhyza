@@ -1,0 +1,38 @@
+{
+  "name": "docs",
+  "type": "module",
+  "version": "0.0.1",
+  "scripts": {
+    "start": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro",
+    "format": "prettier --write '**/*.{js,mjs,ts,tsx,json,md,mdx,astro}' && eslint --max-warnings=0 --fix .",
+    "lint": "prettier --check '**/*.{js,mjs,ts,tsx,json,md,mdx,astro}' && eslint --max-warnings=0 ."
+  },
+  "dependencies": {
+    "@astrojs/markdown-remark": "^7.1.2",
+    "@astrojs/starlight": "^0.39.2",
+    "@interledger/docs-design-system": "^0.13.0",
+    "@scalar/astro": "^0.4.4",
+    "astro": "~6.3.8",
+    "mermaid": "^11.15.0",
+    "rehype-autolink-headings": "^7.1.0",
+    "rehype-mathjax": "^7.1.0",
+    "remark-math": "^6.0.0",
+    "starlight-fullview-mode": "^0.2.6",
+    "starlight-links-validator": "^0.24.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@typescript-eslint/parser": "^8.60.0",
+    "astro-eslint-parser": "^1.4.0",
+    "eslint": "^10.4.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-astro": "^1.7.0",
+    "globals": "^17.6.0",
+    "prettier": "^3.8.3",
+    "prettier-plugin-astro": "^0.14.1",
+    "typescript-eslint": "^8.60.0"
+  }
+}

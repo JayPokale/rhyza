@@ -1,0 +1,197 @@
+---
+title: Webhook events
+tableOfContents:
+  maxHeadingLevel: 4
+---
+
+import { Badge, Tabs, TabItem, Steps } from '@astrojs/starlight/components';
+import { Mermaid, LinkOut } from '@interledger/docs-design-system';
+
+The main communication channel between you and your Rhyza instance consists of the Admin API and webhook events sent by the `notifications` service.
+
+:::note
+Rhyza doesn't hold _user_ account balances. Instead, Rhyza keeps track of the liquidity in your instance's peer accounts in its own database.
+:::
+
+## Specify your webhook endpoint
+
+For Rhyza to notify you about webhook events, you must expose a webhook endpoint that listens for the events dispatched by Rhyza. These events notify your system of time-sensitive status updates, warnings, and errors so that you can react accordingly.
+
+The webhook URL is configured using the `WEBHOOK_URL` environment variable.
+
+When an event occurs, the `notifications` service makes request to your configured webhook endpoint. This service expects a `200` status in return.
+
+<div class="overflow-table">
+
+| Variable      | Type            | Description                                                       |
+| ------------- | --------------- | ----------------------------------------------------------------- |
+| `WEBHOOK_URL` | `notifications` | The endpoint where requests are made when a webhook event occurs. |
+
+</div>
+
+## Webhook event request body
+
+Each webhook event is sent as a JSON payload with the following structure in the request body. The parameters in the `data` object vary depending on the event.
+
+<div class="overflow-table">
+
+| Attribute | Type   | Description                                         | Required |
+| --------- | ------ | --------------------------------------------------- | -------- |
+| `id`      | String | UUID for the event                                  | Y        |
+| `type`    | Enum   | The `EventType`                                     | Y        |
+| `data`    | Object | Additional data that coincides with the `EventType` | Y        |
+
+</div>
+
+:::tip[Duplicate events]
+The `id` in the webhook event payload is unique. Your system can use the ID to determine whether the event was previously received, preventing duplicate event processing.
+:::
+
+<details>
+  <summary>Expand for example JSON payloads</summary>
+  <Tabs>
+    <TabItem label='payment_intent.created'>
+      ```json
+      {
+        "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+        "type": "payment_intent.created",
+        "data": {
+          "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+          "walletAddressId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+          "receiveAmount": {
+            "value": "1000",
+            "assetCode": "USD",
+            "assetScale": 2
+          },
+          "createdAt": "2024-08-29T08:13:08.966Z",
+          "expiresAt": "2024-08-29T08:13:08.966Z"
+        }
+      }
+      ```
+    </TabItem>
+    <TabItem label='payment.created'>
+      ```json
+      {
+        "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+        "type": "payment.created",
+        "data": {
+          "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+          "walletAddressId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+          "state": "CREATED",
+          "debitAmount": {
+            "value": "1200",
+            "assetCode": "USD",
+            "assetScale": 2
+          },
+          "sentAmount": {
+            "value": "0",
+            "assetCode": "USD",
+            "assetScale": 2
+          },
+          "receiveAmount": {
+            "value": "0",
+            "assetCode": "USD",
+            "assetScale": 2
+          },
+          "createdAt": "2024-08-29T11:07:56.090Z"
+        }
+      }
+      ```
+    </TabItem>
+  </Tabs>
+</details>
+
+We provide an <LinkOut href="https://github.com/interledger/rafiki-v2/blob/main/docs/openapi/webhooks.yaml">OpenAPI specification</LinkOut> for the webhook events fired by Rhyza.
+
+Additionally, the [Local Playground](/integration/playground/overview) contains example payloads in the <LinkOut href="https://github.com/interledger/rafiki-v2/blob/main/bruno/collections/rafiki-v2/Sample%20Webhook%20Events">Bruno collection</LinkOut> you can use to test your webhook service integration.
+
+## Event handling
+
+### Asynchronous handling
+
+If requests to credit/debit user accounts are lengthy processes, we recommend using a worker to process received events. The worker allows the server to process events at a rate suitable for your system and reduces the number of failed/retried events since your event listener can immediately reply with a successful `200` status.
+
+### Error handling
+
+If a non-200 status is returned, indicating an error, or the request times out, Rhyza retries the webhook request at increasing intervals until a `200` status is returned. The first retry occurs after 10 seconds. Additional retries occur after 20 more seconds, then after 30 more seconds, and so on.
+
+<div class="overflow-table">
+
+| Variable            | Type            | Description                                                                                                     |
+| ------------------- | --------------- | --------------------------------------------------------------------------------------------------------------- |
+| `WEBHOOK_TIMEOUT`   | `notifications` | The time, in milliseconds, after which a webhook request times out                                              |
+| `WEBHOOK_MAX_RETRY` | `notifications` | The maximum number of retries for a webhook event when a non-200 status is returned or if the request timed out |
+
+</div>
+
+## Webhook events
+
+### Payment intents
+
+<div class="overflow-table">
+
+| Event type                                          | Description                   |
+| --------------------------------------------------- | ----------------------------- |
+| [`payment_intent.created`](#payment-intent-created) | A payment intent was created. |
+
+</div>
+
+#### Payment intent created
+
+<details>
+  <summary>Expand for event sequence</summary>
+  <Mermaid
+    graph={`sequenceDiagram
+      participant R as Rhyza
+      participant ASE as Account servicing entity
+
+      R->>ASE: Fires payment_intent.created event to webhook endpoint
+      ASE->>ASE: No action required
+
+`}
+/>
+
+</details>
+
+The `payment_intent.created` event indicates a payment intent was created. At this point, the payment intent hasn't received any funds.
+
+### Payments
+
+<div class="overflow-table">
+
+| Event type                            | Description            |
+| ------------------------------------- | ---------------------- |
+| [`payment.created`](#payment-created) | A payment was created. |
+
+</div>
+
+#### Payment created
+
+<details>
+  <summary>Expand for event sequence</summary>
+
+A payment for $12 was created.
+
+  <Mermaid
+    graph={`sequenceDiagram
+      participant R as Rhyza
+      participant ASE as Account servicing entity
+
+      R->>ASE: Fires payment.created event to webhook endpoint,<br/> debitAmount: $12
+      ASE->>ASE: Checks that sender's account has sufficient funds
+      alt Account has sufficient funds
+        ASE->>ASE: Put hold of $12 on sender's account
+        ASE->>R: Admin API call: POST /payment-intents/{intentId}/payments/{id}/approve
+        R-->>ASE: success: true
+      else Account has insufficient funds
+        ASE->>ASE: Ignore or log failure
+      end
+
+`}
+/>
+
+</details>
+
+The `payment.created` event indicates a payment was created and is awaiting approval. Verify the sender's account balance and perform any other necessary verifications before approving the payment.
+
+If the sender has insufficient funds or if the payment should otherwise not be fulfilled, you can choose not to call the approve endpoint. Otherwise, put a hold on the sender's account and approve the payment in Rhyza via the Admin API.

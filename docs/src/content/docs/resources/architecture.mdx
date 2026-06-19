@@ -1,0 +1,26 @@
+---
+title: Architecture
+---
+
+import { LinkOut, LargeImg } from '@interledger/docs-design-system';
+
+Rhyza is a decoupled, event-driven system divided into five distinct modules (bounded contexts). This architecture prioritizes horizontal scalability and a simplified developer experience.
+
+- **Payments**: Stores, initiates, and receives payments.
+- **ILP**: Handles sending and receiving ILP packets between peers.
+- **PAL (Peers, Accounts, Ledger)**: Manages assets, wallet addresses, peers, and all ledger/liquidity functionality.
+- **Auth**: Manages Open Payments Auth grants and access tokens.
+- **Notifications**: Communicates system events to the ASE via webhook events.
+
+The Open Payments and Admin API servers act as stateless layers that translate external requests into internal commands for these modules.
+
+### Infrastructure & Implementation
+
+Rhyza relies on modern infrastructure for high performance and scalability:
+
+- **MongoDB**: The default database used for high write throughput and native horizontal scalability.
+- **Kafka**: The foundation for the event-driven architecture, enabling asynchronous communication across modules.
+- **Custom Accounting Ledger**: An event-sourced ledger built directly on Kafka that provides a highly performant, auditable accounting system.
+- **Redis**: Used as a cache for sharing STREAM connection details and session data across processes.
+
+<LargeImg src="/img/rhyza-architecture.png" alt="Rhyza architecture diagram" />

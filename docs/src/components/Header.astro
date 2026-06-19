@@ -1,0 +1,57 @@
+---
+import { getRelativeLocaleUrl } from 'astro:i18n'
+import ThemeSelect from '@astrojs/starlight/components/ThemeSelect.astro'
+import SocialIcons from '@astrojs/starlight/components/SocialIcons.astro'
+import RhyzaLogo from '../components/RhyzaLogo.astro'
+---
+
+<div class='header sl-flex'>
+  <a
+    href={getRelativeLocaleUrl(Astro.currentLocale ?? 'en', '/')}
+    class='site-logo'
+  >
+    <RhyzaLogo />
+  </a>
+  <div class='secondary-wrap'>
+    <SocialIcons />
+    <div class='sl-hidden md:sl-flex'>
+      <ThemeSelect />
+    </div>
+  </div>
+</div>
+
+<style>
+  .header {
+    gap: var(--sl-nav-gap);
+    align-items: center;
+    height: 100%;
+  }
+
+  a {
+    text-decoration: none;
+    color: var(--sl-color-text);
+  }
+
+  .secondary-wrap {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: var(--sl-nav-gap);
+  }
+
+  .site-logo {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    font-size: larger;
+  }
+
+  .site-logo svg {
+    width: 6em;
+    flex: none;
+  }
+
+  [data-theme='dark'] :global(.logo-text) {
+    fill: white;
+  }
+</style>
