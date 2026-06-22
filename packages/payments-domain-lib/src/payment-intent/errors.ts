@@ -17,3 +17,4 @@ export class PaymentInvalidStateError extends Error {}
 export class InvalidPaymentAmountError extends Error {}
 export class MissingDestinationIlpAddressError extends Error {}
 export class PeerNotFoundError extends Error {}
+export class QuoteReceiveAssetMismatchError extends Error {}

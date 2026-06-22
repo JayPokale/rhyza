@@ -1,14 +1,13 @@
 import { ILogger, IMessage } from 'common-types-lib';
 import {
   FinalizedRemoteQuoteUpdate,
+  IPalService,
   IPeer,
-  IPeerService,
   IPendingQuote,
   IPaymentIntent,
   IPaymentIntentRepository,
   IRatesService,
   IRemotePaymentIntentService,
-  IWalletAddressService,
   PaymentIntentDestination,
   PaymentIntentState,
   PaymentState,
@@ -33,7 +32,8 @@ import {
   MissingDestinationIlpAddressError,
   PeerNotFoundError,
   InvalidQuoteStateError,
-  InvalidQuoteIdError
+  InvalidQuoteIdError,
+  QuoteReceiveAssetMismatchError
 } from './errors';
 import {
   QuoteCompletedEvent,
@@ -69,11 +69,10 @@ export class PaymentIntentAggregate {
 
   constructor(
     private _repo: IPaymentIntentRepository,
-    private _walletAddressService: IWalletAddressService,
+    private _palService: IPalService,
     private _ratesService: IRatesService,
     private _remotePaymentIntentService: IRemotePaymentIntentService,
-    private _logger: ILogger,
-    private _peerService: IPeerService
+    private _logger: ILogger
   ) {}
 
   async handleBatch(cmds: IMessage[]): Promise<{ events: IMessage[] }> {
@@ -116,7 +115,7 @@ export class PaymentIntentAggregate {
     const uniqueRemoteUrls = [...new Set(remoteUrlByProposedId.values())];
     const [walletAddresses, existingPaymentIntents, existingByUrl] =
       await Promise.all([
-        this._walletAddressService.fetchByIds([...walletAddressIdSet]),
+        this._palService.getWalletAddresses([...walletAddressIdSet]),
         this._repo.fetchByIdsWithPayments([...paymentIntentIdsSet]),
         this._repo.fetchIdsByRemoteUrls(uniqueRemoteUrls)
       ]);
@@ -153,7 +152,7 @@ export class PaymentIntentAggregate {
     await Promise.all([
       ...Array.from(ilpAddressesToFetch, async (ilpAddress) => {
         try {
-          const peer = await this._peerService.getPeerByIlpAddress(ilpAddress);
+          const peer = await this._palService.getPeerByIlpAddress(ilpAddress);
           this.peerMap.set(ilpAddress, peer);
         } catch (err) {
           this.peerFetchErrors.set(ilpAddress, err as Error);
@@ -163,7 +162,7 @@ export class PaymentIntentAggregate {
         fxToFetch.entries(),
         async ([key, { peerId, direction, assetCode }]) => {
           try {
-            const rate = await this._peerService.getRates(
+            const rate = await this._palService.getRates(
               direction === 'source'
                 ? { peerId, sourceAssetCode: assetCode }
                 : { peerId, destinationAssetCode: assetCode }
@@ -577,8 +576,13 @@ export class PaymentIntentAggregate {
     this._logger.debug(
       `handleCompleteRemoteQuoteCommand — quoteId: ${cmd.payload.quoteId} paymentIntentId: ${cmd.payload.paymentIntentId}`
     );
-    const { quoteId, paymentIntentId, receiveAmountValue, receiveAssetCode } =
-      cmd.payload;
+    const {
+      quoteId,
+      paymentIntentId,
+      receiveAmountValue,
+      receiveAssetCode,
+      receiveAssetScale
+    } = cmd.payload;
 
     try {
       const paymentIntentObj = this.paymentIntentMap.get(paymentIntentId);
@@ -599,6 +603,15 @@ export class PaymentIntentAggregate {
         );
       }
       const pendingQuote = pendingQuoteObj as IPendingQuote;
+
+      if (
+        receiveAssetCode !== paymentIntent.assetCode ||
+        receiveAssetScale !== paymentIntent.assetScale
+      ) {
+        throw new QuoteReceiveAssetMismatchError(
+          `ILP quote response asset (${receiveAssetCode}/${receiveAssetScale}) does not match payment intent asset (${paymentIntent.assetCode}/${paymentIntent.assetScale}) for quote ${quoteId}`
+        );
+      }
 
       const {
         peerId,

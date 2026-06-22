@@ -17,10 +17,9 @@ import {
 } from '../../src/commands';
 import {
   MockPaymentIntentRepo,
-  MockWalletAddressAdapter,
   MockRatesAdapter,
   MockRemotePaymentIntentService,
-  MockPeerService
+  MockPalService
 } from '../mocks';
 import {
   QuoteCreateFailedEvent,
@@ -122,16 +121,15 @@ function makeCreatePaymentCmd(
 
 describe('PaymentIntentAggregate.handleBatch', () => {
   let repo: MockPaymentIntentRepo;
-  let walletAddressAdapter: MockWalletAddressAdapter;
   let mockRatesAdapter: MockRatesAdapter;
   let mockRemotePaymentIntentService: MockRemotePaymentIntentService;
-  let mockPeerService: MockPeerService;
+  let mockPalService: MockPalService;
   let aggregate: PaymentIntentAggregate;
 
   beforeEach(() => {
     repo = new MockPaymentIntentRepo();
-    walletAddressAdapter = new MockWalletAddressAdapter();
-    walletAddressAdapter.addWalletAddress({
+    mockPalService = new MockPalService();
+    mockPalService.addWalletAddress({
       id: 'wallet-1',
       isActive: true,
       assetCode: 'USD',
@@ -139,14 +137,12 @@ describe('PaymentIntentAggregate.handleBatch', () => {
     });
     mockRatesAdapter = new MockRatesAdapter();
     mockRemotePaymentIntentService = new MockRemotePaymentIntentService();
-    mockPeerService = new MockPeerService();
     aggregate = new PaymentIntentAggregate(
       repo,
-      walletAddressAdapter,
+      mockPalService,
       mockRatesAdapter,
       mockRemotePaymentIntentService,
-      new ConsoleLogger(),
-      mockPeerService
+      new ConsoleLogger()
     );
   });
 
@@ -226,7 +222,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
       });
 
       it('fails if when wallet address is inactive', async () => {
-        walletAddressAdapter.addWalletAddress({
+        mockPalService.addWalletAddress({
           id: 'inactive-wallet',
           isActive: false,
           assetCode: 'USD',
@@ -259,7 +255,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
       });
 
       it('fails when sender wallet address is inactive', async () => {
-        walletAddressAdapter.addWalletAddress({
+        mockPalService.addWalletAddress({
           id: 'inactive-sender',
           isActive: false,
           assetCode: 'USD',
@@ -448,7 +444,9 @@ describe('PaymentIntentAggregate.handleBatch', () => {
 
         const cmd = makeCompleteRemoteQuoteCmd({
           paymentIntentId: paymentIntent.id,
-          quoteId
+          quoteId,
+          receiveAssetCode: 'USD',
+          receiveAssetScale: 2
         });
         const { events } = await aggregate.handleBatch([cmd]);
 
@@ -487,6 +485,44 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         assert.equal(events[0].msgName, QuoteCreateFailedEvent.name);
         const payload = (events[0] as QuoteCreateFailedEvent).payload;
         assert.equal(payload.errorName, 'InvalidQuoteIdError');
+      });
+
+      it('fails with QuoteReceiveAssetMismatchError when receiveAssetCode does not match payment intent', async () => {
+        const quoteId = crypto.randomUUID();
+        const paymentIntent = makeRemotePaymentIntentWithPendingQuote(quoteId);
+        await repo.storeMany([paymentIntent]);
+
+        const cmd = makeCompleteRemoteQuoteCmd({
+          paymentIntentId: paymentIntent.id,
+          quoteId,
+          receiveAssetCode: 'XRP',
+          receiveAssetScale: paymentIntent.assetScale
+        });
+        const { events } = await aggregate.handleBatch([cmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, QuoteCreateFailedEvent.name);
+        const payload = (events[0] as QuoteCreateFailedEvent).payload;
+        assert.equal(payload.errorName, 'QuoteReceiveAssetMismatchError');
+      });
+
+      it('fails with QuoteReceiveAssetMismatchError when receiveAssetScale does not match payment intent', async () => {
+        const quoteId = crypto.randomUUID();
+        const paymentIntent = makeRemotePaymentIntentWithPendingQuote(quoteId);
+        await repo.storeMany([paymentIntent]);
+
+        const cmd = makeCompleteRemoteQuoteCmd({
+          paymentIntentId: paymentIntent.id,
+          quoteId,
+          receiveAssetCode: paymentIntent.assetCode,
+          receiveAssetScale: paymentIntent.assetScale + 1
+        });
+        const { events } = await aggregate.handleBatch([cmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, QuoteCreateFailedEvent.name);
+        const payload = (events[0] as QuoteCreateFailedEvent).payload;
+        assert.equal(payload.errorName, 'QuoteReceiveAssetMismatchError');
       });
 
       describe('FX calculation', () => {
@@ -533,7 +569,9 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           const cmd = makeCompleteRemoteQuoteCmd({
             paymentIntentId: paymentIntent.id,
             quoteId,
-            receiveAmountValue: '10000'
+            receiveAmountValue: '10000',
+            receiveAssetCode: 'USD',
+            receiveAssetScale: 2
           });
           const { events } = await aggregate.handleBatch([cmd]);
 
@@ -583,7 +621,9 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           const cmd = makeCompleteRemoteQuoteCmd({
             paymentIntentId: paymentIntent.id,
             quoteId,
-            receiveAmountValue: '10000'
+            receiveAmountValue: '10000',
+            receiveAssetCode: 'USD',
+            receiveAssetScale: 2
           });
           const { events } = await aggregate.handleBatch([cmd]);
 
@@ -603,7 +643,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           const paymentIntent = makeCrossAssetPendingQuoteIntent(quoteId, {
             debitAmount: 1000n
           });
-          mockPeerService.getRates = async () => 0.9;
+          mockPalService.getRates = async () => 0.9;
           await repo.storeMany([paymentIntent]);
 
           const cmd = makeCompleteRemoteQuoteCmd({
@@ -629,7 +669,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           const paymentIntent = makeCrossAssetPendingQuoteIntent(quoteId, {
             receiveAmount: 1000n
           });
-          mockPeerService.getRates = async () => 1.1;
+          mockPalService.getRates = async () => 1.1;
           await repo.storeMany([paymentIntent]);
 
           const cmd = makeCompleteRemoteQuoteCmd({
@@ -655,7 +695,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           const paymentIntent = makeCrossAssetPendingQuoteIntent(quoteId, {
             debitAmount: 1000n
           });
-          mockPeerService.getRates = async () => null;
+          mockPalService.getRates = async () => null;
           await repo.storeMany([paymentIntent]);
 
           const cmd = makeCompleteRemoteQuoteCmd({
@@ -864,7 +904,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
       });
 
       it('fails when sender wallet address is inactive', async () => {
-        walletAddressAdapter.addWalletAddress({
+        mockPalService.addWalletAddress({
           id: 'inactive-sender',
           isActive: false,
           assetCode: 'USD',
@@ -1077,6 +1117,8 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           paymentIntentId: string;
           quoteId: string;
           receiveAmountValue: string;
+          receiveAssetCode: string;
+          receiveAssetScale: number;
         }> = {}
       ): CompleteRemoteQuoteCmd {
         return new CompleteRemoteQuoteCmd(
@@ -1084,8 +1126,8 @@ describe('PaymentIntentAggregate.handleBatch', () => {
             paymentIntentId: overrides.paymentIntentId ?? crypto.randomUUID(),
             quoteId: overrides.quoteId ?? crypto.randomUUID(),
             receiveAmountValue: overrides.receiveAmountValue ?? '10000',
-            receiveAssetCode: 'XRP',
-            receiveAssetScale: 6
+            receiveAssetCode: overrides.receiveAssetCode ?? 'XRP',
+            receiveAssetScale: overrides.receiveAssetScale ?? 6
           },
           crypto.randomUUID()
         );
@@ -1097,7 +1139,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         await repo.storeMany([intentA, intentB]);
 
         let callCount = 0;
-        mockPeerService.getPeerByIlpAddress = async () => {
+        mockPalService.getPeerByIlpAddress = async () => {
           callCount++;
           return { peerId: 'peer-1', assetCode: 'USD', assetScale: 2 };
         };
@@ -1124,7 +1166,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         await repo.storeMany([intentA, intentB]);
 
         let callCount = 0;
-        mockPeerService.getRates = async () => {
+        mockPalService.getRates = async () => {
           callCount++;
           return 0.9;
         };
@@ -1157,7 +1199,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         await repo.storeMany([intentA, intentB]);
 
         const calls: Array<Record<string, unknown>> = [];
-        mockPeerService.getRates = async (req) => {
+        mockPalService.getRates = async (req) => {
           calls.push(req as unknown as Record<string, unknown>);
           return 0.9;
         };
@@ -1191,7 +1233,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         const intentB = makeRemoteIntentWithIlp('g.peer.ok');
         await repo.storeMany([intentA, intentB]);
 
-        mockPeerService.getPeerByIlpAddress = async (ilp) => {
+        mockPalService.getPeerByIlpAddress = async (ilp) => {
           if (ilp === 'g.peer.fails') throw new Error('peer service down');
           return { peerId: 'peer-1', assetCode: 'USD', assetScale: 2 };
         };
@@ -1218,7 +1260,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         const intentB = makeRemotePaymentIntentWithPendingQuote(quoteIdB);
         await repo.storeMany([intentA, intentB]);
 
-        mockPeerService.getRates = async () => {
+        mockPalService.getRates = async () => {
           throw new Error('fx service down');
         };
 
@@ -1228,7 +1270,9 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         });
         const cmdB = makeCompleteRemoteQuoteCmd({
           paymentIntentId: intentB.id,
-          quoteId: quoteIdB
+          quoteId: quoteIdB,
+          receiveAssetCode: 'USD',
+          receiveAssetScale: 2
         });
         const { events } = await aggregate.handleBatch([cmdA, cmdB]);
 
@@ -1244,7 +1288,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         const intent = makeRemoteIntentWithIlp('g.peer.none');
         await repo.storeMany([intent]);
 
-        mockPeerService.getPeerByIlpAddress = async () => null;
+        mockPalService.getPeerByIlpAddress = async () => null;
 
         const cmd = makeCreateQuoteCmd({ paymentIntentId: intent.id });
         const { events } = await aggregate.handleBatch([cmd]);
@@ -1262,7 +1306,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         });
         await repo.storeMany([intent]);
 
-        mockPeerService.getRates = async () => null;
+        mockPalService.getRates = async () => null;
 
         const cmd = makeCompleteRemoteQuoteCmd({
           paymentIntentId: intent.id,

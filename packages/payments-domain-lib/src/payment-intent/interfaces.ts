@@ -97,10 +97,6 @@ export interface IWalletAddress {
   assetScale: number;
 }
 
-export interface IWalletAddressService {
-  fetchByIds(ids: string[]): Promise<IWalletAddress[]>;
-}
-
 export interface IRatesService {
   getRate(
     sourceAssetCode: string,
@@ -118,7 +114,8 @@ export interface IPeer {
   assetScale: number;
 }
 
-export interface IPeerService {
+export interface IPalService {
+  getWalletAddresses(ids: string[]): Promise<IWalletAddress[]>;
   getPeerByIlpAddress(ilpAddress: string): Promise<IPeer | null>;
   getRates(request: IFxRateRequest): Promise<number | null>;
 }
