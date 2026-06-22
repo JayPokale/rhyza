@@ -25,10 +25,14 @@ This command starts a local development server and opens up a browser window. Mo
 - Build the site, again, this must be run from the `/docs` folder:
 
 ```sh
-$ pnpm build:docs
+$ pnpm build
 ```
 
-This command generates static content into the build directory and can be served using any static contents hosting service.
+This command generates static content into the build directory. You can preview the build locally using:
+
+```sh
+$ pnpm preview
+```
 
 ### Formatting and Linting
 
@@ -38,22 +42,22 @@ From the root of the repository, you can run:
 
 ```sh
 # Format documentation files
-$ pnpm format:docs
+$ pnpm --filter docs format
 
 # Lint documentation files
-$ pnpm lint:docs
+$ pnpm --filter docs lint
 ```
 
 Or from within this package directory:
 
 ```sh
 cd docs
-pnpm prettier --write '**/*.{js,mjs,ts,tsx,json,md,mdx,astro}'
+pnpm format
 ```
 
 ## Editing Content
 
-Starlight looks for `.md` or `.mdx` files in the `src/content/docs/` directory. Each file is exposed as a route based on its file name. Due to the nature of how Starlight deals with content and their generated URLs, all docs content lives in `/src/content/docs/`. For example, the home page of the documentation lives within the `/src/content/docs/` folder and is rendered at rafiki.dev, not rafiki.dev/docs.
+Starlight looks for `.md` or `.mdx` files in the `src/content/docs/` directory. Each file is exposed as a route based on its file name. Due to the nature of how Starlight deals with content and their generated URLs, all docs content lives in `/src/content/docs/`. For example, the home page of the documentation lives within the `/src/content/docs/` folder and is rendered at docs.rhyza.dev, not docs.rhyza.dev/docs.
 
 Static assets, like favicons or images, can be placed in the `public/` directory. When referencing these assets in your markdown, you do not have to include `public/` in the file path, so an image would have a path like:
 
