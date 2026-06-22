@@ -41,7 +41,9 @@ Rhyza is a decoupled, event-driven system organized into multiple **bounded cont
 ### Integration & Open Payments services
 
 <Card title="Admin API Service" icon="setting">
-  The unified REST interface used by the ASE for all administrative tasks, including managing assets, wallet addresses, and initiating payments. **This is the primary point of integration.**
+  The unified REST interface used by the ASE for all administrative tasks,
+  including managing assets, wallet addresses, and initiating payments. **This
+  is the primary point of integration.**
   <p></p>
   <p>[Admin API Reference >](/apis/scalar/admin-api)</p>
 </Card>
@@ -86,7 +88,8 @@ Rhyza is a decoupled, event-driven system organized into multiple **bounded cont
 <Card title="Webhook endpoint">
   <Badge text="Required" variant="danger" /> You must expose a webhook endpoint
   that listens for events dispatched by Rhyza, then react accordingly by
-  calling/interfacing with the Admin API. For example, approving payments.<p></p>
+  calling/interfacing with the Admin API. For example, approving payments.
+  <p></p>
   <p>
     [Specify a webhook endpoint >](/integration/requirements/webhook-events)
   </p>
@@ -117,18 +120,18 @@ The following steps illustrate how to make a basic payment between two wallet ad
 
 <Card title="3. Create a payment">
   {' '}
-  Use the Admin API's `POST /payments` to create a payment resource on
-  the sender's wallet account. This operations starts the payment. At this
-  point, the sender's ASE must fund/approve the payment before it sends.<p></p>
+  Use the Admin API's `POST /payments` to create a payment resource on the
+  sender's wallet account. This operations starts the payment. At this point,
+  the sender's ASE must fund/approve the payment before it sends.<p></p>
   <p>[Admin API Reference >](/apis/scalar/admin-api)</p>
 </Card>
 
 <Card title="Handle webhook requests">
   {' '}
   As the payment flow progresses, the ASE is be notified about events that
-  happen in the system. Some events are actionable, such as an
-  `payment.created` event. Review the webhook events page to learn more
-  about handling each event.<p></p>
+  happen in the system. Some events are actionable, such as an `payment.created`
+  event. Review the webhook events page to learn more about handling each event.
+  <p></p>
   <p>[Webhook events >](/integration/requirements/webhook-events)</p>
 </Card>
 
