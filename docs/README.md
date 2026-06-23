@@ -125,7 +125,7 @@ We have extracted some commonly repeated patterns within the documentation pages
 For the shared components, if you are using both `LinkOut` and `MermaidWrapper` on the same page, you can import them both like so:
 
 ```jsx
-import { LinkOut, MermaidWrapper } from '@interledger/docs-design-system';
+import { LinkOut, MermaidWrapper } from '@interledger/docs-design-system'
 ```
 
 For more information about importing things in Javascript, please refer to [import on MDN](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import).

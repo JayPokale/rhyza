@@ -1,12 +1,12 @@
-import { defineConfig } from 'astro/config';
-import starlight from '@astrojs/starlight';
+import { defineConfig } from 'astro/config'
+import starlight from '@astrojs/starlight'
 
-import remarkMath from 'remark-math';
-import rehypeMathjax from 'rehype-mathjax';
-import starlightLinksValidator from 'starlight-links-validator';
-import starlightFullViewMode from 'starlight-fullview-mode';
-import { rehypeHeadingIds } from '@astrojs/markdown-remark';
-import rehypeAutolinkHeadings from 'rehype-autolink-headings';
+import remarkMath from 'remark-math'
+import rehypeMathjax from 'rehype-mathjax'
+import starlightLinksValidator from 'starlight-links-validator'
+import starlightFullViewMode from 'starlight-fullview-mode'
+import { rehypeHeadingIds } from '@astrojs/markdown-remark'
+import rehypeAutolinkHeadings from 'rehype-autolink-headings'
 
 // https://astro.build/config
 export default defineConfig({
@@ -228,4 +228,4 @@ export default defineConfig({
   server: {
     port: 1101
   }
-});
+})

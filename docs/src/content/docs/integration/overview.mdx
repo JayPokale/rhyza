@@ -2,7 +2,7 @@
 title: Integrate Rhyza with your ASE
 ---
 
-import { Card, CardGrid, Badge } from '@astrojs/starlight/components';
+import { Card, CardGrid, Badge } from '@astrojs/starlight/components'
 
 ## Before you begin
 
@@ -17,23 +17,23 @@ Rhyza is a decoupled, event-driven system organized into multiple **bounded cont
 ### Bounded contexts
 
 <CardGrid>
-  <Card title="Payments">
+  <Card title='Payments'>
     Stores, initiates, and receives payments. Includes services for payment
     intent lifecycle, quoting, and payments.
   </Card>
-  <Card title="PAL (Peers, Accounts, and Liquidity)">
+  <Card title='PAL (Peers, Accounts, and Liquidity)'>
     Manages assets, wallet addresses, peers, and the core accounting ledger &
     liquidity.
   </Card>
-  <Card title="ILP">
+  <Card title='ILP'>
     Handles the Interledger Protocol (ILP) layer, routing packets between peers
     and managing connections.
   </Card>
-  <Card title="Auth">
+  <Card title='Auth'>
     Internal authorization services that manage Open Payments grants and access
     tokens.
   </Card>
-  <Card title="Notifications">
+  <Card title='Notifications'>
     Processes system events and delivers webhooks to the ASE.
   </Card>
 </CardGrid>
