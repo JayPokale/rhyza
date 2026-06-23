@@ -24,7 +24,7 @@ paths:
       parameters: []
       responses:
         '201':
-          description: The request has succeeded and a new resource has been created as a result.
+          description: The request has succeeded and an asset has been created as a result.
           content:
             application/json:
               schema:
@@ -52,7 +52,7 @@ paths:
       parameters: []
       responses:
         '201':
-          description: The request has succeeded and a new resource has been created as a result.
+          description: The request has succeeded and a wallet address been created as a result.
           content:
             application/json:
               schema:
@@ -73,14 +73,14 @@ paths:
   /payment-intents:
     post:
       summary: Create Payment Intent
-      description: Create a new payment intent.
+      description: Create a new payment intent for a receiver's account.
       tags:
         - payment-intents
       operationId: PaymentIntents_createPaymentIntent
       parameters: []
       responses:
         '201':
-          description: The request has succeeded and a new resource has been created as a result.
+          description: The request has succeeded and a payment intent has been created as a result.
           content:
             application/json:
               schema:
@@ -135,7 +135,7 @@ paths:
       parameters: []
       responses:
         '201':
-          description: The request has succeeded and a new resource has been created as a result.
+          description: The request has succeeded and a quote has been created as a result.
           content:
             application/json:
               schema:
@@ -162,14 +162,14 @@ paths:
   /payments:
     post:
       summary: Create Payment
-      description: Execute a payment from a wallet address to a destination.
+      description: Create a payment for a sender's account.
       tags:
         - payments
       operationId: Payments_createPayment
       parameters: []
       responses:
         '201':
-          description: The request has succeeded and a new resource has been created as a result.
+          description: The request has succeeded and a payment has been created as a result.
           content:
             application/json:
               schema:
@@ -187,39 +187,6 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/PaymentCreate'
-  /payment-intents/{intentId}/payments/{id}:
-    get:
-      summary: Get Payment
-      description: Retrieve details of a specific payment by its ID within a payment intent.
-      tags:
-        - payments
-      operationId: Payments_getPayment
-      parameters:
-        - name: intentId
-          in: path
-          description: Unique identifier for the payment intent
-          required: true
-          schema:
-            type: string
-        - name: id
-          in: path
-          description: Unique identifier for the payment
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: The request has succeeded.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Payment'
-        '404':
-          description: Payment not found.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
   /payment-intents/{intentId}/payments/{id}/approve:
     post:
       summary: Approve Payment
@@ -253,6 +220,40 @@ paths:
                   id:
                     type: string
                     description: Unique identifier of the approved payment
+            
+  /payment-intents/{intentId}/payments/{id}:
+    get:
+      summary: Get Payment
+      description: Retrieve details of a specific payment by its ID within a payment intent.
+      tags:
+        - payments
+      operationId: Payments_getPayment
+      parameters:
+        - name: intentId
+          in: path
+          description: Unique identifier for the payment intent
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          description: Unique identifier for the payment
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+        '404':
+          description: Payment not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
 components:
   schemas:
@@ -454,16 +455,16 @@ components:
         expiresAt:
           type: string
           format: date-time
-          description: When the quote expires.
+          description: The date and time when the quote expires.
         debitAmount:
           type: string
-          description: The amount that will be debited.
+          description: The amount that will be debited from the sender.
         receiveAmount:
           type: string
-          description: The amount that will be received.
+          description: The amount that will be received by the recipient.
         exchangeRate:
           type: number
-          description: The exchange rate used for the quote.
+          description: The exchange rate of quote.
     PaymentCreate:
       type: object
       description: Schema for creating a new payment.
@@ -501,7 +502,7 @@ components:
           description: The ID of the associated payment intent.
     Payment:
       type: object
-      description: Represents a payment transaction and its current state.
+      description: Represents a payment
       required:
         - id
         - state
@@ -517,7 +518,7 @@ components:
           description: Unique identifier for the payment.
         state:
           type: string
-          description: The current status of the payment.
+          description: The current state of the payment.
         senderWalletAddress:
           type: string
           description: The wallet address of the sender.
