@@ -13,8 +13,10 @@ const specContent = readFileSync(specPath, 'utf-8')
 const config = JSON.stringify({
   content: specContent,
   hideClientButton: true,
+  hideModels: true,
   hideTestRequestButton: true,
   isEditable: false,
+  defaultOpenAllTags: true,
   mcp: { disabled: true }
 })
 
