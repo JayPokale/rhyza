@@ -7,8 +7,8 @@
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "format": "prettier --write '**/*.{js,mjs,ts,tsx,json,md,mdx,astro}' && eslint --max-warnings=0 --fix .",
-    "lint": "prettier --check '**/*.{js,mjs,ts,tsx,json,md,mdx,astro}' && eslint --max-warnings=0 ."
+    "format": "prettier --write . && eslint --max-warnings=0 --fix .",
+    "lint": "prettier --check . && eslint --max-warnings=0 ."
   },
   "dependencies": {
     "@astrojs/markdown-remark": "^7.1.2",

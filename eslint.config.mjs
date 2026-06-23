@@ -10,7 +10,8 @@ export default defineConfig(
     '**/build',
     '**/proto_generated',
     '**/.astro',
-    '**/docs/public/*.js'
+    '**/docs/public/*.js',
+    'docs/**'
   ]),
   eslint.configs.recommended,
   tseslint.configs.recommended,
