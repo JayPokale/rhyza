@@ -43,7 +43,7 @@ sequenceDiagram
     AAPI ->> ASE: OK
 ```
 
-## Peer basic info update (name or assetScale)
+## Update peer name
 
 ```mermaid
 sequenceDiagram
@@ -52,8 +52,8 @@ sequenceDiagram
     participant AAPI as Admin API
     participant PAL as PAL BC
 
-    ASE ->> AAPI: PATCH /peers/{id}/
-    AAPI ->> PAL: updatePeer rpc
+    ASE ->> AAPI: PUT /peers/{id}/name
+    AAPI ->> PAL: updatePeerName rpc
     AAPI ->> ASE: OK
 ```
 
@@ -66,7 +66,7 @@ sequenceDiagram
     participant AAPI as Admin API
     participant ILPBC as ILP BC
 
-    ASE ->> AAPI: PATCH /peers/{id}/connection-details
+    ASE ->> AAPI: POST /peers/{id}/ilp-connection
     AAPI ->> ILPBC: updatePeerConnectionDetails rpc
     AAPI ->> ASE: OK
 ```
