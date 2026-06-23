@@ -345,6 +345,7 @@ export class PaymentIntentAggregate {
       );
 
       if (paymentIntent.destination === 'LOCAL') {
+        // TODO: palService.getRates without peer id (when implemented)
         const exchangeRate = await this._ratesService.getRate(
           walletAddress.assetCode,
           paymentIntent.assetCode
@@ -509,6 +510,7 @@ export class PaymentIntentAggregate {
         );
       }
 
+      // TODO: palService.getRates without peer id (when implemented)
       const exchangeRate = await this._ratesService.getRate(
         walletAddress.assetCode,
         paymentIntent.assetCode
