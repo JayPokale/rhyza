@@ -620,8 +620,7 @@ export class PaymentIntentAggregate {
         peerAssetCode,
         sourceAmount,
         senderAssetCode,
-        debitAmount: requestedDebit,
-        receiveAmount: requestedReceive
+        debitAmount: requestedDebit
       } = pendingQuote;
 
       if (!peerId || !peerAssetCode || !sourceAmount || !senderAssetCode) {
@@ -630,69 +629,28 @@ export class PaymentIntentAggregate {
         );
       }
 
-      // peer->receiver rate derived from ILP response (never fetched from rates service)
-      const receiveAmountBigInt = BigInt(receiveAmountValue);
-      const peerToReceiverRate =
-        Number(receiveAmountBigInt) / Number(sourceAmount);
-
-      let computedDebit: bigint;
-      let computedReceive: bigint;
-
-      if (senderAssetCode === peerAssetCode) {
-        if (requestedDebit) {
-          computedDebit = requestedDebit;
-          computedReceive = BigInt(
-            Math.floor(Number(requestedDebit) * peerToReceiverRate)
-          );
-        } else {
-          computedReceive = requestedReceive!;
-          computedDebit = BigInt(
-            Math.ceil(Number(requestedReceive!) / peerToReceiverRate)
-          );
-        }
-      } else if (requestedDebit) {
-        const key = fxKey(peerId, 'source', senderAssetCode);
+      let fxRate: number | undefined;
+      if (senderAssetCode !== peerAssetCode) {
+        const direction: 'source' | 'destination' = requestedDebit
+          ? 'source'
+          : 'destination';
+        const key = fxKey(peerId, direction, senderAssetCode);
         const fxFetchError = this.fxRateFetchErrors.get(key);
         if (fxFetchError) throw fxFetchError;
 
         const rate = this.fxRateMap.get(key) ?? null;
         if (rate == null) {
           throw new RatesError(
-            `Could not get FX rate from PAL for peer ${peerId} source asset ${senderAssetCode}`
+            `Could not get FX rate from PAL for peer ${peerId} ${direction} asset ${senderAssetCode}`
           );
         }
-        computedDebit = requestedDebit;
-        computedReceive = BigInt(
-          Math.floor(Number(requestedDebit) * rate * peerToReceiverRate)
-        );
-      } else {
-        const key = fxKey(peerId, 'destination', senderAssetCode);
-        const fxFetchError = this.fxRateFetchErrors.get(key);
-        if (fxFetchError) throw fxFetchError;
-
-        const rate = this.fxRateMap.get(key) ?? null;
-        if (rate == null) {
-          throw new RatesError(
-            `Could not get FX rate from PAL for peer ${peerId} destination asset ${senderAssetCode}`
-          );
-        }
-        computedReceive = requestedReceive!;
-        computedDebit = BigInt(
-          Math.ceil(Number(requestedReceive!) * (1 / peerToReceiverRate) * rate)
-        );
+        fxRate = rate;
       }
-
-      const exchangeRate = Number(computedReceive) / Number(computedDebit);
-
-      this._logger.debug(
-        `handleCompleteRemoteQuoteCommand — FX: senderAsset: ${senderAssetCode} peerAsset: ${peerAssetCode} receiveAsset: ${receiveAssetCode} peerToReceiverRate: ${peerToReceiverRate} debit: ${computedDebit} receive: ${computedReceive}`
-      );
 
       const completedQuote = paymentIntent.completeRemoteQuote({
         id: quoteId,
-        debitAmount: computedDebit,
-        receiveAmount: computedReceive,
-        exchangeRate
+        receiveAmountValue: BigInt(receiveAmountValue),
+        fxRate
       });
 
       this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());

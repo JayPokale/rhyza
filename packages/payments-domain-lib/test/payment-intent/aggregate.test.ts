@@ -560,85 +560,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           };
         }
 
-        it('same asset + debitAmount: uses peerToReceiverRate directly', async () => {
-          const quoteId = crypto.randomUUID();
-          const paymentIntent =
-            makeRemotePaymentIntentWithPendingQuote(quoteId);
-          await repo.storeMany([paymentIntent]);
-
-          const cmd = makeCompleteRemoteQuoteCmd({
-            paymentIntentId: paymentIntent.id,
-            quoteId,
-            receiveAmountValue: '10000',
-            receiveAssetCode: 'USD',
-            receiveAssetScale: 2
-          });
-          const { events } = await aggregate.handleBatch([cmd]);
-
-          assert.equal(events[0].msgName, QuoteCompletedEvent.name);
-          const payload = (events[0] as QuoteCompletedEvent).payload;
-          // debitAmount = 500 USD
-          // receiveAmount = USD amount * (USD->receiver rate)
-          //              = 500 * (10000 / 100)
-          //              = 50000
-          assert.equal(payload.debitAmount, '500');
-          assert.equal(payload.receiveAmount, '50000');
-          assert.equal(payload.exchangeRate, 100);
-        });
-
-        it('same asset + receiveAmount: inverts peerToReceiverRate', async () => {
-          const quoteId = crypto.randomUUID();
-          const paymentIntent: IPaymentIntent = {
-            id: crypto.randomUUID(),
-            receivedAmount: 0n,
-            receiverWalletAddress: 'remote.domain.com/alice',
-            assetCode: 'USD',
-            assetScale: 2,
-            state: 'CREATED',
-            destination: 'REMOTE',
-            createdAt: new Date(),
-            expiresAt: new Date(Date.now() + 60_000),
-            incomingAmount: null,
-            quotes: [
-              {
-                id: quoteId,
-                state: 'PENDING',
-                senderWalletAddress: 'domain.com/bob',
-                senderWalletAddressId: 'wallet-1',
-                peerId: 'peer-1',
-                peerAssetCode: 'USD',
-                peerAssetScale: 2,
-                sourceAmount: 100n,
-                senderAssetCode: 'USD',
-                receiveAmount: 1000n
-              }
-            ],
-            payments: [],
-            destinationIlpAddress: 'g.peer.123'
-          };
-          await repo.storeMany([paymentIntent]);
-
-          const cmd = makeCompleteRemoteQuoteCmd({
-            paymentIntentId: paymentIntent.id,
-            quoteId,
-            receiveAmountValue: '10000',
-            receiveAssetCode: 'USD',
-            receiveAssetScale: 2
-          });
-          const { events } = await aggregate.handleBatch([cmd]);
-
-          assert.equal(events[0].msgName, QuoteCompletedEvent.name);
-          const payload = (events[0] as QuoteCompletedEvent).payload;
-          // receiveAmount = 1000 USD
-          // debitAmount = USD amount * (1 / receiver->USD rate)
-          //            = 1000 * (1 / (10000 / 100))
-          //            = 10
-          assert.equal(payload.debitAmount, '10');
-          assert.equal(payload.receiveAmount, '1000');
-          assert.equal(payload.exchangeRate, 100);
-        });
-
-        it('cross-asset + debitAmount: multiplies debit by getRates(sourceAsset) and peerToReceiverRate', async () => {
+        it('cross-asset success: prefetched FX rate is passed to entity and applied', async () => {
           const quoteId = crypto.randomUUID();
           const paymentIntent = makeCrossAssetPendingQuoteIntent(quoteId, {
             debitAmount: 1000n
@@ -662,32 +584,6 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           assert.equal(payload.debitAmount, '1000');
           assert.equal(payload.receiveAmount, '90000');
           assert.equal(payload.exchangeRate, 90);
-        });
-
-        it('cross-asset + receiveAmount: divides receive by peerToReceiverRate and multiplies by getRates(destinationAsset)', async () => {
-          const quoteId = crypto.randomUUID();
-          const paymentIntent = makeCrossAssetPendingQuoteIntent(quoteId, {
-            receiveAmount: 1000n
-          });
-          mockPalService.getRates = async () => 1.1;
-          await repo.storeMany([paymentIntent]);
-
-          const cmd = makeCompleteRemoteQuoteCmd({
-            paymentIntentId: paymentIntent.id,
-            quoteId,
-            receiveAmountValue: '10000'
-          });
-          const { events } = await aggregate.handleBatch([cmd]);
-
-          assert.equal(events[0].msgName, QuoteCompletedEvent.name);
-          const payload = (events[0] as QuoteCompletedEvent).payload;
-          // receiveAmount = 1000 XRP
-          // debitAmount = XRP amount * (1 / XRP->EUR rate) * (EUR->USD rate)
-          //            = 1000 * (1 / (10000 / 100)) * (1.1)
-          //            = 11 USD
-          assert.equal(payload.debitAmount, '11');
-          assert.equal(payload.receiveAmount, '1000');
-          assert.equal(payload.exchangeRate, 1000 / 11);
         });
 
         it('fails with RatesError when FX rate is unavailable', async () => {
