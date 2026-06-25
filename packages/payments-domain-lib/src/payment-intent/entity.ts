@@ -188,12 +188,6 @@ class Quote implements IBaseQuote {
       Number(receiveAmountValue) / Number(sourceAmount);
     const isCrossAsset = senderAssetCode !== peerAssetCode;
 
-    if (isCrossAsset && fxRate == null) {
-      throw new MissingFxRateError(
-        `Cross-asset quote ${this._id} requires an fxRate (sender: ${senderAssetCode}, peer: ${peerAssetCode})`
-      );
-    }
-
     let computedDebit: bigint;
     let computedReceive: bigint;
 
@@ -203,24 +197,37 @@ class Quote implements IBaseQuote {
         computedReceive = BigInt(
           Math.floor(Number(requestedDebit) * peerToReceiverRate)
         );
-      } else {
-        computedReceive = requestedReceive!;
+      } else if (requestedReceive !== undefined) {
+        computedReceive = requestedReceive;
         computedDebit = BigInt(
-          Math.ceil(Number(requestedReceive!) / peerToReceiverRate)
+          Math.ceil(Number(requestedReceive) / peerToReceiverRate)
+        );
+      } else {
+        throw new InvalidQuoteStateError(
+          `Pending quote ${this._id} must have debit or receive amount`
         );
       }
-    } else if (requestedDebit) {
-      computedDebit = requestedDebit;
-      computedReceive = BigInt(
-        Math.floor(Number(requestedDebit) * fxRate! * peerToReceiverRate)
-      );
     } else {
-      computedReceive = requestedReceive!;
-      computedDebit = BigInt(
-        Math.ceil(
-          Number(requestedReceive!) * (1 / peerToReceiverRate) * fxRate!
-        )
-      );
+      if (fxRate == null) {
+        throw new MissingFxRateError(
+          `Cross-asset quote ${this._id} requires an fxRate (sender: ${senderAssetCode}, peer: ${peerAssetCode})`
+        );
+      }
+      if (requestedDebit) {
+        computedDebit = requestedDebit;
+        computedReceive = BigInt(
+          Math.floor(Number(requestedDebit) * fxRate * peerToReceiverRate)
+        );
+      } else if (requestedReceive !== undefined) {
+        computedReceive = requestedReceive;
+        computedDebit = BigInt(
+          Math.ceil(Number(requestedReceive) * (1 / peerToReceiverRate) * fxRate)
+        );
+      } else {
+        throw new InvalidQuoteStateError(
+          `Pending quote ${this._id} must have debit or receive amount`
+        );
+      }
     }
 
     const exchangeRate = Number(computedReceive) / Number(computedDebit);
