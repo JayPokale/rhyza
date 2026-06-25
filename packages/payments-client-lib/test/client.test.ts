@@ -433,16 +433,10 @@ describe('Payments Client', () => {
         100
       );
 
-      await paymentsClient.approvePayment(
-        paymentIntentId,
-        paymentId
-      );
+      await paymentsClient.approvePayment(paymentIntentId, paymentId);
 
       try {
-        await paymentsClient.approvePayment(
-          paymentIntentId,
-          paymentId
-        );
+        await paymentsClient.approvePayment(paymentIntentId, paymentId);
         assert.fail('expected error for duplicate approval');
       } catch (e) {
         assert.ok(e instanceof Error);
@@ -452,10 +446,7 @@ describe('Payments Client', () => {
     test('unknown payment id is rejected', async () => {
       const paymentIntentId = await createPaymentIntent(100);
       try {
-        await paymentsClient.approvePayment(
-          paymentIntentId,
-          randomUUID()
-        );
+        await paymentsClient.approvePayment(paymentIntentId, randomUUID());
         assert.fail('expected error for unknown payment');
       } catch (e) {
         assert.ok(e instanceof Error);
@@ -475,10 +466,7 @@ describe('Payments Client', () => {
       );
 
       try {
-        await paymentsClient.approvePayment(
-          randomUUID(),
-          paymentId
-        );
+        await paymentsClient.approvePayment(randomUUID(), paymentId);
         assert.fail('expected error for unknown payment intent');
       } catch (e) {
         assert.ok(e instanceof Error);

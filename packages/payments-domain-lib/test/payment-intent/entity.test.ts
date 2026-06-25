@@ -1385,7 +1385,12 @@ describe('PaymentIntent Entity', () => {
 
       paymentIntent.addPendingRemoteQuote({
         id: quoteId,
-        senderWalletAddress: { id: senderWalletAddressId, address: 'sender', assetCode: 'USD', assetScale: 2 },
+        senderWalletAddress: {
+          id: senderWalletAddressId,
+          address: 'sender',
+          assetCode: 'USD',
+          assetScale: 2
+        },
         peerId: 'sender-peer',
         peerAssetCode: 'USD',
         peerAssetScale: 2,
@@ -1415,7 +1420,12 @@ describe('PaymentIntent Entity', () => {
 
       const args = {
         id: crypto.randomUUID(),
-        senderWalletAddress: { id: crypto.randomUUID(), address: 'sender', assetCode: 'USD', assetScale: 2 },
+        senderWalletAddress: {
+          id: crypto.randomUUID(),
+          address: 'sender',
+          assetCode: 'USD',
+          assetScale: 2
+        },
         peerId: 'sender-peer',
         peerAssetCode: 'USD',
         peerAssetScale: 2,
@@ -1456,11 +1466,16 @@ describe('PaymentIntent Entity', () => {
         () =>
           paymentIntent.addPendingRemoteQuote({
             id: crypto.randomUUID(),
-            senderWalletAddress: { id: crypto.randomUUID(), address: 'sender', assetCode: 'USD', assetScale: 2 },
+            senderWalletAddress: {
+              id: crypto.randomUUID(),
+              address: 'sender',
+              assetCode: 'USD',
+              assetScale: 2
+            },
             peerId: 'sender-peer',
             peerAssetCode: 'USD',
             peerAssetScale: 2,
-            sourceAmount: 100n,
+            sourceAmount: 100n
           }),
         (err: Error) => {
           assert(err instanceof PaymentIntentInvalidState);
@@ -1490,11 +1505,16 @@ describe('PaymentIntent Entity', () => {
         () =>
           paymentIntent.addPendingRemoteQuote({
             id: crypto.randomUUID(),
-            senderWalletAddress: { id: crypto.randomUUID(), address: 'sender', assetCode: 'USD', assetScale: 2 },
+            senderWalletAddress: {
+              id: crypto.randomUUID(),
+              address: 'sender',
+              assetCode: 'USD',
+              assetScale: 2
+            },
             peerId: 'sender-peer',
             peerAssetCode: 'USD',
             peerAssetScale: 2,
-            sourceAmount: 100n,
+            sourceAmount: 100n
           }),
         (err: Error) => {
           assert(err instanceof PaymentIntentExpired);
@@ -1518,11 +1538,16 @@ describe('PaymentIntent Entity', () => {
         () =>
           paymentIntent.addPendingRemoteQuote({
             id: crypto.randomUUID(),
-            senderWalletAddress: { id: crypto.randomUUID(), address: 'sender', assetCode: 'USD', assetScale: 2 },
+            senderWalletAddress: {
+              id: crypto.randomUUID(),
+              address: 'sender',
+              assetCode: 'USD',
+              assetScale: 2
+            },
             peerId: 'sender-peer',
             peerAssetCode: 'USD',
             peerAssetScale: 2,
-            sourceAmount: 100n,
+            sourceAmount: 100n
           }),
         (err: Error) => {
           assert(err instanceof InvalidQuoteAmountError);
@@ -1842,7 +1867,12 @@ describe('PaymentIntent Entity', () => {
       );
       paymentIntent.addPendingRemoteQuote({
         id: quoteId,
-        senderWalletAddress: { id: crypto.randomUUID(), address: 'sender', assetCode: 'USD', assetScale: 2 },
+        senderWalletAddress: {
+          id: crypto.randomUUID(),
+          address: 'sender',
+          assetCode: 'USD',
+          assetScale: 2
+        },
         peerId: 'sender-peer',
         peerAssetCode: 'USD',
         peerAssetScale: 2,
