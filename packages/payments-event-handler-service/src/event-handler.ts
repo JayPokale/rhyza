@@ -19,9 +19,6 @@ interface IlpQuoteDeterminedPayload {
   quoteId: string;
   // TODO: ILP BC should pass requestId through from RemoteQuoteRequestedEvent payload so
   // Payments BC can correlate the API response back to the original request.
-  // Alternative: store requestId on the pending quote entity and use it when emitting
-  // QuoteCreateCompletedEvent. Avoids cross-BC dependency but puts correlation
-  // metadata on a domain entity.
   requestId: string;
   receiveAmountValue: string;
   receiveAssetCode: string;
@@ -31,7 +28,8 @@ interface IlpQuoteDeterminedPayload {
 interface IlpQuoteFailedPayload {
   paymentIntentId: string;
   quoteId: string;
-  // TODO: same requestId propagation requirement as IlpQuoteDeterminedPayload above
+  // TODO: ILP BC should pass requestId through from RemoteQuoteRequestedEvent payload so
+  // Payments BC can correlate the API response back to the original request.
   requestId: string;
   errorName: string;
   message: string;
