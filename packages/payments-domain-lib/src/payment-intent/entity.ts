@@ -221,7 +221,9 @@ class Quote implements IBaseQuote {
       } else if (requestedReceive !== undefined) {
         computedReceive = requestedReceive;
         computedDebit = BigInt(
-          Math.ceil(Number(requestedReceive) * (1 / peerToReceiverRate) * fxRate)
+          Math.ceil(
+            Number(requestedReceive) * (1 / peerToReceiverRate) * fxRate
+          )
         );
       } else {
         throw new InvalidQuoteStateError(
