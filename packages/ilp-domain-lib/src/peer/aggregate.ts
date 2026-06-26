@@ -11,7 +11,7 @@ import { PacketNotFound } from '../packet/errors';
 import { Peer } from './entity';
 import { DuplicatePeer, UnknownPeer } from './errors';
 import {
-  QuoteDeterminedEvent,
+  RemoteQuoteReceivedEvent,
   QuoteFailedEvent,
   RemotePaymentConfirmedEvent,
   RemotePaymentFailedEvent
@@ -205,19 +205,13 @@ export class IlpPeerAggregate {
     await this.peerRepo.updatePacket(transitioned);
 
     if (transitioned.kind === 'QUOTE') {
-      if (
-        payload.maxSourceAmount !== undefined &&
-        payload.minDeliveryAmount !== undefined &&
-        payload.lowEstimatedExchangeRate !== undefined
-      ) {
+      if (payload.destinationAmount !== undefined) {
         return [
-          new QuoteDeterminedEvent({
+          new RemoteQuoteReceivedEvent({
             peerId: transitioned.peerId,
             paymentIntentId: transitioned.paymentIntentId,
             quoteId: transitioned.quoteId,
-            maxSourceAmount: payload.maxSourceAmount,
-            minDeliveryAmount: payload.minDeliveryAmount,
-            lowEstimatedExchangeRate: payload.lowEstimatedExchangeRate
+            destinationAmount: payload.destinationAmount
           })
         ];
       }

@@ -108,9 +108,7 @@ export interface ProcessRejectPacketCmdPayload {
   rejectMessage: string;
   rejectedAt: string;
   // Only populated when this reject is destined as a quote response.
-  maxSourceAmount?: string;
-  minDeliveryAmount?: string;
-  lowEstimatedExchangeRate?: number;
+  destinationAmount?: string;
 }
 
 export class ProcessRejectPacketCmd extends CommandMsg {

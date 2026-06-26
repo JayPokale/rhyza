@@ -17,7 +17,7 @@ import {
   IlpPeerAggregate,
   IPeer,
   ProcessRejectPacketCmd,
-  QuoteDeterminedEvent,
+  RemoteQuoteReceivedEvent,
   QuoteFailedEvent,
   RemotePaymentFailedEvent,
   StartRemoteQuoteCmd
@@ -256,7 +256,7 @@ describe('ILP command handler <-> connector over Kafka topics', () => {
     assert.equal(eventsOnTopic(bus, RemotePaymentFailedEvent.name).length, 0);
   });
 
-  test('a reject carrying decoded amounts -> QuoteDeterminedEvent', async () => {
+  test('a reject carrying decoded amounts -> RemoteQuoteReceivedEvent', async () => {
     // The connector cannot decode STREAM amounts yet, so we inject the reject a
     // future connector would emit (amounts present) onto ilp-commands to prove
     // the determined path flows through the same seam end to end.
@@ -273,16 +273,14 @@ describe('ILP command handler <-> connector over Kafka topics', () => {
         rejectCode: 'F99',
         rejectMessage: 'quote response',
         rejectedAt: new Date().toISOString(),
-        maxSourceAmount: '100',
-        minDeliveryAmount: '95',
-        lowEstimatedExchangeRate: 0.95
+        destinationAmount: '95'
       })
     );
 
-    const determined = eventsOnTopic(bus, QuoteDeterminedEvent.name);
+    const determined = eventsOnTopic(bus, RemoteQuoteReceivedEvent.name);
     assert.equal(determined.length, 1);
     assert.equal(
-      (determined[0] as QuoteDeterminedEvent).payload.minDeliveryAmount,
+      (determined[0] as RemoteQuoteReceivedEvent).payload.destinationAmount,
       '95'
     );
     assert.equal(eventsOnTopic(bus, QuoteFailedEvent.name).length, 0);

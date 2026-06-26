@@ -15,7 +15,7 @@ import {
   IlpPeerAggregate,
   IPeer,
   ProcessRejectPacketCmd,
-  QuoteDeterminedEvent,
+  RemoteQuoteReceivedEvent,
   QuoteFailedEvent,
   StartRemoteQuoteCmd
 } from 'ilp-domain-lib';
@@ -119,7 +119,7 @@ describe('IlpCommandHandler — remote quote sending', () => {
     assert.ok(dispatch.payload.expiresAt);
   });
 
-  test('a peer reject carrying amounts yields a QuoteDeterminedEvent', async () => {
+  test('a peer reject carrying amounts yields a RemoteQuoteReceivedEvent', async () => {
     const { producer, consumer } = await startedHandler();
     await consumer.deliver([startQuote()]);
     const packetId = dispatchedPacketId(producer);
@@ -132,19 +132,17 @@ describe('IlpCommandHandler — remote quote sending', () => {
         rejectCode: 'F99',
         rejectMessage: 'quote response',
         rejectedAt: new Date().toISOString(),
-        maxSourceAmount: '100',
-        minDeliveryAmount: '95',
-        lowEstimatedExchangeRate: 0.95
+        destinationAmount: '95'
       })
     ]);
 
     const event = producer.sent.find(
-      (m) => m.msgName === QuoteDeterminedEvent.name
-    ) as QuoteDeterminedEvent;
-    assert.ok(event, 'expected a QuoteDeterminedEvent');
+      (m) => m.msgName === RemoteQuoteReceivedEvent.name
+    ) as RemoteQuoteReceivedEvent;
+    assert.ok(event, 'expected a RemoteQuoteReceivedEvent');
     assert.equal(event.msgTopic, 'ilp-domain-events');
     assert.equal(event.payload.quoteId, 'quote-1');
-    assert.equal(event.payload.minDeliveryAmount, '95');
+    assert.equal(event.payload.destinationAmount, '95');
   });
 
   test('a peer reject without amounts yields a QuoteFailedEvent', async () => {
