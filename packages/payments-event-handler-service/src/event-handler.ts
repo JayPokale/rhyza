@@ -4,10 +4,7 @@ import {
   IMessageConsumer,
   IMessageProducer
 } from 'common-types-lib';
-import {
-  QuoteFailedEvent,
-  RemoteQuoteReceivedEvent
-} from 'ilp-domain-lib';
+import { QuoteFailedEvent, RemoteQuoteReceivedEvent } from 'ilp-domain-lib';
 import {
   CompleteRemoteQuoteCmd,
   FailRemoteQuoteCmd
