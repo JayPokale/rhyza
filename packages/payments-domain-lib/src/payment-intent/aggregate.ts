@@ -32,8 +32,7 @@ import {
   MissingDestinationIlpAddressError,
   PeerNotFoundError,
   InvalidQuoteStateError,
-  InvalidQuoteIdError,
-  QuoteReceiveAssetMismatchError
+  InvalidQuoteIdError
 } from './errors';
 import {
   QuoteCompletedEvent,
@@ -578,13 +577,7 @@ export class PaymentIntentAggregate {
     this._logger.debug(
       `handleCompleteRemoteQuoteCommand — quoteId: ${cmd.payload.quoteId} paymentIntentId: ${cmd.payload.paymentIntentId}`
     );
-    const {
-      quoteId,
-      paymentIntentId,
-      receiveAmountValue,
-      receiveAssetCode,
-      receiveAssetScale
-    } = cmd.payload;
+    const { quoteId, paymentIntentId, receiveAmountValue } = cmd.payload;
 
     try {
       const paymentIntentObj = this.paymentIntentMap.get(paymentIntentId);
@@ -605,15 +598,6 @@ export class PaymentIntentAggregate {
         );
       }
       const pendingQuote = pendingQuoteObj as IPendingQuote;
-
-      if (
-        receiveAssetCode !== paymentIntent.assetCode ||
-        receiveAssetScale !== paymentIntent.assetScale
-      ) {
-        throw new QuoteReceiveAssetMismatchError(
-          `ILP quote response asset (${receiveAssetCode}/${receiveAssetScale}) does not match payment intent asset (${paymentIntent.assetCode}/${paymentIntent.assetScale}) for quote ${quoteId}`
-        );
-      }
 
       const {
         peerId,
