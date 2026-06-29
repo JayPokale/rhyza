@@ -12,33 +12,9 @@ For testing purposes, you can set up a [mock account servicing entity](/integrat
 
 ## Software components
 
-Rhyza is a decoupled, event-driven system organized into multiple **bounded contexts**. Each context is composed of specialized services, including APIs, domain logic, and event-driven command/event handlers that communicate via Kafka.
+From an integration perspective, Rhyza is structured around the **core system** (which processes payments, runs the ledger, handles wallet address registration and peering, and dispatches webhooks), the internal **Admin API**, and the external-facing **Open Payments APIs**.
 
-### Bounded contexts
-
-<CardGrid>
-  <Card title='Payments'>
-    Stores, initiates, and receives payments. Includes services for payment
-    intent lifecycle, quoting, and payments.
-  </Card>
-  <Card title='PAL (Peers, Accounts, and Liquidity)'>
-    Manages assets, wallet addresses, peers, and the core accounting ledger &
-    liquidity.
-  </Card>
-  <Card title='ILP'>
-    Handles the Interledger Protocol (ILP) layer, routing packets between peers
-    and managing connections.
-  </Card>
-  <Card title='Auth'>
-    Internal authorization services that manage Open Payments grants and access
-    tokens.
-  </Card>
-  <Card title='Notifications'>
-    Processes system events and delivers webhooks to the ASE.
-  </Card>
-</CardGrid>
-
-### Integration & Open Payments services
+Rhyza's API services consist of the following:
 
 <Card title="Admin API Service" icon="setting">
   The unified REST interface used by the ASE for all administrative tasks,
