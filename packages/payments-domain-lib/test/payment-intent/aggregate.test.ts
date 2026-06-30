@@ -780,10 +780,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         const { events } = await aggregate.handleBatch([cmd]);
 
         assert.equal(events.length, 1);
-        assert.equal(
-          events[0].msgName,
-          RemoteQuoteCalculationFailedEvent.name
-        );
+        assert.equal(events[0].msgName, RemoteQuoteCalculationFailedEvent.name);
         const payload = (events[0] as RemoteQuoteCalculationFailedEvent)
           .payload;
         assert.equal(payload.errorName, 'PaymentIntentNotFoundError');
@@ -806,10 +803,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         const { events } = await aggregate.handleBatch([cmd]);
 
         assert.equal(events.length, 1);
-        assert.equal(
-          events[0].msgName,
-          RemoteQuoteCalculationFailedEvent.name
-        );
+        assert.equal(events[0].msgName, RemoteQuoteCalculationFailedEvent.name);
         const payload = (events[0] as RemoteQuoteCalculationFailedEvent)
           .payload;
         assert.equal(payload.errorName, 'RatesError');
@@ -831,10 +825,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         const { events } = await aggregate.handleBatch([cmd]);
 
         assert.equal(events.length, 1);
-        assert.equal(
-          events[0].msgName,
-          RemoteQuoteCalculationFailedEvent.name
-        );
+        assert.equal(events[0].msgName, RemoteQuoteCalculationFailedEvent.name);
         const payload = (events[0] as RemoteQuoteCalculationFailedEvent)
           .payload;
         assert.equal(payload.errorName, 'Error');
