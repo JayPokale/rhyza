@@ -20,7 +20,7 @@ export class FxRate {
     sourceAssetCode: string,
     destinationAssetCode: string,
     rateType: 'IntraAseRate' | 'PeerRate',
-    updateMethod: 'PulledFromAse' | 'PushedByAse',
+    acquisitionMethod: 'PulledFromAse' | 'PushedByAse',
     peerId: string | null,
     rate: number,
     fetchedAt?: number | null,
@@ -31,7 +31,7 @@ export class FxRate {
     this._sourceAssetCode = sourceAssetCode;
     this._destinationAssetCode = destinationAssetCode;
     this._rate = rate;
-    this._acquisitionMethod = updateMethod;
+    this._acquisitionMethod = acquisitionMethod;
     this._fetchedAt = fetchedAt || null;
     this._expiresAt = expiresAt || null;
 
