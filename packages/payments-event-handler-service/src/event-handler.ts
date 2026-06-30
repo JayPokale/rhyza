@@ -6,7 +6,8 @@ import {
 } from 'common-types-lib';
 import {
   CompleteRemoteQuoteCmd,
-  FailRemoteQuoteCmd
+  FailRemoteQuoteCmd,
+  CalculateRemoteQuoteCmd
 } from 'payments-domain-lib';
 import { QuoteDeterminedEvent, QuoteFailedEvent } from 'ilp-domain-lib';
 
@@ -28,11 +29,25 @@ interface IlpQuoteDeterminedPayload {
 interface IlpQuoteFailedPayload {
   paymentIntentId: string;
   quoteId: string;
-  // TODO: ILP BC should pass requestId through from RemoteQuoteRequestedEvent payload so
-  // Payments BC can correlate the API response back to the original request.
   requestId: string;
   errorName: string;
   message: string;
+}
+
+// TODO: pending ILP BC class for inbound remote-quote request. replace stub
+// once published from ilp-domain-lib.
+// How does ILP want to correlate? remote quote calculation is ephemeral (no quote id).
+// packetId? generic correlationId or requestId?
+// peerId/paymentIntentId alone probably cant uniquely identify.
+const RemoteQuoteRequestReceivedEventName = 'RemoteQuoteRequestReceivedEvent';
+interface IlpRemoteQuoteRequestReceivedPayload {
+  packetId: string;
+  peerId: string;
+  paymentIntentId: string;
+  sourceAmount: string;
+  peerAssetCode: string;
+  peerAssetScale: number;
+  requestId: string;
 }
 
 export class PaymentsEventHandler {
@@ -85,6 +100,22 @@ export class PaymentsEventHandler {
             paymentIntentId: payload.paymentIntentId,
             errorName: payload.errorName,
             message: payload.message
+          },
+          payload.requestId
+        );
+        await this._msgProducer.send(cmd);
+        break;
+      }
+      case RemoteQuoteRequestReceivedEventName: {
+        const payload = message.payload as IlpRemoteQuoteRequestReceivedPayload;
+        const cmd = new CalculateRemoteQuoteCmd(
+          {
+            packetId: payload.packetId,
+            peerId: payload.peerId,
+            paymentIntentId: payload.paymentIntentId,
+            sourceAmount: payload.sourceAmount,
+            peerAssetCode: payload.peerAssetCode,
+            peerAssetScale: payload.peerAssetScale
           },
           payload.requestId
         );

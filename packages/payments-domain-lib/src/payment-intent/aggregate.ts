@@ -20,7 +20,8 @@ import {
   CreatePaymentCmd,
   ApprovePaymentCmd,
   CompleteRemoteQuoteCmd,
-  FailRemoteQuoteCmd
+  FailRemoteQuoteCmd,
+  CalculateRemoteQuoteCmd
 } from '../commands';
 import {
   CannotCreateDuplicatePaymentIntentError,
@@ -44,7 +45,9 @@ import {
   LocalPaymentCompletedEvent,
   LocalPaymentCompleteFailedEvent,
   PaymentCreatedEvent,
-  RemoteQuoteRequestedEvent
+  RemoteQuoteRequestedEvent,
+  RemoteQuoteCalculatedEvent,
+  RemoteQuoteCalculationFailedEvent
 } from './events';
 
 const fxKey = (
@@ -109,6 +112,9 @@ export class PaymentIntentAggregate {
       } else if (cmd.msgName === FailRemoteQuoteCmd.name) {
         const payload = (cmd as FailRemoteQuoteCmd).payload;
         paymentIntentIdsSet.add(payload.paymentIntentId);
+      } else if (cmd.msgName === CalculateRemoteQuoteCmd.name) {
+        const payload = (cmd as CalculateRemoteQuoteCmd).payload;
+        paymentIntentIdsSet.add(payload.paymentIntentId);
       }
     }
 
@@ -146,6 +152,11 @@ export class PaymentIntentAggregate {
         this._collectIlpAddress(cmd as CreateQuoteCmd, ilpAddressesToFetch);
       } else if (cmd.msgName === CompleteRemoteQuoteCmd.name) {
         this._collectFxLookup(cmd as CompleteRemoteQuoteCmd, fxToFetch);
+      } else if (cmd.msgName === CalculateRemoteQuoteCmd.name) {
+        this._collectFxLookupForCalculate(
+          cmd as CalculateRemoteQuoteCmd,
+          fxToFetch
+        );
       }
     }
 
@@ -195,6 +206,10 @@ export class PaymentIntentAggregate {
         );
       } else if (cmd.msgName === FailRemoteQuoteCmd.name) {
         event = this.handleFailRemoteQuoteCommand(cmd as FailRemoteQuoteCmd);
+      } else if (cmd.msgName === CalculateRemoteQuoteCmd.name) {
+        event = this.handleCalculateRemoteQuoteCommand(
+          cmd as CalculateRemoteQuoteCmd
+        );
       } else {
         throw new Error('Unexpected command');
       }
@@ -718,6 +733,72 @@ export class PaymentIntentAggregate {
     }
   }
 
+  private handleCalculateRemoteQuoteCommand(cmd: CalculateRemoteQuoteCmd) {
+    this._logger.debug(
+      `handleCalculateRemoteQuoteCommand — paymentIntentId: ${cmd.payload.paymentIntentId} packetId: ${cmd.payload.packetId}`
+    );
+    const { packetId, peerId, paymentIntentId, peerAssetCode } = cmd.payload;
+
+    try {
+      const paymentIntentObj = this.paymentIntentMap.get(paymentIntentId);
+      if (!paymentIntentObj) {
+        throw new PaymentIntentNotFoundError(
+          `Payment intent ${paymentIntentId} not found`
+        );
+      }
+
+      const paymentIntent = PaymentIntent.fromObject(paymentIntentObj);
+
+      let fxRate: number | undefined;
+      if (peerAssetCode !== paymentIntent.assetCode) {
+        const key = fxKey(peerId, 'source', peerAssetCode);
+        const fxFetchError = this.fxRateFetchErrors.get(key);
+        if (fxFetchError) throw fxFetchError;
+
+        const rate = this.fxRateMap.get(key) ?? null;
+        if (rate == null) {
+          throw new RatesError(
+            `Could not get FX rate from PAL for peer ${peerId} source asset ${peerAssetCode}`
+          );
+        }
+        fxRate = rate;
+      }
+
+      const sourceAmount = BigInt(cmd.payload.sourceAmount);
+      const receiveAmount = paymentIntent.calculateInboundQuoteAmount({
+        sourceAmount,
+        peerAssetCode,
+        fxRate
+      });
+
+      return new RemoteQuoteCalculatedEvent(
+        {
+          packetId,
+          peerId,
+          paymentIntentId,
+          receiveAmount: String(receiveAmount),
+          receiveAssetCode: paymentIntent.assetCode,
+          receiveAssetScale: paymentIntent.assetScale
+        },
+        cmd.requestId
+      );
+    } catch (err) {
+      this._logger.debug(
+        `handleCalculateRemoteQuoteCommand — failed paymentIntentId: ${paymentIntentId} error: ${(err as Error).message}`
+      );
+      return new RemoteQuoteCalculationFailedEvent(
+        {
+          packetId,
+          peerId,
+          paymentIntentId,
+          errorName: (err as Error).constructor.name,
+          message: (err as Error).message
+        },
+        cmd.requestId
+      );
+    }
+  }
+
   private async handleApprovePaymentCommand(cmd: ApprovePaymentCmd) {
     this._logger.debug(
       `handleApprovePaymentCommand — paymentId: ${cmd.payload.id} paymentIntentId: ${cmd.payload.paymentIntentId}`
@@ -896,6 +977,23 @@ export class PaymentIntentAggregate {
     const key = fxKey(peerId, direction, senderAssetCode);
     if (!into.has(key)) {
       into.set(key, { peerId, direction, assetCode: senderAssetCode });
+    }
+  }
+
+  private _collectFxLookupForCalculate(
+    cmd: CalculateRemoteQuoteCmd,
+    into: Map<
+      string,
+      { peerId: string; direction: 'source' | 'destination'; assetCode: string }
+    >
+  ): void {
+    const { paymentIntentId, peerId, peerAssetCode } = cmd.payload;
+    const intent = this.paymentIntentMap.get(paymentIntentId);
+    if (!intent) return;
+    if (peerAssetCode === intent.assetCode) return;
+    const key = fxKey(peerId, 'source', peerAssetCode);
+    if (!into.has(key)) {
+      into.set(key, { peerId, direction: 'source', assetCode: peerAssetCode });
     }
   }
 

@@ -1939,4 +1939,85 @@ describe('PaymentIntent Entity', () => {
       );
     });
   });
+
+  describe('calculateInboundQuoteAmount', () => {
+    const makeIntent = (
+      overrides: Partial<{ assetCode: string; assetScale: number }> = {}
+    ) =>
+      PaymentIntent.create(
+        crypto.randomUUID(),
+        crypto.randomUUID(),
+        'receiver',
+        PaymentIntentDestination.LOCAL,
+        overrides.assetCode ?? 'USD',
+        overrides.assetScale ?? 2,
+        null
+      );
+
+    it('same-asset: returns sourceAmount unchanged', () => {
+      const intent = makeIntent({ assetCode: 'USD' });
+
+      const receiveAmount = intent.calculateInboundQuoteAmount({
+        sourceAmount: 100n,
+        peerAssetCode: 'USD'
+      });
+
+      assert.equal(receiveAmount, 100n);
+    });
+
+    it('same-asset: ignores fxRate when provided', () => {
+      const intent = makeIntent({ assetCode: 'USD' });
+
+      const receiveAmount = intent.calculateInboundQuoteAmount({
+        sourceAmount: 100n,
+        peerAssetCode: 'USD',
+        fxRate: 0.5
+      });
+
+      assert.equal(receiveAmount, 100n);
+    });
+
+    it('cross-asset rate > 1: floors fractional part of sourceAmount * fxRate', () => {
+      const intent = makeIntent({ assetCode: 'XRP' });
+
+      const receiveAmount = intent.calculateInboundQuoteAmount({
+        sourceAmount: 100n,
+        peerAssetCode: 'USD',
+        fxRate: 100.567
+      });
+
+      // floor(100 * 100.567) = floor(10056.7) = 10056
+      assert.equal(receiveAmount, 10056n);
+    });
+
+    it('cross-asset rate < 1: floors fractional part of sourceAmount * fxRate', () => {
+      const intent = makeIntent({ assetCode: 'EUR' });
+
+      const receiveAmount = intent.calculateInboundQuoteAmount({
+        sourceAmount: 100n,
+        peerAssetCode: 'USD',
+        fxRate: 0.937
+      });
+
+      // floor(100 * 0.937) = floor(93.7) = 93
+      assert.equal(receiveAmount, 93n);
+    });
+
+    it('throws MissingFxRateError if cross-asset and fxRate undefined', () => {
+      const intent = makeIntent({ assetCode: 'XRP' });
+
+      assert.throws(
+        () => {
+          intent.calculateInboundQuoteAmount({
+            sourceAmount: 100n,
+            peerAssetCode: 'USD'
+          });
+        },
+        (err: Error) => {
+          assert(err instanceof MissingFxRateError);
+          return true;
+        }
+      );
+    });
+  });
 });
