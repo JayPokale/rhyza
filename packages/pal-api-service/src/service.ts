@@ -100,7 +100,8 @@ const REQUIRED_TOPICS = [
   DomainEventTopics.LedgerEvents,
   DomainEventTopics.AssetEvents,
   DomainEventTopics.PeerEvents,
-  CommandTopics.LedgerCommands
+  CommandTopics.LedgerCommands,
+  DomainEventTopics.FxRateEvents
 ];
 
 export class PalApiService {
@@ -115,6 +116,7 @@ export class PalApiService {
   private static _ledgerReadSideRepo: ILedgerReadSideRepository;
   private static _producer: IMessageProducer;
   private static _consumer: IMessageConsumer;
+  private static _fxCacheExpiryService: FxCacheExpiryService;
   private static grpcService: PalGrpcServer;
 
   static async start(
@@ -232,10 +234,15 @@ export class PalApiService {
 
     const peerAggregate = new PeerAggregate(this._peerRepo, this._logger);
 
+    this._fxCacheExpiryService = new FxCacheExpiryService(
+      this._producer,
+      this._logger
+    );
+
     const fxAggregate = new FxAggregate(
       this._fxRepo,
       this._aseFxService,
-      new FxCacheExpiryService(this._producer, this._logger),
+      this._fxCacheExpiryService,
       this._logger
     );
 
@@ -260,6 +267,10 @@ export class PalApiService {
 
     if (this._producer) {
       await this._producer.disconnect();
+    }
+
+    if (this._fxCacheExpiryService) {
+      this._fxCacheExpiryService.destroy();
     }
   }
 }

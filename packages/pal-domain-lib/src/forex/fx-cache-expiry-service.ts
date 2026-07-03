@@ -54,4 +54,12 @@ export class FxCacheExpiryService implements IPalFxCacheExpiryService {
 
     return Promise.resolve();
   }
+
+  async clearExpiry(rateId: string): Promise<void> {
+    const existing = this._activeTimeouts.get(rateId);
+    if (!existing) return;
+
+    clearTimeout(existing);
+    this._activeTimeouts.delete(rateId);
+  }
 }

@@ -20,4 +20,5 @@ export interface IPalAseFxService {
 
 export interface IPalFxCacheExpiryService {
   setExpiry(rateId: string, expiresAt: number): Promise<void>;
+  clearExpiry(rateId: string): Promise<void>;
 }

@@ -4,7 +4,7 @@ import { IPalFxRateDto } from 'pal-public-types-lib';
 import { IPalFxRepository } from 'pal-domain-lib';
 
 const DB_NAME = 'pal';
-const WALLET_COLLECTION_NAME: string = 'fxrates';
+const COLLECTION_NAME: string = 'fxrates';
 const TIMEOUT_MS: number = 5_000;
 
 export class MongoDbFxRepo implements IPalFxRepository {
@@ -54,16 +54,15 @@ export class MongoDbFxRepo implements IPalFxRepository {
         | CollectionInfo
       )[] = await db.listCollections().toArray();
       const collectionExists: boolean = collections.some((collection) => {
-        return collection.name === WALLET_COLLECTION_NAME;
+        return collection.name === COLLECTION_NAME;
       });
 
       // load or create the collection (and add its indexes) - should check version and perform migrations
       if (collectionExists) {
-        this._collection = db.collection<IPalFxRateDto>(WALLET_COLLECTION_NAME);
+        this._collection = db.collection<IPalFxRateDto>(COLLECTION_NAME);
       } else {
-        this._collection = await db.createCollection<IPalFxRateDto>(
-          WALLET_COLLECTION_NAME
-        );
+        this._collection =
+          await db.createCollection<IPalFxRateDto>(COLLECTION_NAME);
         await this._collection.createIndex({ id: 1 }, { unique: true });
       }
     } catch (e: unknown) {
@@ -99,7 +98,9 @@ export class MongoDbFxRepo implements IPalFxRepository {
       return;
     } catch (e) {
       this._logger.error(e);
-      throw new Error(`Unable to store peer - error: ${(e as Error).message}`);
+      throw new Error(
+        `Unable to store fx rate - error: ${(e as Error).message}`
+      );
     }
   }
 
@@ -117,7 +118,7 @@ export class MongoDbFxRepo implements IPalFxRepository {
     } catch (e) {
       this._logger.error(e);
       throw new Error(
-        `Unable to get peer by id - error: ${(e as Error).message}`
+        `Unable to get fx rate by id - error: ${(e as Error).message}`
       );
     }
   }

@@ -1,8 +1,5 @@
 import { IPalFxRateDto } from 'pal-public-types-lib';
 
-// 2 minutes before expiration try to update a pulled rate
-const PRE_FETCH_MARGIN_MS = 2 * 60 * 1000;
-
 export class FxRate {
   private _id: string; // asset pair: source/destination asset codes and type
   private _rateType: 'IntraAseRate' | 'PeerRate';
@@ -35,10 +32,12 @@ export class FxRate {
     this._fetchedAt = fetchedAt || null;
     this._expiresAt = expiresAt || null;
 
-    this._id = `${sourceAssetCode}/${destinationAssetCode}`;
-    if (peerId) {
-      this._id += `_peer:${peerId}`;
-    }
+    this._id = FxRate.getRateId(
+      this._sourceAssetCode,
+      this._destinationAssetCode,
+      this._rateType,
+      this._peerId
+    );
   }
 
   get id(): string {
@@ -108,18 +107,7 @@ export class FxRate {
     };
   }
 
-  isNotExpired(): boolean {
-    return this._expiresAt == null || this._expiresAt > Date.now();
-  }
-
-  shouldBePulledFromAse(): boolean {
-    if (
-      this._acquisitionMethod == 'PulledFromAse' &&
-      this._expiresAt &&
-      this._expiresAt <= Date.now() + PRE_FETCH_MARGIN_MS
-    ) {
-      return true;
-    }
-    return false;
+  isExpired(): boolean {
+    return this._expiresAt != null && Date.now() > this._expiresAt;
   }
 }

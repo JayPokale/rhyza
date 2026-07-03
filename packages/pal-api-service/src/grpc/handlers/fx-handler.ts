@@ -2,14 +2,19 @@ import { ILogger } from 'common-types-lib';
 import { ServerUnaryCall } from '@grpc/grpc-js';
 import { Status } from '@grpc/grpc-js/build/src/constants';
 import { PendingResponseRegistry } from '../registries/pending-response-registry';
-import { FxAggregate, PeerAggregate, PeerNotFoundError } from 'pal-domain-lib';
+import {
+  AssetAggregate,
+  FxAggregate,
+  PeerAggregate,
+  PeerNotFoundError
+} from 'pal-domain-lib';
 import { Empty } from 'google-protobuf/google/protobuf/empty_pb';
 
 import { UnaryResponse } from '../types';
 import {
   PbGetFxRateRequest,
   PbGetFxRateResponse,
-  PbGetIntraAseFxRatRequest,
+  PbGetIntraAseFxRateRequest,
   PbGetPeerFxRateToDestinationAssetRequest,
   PbGetPeerFxRateFromSourceAssetRequest,
   PbSetFxRateRequest
@@ -22,17 +27,20 @@ export class FxGrpcHandler {
   private readonly _logger: ILogger;
   private readonly _fxAggregate: FxAggregate;
   private readonly _peerAggregate: PeerAggregate;
+  private readonly _assetAggregate: AssetAggregate;
   private readonly _responseRegistry: PendingResponseRegistry;
 
   constructor(
     fxAggregate: FxAggregate,
     peerAggregate: PeerAggregate,
+    assetAggregate: AssetAggregate,
     responseRegistry: PendingResponseRegistry,
     logger: ILogger
   ) {
     this._fxAggregate = fxAggregate;
     this._responseRegistry = responseRegistry;
     this._peerAggregate = peerAggregate;
+    this._assetAggregate = assetAggregate;
     this._logger = logger;
 
     this._logger.info(`${FxGrpcHandler.constructor.name} created`);
@@ -46,7 +54,7 @@ export class FxGrpcHandler {
     let peerDestinationReq:
       | PbGetPeerFxRateToDestinationAssetRequest
       | undefined;
-    let intraReq: PbGetIntraAseFxRatRequest | undefined;
+    let intraReq: PbGetIntraAseFxRateRequest | undefined;
 
     if (call.request.hasFromSourceRequest()) {
       peerSourceReq = call.request.getFromSourceRequest();
@@ -60,12 +68,24 @@ export class FxGrpcHandler {
       throw new Error('Invalid GetFxRateRequest');
     }
 
+    const checkAssetPair = async (assetCodes: string[]) => {
+      for (const assetCode of assetCodes) {
+        const asset = await this._assetAggregate.getAsset(assetCode);
+        if (!asset) {
+          throw new Error('Invalid Asset with code: ' + assetCode);
+        }
+      }
+    };
+
     try {
       let rate: number | null = null;
       if (intraReq) {
+        const sourceAssetCode = intraReq.getSourceAssetCode();
+        const destinationAssetCode = intraReq.getDestinationAssetCode();
+        await checkAssetPair([sourceAssetCode, destinationAssetCode]);
         rate = await this._fxAggregate.getIntraAseFxRate(
-          intraReq.getSourceAssetCode(),
-          intraReq.getDestinationAssetCode()
+          sourceAssetCode,
+          destinationAssetCode
         );
       } else {
         const peerId =
@@ -89,6 +109,8 @@ export class FxGrpcHandler {
         const destinationAssetCode = peerDestinationReq
           ? peerDestinationReq.getDestinationAssetCode()
           : peer.assetCode;
+
+        await checkAssetPair([sourceAssetCode, destinationAssetCode]);
 
         rate = await this._fxAggregate.getPeerFxRate(
           peerId,
@@ -135,6 +157,14 @@ export class FxGrpcHandler {
 
     try {
       if (peerId) {
+        const peer = await this._peerAggregate.getPeer(peerId);
+        if (!peer) {
+          this._logger.error(
+            `could not get peer with id: ${peerId} in SetFxRateRequest`
+          );
+          throw new PeerNotFoundError();
+        }
+
         await this._fxAggregate.setPeerFxRate(
           sourceAssetCode,
           destinationAssetCode,

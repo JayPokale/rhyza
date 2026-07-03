@@ -27,8 +27,8 @@ const ALIAS_DOMAIN = `${testPrefix}_domain.com`;
 const ALIAS_PATHNAME = `${testPrefix}_pedrobarreto`;
 const PUBLIC_NAME = 'Pedro Barreto';
 
-const FX_SOURCE_ASSET_CODE = 'USD';
-const FX_DESTINATION_ASSET_CODE = 'XRP';
+const FX_SOURCE_ASSET_CODE = `${testPrefix}_USD`;
+const FX_DESTINATION_ASSET_CODE = `${testPrefix}_XRP`;
 const FX_PEER_RATE = 1.2;
 const FX_INTRAASE_RATE = 0.3;
 
@@ -52,6 +52,10 @@ after(async () => {
 
 test('pal client - create asset', async () => {
   await client.createAsset(ASSET_CODE, ASSET_SCALE);
+
+  // extra assets for fx tests
+  await client.createAsset(FX_SOURCE_ASSET_CODE, ASSET_SCALE);
+  await client.createAsset(FX_DESTINATION_ASSET_CODE, ASSET_SCALE);
   assert.ok(true);
 });
 
@@ -348,6 +352,51 @@ test('pal client - get fx peer - source asset to peer asset', async () => {
 
   assert.ok(resp);
   assert.equal(resp, FX_PEER_RATE);
+});
+
+test('pal client - set fx peer with inexistent source asset should fail', async () => {
+  try {
+    await client.setFxRate(
+      'NON_EXISTING_ASSET_CODE',
+      ASSET_CODE,
+      FX_PEER_RATE,
+      PEER_ONE_ID,
+      null
+    );
+    assert.fail();
+  } catch (e) {
+    assert.ok(e instanceof Error);
+  }
+});
+
+test('pal client - set fx peer with inexistent destiantion asset should fail', async () => {
+  try {
+    await client.setFxRate(
+      ASSET_CODE,
+      'NON_EXISTING_ASSET_CODE',
+      FX_PEER_RATE,
+      PEER_ONE_ID,
+      null
+    );
+    assert.fail();
+  } catch (e) {
+    assert.ok(e instanceof Error);
+  }
+});
+
+test('pal client - set fx peer with inexistent peer should fail', async () => {
+  try {
+    await client.setFxRate(
+      FX_SOURCE_ASSET_CODE,
+      FX_DESTINATION_ASSET_CODE,
+      FX_PEER_RATE,
+      'NON_EXISTING_PEER',
+      null
+    );
+    assert.fail();
+  } catch (e) {
+    assert.ok(e instanceof Error);
+  }
 });
 
 /*

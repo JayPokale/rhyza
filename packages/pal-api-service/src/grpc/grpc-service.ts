@@ -143,6 +143,7 @@ export class PalGrpcServer {
     this._fxGrpcHandler = new FxGrpcHandler(
       this._fxAggregate,
       this._peerAggregate,
+      this._assetAggregate,
       this._responseRegistry,
       this._logger
     );

@@ -203,14 +203,18 @@ export class InternalEventHandler {
   ): Promise<void> {
     this._logger.debug(`_handleFxRateCacheExpiredEvent: ${event.payload.id}`);
 
-    await this._fxAggregate.notifyExpiredFxRate(event.payload.id);
+    await this._fxAggregate.notifyExpiredFxRate(
+      event.payload.id,
+      event.msgTimestamp
+    );
   }
 
   async init(): Promise<void> {
     this._msgConsumer.setTopics([
       DomainEventTopics.PeerEvents,
       DomainEventTopics.AssetEvents,
-      DomainEventTopics.LedgerEvents
+      DomainEventTopics.LedgerEvents,
+      DomainEventTopics.FxRateEvents
     ]);
     this._msgConsumer.setBatchCallbackFn(this._handleMessageBatch.bind(this));
     await this._msgConsumer.connect();

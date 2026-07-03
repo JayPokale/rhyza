@@ -178,7 +178,7 @@ message PbGetPeerFxRateToDestinationAssetRequest{
   string destination_asset_code = 2;
 }
 
-message PbGetIntraAseFxRatRequest{
+message PbGetIntraAseFxRateRequest{
   string source_asset_code = 1;
   string destination_asset_code = 2;
 }
@@ -187,7 +187,7 @@ message PbGetFxRateRequest{
   oneof request {
     PbGetPeerFxRateFromSourceAssetRequest from_source_request = 1;
     PbGetPeerFxRateToDestinationAssetRequest to_destination_request = 2;
-    PbGetIntraAseFxRatRequest intra_ase_request = 3;
+    PbGetIntraAseFxRateRequest intra_ase_request = 3;
   };
 }
 

@@ -41,7 +41,7 @@ import {
   PbSetFxRateRequest,
   PbGetPeerFxRateFromSourceAssetRequest,
   PbGetPeerFxRateToDestinationAssetRequest,
-  PbGetIntraAseFxRatRequest
+  PbGetIntraAseFxRateRequest
 } from 'pal-public-types-lib';
 import process from 'process';
 
@@ -534,7 +534,7 @@ export class PalClient {
       Object.hasOwn(request, 'destinationAssetCode')
     ) {
       const typedRequest = request as IGetIntraAseFxRate;
-      const subReq = new PbGetIntraAseFxRatRequest();
+      const subReq = new PbGetIntraAseFxRateRequest();
       subReq.setSourceAssetCode(typedRequest.sourceAssetCode);
       subReq.setDestinationAssetCode(typedRequest.destinationAssetCode);
       pbReq.setIntraAseRequest(subReq);

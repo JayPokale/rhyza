@@ -121,7 +121,7 @@ export class FxAggregate {
       ? FxRate.fromDto(existingRateDto[0])
       : null;
 
-    if (existingRate && existingRate.isNotExpired()) {
+    if (existingRate && !existingRate.isExpired()) {
       return existingRate.rate;
     }
 
@@ -148,6 +148,7 @@ export class FxAggregate {
       expiresAt
     );
     await this._ratesRepo.store(newRate.toDto());
+    await this._fxCacheExpiryService.clearExpiry(newRate.id);
   }
 
   async getPeerFxRate(
@@ -166,7 +167,7 @@ export class FxAggregate {
       ? FxRate.fromDto(existingRateDto[0])
       : null;
 
-    if (existingRate && existingRate.isNotExpired()) {
+    if (existingRate && !existingRate.isExpired()) {
       return existingRate.rate;
     }
 
@@ -195,9 +196,13 @@ export class FxAggregate {
       expiresAt
     );
     await this._ratesRepo.store(newRate.toDto());
+    await this._fxCacheExpiryService.clearExpiry(newRate.id);
   }
 
-  async notifyExpiredFxRate(rateId: string): Promise<void> {
+  async notifyExpiredFxRate(
+    rateId: string,
+    notificationTime: number
+  ): Promise<void> {
     const existingRateDto = await this._ratesRepo.fetch([rateId]);
     const existingRate = existingRateDto[0]
       ? FxRate.fromDto(existingRateDto[0])
@@ -207,7 +212,7 @@ export class FxAggregate {
       !existingRate ||
       existingRate.acquisitionMethod === 'PushedByAse' ||
       !existingRate.fetchedAt ||
-      existingRate.fetchedAt >= Date.now()
+      existingRate.fetchedAt >= notificationTime
     ) {
       // rate doesn't exist, was set by ASE, or was pre-fetched recently
       return;

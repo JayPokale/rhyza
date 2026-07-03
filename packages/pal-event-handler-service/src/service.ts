@@ -111,7 +111,8 @@ const REQUIRED_TOPICS = [
   DomainEventTopics.LedgerEvents,
   DomainEventTopics.AssetEvents,
   DomainEventTopics.PeerEvents,
-  CommandTopics.LedgerCommands
+  CommandTopics.LedgerCommands,
+  DomainEventTopics.FxRateEvents
 ];
 
 /**
@@ -136,7 +137,7 @@ export class PalLedgerEventHandlerService {
   private static _peerRepo: IPalPeerRepository;
   private static _fxRepo: IPalFxRepository;
   private static _aseFxService: IPalAseFxService;
-
+  private static _fxCacheExpiryService: FxCacheExpiryService;
   private static _stateEventHandler: LedgerStateEventHandler;
   private static _integrationEventHandler: IntegrationEventHandler;
   private static _internalEventHandler: InternalEventHandler;
@@ -325,10 +326,15 @@ export class PalLedgerEventHandlerService {
     }
     this._fxRepo = fxRepo;
 
+    this._fxCacheExpiryService = new FxCacheExpiryService(
+      this._producer,
+      this._logger
+    );
+
     const fxAggregate = new FxAggregate(
       this._fxRepo,
       this._aseFxService,
-      new FxCacheExpiryService(this._producer, this._logger),
+      this._fxCacheExpiryService,
       this._logger
     );
 
@@ -396,6 +402,10 @@ export class PalLedgerEventHandlerService {
 
     if (this._producer) {
       await this._producer.disconnect();
+    }
+
+    if (this._fxCacheExpiryService) {
+      this._fxCacheExpiryService.destroy();
     }
   }
 }
