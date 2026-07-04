@@ -95,6 +95,25 @@ export class MockPaymentIntentRepo implements IPaymentIntentRepository {
     }
   }
 
+  async storeCancelledPayments(
+    paymentUpdates: {
+      payments: { id: string; state: PaymentState }[];
+    }[]
+  ): Promise<void> {
+    for (const update of paymentUpdates) {
+      for (const payment of update.payments) {
+        const foundPayment = this.getAll()
+          .flatMap((intent) => intent.payments)
+          .find((p) => p.id === payment.id);
+        if (!foundPayment) {
+          throw new Error('Could not find payment in store');
+        }
+
+        foundPayment.state = payment.state;
+      }
+    }
+  }
+
   async storeFinalizedRemoteQuotes(
     updates: FinalizedRemoteQuoteUpdate[]
   ): Promise<void> {

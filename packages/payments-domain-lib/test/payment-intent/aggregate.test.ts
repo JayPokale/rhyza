@@ -13,6 +13,7 @@ import {
   CompleteRemoteQuoteCmd,
   CreatePaymentCmd,
   CreatePaymentIntentCmd,
+  CancelPaymentCmd,
   FailRemoteQuoteCmd
 } from '../../src/commands';
 import {
@@ -26,11 +27,16 @@ import {
   QuoteCompletedEvent
 } from '../../src/payment-intent/events';
 import { CreateQuoteCmd } from '../../src/commands';
-import { IPaymentIntent } from '../../src/payment-intent/interfaces';
+import {
+  IPaymentIntent,
+  PaymentState
+} from '../../src/payment-intent/interfaces';
 import { ApprovePaymentCmd } from '../../src/commands';
 import {
   LocalPaymentCompletedEvent,
   LocalPaymentCompleteFailedEvent,
+  PaymentCancelledEvent,
+  PaymentCancelFailedEvent,
   RemoteQuoteRequestedEvent
 } from '../../src/payment-intent/events';
 
@@ -41,6 +47,22 @@ function makeApprovePaymentCmd(
   }> = {}
 ): ApprovePaymentCmd {
   return new ApprovePaymentCmd(
+    {
+      id: overrides.id ?? crypto.randomUUID(),
+      paymentIntentId: overrides.paymentIntentId ?? crypto.randomUUID(),
+      ...overrides
+    },
+    crypto.randomUUID()
+  );
+}
+
+function makeCancelPaymentCmd(
+  overrides: Partial<{
+    id: string;
+    paymentIntentId: string;
+  }> = {}
+): CancelPaymentCmd {
+  return new CancelPaymentCmd(
     {
       id: overrides.id ?? crypto.randomUUID(),
       paymentIntentId: overrides.paymentIntentId ?? crypto.randomUUID(),
@@ -908,6 +930,106 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           (events[0] as LocalPaymentCompletedEvent).payload.id,
           paymentId
         );
+      });
+    });
+
+    describe('handleCancelPaymentCommand', () => {
+      function makeLocalIntentWithPayment(
+        paymentIntentId: string,
+        paymentId: string,
+        paymentState: PaymentState
+      ): IPaymentIntent {
+        return {
+          id: paymentIntentId,
+          receivedAmount: 0n,
+          receiverWalletAddress: 'receiver',
+          receiverWalletAddressId: crypto.randomUUID(),
+          assetCode: 'USD',
+          assetScale: 2,
+          state: 'CREATED',
+          destination: 'LOCAL',
+          createdAt: new Date(),
+          expiresAt: new Date(Date.now() + 60_000),
+          incomingAmount: 100n,
+          quotes: [],
+          payments: [
+            {
+              id: paymentId,
+              state: paymentState,
+              senderWalletAddress: 'sender',
+              senderWalletAddressId: crypto.randomUUID(),
+              assetCode: 'USD',
+              paymentIntentId,
+              assetScale: 2,
+              createdAt: new Date(),
+              debitAmount: 100n,
+              receiveAmount: 100n,
+              sentAmount: 0n
+            }
+          ]
+        };
+      }
+
+      it('fails when payment intent not found', async () => {
+        const cmd = makeCancelPaymentCmd({ paymentIntentId: 'nonexistent' });
+        const { events } = await aggregate.handleBatch([cmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, PaymentCancelFailedEvent.name);
+        const payload = (events[0] as PaymentCancelFailedEvent).payload;
+        assert.equal(payload.errorName, 'PaymentIntentNotFoundError');
+      });
+
+      it('cancels a created payment', async () => {
+        const paymentIntentId = crypto.randomUUID();
+        const paymentId = crypto.randomUUID();
+        await repo.storeMany([
+          makeLocalIntentWithPayment(paymentIntentId, paymentId, 'CREATED')
+        ]);
+
+        const cmd = makeCancelPaymentCmd({ id: paymentId, paymentIntentId });
+        const { events } = await aggregate.handleBatch([cmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, PaymentCancelledEvent.name);
+        assert.equal(
+          (events[0] as PaymentCancelledEvent).payload.id,
+          paymentId
+        );
+      });
+
+      it('fails when payment is already completed', async () => {
+        const paymentIntentId = crypto.randomUUID();
+        const paymentId = crypto.randomUUID();
+        await repo.storeMany([
+          makeLocalIntentWithPayment(paymentIntentId, paymentId, 'COMPLETED')
+        ]);
+
+        const cmd = makeCancelPaymentCmd({ id: paymentId, paymentIntentId });
+        const { events } = await aggregate.handleBatch([cmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, PaymentCancelFailedEvent.name);
+        const payload = (events[0] as PaymentCancelFailedEvent).payload;
+        assert.equal(payload.errorName, 'PaymentInvalidStateError');
+      });
+
+      it('persists the cancelled payment state after flush', async () => {
+        const paymentIntentId = crypto.randomUUID();
+        const paymentId = crypto.randomUUID();
+        await repo.storeMany([
+          makeLocalIntentWithPayment(paymentIntentId, paymentId, 'CREATED')
+        ]);
+
+        const cmd = makeCancelPaymentCmd({ id: paymentId, paymentIntentId });
+        await aggregate.handleBatch([cmd]);
+        await aggregate.flush();
+
+        const storedPayment = repo
+          .getAll()
+          .find((intent) => intent.id === paymentIntentId)
+          ?.payments.find((p) => p.id === paymentId);
+        assert.equal(storedPayment?.state, 'CANCELLED');
       });
     });
 
