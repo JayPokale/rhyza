@@ -216,6 +216,19 @@ services:
     networks:
       - rafiki-v2
 
+  ilp-command-handler-service:
+    build:
+      context: ../
+      dockerfile: ./packages/ilp-command-handler-service/Dockerfile
+    restart: always
+    environment:
+      KAFKA_URL: kafka:19092
+    depends_on:
+      init-kafka:
+        condition: service_completed_successfully
+    networks:
+      - rafiki-v2
+
   mongodb:
     image: mongo
     restart: unless-stopped
