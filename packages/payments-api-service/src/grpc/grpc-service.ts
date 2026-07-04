@@ -19,6 +19,8 @@ import {
   CreatePaymentResponse,
   ApprovePaymentRequest,
   ApprovePaymentResponse,
+  CancelPaymentRequest,
+  CancelPaymentResponse,
   GetPaymentIntentRequest,
   GetPaymentIntentResponse,
   GetPaymentRequest,
@@ -40,6 +42,7 @@ import {
   CreateQuoteCmd,
   CreatePaymentCmd,
   ApprovePaymentCmd,
+  CancelPaymentCmd,
   PaymentIntentDomainEvent
 } from 'payments-domain-lib';
 
@@ -119,6 +122,7 @@ export class PaymentsServiceServer {
       createQuote: this._handleUnary.bind(this),
       createPayment: this._handleUnary.bind(this),
       approvePayment: this._handleUnary.bind(this),
+      cancelPayment: this._handleUnary.bind(this),
       getPaymentIntent: this._handleGetPaymentIntent.bind(this),
       getPayment: this._handleGetPayment.bind(this)
     });
@@ -265,6 +269,14 @@ export class PaymentsServiceServer {
       const commandId = call.request.getId();
       this._storePendingResponse(commandId, call, callback);
       const cmd = new ApprovePaymentCmd(
+        { id: commandId, paymentIntentId: call.request.getPaymentIntentId() },
+        commandId
+      );
+      await this._msgProducer.send(cmd);
+    } else if (call.request instanceof CancelPaymentRequest) {
+      const commandId = call.request.getId();
+      this._storePendingResponse(commandId, call, callback);
+      const cmd = new CancelPaymentCmd(
         { id: commandId, paymentIntentId: call.request.getPaymentIntentId() },
         commandId
       );
@@ -460,6 +472,17 @@ export class PaymentsServiceServer {
     } else if (
       PaymentIntentDomainEvent.isLocalPaymentCompleteFailedEvent(evt)
     ) {
+      this._resolvePendingResponse(pending, requestId, {
+        code: grpc.status.INTERNAL,
+        message: evt.payload.message || 'Command processing failed',
+        details: evt.payload.message,
+        name: evt.payload.errorName || 'CommandError',
+        metadata: new grpc.Metadata()
+      });
+    } else if (PaymentIntentDomainEvent.isPaymentCancelledEvent(evt)) {
+      const response = new CancelPaymentResponse().setId(evt.payload.id);
+      this._resolvePendingResponse(pending, requestId, null, response);
+    } else if (PaymentIntentDomainEvent.isPaymentCancelFailedEvent(evt)) {
       this._resolvePendingResponse(pending, requestId, {
         code: grpc.status.INTERNAL,
         message: evt.payload.message || 'Command processing failed',

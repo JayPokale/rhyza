@@ -837,6 +837,10 @@ export class PaymentIntent implements IPaymentIntent {
       );
     }
 
+    if (payment.state === 'CANCELLED') {
+      throw new PaymentInvalidStateError(`Payment ${id} was cancelled`);
+    }
+
     if (payment.state === 'COMPLETED') {
       throw new PaymentInvalidStateError(`Payment ${id} is already completed`);
     }
@@ -851,6 +855,27 @@ export class PaymentIntent implements IPaymentIntent {
       this._state = 'COMPLETED';
     }
     payment.state = 'COMPLETED';
+  }
+
+  cancelPayment(args: { id: string }): void {
+    const { id } = args;
+
+    const payment = this._payments.find((payment) => payment.id === id);
+    if (!payment) {
+      throw new PaymentNotFoundError(
+        `Payment ${id} not found for ${this.id} payment intent`
+      );
+    }
+
+    if (payment.state === 'CANCELLED') {
+      throw new PaymentInvalidStateError(`Payment ${id} is already cancelled`);
+    }
+
+    if (payment.state === 'COMPLETED') {
+      throw new PaymentInvalidStateError(`Payment ${id} is already complete`);
+    }
+
+    payment.state = 'CANCELLED';
   }
 
   get id(): string {

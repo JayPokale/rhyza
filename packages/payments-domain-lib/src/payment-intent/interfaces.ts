@@ -53,7 +53,8 @@ export type IQuote = IPendingQuote | ICompletedQuote | IFailedQuote;
 
 export const PaymentState = {
   CREATED: 'CREATED',
-  COMPLETED: 'COMPLETED'
+  COMPLETED: 'COMPLETED',
+  CANCELLED: 'CANCELLED'
 } as const;
 export type PaymentState = keyof typeof PaymentState;
 
@@ -173,6 +174,11 @@ export interface IPaymentIntentRepository {
         state: PaymentIntentState;
       };
       payments: { id: string; state: PaymentState; sentAmount: bigint }[];
+    }[]
+  ): Promise<void>;
+  storeCancelledPayments(
+    paymentUpdates: {
+      payments: { id: string; state: PaymentState }[];
     }[]
   ): Promise<void>;
   storeFinalizedRemoteQuotes(

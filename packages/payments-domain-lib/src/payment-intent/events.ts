@@ -54,6 +54,18 @@ export abstract class PaymentIntentDomainEvent extends DomainEvent {
     return evt.msgName === LocalPaymentCompleteFailedEvent.name;
   }
 
+  static isPaymentCancelledEvent(
+    evt: DomainEvent
+  ): evt is PaymentCancelledEvent {
+    return evt.msgName === PaymentCancelledEvent.name;
+  }
+
+  static isPaymentCancelFailedEvent(
+    evt: DomainEvent
+  ): evt is PaymentCancelFailedEvent {
+    return evt.msgName === PaymentCancelFailedEvent.name;
+  }
+
   static isRemoteQuoteRequestedEvent(
     evt: DomainEvent
   ): evt is RemoteQuoteRequestedEvent {
@@ -205,6 +217,37 @@ export class LocalPaymentCompleteFailedEvent extends PaymentIntentDomainEvent {
   isErrorEvent = true;
 
   constructor(payload: LocalPaymentCompleteFailedPayload, requestId?: string) {
+    super(payload.paymentIntentId);
+    this.payload = payload;
+    this.requestId = requestId;
+  }
+}
+
+export type PaymentCancelledPayload = {
+  id: string;
+};
+
+export class PaymentCancelledEvent extends PaymentIntentDomainEvent {
+  payload: PaymentCancelledPayload;
+
+  constructor(payload: PaymentCancelledPayload, requestId?: string) {
+    super(payload.id);
+    this.payload = payload;
+    this.requestId = requestId;
+  }
+}
+
+export type PaymentCancelFailedPayload = {
+  paymentIntentId: string;
+  errorName: string;
+  message: string;
+};
+
+export class PaymentCancelFailedEvent extends PaymentIntentDomainEvent {
+  payload: PaymentCancelFailedPayload;
+  isErrorEvent = true;
+
+  constructor(payload: PaymentCancelFailedPayload, requestId?: string) {
     super(payload.paymentIntentId);
     this.payload = payload;
     this.requestId = requestId;
