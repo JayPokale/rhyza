@@ -6,14 +6,12 @@ services:
       dockerfile: ./packages/admin-api-service/Dockerfile
     restart: always
     environment:
-      NODE_OPTIONS: --inspect=0.0.0.0:9229
       PAL_GRPC_URL: pal-api-service:50051
       PAYMENTS_GRPC_URL: payments-api-service:50052
       OPEN_PAYMENTS_URL: http://open-payments-svc:3002
       MONGODB_URL: mongodb://root:mongoPass@mongodb:27017
     ports:
-      - "3001:3001"
-      - "9230:9229"
+      - '3001:3001'
     depends_on:
       mongodb:
         condition: service_healthy
@@ -30,13 +28,11 @@ services:
       dockerfile: ./packages/open-payments-resource-service/Dockerfile
     restart: always
     environment:
-      NODE_OPTIONS: --inspect=0.0.0.0:9229
       PAL_GRPC_URL: pal-api-service:50051
       PAYMENTS_GRPC_URL: payments-api-service:50052
       OPEN_PAYMENTS_RESOURCE_SERVER_URL: http://open-payments-svc:3002
     ports:
-      - "3002:3002"
-      - "9231:9229"
+      - '3002:3002'
     depends_on:
       pal-api-service:
         condition: service_started
@@ -57,12 +53,10 @@ services:
       dockerfile: ./packages/pal-api-service/Dockerfile
     restart: always
     environment:
-      NODE_OPTIONS: --inspect=0.0.0.0:9229
       MONGO_URL: mongodb://root:mongoPass@mongodb:27017/
       KAFKA_URL: kafka:19092
     ports:
-      - "50051:50051"
-      - "9232:9229"
+      - '50051:50051'
     depends_on:
       init-kafka:
         condition: service_completed_successfully
@@ -78,11 +72,8 @@ services:
       dockerfile: ./packages/pal-ledger-command-handler-service/Dockerfile
     restart: always
     environment:
-      NODE_OPTIONS: --inspect=0.0.0.0:9229
       KAFKA_URL: kafka:19092
       REDIS_URL: redis:6379
-    ports:
-      - "9233:9229"
     depends_on:
       init-kafka:
         condition: service_completed_successfully
@@ -98,12 +89,9 @@ services:
       dockerfile: ./packages/pal-event-handler-service/Dockerfile
     restart: always
     environment:
-      NODE_OPTIONS: --inspect=0.0.0.0:9229
       MONGO_URL: mongodb://root:mongoPass@mongodb:27017/
       KAFKA_URL: kafka:19092
       REDIS_URL: redis:6379
-    ports:
-      - "9234:9229"
     depends_on:
       init-kafka:
         condition: service_completed_successfully
@@ -120,12 +108,10 @@ services:
       dockerfile: ./packages/payments-api-service/Dockerfile
     restart: always
     environment:
-      NODE_OPTIONS: --inspect=0.0.0.0:9229
       KAFKA_URL: kafka:19092
       MONGODB_URL: mongodb://root:mongoPass@mongodb:27017
     ports:
-      - "50052:50052"
-      - "9235:9229"
+      - '50052:50052'
     depends_on:
       mongodb:
         condition: service_healthy
@@ -140,14 +126,11 @@ services:
       dockerfile: ./packages/payments-command-handler-service/Dockerfile
     restart: always
     environment:
-      NODE_OPTIONS: --inspect=0.0.0.0:9229
       KAFKA_URL: kafka:19092
       MONGODB_URL: mongodb://root:mongoPass@mongodb:27017
       PAL_GRPC_URL: pal-api-service:50051
       UV_THREADPOOL_SIZE: 128
       LOG_LEVEL: debug
-    ports:
-      - "9236:9229"
     depends_on:
       mongodb:
         condition: service_healthy
@@ -164,10 +147,7 @@ services:
       dockerfile: ./packages/payments-event-handler-service/Dockerfile
     restart: always
     environment:
-      NODE_OPTIONS: --inspect=0.0.0.0:9229
       KAFKA_URL: kafka:19092
-    ports:
-      - "9237:9229"
     depends_on:
       init-kafka:
         condition: service_completed_successfully
@@ -179,13 +159,11 @@ services:
       dockerfile: ./packages/notifications-command-handler-service/Dockerfile
     restart: always
     environment:
-      NODE_OPTIONS: --inspect=0.0.0.0:9229
       KAFKA_URL: kafka:19092
       MONGODB_URL: mongodb://root:mongoPass@mongodb:27017/
       WEBHOOK_URL: http://ase-mock-service:3000/webhooks
     ports:
-      - "5100:5100"
-      - "9238:9229"
+      - '5100:5100'
     depends_on:
       init-kafka:
         condition: service_completed_successfully
@@ -200,12 +178,10 @@ services:
       dockerfile: ./packages/notifications-event-handler-service/Dockerfile
     restart: always
     environment:
-      NODE_OPTIONS: --inspect=0.0.0.0:9229
       KAFKA_URL: kafka:19092
       UV_THREADPOOL_SIZE: 128
     ports:
-      - "5101:5101"
-      - "9239:9229"
+      - '5101:5101'
     depends_on:
       mongodb:
         condition: service_healthy
@@ -220,10 +196,7 @@ services:
       dockerfile: ./packages/ilp-connector-service/Dockerfile
     restart: always
     environment:
-      NODE_OPTIONS: --inspect=0.0.0.0:9229
       KAFKA_URL: kafka:19092
-    ports:
-      - "9240:9229"
     depends_on:
       init-kafka:
         condition: service_completed_successfully
@@ -235,13 +208,11 @@ services:
       dockerfile: ./packages/ase-mock-service/Dockerfile
     restart: always
     environment:
-      NODE_OPTIONS: --inspect=0.0.0.0:9229
       HOST: ase-mock-service
       PORT: 3000
       ADMIN_URL: http://admin-api-service:3001
     ports:
-      - "3000:3000"
-      - "9241:9229"
+      - '3000:3000'
     depends_on:
       - admin-api-service
     networks:
@@ -253,10 +224,7 @@ services:
       dockerfile: ./packages/ilp-command-handler-service/Dockerfile
     restart: always
     environment:
-      NODE_OPTIONS: --inspect=0.0.0.0:9229
       KAFKA_URL: kafka:19092
-    ports:
-      - "9242:9229"
     depends_on:
       init-kafka:
         condition: service_completed_successfully
