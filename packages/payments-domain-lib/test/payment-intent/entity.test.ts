@@ -1381,6 +1381,7 @@ describe('PaymentIntent Entity', () => {
       );
 
       const paymentId = crypto.randomUUID();
+      const beforeCancel = Date.now();
       paymentIntent.addLocalPayment({
         id: paymentId,
         exchangeRate: 1,
@@ -1394,9 +1395,13 @@ describe('PaymentIntent Entity', () => {
       });
 
       paymentIntent.cancelPayment({ id: paymentId });
+      const afterCancel = Date.now();
 
       const payment = paymentIntent.payments[0];
       assert.equal(payment.state, 'CANCELLED');
+      assert.ok(payment.cancelledAt);
+      assert.ok(payment.cancelledAt.getTime() >= beforeCancel);
+      assert.ok(payment.cancelledAt.getTime() <= afterCancel);
       assert.equal(payment.sentAmount, 0n);
       assert.equal(paymentIntent.receivedAmount, 0n);
       assert.equal(paymentIntent.state, 'CREATED');

@@ -67,6 +67,7 @@ export interface IPayment {
   assetCode: string;
   assetScale: number;
   createdAt: Date;
+  cancelledAt?: Date;
   quoteId?: string;
   debitAmount: bigint;
   receiveAmount: bigint;
@@ -178,7 +179,7 @@ export interface IPaymentIntentRepository {
   ): Promise<void>;
   storeCancelledPayments(
     paymentUpdates: {
-      payments: { id: string; state: PaymentState }[];
+      payments: { id: string; state: PaymentState; cancelledAt: Date }[];
     }[]
   ): Promise<void>;
   storeFinalizedRemoteQuotes(

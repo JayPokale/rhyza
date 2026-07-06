@@ -1045,7 +1045,7 @@ export class PaymentIntentAggregate {
 
     if (this.cancelledPayments.size > 0) {
       const updates: {
-        payments: { id: string; state: PaymentState }[];
+        payments: { id: string; state: PaymentState; cancelledAt: Date }[];
       }[] = [];
 
       for (const [
@@ -1065,7 +1065,8 @@ export class PaymentIntentAggregate {
             .filter((p) => paymentIds.includes(p.id))
             .map((p) => ({
               id: p.id,
-              state: p.state
+              state: p.state,
+              cancelledAt: p.cancelledAt ?? new Date()
             }))
         });
       }

@@ -1021,15 +1021,20 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           makeLocalIntentWithPayment(paymentIntentId, paymentId, 'CREATED')
         ]);
 
+        const beforeCancel = Date.now();
         const cmd = makeCancelPaymentCmd({ id: paymentId, paymentIntentId });
         await aggregate.handleBatch([cmd]);
         await aggregate.flush();
+        const afterCancel = Date.now();
 
         const storedPayment = repo
           .getAll()
           .find((intent) => intent.id === paymentIntentId)
           ?.payments.find((p) => p.id === paymentId);
         assert.equal(storedPayment?.state, 'CANCELLED');
+        assert.ok(storedPayment?.cancelledAt);
+        assert.ok(storedPayment.cancelledAt.getTime() >= beforeCancel);
+        assert.ok(storedPayment.cancelledAt.getTime() <= afterCancel);
       });
     });
 

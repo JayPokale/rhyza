@@ -18,10 +18,10 @@ import {
   ICompletedQuote,
   IPendingQuote,
   IPaymentIntent,
+  IPayment,
   IQuote,
   PaymentIntentDestination,
   PaymentIntentState,
-  PaymentState,
   QuoteState
 } from './interfaces';
 
@@ -310,21 +310,6 @@ class Quote implements IBaseQuote {
   }
 }
 
-interface Payment {
-  id: string;
-  state: PaymentState;
-  quoteId?: string;
-  paymentIntentId: string;
-  senderWalletAddress: string;
-  senderWalletAddressId: string;
-  assetScale: number;
-  assetCode: string;
-  createdAt: Date;
-  debitAmount: bigint;
-  receiveAmount: bigint;
-  sentAmount: bigint;
-}
-
 export class PaymentIntent implements IPaymentIntent {
   private _id: string;
   private _receiverWalletAddressId: string | undefined;
@@ -338,7 +323,7 @@ export class PaymentIntent implements IPaymentIntent {
   private _incomingAmount: bigint | null;
   private _receivedAmount: bigint;
   private _quotes: Quote[] = [];
-  private _payments: Payment[] = [];
+  private _payments: IPayment[] = [];
   private _destinationIlpAddress: string | undefined;
   private _remoteUrl: string | undefined;
 
@@ -355,7 +340,7 @@ export class PaymentIntent implements IPaymentIntent {
     receivedAmount: bigint = 0n,
     state: PaymentIntentState = PaymentIntentState.CREATED,
     quotes: Quote[] = [],
-    payments: Payment[] = [],
+    payments: IPayment[] = [],
     destinationIlpAddress?: string,
     remoteUrl?: string
   ) {
@@ -462,7 +447,8 @@ export class PaymentIntent implements IPaymentIntent {
         sentAmount: payment.sentAmount,
         state: payment.state,
         debitAmount: payment.debitAmount,
-        receiveAmount: payment.receiveAmount
+        receiveAmount: payment.receiveAmount,
+        cancelledAt: payment.cancelledAt
       })),
       obj.destinationIlpAddress,
       obj.remoteUrl
@@ -495,7 +481,8 @@ export class PaymentIntent implements IPaymentIntent {
         createdAt: payment.createdAt,
         debitAmount: payment.debitAmount,
         receiveAmount: payment.receiveAmount,
-        sentAmount: payment.sentAmount
+        sentAmount: payment.sentAmount,
+        cancelledAt: payment.cancelledAt
       })),
       destinationIlpAddress: this._destinationIlpAddress,
       remoteUrl: this._remoteUrl
@@ -706,7 +693,7 @@ export class PaymentIntent implements IPaymentIntent {
     };
     exchangeRate: number;
     debitAmount?: bigint;
-  }): Payment {
+  }): IPayment {
     const {
       id,
       senderWalletAddress,
@@ -796,7 +783,7 @@ export class PaymentIntent implements IPaymentIntent {
       );
     }
 
-    const payment: Payment = {
+    const payment: IPayment = {
       id,
       state: 'CREATED',
       senderWalletAddress: senderWalletAddress.address,
@@ -876,6 +863,7 @@ export class PaymentIntent implements IPaymentIntent {
     }
 
     payment.state = 'CANCELLED';
+    payment.cancelledAt = new Date();
   }
 
   get id(): string {
@@ -930,7 +918,7 @@ export class PaymentIntent implements IPaymentIntent {
     return this._quotes.map((q) => q.toObject());
   }
 
-  get payments(): Payment[] {
+  get payments(): IPayment[] {
     return this._payments;
   }
 
