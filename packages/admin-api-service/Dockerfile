@@ -74,6 +74,7 @@ COPY --from=prod-deps /workspace/packages/admin-api-service/package.json ./packa
 
 # built dist from each workspace dep
 COPY --from=build /workspace/packages/common-types-lib/dist ./packages/common-types-lib/dist
+COPY --from=build /workspace/packages/implementations-lib/dist ./packages/implementations-lib/dist
 COPY --from=build /workspace/packages/pal-public-types-lib/dist ./packages/pal-public-types-lib/dist
 COPY --from=build /workspace/packages/pal-client-lib/dist ./packages/pal-client-lib/dist
 COPY --from=build /workspace/packages/payments-public-types-lib/dist ./packages/payments-public-types-lib/dist
