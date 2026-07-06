@@ -462,7 +462,7 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
 
   async storeCancelledPayments(
     paymentUpdates: {
-      payments: { id: string; state: PaymentState }[];
+      payments: { id: string; state: PaymentState; cancelledAt: Date }[];
     }[]
   ): Promise<void> {
     this._checkInitialisedOrThrow();
@@ -478,7 +478,8 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
               filter: { id: payment.id },
               update: {
                 $set: {
-                  state: payment.state
+                  state: payment.state,
+                  cancelledAt: payment.cancelledAt
                 }
               }
             }
