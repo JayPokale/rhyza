@@ -88,8 +88,7 @@ export class FxGrpcHandler {
           destinationAssetCode
         );
       } else {
-        const peerId =
-          peerSourceReq?.getPeerId() || peerDestinationReq?.getPeerId();
+        peerId = peerSourceReq?.getPeerId() || peerDestinationReq?.getPeerId();
         if (!peerId) {
           this._logger.error('Invalid PeerId in GetFxRateRequest');
           throw new Error('Invalid PeerId in GetFxRateRequest');
