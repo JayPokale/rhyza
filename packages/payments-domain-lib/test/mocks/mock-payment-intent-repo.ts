@@ -97,7 +97,12 @@ export class MockPaymentIntentRepo implements IPaymentIntentRepository {
 
   async storeCancelledPayments(
     paymentUpdates: {
-      payments: { id: string; state: PaymentState; cancelledAt: Date }[];
+      payments: {
+        id: string;
+        state: PaymentState;
+        cancelledAt: Date;
+        cancelReason?: string;
+      }[];
     }[]
   ): Promise<void> {
     for (const update of paymentUpdates) {
@@ -111,6 +116,7 @@ export class MockPaymentIntentRepo implements IPaymentIntentRepository {
 
         foundPayment.state = payment.state;
         foundPayment.cancelledAt = payment.cancelledAt;
+        foundPayment.cancelReason = payment.cancelReason;
       }
     }
   }

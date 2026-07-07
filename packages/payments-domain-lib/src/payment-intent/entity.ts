@@ -448,7 +448,8 @@ export class PaymentIntent implements IPaymentIntent {
         state: payment.state,
         debitAmount: payment.debitAmount,
         receiveAmount: payment.receiveAmount,
-        cancelledAt: payment.cancelledAt
+        cancelledAt: payment.cancelledAt,
+        cancelReason: payment.cancelReason
       })),
       obj.destinationIlpAddress,
       obj.remoteUrl
@@ -482,7 +483,8 @@ export class PaymentIntent implements IPaymentIntent {
         debitAmount: payment.debitAmount,
         receiveAmount: payment.receiveAmount,
         sentAmount: payment.sentAmount,
-        cancelledAt: payment.cancelledAt
+        cancelledAt: payment.cancelledAt,
+        cancelReason: payment.cancelReason
       })),
       destinationIlpAddress: this._destinationIlpAddress,
       remoteUrl: this._remoteUrl
@@ -845,8 +847,8 @@ export class PaymentIntent implements IPaymentIntent {
     return payment;
   }
 
-  cancelPayment(args: { id: string }): void {
-    const { id } = args;
+  cancelPayment(args: { id: string; reason?: string }): void {
+    const { id, reason } = args;
 
     const payment = this._payments.find((payment) => payment.id === id);
     if (!payment) {
@@ -865,6 +867,9 @@ export class PaymentIntent implements IPaymentIntent {
 
     payment.state = 'CANCELLED';
     payment.cancelledAt = new Date();
+    if (reason) {
+      payment.cancelReason = reason;
+    }
   }
 
   get id(): string {

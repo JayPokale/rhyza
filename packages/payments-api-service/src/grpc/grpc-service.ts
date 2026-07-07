@@ -277,7 +277,11 @@ export class PaymentsServiceServer {
       const commandId = call.request.getId();
       this._storePendingResponse(commandId, call, callback);
       const cmd = new CancelPaymentCmd(
-        { id: commandId, paymentIntentId: call.request.getPaymentIntentId() },
+        {
+          id: commandId,
+          paymentIntentId: call.request.getPaymentIntentId(),
+          reason: call.request.getReason()
+        },
         commandId
       );
       await this._msgProducer.send(cmd);

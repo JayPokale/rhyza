@@ -774,7 +774,7 @@ export class PaymentIntentAggregate {
     this._logger.debug(
       `handleCancelPaymentCommand — paymentId: ${cmd.payload.id} paymentIntentId: ${cmd.payload.paymentIntentId}`
     );
-    const { id: paymentId, paymentIntentId } = cmd.payload;
+    const { id: paymentId, paymentIntentId, reason } = cmd.payload;
 
     try {
       const paymentIntentObj = this.paymentIntentMap.get(paymentIntentId);
@@ -785,7 +785,7 @@ export class PaymentIntentAggregate {
       }
 
       const paymentIntent = PaymentIntent.fromObject(paymentIntentObj);
-      paymentIntent.cancelPayment({ id: paymentId });
+      paymentIntent.cancelPayment({ id: paymentId, reason });
       this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
       this._appendToMap(this.cancelledPayments, paymentIntent.id, paymentId);
 
@@ -1061,7 +1061,12 @@ export class PaymentIntentAggregate {
 
     if (this.cancelledPayments.size > 0) {
       const updates: {
-        payments: { id: string; state: PaymentState; cancelledAt: Date }[];
+        payments: {
+          id: string;
+          state: PaymentState;
+          cancelledAt: Date;
+          cancelReason?: string;
+        }[];
       }[] = [];
 
       for (const [
@@ -1082,7 +1087,8 @@ export class PaymentIntentAggregate {
             .map((p) => ({
               id: p.id,
               state: p.state,
-              cancelledAt: p.cancelledAt ?? new Date()
+              cancelledAt: p.cancelledAt ?? new Date(),
+              cancelReason: p.cancelReason
             }))
         });
       }

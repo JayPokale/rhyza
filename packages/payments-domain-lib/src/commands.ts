@@ -113,6 +113,7 @@ export class ApprovePaymentCmd extends PaymentIntentCommand {
 export type CancelPaymentCmdPayload = {
   id: string;
   paymentIntentId: string;
+  reason?: string;
 };
 
 export class CancelPaymentCmd extends PaymentIntentCommand {

@@ -257,11 +257,15 @@ export class PaymentsClient {
 
   async cancelPayment(
     paymentIntentId: string,
-    id: string
+    id: string,
+    reason?: string
   ): Promise<ICancelPaymentResponse> {
     const request = new CancelPaymentRequest();
     request.setId(id);
     request.setPaymentIntentId(paymentIntentId);
+    if (reason) {
+      request.setReason(reason);
+    }
 
     return new Promise((resolve, reject) => {
       this._grpcClient.cancelPayment(

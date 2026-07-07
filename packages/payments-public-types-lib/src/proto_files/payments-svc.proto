@@ -106,7 +106,6 @@ message CancelPaymentRequest {
   string id = 1;
   string payment_intent_id = 2;
   optional string reason = 3;
-  optional string chant = 4;
 }
 
 // Response containing the ID of the cancelled payment.

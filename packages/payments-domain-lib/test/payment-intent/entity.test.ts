@@ -1394,11 +1394,12 @@ describe('PaymentIntent Entity', () => {
         }
       });
 
-      paymentIntent.cancelPayment({ id: paymentId });
+      paymentIntent.cancelPayment({ id: paymentId, reason: 'user requested' });
       const afterCancel = Date.now();
 
       const payment = paymentIntent.payments[0];
       assert.equal(payment.state, 'CANCELLED');
+      assert.equal(payment.cancelReason, 'user requested');
       assert.ok(payment.cancelledAt);
       assert.ok(payment.cancelledAt.getTime() >= beforeCancel);
       assert.ok(payment.cancelledAt.getTime() <= afterCancel);
@@ -1420,7 +1421,10 @@ describe('PaymentIntent Entity', () => {
 
       assert.throws(
         () => {
-          paymentIntent.cancelPayment({ id: crypto.randomUUID() });
+          paymentIntent.cancelPayment({
+            id: crypto.randomUUID(),
+            reason: 'user requested'
+          });
         },
         (err: Error) => {
           assert(err instanceof PaymentNotFoundError);
@@ -1464,7 +1468,10 @@ describe('PaymentIntent Entity', () => {
 
       assert.throws(
         () => {
-          paymentIntent.cancelPayment({ id: 'payment-1' });
+          paymentIntent.cancelPayment({
+            id: 'payment-1',
+            reason: 'user requested'
+          });
         },
         (err: Error) => {
           assert(err instanceof PaymentInvalidStateError);
@@ -1508,7 +1515,10 @@ describe('PaymentIntent Entity', () => {
 
       assert.throws(
         () => {
-          paymentIntent.cancelPayment({ id: 'payment-1' });
+          paymentIntent.cancelPayment({
+            id: 'payment-1',
+            reason: 'user requested'
+          });
         },
         (err: Error) => {
           assert(err instanceof PaymentInvalidStateError);

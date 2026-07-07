@@ -60,12 +60,14 @@ function makeCancelPaymentCmd(
   overrides: Partial<{
     id: string;
     paymentIntentId: string;
+    reason: string;
   }> = {}
 ): CancelPaymentCmd {
   return new CancelPaymentCmd(
     {
       id: overrides.id ?? crypto.randomUUID(),
       paymentIntentId: overrides.paymentIntentId ?? crypto.randomUUID(),
+      reason: overrides.reason ?? 'cancelled by user',
       ...overrides
     },
     crypto.randomUUID()
@@ -1022,7 +1024,11 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         ]);
 
         const beforeCancel = Date.now();
-        const cmd = makeCancelPaymentCmd({ id: paymentId, paymentIntentId });
+        const cmd = makeCancelPaymentCmd({
+          id: paymentId,
+          paymentIntentId,
+          reason: 'user requested'
+        });
         await aggregate.handleBatch([cmd]);
         await aggregate.flush();
         const afterCancel = Date.now();
@@ -1032,6 +1038,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           .find((intent) => intent.id === paymentIntentId)
           ?.payments.find((p) => p.id === paymentId);
         assert.equal(storedPayment?.state, 'CANCELLED');
+        assert.equal(storedPayment?.cancelReason, 'user requested');
         assert.ok(storedPayment?.cancelledAt);
         assert.ok(storedPayment.cancelledAt.getTime() >= beforeCancel);
         assert.ok(storedPayment.cancelledAt.getTime() <= afterCancel);
