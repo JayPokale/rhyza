@@ -4,6 +4,8 @@ import { ConsoleLogger } from 'common-types-lib';
 
 import { PaymentIntentAggregate } from '../../src/payment-intent/aggregate';
 import {
+  PaymentCompletedEvent,
+  PaymentCompleteFailedEvent,
   PaymentCreatedEvent,
   PaymentCreateFailedEvent,
   PaymentIntentCreatedEvent,
@@ -33,8 +35,6 @@ import {
 } from '../../src/payment-intent/interfaces';
 import { ApprovePaymentCmd } from '../../src/commands';
 import {
-  LocalPaymentCompletedEvent,
-  LocalPaymentCompleteFailedEvent,
   PaymentCancelledEvent,
   PaymentCancelFailedEvent,
   RemoteQuoteRequestedEvent
@@ -173,13 +173,13 @@ describe('PaymentIntentAggregate.handleBatch', () => {
   ): IPaymentIntent {
     return {
       id: crypto.randomUUID(),
+      createdAt: new Date(),
       receivedAmount: 0n,
       receiverWalletAddress: 'remote.domain.com/alice',
       assetCode: 'USD',
       assetScale: 2,
       state: 'CREATED',
       destination: 'REMOTE',
-      createdAt: new Date(),
       expiresAt: new Date(Date.now() + 60_000),
       incomingAmount: null,
       quotes: [
@@ -879,8 +879,8 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         const { events } = await aggregate.handleBatch([cmd]);
 
         assert.equal(events.length, 1);
-        assert.equal(events[0].msgName, LocalPaymentCompleteFailedEvent.name);
-        const payload = (events[0] as LocalPaymentCompleteFailedEvent).payload;
+        assert.equal(events[0].msgName, PaymentCompleteFailedEvent.name);
+        const payload = (events[0] as PaymentCompleteFailedEvent).payload;
         assert.equal(payload.errorName, 'PaymentIntentNotFoundError');
       });
 
@@ -925,9 +925,9 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         const { events } = await aggregate.handleBatch([cmd]);
 
         assert.equal(events.length, 1);
-        assert.equal(events[0].msgName, LocalPaymentCompletedEvent.name);
+        assert.equal(events[0].msgName, PaymentCompletedEvent.name);
         assert.equal(
-          (events[0] as LocalPaymentCompletedEvent).payload.id,
+          (events[0] as PaymentCompletedEvent).payload.id,
           paymentId
         );
       });
