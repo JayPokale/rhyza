@@ -116,7 +116,11 @@ export class MockPaymentIntentRepo implements IPaymentIntentRepository {
 
         foundPayment.state = payment.state;
         foundPayment.cancelledAt = payment.cancelledAt;
-        foundPayment.cancelReason = payment.cancelReason;
+        if (payment.cancelReason) {
+          foundPayment.cancelReason = payment.cancelReason;
+        } else {
+          delete foundPayment.cancelReason;
+        }
       }
     }
   }

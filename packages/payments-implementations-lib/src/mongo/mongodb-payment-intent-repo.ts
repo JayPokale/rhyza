@@ -485,7 +485,9 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
                 $set: {
                   state: payment.state,
                   cancelledAt: payment.cancelledAt,
-                  cancelReason: payment.cancelReason ?? ''
+                  ...(payment.cancelReason
+                    ? { cancelReason: payment.cancelReason }
+                    : {})
                 }
               }
             }
