@@ -1,8 +1,10 @@
 import { ILogger, ConsoleLogger, IMessageProducer } from 'common-types-lib';
 import {
   DispatchPreparePacketCmd,
+  DispatchRejectPacketCmd,
   IPeeringClient,
-  PacketDispatch
+  PacketDispatch,
+  RejectDispatch
 } from 'ilp-domain-lib';
 
 export class KafkaPeeringClient implements IPeeringClient {
@@ -30,6 +32,28 @@ export class KafkaPeeringClient implements IPeeringClient {
 
     this._logger.debug(
       `Dispatching ${input.type} prepare for packet ${input.packetId} to peer ${input.peerId}`
+    );
+    await this._producer.send(cmd);
+  }
+
+  async dispatchReject(input: RejectDispatch): Promise<void> {
+    const cmd = new DispatchRejectPacketCmd({
+      peerId: input.peerId,
+      packetId: input.packetId,
+      rejectCode: input.rejectCode,
+      rejectMessage: input.rejectMessage,
+      triggeredBy: input.triggeredBy,
+      // For a quote response we put the destination amount here as a stand-in for STREAM reply frames.
+      data:
+        input.destinationAmount !== undefined
+          ? Buffer.from(
+              JSON.stringify({ destinationAmount: input.destinationAmount })
+            ).toString('base64')
+          : undefined
+    });
+
+    this._logger.debug(
+      `Dispatching reject (${input.rejectCode}) for packet ${input.packetId} to peer ${input.peerId}`
     );
     await this._producer.send(cmd);
   }

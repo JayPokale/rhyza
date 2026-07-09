@@ -46,6 +46,27 @@ export class QuoteFailedEvent extends DomainEvent {
   }
 }
 
+export interface RemoteQuoteRequestReceivedPayload {
+  peerId: string;
+  packetId: string;
+  destinationIlpAddress: string;
+  incomingAmount: string;
+  expiresAt: string;
+}
+
+export class RemoteQuoteRequestReceivedEvent extends DomainEvent {
+  contextName: string = BOUNDED_CONTEXT_NAME;
+  aggregateName: string = AGGREGATE_NAME;
+  msgTopic: string = DomainEventTopics.IlpEvents;
+  payload: RemoteQuoteRequestReceivedPayload;
+
+  constructor(payload: RemoteQuoteRequestReceivedPayload) {
+    super(payload.peerId);
+    this.msgKey = payload.peerId;
+    this.payload = payload;
+  }
+}
+
 export interface RemotePaymentConfirmedPayload {
   peerId: string;
   paymentIntentId: string;

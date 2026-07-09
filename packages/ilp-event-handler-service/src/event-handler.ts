@@ -1,0 +1,74 @@
+import {
+  DomainEventTopics,
+  ILogger,
+  IMessage,
+  IMessageConsumer,
+  IMessageProducer
+} from 'common-types-lib';
+import { RespondToRemoteQuoteCmd } from 'ilp-domain-lib';
+import {
+  PAYMENTS_REMOTE_QUOTE_CALCULATED_EVENT,
+  PAYMENTS_REMOTE_QUOTE_CALCULATION_FAILED_EVENT,
+  RemoteQuoteCalculatedPayload,
+  RemoteQuoteCalculationFailedPayload
+} from './payments-contract';
+
+export class IlpEventHandler {
+  constructor(
+    private readonly _msgConsumer: IMessageConsumer,
+    private readonly _msgProducer: IMessageProducer,
+    private readonly _logger: ILogger
+  ) {}
+
+  async start(): Promise<void> {
+    this._msgConsumer.setTopics([DomainEventTopics.PaymentEvents]);
+    this._msgConsumer.setBatchCallbackFn(this._handleBatch.bind(this));
+    await this._msgConsumer.connect();
+    await this._msgConsumer.startAndWaitForRebalance();
+  }
+
+  async stop(): Promise<void> {
+    await this._msgConsumer.stop();
+    await this._msgConsumer.disconnect(true);
+  }
+
+  private async _handleBatch(messages: IMessage[]): Promise<void> {
+    const commands = messages
+      .map((m) => this._toCommand(m))
+      .filter((c): c is RespondToRemoteQuoteCmd => c !== undefined);
+
+    if (commands.length > 0) {
+      await this._msgProducer.send(commands);
+    }
+  }
+
+  private _toCommand(message: IMessage): RespondToRemoteQuoteCmd | undefined {
+    switch (message.msgName) {
+      case PAYMENTS_REMOTE_QUOTE_CALCULATED_EVENT: {
+        const payload = message.payload as RemoteQuoteCalculatedPayload;
+        this._logger.debug(
+          `Calculated quote for packet ${payload.packetId}; responding to peer ${payload.peerId}`
+        );
+        return new RespondToRemoteQuoteCmd({
+          peerId: payload.peerId,
+          packetId: payload.packetId,
+          destinationAmount: payload.destinationAmount
+        });
+      }
+      case PAYMENTS_REMOTE_QUOTE_CALCULATION_FAILED_EVENT: {
+        const payload = message.payload as RemoteQuoteCalculationFailedPayload;
+        this._logger.debug(
+          `Quote calculation failed for packet ${payload.packetId}; sending generic reject`
+        );
+        // Omitting destinationAmount makes the aggregate emit the generic
+        // "could not respond" reject without leaking the reason to the peer.
+        return new RespondToRemoteQuoteCmd({
+          peerId: payload.peerId,
+          packetId: payload.packetId
+        });
+      }
+      default:
+        return undefined;
+    }
+  }
+}
