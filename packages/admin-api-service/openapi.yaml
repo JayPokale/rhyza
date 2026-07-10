@@ -292,7 +292,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
 components:
   schemas:
     ErrorResponse:
@@ -345,7 +344,10 @@ components:
           description: The name of the wallet address holder that can be displayed publicly.
         isActive:
           type: boolean
-          description: Whether the wallet address is active and can receive payments.
+          description: >-
+            Whether the wallet address is active. True by default. While
+            inactive, no resources (payment intents, quotes, or payments) can
+            be created against it, whether as sender or receiver.
     WalletAddressCreateResponse:
       type: object
       description: Response schema after creating a wallet address.
@@ -440,7 +442,7 @@ components:
           description: When the payment intent expires.
         destinationIlpAddress:
           type: string
-          description: The internal ILP address for the destination.
+          description: The ILP address of the payment intent.
     QuoteCreate:
       type: object
       description: Schema for creating a payment quote.
@@ -537,7 +539,7 @@ components:
           description: Unique identifier for the created payment.
         paymentIntentId:
           type: string
-          description: The ID of the associated payment intent.
+          description: The unique identifier for the payment intent.
     PaymentCancel:
       type: object
       properties:
