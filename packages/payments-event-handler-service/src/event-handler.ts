@@ -9,34 +9,7 @@ import {
   FailRemoteQuoteCmd,
   CalculateRemoteQuoteCmd
 } from 'payments-domain-lib';
-import {
-  QuoteDeterminedEvent,
-  QuoteFailedEvent,
-  RemoteQuoteReceivedEvent
-} from 'ilp-domain-lib';
-
-// TODO: QuoteDeterminedEvent -> RemoteQuoteReceivedEvent (pending ILP BC rename)
-// TODO: QuoteFailedEvent -> QuoteCreateFailedEvent (pending ILP BC rename)
-
-// TODO: once ILP BC updates events to new flow, replace these local interfaces
-interface IlpQuoteDeterminedPayload {
-  paymentIntentId: string;
-  quoteId: string;
-  // TODO: ILP BC should pass requestId through from RemoteQuoteRequestedEvent payload so
-  // Payments BC can correlate the API response back to the original request.
-  requestId: string;
-  receiveAmountValue: string;
-  receiveAssetCode: string;
-  receiveAssetScale: number;
-}
-
-interface IlpQuoteFailedPayload {
-  paymentIntentId: string;
-  quoteId: string;
-  requestId: string;
-  errorName: string;
-  message: string;
-}
+import { QuoteFailedEvent, RemoteQuoteReceivedEvent } from 'ilp-domain-lib';
 
 // TODO: pending ILP BC class for inbound remote-quote request. replace stub
 // once published from ilp-domain-lib.
@@ -90,6 +63,7 @@ export class PaymentsEventHandler {
             paymentIntentId,
             receiveAmountValue: destinationAmount
           },
+          // TODO: requestId required - remove fallback when provided by ILP
           message.requestId ?? ''
         );
         await this._msgProducer.send(cmd);
@@ -108,6 +82,7 @@ export class PaymentsEventHandler {
                 ? 'Quote expired'
                 : 'Quote could not be determined')
           },
+          // TODO: requestId required - remove fallback when provided by ILP
           message.requestId ?? ''
         );
         await this._msgProducer.send(cmd);
