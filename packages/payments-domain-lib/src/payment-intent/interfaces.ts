@@ -28,6 +28,11 @@ export interface IPendingQuote extends IBaseQuote {
   state: 'PENDING';
   debitAmount?: bigint;
   receiveAmount?: bigint;
+  peerId?: string;
+  peerAssetCode?: string;
+  peerAssetScale?: number;
+  sourceAmount?: bigint;
+  senderAssetCode?: string;
 }
 
 export interface ICompletedQuote extends IBaseQuote {
@@ -48,7 +53,8 @@ export type IQuote = IPendingQuote | ICompletedQuote | IFailedQuote;
 
 export const PaymentState = {
   CREATED: 'CREATED',
-  COMPLETED: 'COMPLETED'
+  COMPLETED: 'COMPLETED',
+  CANCELLED: 'CANCELLED'
 } as const;
 export type PaymentState = keyof typeof PaymentState;
 
@@ -61,6 +67,8 @@ export interface IPayment {
   assetCode: string;
   assetScale: number;
   createdAt: Date;
+  cancelledAt?: Date;
+  cancelReason?: string;
   quoteId?: string;
   debitAmount: bigint;
   receiveAmount: bigint;
@@ -92,15 +100,27 @@ export interface IWalletAddress {
   assetScale: number;
 }
 
-export interface IWalletAddressService {
-  fetchByIds(ids: string[]): Promise<IWalletAddress[]>;
-}
-
 export interface IRatesService {
   getRate(
     sourceAssetCode: string,
     destinationAssetCode: string
   ): Promise<number | undefined>;
+}
+
+export type IFxRateRequest =
+  | { peerId: string; sourceAssetCode: string }
+  | { peerId: string; destinationAssetCode: string };
+
+export interface IPeer {
+  peerId: string;
+  assetCode: string;
+  assetScale: number;
+}
+
+export interface IPalService {
+  getWalletAddresses(ids: string[]): Promise<IWalletAddress[]>;
+  getPeerByIlpAddress(ilpAddress: string): Promise<IPeer | null>;
+  getRates(request: IFxRateRequest): Promise<number | null>;
 }
 
 export interface IRemotePaymentIntentDetails {
@@ -156,6 +176,16 @@ export interface IPaymentIntentRepository {
         state: PaymentIntentState;
       };
       payments: { id: string; state: PaymentState; sentAmount: bigint }[];
+    }[]
+  ): Promise<void>;
+  storeCancelledPayments(
+    paymentUpdates: {
+      payments: {
+        id: string;
+        state: PaymentState;
+        cancelledAt: Date;
+        cancelReason?: string;
+      }[];
     }[]
   ): Promise<void>;
   storeFinalizedRemoteQuotes(
