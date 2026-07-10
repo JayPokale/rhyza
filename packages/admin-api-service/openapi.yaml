@@ -220,7 +220,45 @@ paths:
                   id:
                     type: string
                     description: Unique identifier of the approved payment
-            
+  /payment-intents/{intentId}/payments/{id}/cancel:
+    post:
+      summary: Cancel Payment
+      description: Cancel a payment
+      tags:
+        - payments
+      operationId: Payments_cancelPayment
+      parameters:
+        - name: intentId
+          in: path
+          description: Unique identifier for the payment intent
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          description: Unique identifier for the payment to be approved
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - id
+                properties:
+                  id:
+                    type: string
+                    description: Unique identifier of the cancelled payment
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentCancel'          
   /payment-intents/{intentId}/payments/{id}:
     get:
       summary: Get Payment
@@ -500,6 +538,12 @@ components:
         paymentIntentId:
           type: string
           description: The ID of the associated payment intent.
+    PaymentCancel:
+      type: object
+      properties:
+        reason:
+          type: string
+          description: Reason why the payment was cancelled.
     Payment:
       type: object
       description: Represents a payment
