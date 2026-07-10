@@ -751,8 +751,8 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         assert.equal(payload.peerId, cmd.payload.peerId);
       });
 
-      it('cross-asset: floors receiveAmount = sourceAmount * fxRate', async () => {
-        const intent = makeLocalIntent({ assetCode: 'XRP', assetScale: 6 });
+      it('cross-asset same scale: floors receiveAmount = sourceAmount * fxRate', async () => {
+        const intent = makeLocalIntent({ assetCode: 'XRP', assetScale: 2 });
         await repo.storeMany([intent]);
         mockPalService.getRates = async () => 100.5;
 
@@ -767,10 +767,34 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         assert.equal(events.length, 1);
         assert.equal(events[0].msgName, RemoteQuoteCalculatedEvent.name);
         const payload = (events[0] as RemoteQuoteCalculatedEvent).payload;
-        // floor(100 * 100.5) = 10050
+        // scaleDiff = 0, floor(100 * 100.5) = 10050
         assert.equal(payload.receiveAmount, '10050');
         assert.equal(payload.receiveAssetCode, 'XRP');
-        assert.equal(payload.receiveAssetScale, 6);
+        assert.equal(payload.receiveAssetScale, 2);
+      });
+
+      it('cross-asset receiver scale > peer scale: emits in receiver scale', async () => {
+        // peer EUR/2, receiver XRP/4, 1 EUR = 2 XRP
+        // sourceAmount = 100 (1.00 EUR) -> 2.00 XRP = 20000 units
+        const intent = makeLocalIntent({ assetCode: 'XRP', assetScale: 4 });
+        await repo.storeMany([intent]);
+        mockPalService.getRates = async () => 2;
+
+        const cmd = makeCalculateRemoteQuoteCmd({
+          paymentIntentId: intent.id,
+          peerAssetCode: 'EUR',
+          peerAssetScale: 2,
+          sourceAmount: '100'
+        });
+        const { events } = await aggregate.handleBatch([cmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, RemoteQuoteCalculatedEvent.name);
+        const payload = (events[0] as RemoteQuoteCalculatedEvent).payload;
+        // scaleDiff = 4 - 2 = 2, floor(100 * 2 * 100) = 20000
+        assert.equal(payload.receiveAmount, '20000');
+        assert.equal(payload.receiveAssetCode, 'XRP');
+        assert.equal(payload.receiveAssetScale, 4);
       });
 
       it('fails with PaymentIntentNotFoundError when intent missing', async () => {

@@ -737,7 +737,8 @@ export class PaymentIntentAggregate {
     this._logger.debug(
       `handleCalculateRemoteQuoteCommand — paymentIntentId: ${cmd.payload.paymentIntentId} packetId: ${cmd.payload.packetId}`
     );
-    const { packetId, peerId, paymentIntentId, peerAssetCode } = cmd.payload;
+    const { packetId, peerId, paymentIntentId, peerAssetCode, peerAssetScale } =
+      cmd.payload;
 
     try {
       const paymentIntentObj = this.paymentIntentMap.get(paymentIntentId);
@@ -768,6 +769,7 @@ export class PaymentIntentAggregate {
       const receiveAmount = paymentIntent.calculateInboundQuoteAmount({
         sourceAmount,
         peerAssetCode,
+        peerAssetScale,
         fxRate
       });
 

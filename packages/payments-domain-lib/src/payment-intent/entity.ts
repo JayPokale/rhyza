@@ -698,18 +698,22 @@ export class PaymentIntent implements IPaymentIntent {
   calculateInboundQuoteAmount(args: {
     sourceAmount: bigint;
     peerAssetCode: string;
+    peerAssetScale: number;
     fxRate?: number;
   }): bigint {
-    const { sourceAmount, peerAssetCode, fxRate } = args;
+    const { sourceAmount, peerAssetCode, peerAssetScale, fxRate } = args;
     if (peerAssetCode === this._assetCode) {
-      return sourceAmount;
+      const scaleDiff = this._assetScale - peerAssetScale;
+      if (scaleDiff === 0) return sourceAmount;
+      return BigInt(Math.floor(Number(sourceAmount) * 10 ** scaleDiff));
     }
     if (fxRate == null) {
       throw new MissingFxRateError(
         `Cross-asset inbound quote for ${this.id} requires an fxRate (peer: ${peerAssetCode}, intent: ${this._assetCode})`
       );
     }
-    return BigInt(Math.floor(Number(sourceAmount) * fxRate));
+    const scaleDiff = this._assetScale - peerAssetScale;
+    return BigInt(Math.floor(Number(sourceAmount) * fxRate * 10 ** scaleDiff));
   }
 
   addLocalPayment(args: {

@@ -1954,63 +1954,138 @@ describe('PaymentIntent Entity', () => {
         null
       );
 
-    it('same-asset: returns sourceAmount unchanged', () => {
-      const intent = makeIntent({ assetCode: 'USD' });
+    it('same asset+scale: returns sourceAmount unchanged', () => {
+      const intent = makeIntent({ assetCode: 'USD', assetScale: 2 });
 
       const receiveAmount = intent.calculateInboundQuoteAmount({
         sourceAmount: 100n,
-        peerAssetCode: 'USD'
+        peerAssetCode: 'USD',
+        peerAssetScale: 2
       });
 
       assert.equal(receiveAmount, 100n);
     });
 
-    it('same-asset: ignores fxRate when provided', () => {
-      const intent = makeIntent({ assetCode: 'USD' });
+    it('same asset+scale: ignores fxRate when provided', () => {
+      const intent = makeIntent({ assetCode: 'USD', assetScale: 2 });
 
       const receiveAmount = intent.calculateInboundQuoteAmount({
         sourceAmount: 100n,
         peerAssetCode: 'USD',
+        peerAssetScale: 2,
         fxRate: 0.5
       });
 
       assert.equal(receiveAmount, 100n);
     });
 
-    it('cross-asset rate > 1: floors fractional part of sourceAmount * fxRate', () => {
-      const intent = makeIntent({ assetCode: 'XRP' });
+    it('same asset code, receiver scale > peer scale: normalizes without fxRate', () => {
+      const intent = makeIntent({ assetCode: 'USD', assetScale: 4 });
+
+      // 100 (USD/2 = 1.00 USD) -> 10000 (USD/4 = 1.00 USD)
+      const receiveAmount = intent.calculateInboundQuoteAmount({
+        sourceAmount: 100n,
+        peerAssetCode: 'USD',
+        peerAssetScale: 2
+      });
+
+      assert.equal(receiveAmount, 10000n);
+    });
+
+    it('same asset code, receiver scale < peer scale: normalizes without fxRate', () => {
+      const intent = makeIntent({ assetCode: 'USD', assetScale: 2 });
+
+      // 10000 (USD/4 = 1.00 USD) -> 100 (USD/2 = 1.00 USD)
+      const receiveAmount = intent.calculateInboundQuoteAmount({
+        sourceAmount: 10000n,
+        peerAssetCode: 'USD',
+        peerAssetScale: 4
+      });
+
+      assert.equal(receiveAmount, 100n);
+    });
+
+    it('same asset code, different scale: ignores fxRate when provided', () => {
+      const intent = makeIntent({ assetCode: 'USD', assetScale: 4 });
 
       const receiveAmount = intent.calculateInboundQuoteAmount({
         sourceAmount: 100n,
         peerAssetCode: 'USD',
+        peerAssetScale: 2,
+        fxRate: 0.5
+      });
+
+      // fxRate ignored — same-code path only uses scale normalization
+      assert.equal(receiveAmount, 10000n);
+    });
+
+    it('cross-asset rate > 1: floors sourceAmount * fxRate', () => {
+      const intent = makeIntent({ assetCode: 'XRP', assetScale: 2 });
+
+      const receiveAmount = intent.calculateInboundQuoteAmount({
+        sourceAmount: 100n,
+        peerAssetCode: 'USD',
+        peerAssetScale: 2,
         fxRate: 100.567
       });
 
-      // floor(100 * 100.567) = floor(10056.7) = 10056
+      // scaleDiff = 0, floor(100 * 100.567) = floor(10056.7) = 10056
       assert.equal(receiveAmount, 10056n);
     });
 
-    it('cross-asset rate < 1: floors fractional part of sourceAmount * fxRate', () => {
-      const intent = makeIntent({ assetCode: 'EUR' });
+    it('cross-asset rate < 1: floors sourceAmount * fxRate', () => {
+      const intent = makeIntent({ assetCode: 'EUR', assetScale: 2 });
 
       const receiveAmount = intent.calculateInboundQuoteAmount({
         sourceAmount: 100n,
         peerAssetCode: 'USD',
+        peerAssetScale: 2,
         fxRate: 0.937
       });
 
-      // floor(100 * 0.937) = floor(93.7) = 93
+      // scaleDiff = 0, floor(100 * 0.937) = floor(93.7) = 93
       assert.equal(receiveAmount, 93n);
     });
 
+    it('cross-asset, receiver scale > peer scale: applies 10^(receiverScale - peerScale) adjustment', () => {
+      // peer EUR/2, receiver XRP/4, 1 EUR = 2 XRP
+      const intent = makeIntent({ assetCode: 'XRP', assetScale: 4 });
+
+      const receiveAmount = intent.calculateInboundQuoteAmount({
+        sourceAmount: 100n,
+        peerAssetCode: 'EUR',
+        peerAssetScale: 2,
+        fxRate: 2
+      });
+
+      // scaleDiff = 2, floor(100 * 2 * 100) = 20000
+      assert.equal(receiveAmount, 20000n);
+    });
+
+    it('cross-asset, receiver scale < peer scale: applies negative scale adjustment', () => {
+      // peer XRP/4, receiver EUR/2, 1 XRP = 0.5 EUR
+      const intent = makeIntent({ assetCode: 'EUR', assetScale: 2 });
+
+      const receiveAmount = intent.calculateInboundQuoteAmount({
+        sourceAmount: 20000n,
+        peerAssetCode: 'XRP',
+        peerAssetScale: 4,
+        fxRate: 0.5
+      });
+
+      // scaleDiff = -2, floor(20000 * 0.5 * 0.01) = 100
+      assert.equal(receiveAmount, 100n);
+    });
+
     it('throws MissingFxRateError if cross-asset and fxRate undefined', () => {
-      const intent = makeIntent({ assetCode: 'XRP' });
+      const intent = makeIntent({ assetCode: 'XRP', assetScale: 2 });
 
       assert.throws(
         () => {
           intent.calculateInboundQuoteAmount({
             sourceAmount: 100n,
-            peerAssetCode: 'USD'
+            peerAssetCode: 'USD',
+            peerAssetScale: 2
           });
         },
         (err: Error) => {
