@@ -2,10 +2,18 @@ openapi: 3.1.0
 info:
   title: Rafiki Admin API
   version: 0.0.0
+  license:
+    name: ISC
+    identifier: ISC
+servers:
+  - url: /
+    description: Base URL is determined by the Rafiki deployment
+security: []
 tags: []
 paths:
   /assets:
     post:
+      summary: Create an asset
       operationId: Assets_createAsset
       parameters: []
       responses:
@@ -29,6 +37,7 @@ paths:
               $ref: '#/components/schemas/AssetCreate'
   /wallet-addresses:
     post:
+      summary: Create a wallet address
       operationId: WalletAddresses_createWalletAddress
       parameters: []
       responses:
@@ -52,6 +61,7 @@ paths:
               $ref: '#/components/schemas/WalletAddressCreate'
   /payment-intents:
     post:
+      summary: Create a payment intent
       operationId: PaymentIntents_createPaymentIntent
       parameters: []
       responses:
@@ -75,6 +85,7 @@ paths:
               $ref: '#/components/schemas/PaymentIntentCreate'
   /payment-intents/{id}:
     get:
+      summary: Get a payment intent
       operationId: PaymentIntents_getPaymentIntent
       parameters:
         - name: id
@@ -97,6 +108,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
   /quotes:
     post:
+      summary: Create a quote
       operationId: Quotes_createQuote
       parameters: []
       responses:
@@ -126,6 +138,7 @@ paths:
               $ref: '#/components/schemas/QuoteCreate'
   /payments:
     post:
+      summary: Create a payment
       operationId: Payments_createPayment
       parameters: []
       responses:
@@ -149,6 +162,7 @@ paths:
               $ref: '#/components/schemas/PaymentCreate'
   /payment-intents/{intentId}/payments/{id}:
     get:
+      summary: Get a payment
       operationId: Payments_getPayment
       parameters:
         - name: intentId
@@ -176,6 +190,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
   /payment-intents/{intentId}/payments/{id}/approve:
     post:
+      summary: Approve a payment
       operationId: Payments_approvePayment
       parameters:
         - name: intentId
@@ -200,8 +215,15 @@ paths:
                 properties:
                   id:
                     type: string
+        '500':
+          description: Payment approval failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /payment-intents/{intentId}/payments/{id}/cancel:
     post:
+      summary: Cancel a payment
       operationId: Payments_cancelPayment
       parameters:
         - name: intentId
@@ -226,6 +248,12 @@ paths:
                 properties:
                   id:
                     type: string
+        '500':
+          description: Payment cancellation failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
       requestBody:
         required: false
         content:

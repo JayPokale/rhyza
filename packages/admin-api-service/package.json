@@ -5,7 +5,8 @@
   "scripts": {
     "start": "node dist/index.js",
     "dev": "node --import tsx src/index.ts",
-    "build": "tsc --build"
+    "build": "tsc --build",
+    "lint:openapi": "redocly lint openapi.yaml --lint-config error --format=stylish"
   },
   "keywords": [],
   "author": "",
@@ -17,6 +18,7 @@
     "implementations-lib": "workspace:*"
   },
   "devDependencies": {
+    "@redocly/cli": "^2.31.2",
     "tsx": "^4.19.3"
   }
 }
