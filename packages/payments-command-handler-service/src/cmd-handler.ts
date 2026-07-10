@@ -11,6 +11,7 @@ import {
   CreatePaymentCmd,
   PaymentIntentAggregate,
   ApprovePaymentCmd,
+  CancelPaymentCmd,
   CompleteRemoteQuoteCmd,
   FailRemoteQuoteCmd,
   CalculateRemoteQuoteCmd
@@ -62,6 +63,9 @@ export class PaymentsCommandHandler {
           commandMessages.push(msg);
           break;
         case ApprovePaymentCmd.name:
+          commandMessages.push(msg);
+          break;
+        case CancelPaymentCmd.name:
           commandMessages.push(msg);
           break;
         case CompleteRemoteQuoteCmd.name:

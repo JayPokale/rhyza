@@ -9,7 +9,11 @@ import {
   FailRemoteQuoteCmd,
   CalculateRemoteQuoteCmd
 } from 'payments-domain-lib';
-import { QuoteDeterminedEvent, QuoteFailedEvent } from 'ilp-domain-lib';
+import {
+  QuoteDeterminedEvent,
+  QuoteFailedEvent,
+  RemoteQuoteReceivedEvent
+} from 'ilp-domain-lib';
 
 // TODO: QuoteDeterminedEvent -> RemoteQuoteReceivedEvent (pending ILP BC rename)
 // TODO: QuoteFailedEvent -> QuoteCreateFailedEvent (pending ILP BC rename)
@@ -77,31 +81,34 @@ export class PaymentsEventHandler {
 
   private async _handleEvent(message: IMessage): Promise<void> {
     switch (message.msgName) {
-      case QuoteDeterminedEvent.name: {
-        const payload = message.payload as IlpQuoteDeterminedPayload;
+      case RemoteQuoteReceivedEvent.name: {
+        const { quoteId, paymentIntentId, destinationAmount } =
+          message.payload as RemoteQuoteReceivedEvent['payload'];
         const cmd = new CompleteRemoteQuoteCmd(
           {
-            quoteId: payload.quoteId,
-            paymentIntentId: payload.paymentIntentId,
-            receiveAmountValue: payload.receiveAmountValue,
-            receiveAssetCode: payload.receiveAssetCode,
-            receiveAssetScale: payload.receiveAssetScale
+            quoteId,
+            paymentIntentId,
+            receiveAmountValue: destinationAmount
           },
-          payload.requestId
+          message.requestId ?? ''
         );
         await this._msgProducer.send(cmd);
         break;
       }
       case QuoteFailedEvent.name: {
-        const payload = message.payload as IlpQuoteFailedPayload;
+        const payload = message.payload as QuoteFailedEvent['payload'];
         const cmd = new FailRemoteQuoteCmd(
           {
             quoteId: payload.quoteId,
             paymentIntentId: payload.paymentIntentId,
-            errorName: payload.errorName,
-            message: payload.message
+            errorName: payload.rejectCode ?? 'QuoteFailed',
+            message:
+              payload.rejectMessage ??
+              (payload.expired
+                ? 'Quote expired'
+                : 'Quote could not be determined')
           },
-          payload.requestId
+          message.requestId ?? ''
         );
         await this._msgProducer.send(cmd);
         break;

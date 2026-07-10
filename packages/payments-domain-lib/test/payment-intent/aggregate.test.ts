@@ -4,17 +4,21 @@ import { ConsoleLogger } from 'common-types-lib';
 
 import { PaymentIntentAggregate } from '../../src/payment-intent/aggregate';
 import {
+  PaymentCompletedEvent,
+  PaymentCompleteFailedEvent,
   PaymentCreatedEvent,
   PaymentCreateFailedEvent,
   PaymentIntentCreatedEvent,
-  PaymentIntentCreateFailedEvent
+  PaymentIntentCreateFailedEvent,
+  PaymentIntentCompletedEvent
 } from '../../src/payment-intent/events';
 import {
   CompleteRemoteQuoteCmd,
   CreatePaymentCmd,
   CreatePaymentIntentCmd,
   FailRemoteQuoteCmd,
-  CalculateRemoteQuoteCmd
+  CalculateRemoteQuoteCmd,
+  CancelPaymentCmd
 } from '../../src/commands';
 import {
   MockPaymentIntentRepo,
@@ -27,14 +31,17 @@ import {
   QuoteCompletedEvent
 } from '../../src/payment-intent/events';
 import { CreateQuoteCmd } from '../../src/commands';
-import { IPaymentIntent } from '../../src/payment-intent/interfaces';
+import {
+  IPaymentIntent,
+  PaymentState
+} from '../../src/payment-intent/interfaces';
 import { ApprovePaymentCmd } from '../../src/commands';
 import {
-  LocalPaymentCompletedEvent,
-  LocalPaymentCompleteFailedEvent,
   RemoteQuoteRequestedEvent,
   RemoteQuoteCalculatedEvent,
-  RemoteQuoteCalculationFailedEvent
+  RemoteQuoteCalculationFailedEvent,
+  PaymentCancelledEvent,
+  PaymentCancelFailedEvent
 } from '../../src/payment-intent/events';
 
 function makeApprovePaymentCmd(
@@ -47,6 +54,24 @@ function makeApprovePaymentCmd(
     {
       id: overrides.id ?? crypto.randomUUID(),
       paymentIntentId: overrides.paymentIntentId ?? crypto.randomUUID(),
+      ...overrides
+    },
+    crypto.randomUUID()
+  );
+}
+
+function makeCancelPaymentCmd(
+  overrides: Partial<{
+    id: string;
+    paymentIntentId: string;
+    reason: string;
+  }> = {}
+): CancelPaymentCmd {
+  return new CancelPaymentCmd(
+    {
+      id: overrides.id ?? crypto.randomUUID(),
+      paymentIntentId: overrides.paymentIntentId ?? crypto.randomUUID(),
+      reason: overrides.reason ?? 'cancelled by user',
       ...overrides
     },
     crypto.randomUUID()
@@ -154,13 +179,13 @@ describe('PaymentIntentAggregate.handleBatch', () => {
   ): IPaymentIntent {
     return {
       id: crypto.randomUUID(),
+      createdAt: new Date(),
       receivedAmount: 0n,
       receiverWalletAddress: 'remote.domain.com/alice',
       assetCode: 'USD',
       assetScale: 2,
       state: 'CREATED',
       destination: 'REMOTE',
-      createdAt: new Date(),
       expiresAt: new Date(Date.now() + 60_000),
       incomingAmount: null,
       quotes: [
@@ -424,17 +449,13 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           paymentIntentId: string;
           quoteId: string;
           receiveAmountValue: string;
-          receiveAssetCode: string;
-          receiveAssetScale: number;
         }> = {}
       ): CompleteRemoteQuoteCmd {
         return new CompleteRemoteQuoteCmd(
           {
             paymentIntentId: overrides.paymentIntentId ?? crypto.randomUUID(),
             quoteId: overrides.quoteId ?? crypto.randomUUID(),
-            receiveAmountValue: overrides.receiveAmountValue ?? '10000',
-            receiveAssetCode: overrides.receiveAssetCode ?? 'XRP',
-            receiveAssetScale: overrides.receiveAssetScale ?? 6
+            receiveAmountValue: overrides.receiveAmountValue ?? '10000'
           },
           crypto.randomUUID()
         );
@@ -447,9 +468,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
 
         const cmd = makeCompleteRemoteQuoteCmd({
           paymentIntentId: paymentIntent.id,
-          quoteId,
-          receiveAssetCode: 'USD',
-          receiveAssetScale: 2
+          quoteId
         });
         const { events } = await aggregate.handleBatch([cmd]);
 
@@ -488,44 +507,6 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         assert.equal(events[0].msgName, QuoteCreateFailedEvent.name);
         const payload = (events[0] as QuoteCreateFailedEvent).payload;
         assert.equal(payload.errorName, 'InvalidQuoteIdError');
-      });
-
-      it('fails with QuoteReceiveAssetMismatchError when receiveAssetCode does not match payment intent', async () => {
-        const quoteId = crypto.randomUUID();
-        const paymentIntent = makeRemotePaymentIntentWithPendingQuote(quoteId);
-        await repo.storeMany([paymentIntent]);
-
-        const cmd = makeCompleteRemoteQuoteCmd({
-          paymentIntentId: paymentIntent.id,
-          quoteId,
-          receiveAssetCode: 'XRP',
-          receiveAssetScale: paymentIntent.assetScale
-        });
-        const { events } = await aggregate.handleBatch([cmd]);
-
-        assert.equal(events.length, 1);
-        assert.equal(events[0].msgName, QuoteCreateFailedEvent.name);
-        const payload = (events[0] as QuoteCreateFailedEvent).payload;
-        assert.equal(payload.errorName, 'QuoteReceiveAssetMismatchError');
-      });
-
-      it('fails with QuoteReceiveAssetMismatchError when receiveAssetScale does not match payment intent', async () => {
-        const quoteId = crypto.randomUUID();
-        const paymentIntent = makeRemotePaymentIntentWithPendingQuote(quoteId);
-        await repo.storeMany([paymentIntent]);
-
-        const cmd = makeCompleteRemoteQuoteCmd({
-          paymentIntentId: paymentIntent.id,
-          quoteId,
-          receiveAssetCode: paymentIntent.assetCode,
-          receiveAssetScale: paymentIntent.assetScale + 1
-        });
-        const { events } = await aggregate.handleBatch([cmd]);
-
-        assert.equal(events.length, 1);
-        assert.equal(events[0].msgName, QuoteCreateFailedEvent.name);
-        const payload = (events[0] as QuoteCreateFailedEvent).payload;
-        assert.equal(payload.errorName, 'QuoteReceiveAssetMismatchError');
       });
 
       describe('FX calculation', () => {
@@ -1080,8 +1061,8 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         const { events } = await aggregate.handleBatch([cmd]);
 
         assert.equal(events.length, 1);
-        assert.equal(events[0].msgName, LocalPaymentCompleteFailedEvent.name);
-        const payload = (events[0] as LocalPaymentCompleteFailedEvent).payload;
+        assert.equal(events[0].msgName, PaymentCompleteFailedEvent.name);
+        const payload = (events[0] as PaymentCompleteFailedEvent).payload;
         assert.equal(payload.errorName, 'PaymentIntentNotFoundError');
       });
 
@@ -1125,12 +1106,127 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         });
         const { events } = await aggregate.handleBatch([cmd]);
 
-        assert.equal(events.length, 1);
-        assert.equal(events[0].msgName, LocalPaymentCompletedEvent.name);
+        assert.equal(events.length, 2);
+        assert.equal(events[0].msgName, PaymentCompletedEvent.name);
         assert.equal(
-          (events[0] as LocalPaymentCompletedEvent).payload.id,
+          (events[0] as PaymentCompletedEvent).payload.id,
           paymentId
         );
+        assert.equal(events[1].msgName, PaymentIntentCompletedEvent.name);
+        assert.equal(
+          (events[1] as PaymentIntentCompletedEvent).payload.id,
+          paymentIntentId
+        );
+      });
+    });
+
+    describe('handleCancelPaymentCommand', () => {
+      function makeLocalIntentWithPayment(
+        paymentIntentId: string,
+        paymentId: string,
+        paymentState: PaymentState
+      ): IPaymentIntent {
+        return {
+          id: paymentIntentId,
+          receivedAmount: 0n,
+          receiverWalletAddress: 'receiver',
+          receiverWalletAddressId: crypto.randomUUID(),
+          assetCode: 'USD',
+          assetScale: 2,
+          state: 'CREATED',
+          destination: 'LOCAL',
+          createdAt: new Date(),
+          expiresAt: new Date(Date.now() + 60_000),
+          incomingAmount: 100n,
+          quotes: [],
+          payments: [
+            {
+              id: paymentId,
+              state: paymentState,
+              senderWalletAddress: 'sender',
+              senderWalletAddressId: crypto.randomUUID(),
+              assetCode: 'USD',
+              paymentIntentId,
+              assetScale: 2,
+              createdAt: new Date(),
+              debitAmount: 100n,
+              receiveAmount: 100n,
+              sentAmount: 0n
+            }
+          ]
+        };
+      }
+
+      it('fails when payment intent not found', async () => {
+        const cmd = makeCancelPaymentCmd({ paymentIntentId: 'nonexistent' });
+        const { events } = await aggregate.handleBatch([cmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, PaymentCancelFailedEvent.name);
+        const payload = (events[0] as PaymentCancelFailedEvent).payload;
+        assert.equal(payload.errorName, 'PaymentIntentNotFoundError');
+      });
+
+      it('cancels a created payment', async () => {
+        const paymentIntentId = crypto.randomUUID();
+        const paymentId = crypto.randomUUID();
+        await repo.storeMany([
+          makeLocalIntentWithPayment(paymentIntentId, paymentId, 'CREATED')
+        ]);
+
+        const cmd = makeCancelPaymentCmd({ id: paymentId, paymentIntentId });
+        const { events } = await aggregate.handleBatch([cmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, PaymentCancelledEvent.name);
+        assert.equal(
+          (events[0] as PaymentCancelledEvent).payload.id,
+          paymentId
+        );
+      });
+
+      it('fails when payment is already completed', async () => {
+        const paymentIntentId = crypto.randomUUID();
+        const paymentId = crypto.randomUUID();
+        await repo.storeMany([
+          makeLocalIntentWithPayment(paymentIntentId, paymentId, 'COMPLETED')
+        ]);
+
+        const cmd = makeCancelPaymentCmd({ id: paymentId, paymentIntentId });
+        const { events } = await aggregate.handleBatch([cmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, PaymentCancelFailedEvent.name);
+        const payload = (events[0] as PaymentCancelFailedEvent).payload;
+        assert.equal(payload.errorName, 'PaymentInvalidStateError');
+      });
+
+      it('persists the cancelled payment state after flush', async () => {
+        const paymentIntentId = crypto.randomUUID();
+        const paymentId = crypto.randomUUID();
+        await repo.storeMany([
+          makeLocalIntentWithPayment(paymentIntentId, paymentId, 'CREATED')
+        ]);
+
+        const beforeCancel = Date.now();
+        const cmd = makeCancelPaymentCmd({
+          id: paymentId,
+          paymentIntentId,
+          reason: 'user requested'
+        });
+        await aggregate.handleBatch([cmd]);
+        await aggregate.flush();
+        const afterCancel = Date.now();
+
+        const storedPayment = repo
+          .getAll()
+          .find((intent) => intent.id === paymentIntentId)
+          ?.payments.find((p) => p.id === paymentId);
+        assert.equal(storedPayment?.state, 'CANCELLED');
+        assert.equal(storedPayment?.cancelReason, 'user requested');
+        assert.ok(storedPayment?.cancelledAt);
+        assert.ok(storedPayment.cancelledAt.getTime() >= beforeCancel);
+        assert.ok(storedPayment.cancelledAt.getTime() <= afterCancel);
       });
     });
 
@@ -1192,17 +1288,13 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           paymentIntentId: string;
           quoteId: string;
           receiveAmountValue: string;
-          receiveAssetCode: string;
-          receiveAssetScale: number;
         }> = {}
       ): CompleteRemoteQuoteCmd {
         return new CompleteRemoteQuoteCmd(
           {
             paymentIntentId: overrides.paymentIntentId ?? crypto.randomUUID(),
             quoteId: overrides.quoteId ?? crypto.randomUUID(),
-            receiveAmountValue: overrides.receiveAmountValue ?? '10000',
-            receiveAssetCode: overrides.receiveAssetCode ?? 'XRP',
-            receiveAssetScale: overrides.receiveAssetScale ?? 6
+            receiveAmountValue: overrides.receiveAmountValue ?? '10000'
           },
           crypto.randomUUID()
         );
@@ -1345,9 +1437,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         });
         const cmdB = makeCompleteRemoteQuoteCmd({
           paymentIntentId: intentB.id,
-          quoteId: quoteIdB,
-          receiveAssetCode: 'USD',
-          receiveAssetScale: 2
+          quoteId: quoteIdB
         });
         const { events } = await aggregate.handleBatch([cmdA, cmdB]);
 

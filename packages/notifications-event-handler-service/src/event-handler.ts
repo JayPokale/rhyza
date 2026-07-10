@@ -9,7 +9,10 @@ import {
   NotificationType
 } from 'notifications-domain-lib';
 import {
+  PaymentCompletedEvent,
+  PaymentCompleteFailedEvent,
   PaymentCreatedEvent,
+  PaymentIntentCompletedEvent,
   PaymentIntentCreatedEvent
 } from 'payments-domain-lib';
 
@@ -41,7 +44,11 @@ export class NotificationsEventHandler {
   private readonly messageToNotificationType: Record<string, NotificationType> =
     {
       [PaymentIntentCreatedEvent.name]: NotificationType.PaymentIntentCreated,
-      [PaymentCreatedEvent.name]: NotificationType.PaymentCreated
+      [PaymentIntentCompletedEvent.name]:
+        NotificationType.PaymentIntentCompleted,
+      [PaymentCreatedEvent.name]: NotificationType.PaymentCreated,
+      [PaymentCompletedEvent.name]: NotificationType.PaymentCompleted,
+      [PaymentCompleteFailedEvent.name]: NotificationType.PaymentFailed
     };
 
   private async _handleEvent(message: IMessage) {
