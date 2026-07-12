@@ -5,7 +5,7 @@ import {
   IMessage,
   DomainEventTopics,
   DomainEvent,
-  MessageTypes
+  MessageTypes, ITelemetryService
 } from 'common-types-lib';
 import {
   AssetCreatedEvent,
@@ -23,6 +23,10 @@ import {
   PeerAggregate
 } from 'pal-domain-lib';
 
+const BATCH_SIZE_GAUGE_NAME = 'PalInternalEventHandler_batchSize';
+const BATCH_HISTOGRAM_NAME = 'PalInternalEventHandler_batches';
+const EVENTS_HISTOGRAM_NAME = 'PalInternalEventHandler_events';
+
 /**
  * Internal event handler for processing internal PAL bounded context events
  */
@@ -34,6 +38,7 @@ export class InternalEventHandler {
   private readonly _assetAggregate: AssetAggregate;
   private readonly _peerAggregate: PeerAggregate;
   private readonly _fxAggregate: FxAggregate;
+  private readonly _telemetryService: ITelemetryService;
 
   constructor(
     peerAggregate: PeerAggregate,
@@ -41,9 +46,11 @@ export class InternalEventHandler {
     fxAggregate: FxAggregate,
     messageConsumer: IMessageConsumer,
     msgProducer: IMessageProducer,
-    logger: ILogger
+    logger: ILogger,
+    telemetryService: ITelemetryService
   ) {
     this._logger = logger;
+    this._telemetryService = telemetryService;
     this._peerAggregate = peerAggregate;
     this._assetAggregate = assetAggregate;
     this._fxAggregate = fxAggregate;
@@ -55,12 +62,21 @@ export class InternalEventHandler {
     this._logger.info(`Received batch of ${messages.length} messages`);
     // NOTE: we shouldn't log ignored events, they can be the majority
 
+    this._telemetryService.updateGauge(BATCH_SIZE_GAUGE_NAME, messages.length);
+    const batchTimerFn = this._telemetryService.startTimer(
+      BATCH_HISTOGRAM_NAME
+    )
+
     for (const msg of messages) {
       if (msg.msgType !== MessageTypes.DOMAIN_EVENT) {
         continue;
       }
 
+      const evtTimerFn = this._telemetryService.startTimer(
+        EVENTS_HISTOGRAM_NAME, { eventName: msg.msgName }
+      )
       await this._handleEvent(msg as DomainEvent);
+      evtTimerFn();
     }
 
     if (this._pendingMessages.length > 0) {
@@ -70,28 +86,35 @@ export class InternalEventHandler {
       );
       this._pendingMessages.length = 0;
     }
+
+    batchTimerFn();
   }
 
   private async _handleEvent(evt: DomainEvent): Promise<void> {
-    if (evt.msgName === PeerCreatedEvent.name) {
-      await this._handlePeerCreatedEvent(evt as PeerCreatedEvent);
-    } else if (evt.msgName === LedgerAccountsCreatedForPeerEvent.name) {
-      await this._handleLedgerAccountsCreatedForPeerEvent(
-        evt as LedgerAccountsCreatedForPeerEvent
-      );
-    } else if (evt.msgName === AssetCreatedEvent.name) {
-      await this._handleAssetCreatedEvent(evt as AssetCreatedEvent);
-    } else if (evt.msgName === LedgerAccountCreatedForAssetEvent.name) {
-      await this._handleLedgerAccountCreatedForAssetEvent(
-        evt as LedgerAccountCreatedForAssetEvent
-      );
-    } else if (evt.msgName === FxRateCacheExpiredEvent.name) {
-      await this._handleFxRateCacheExpiredEvent(evt as FxRateCacheExpiredEvent);
-    } else {
-      this._logger.debug(
-        `Internal event handler - unhandled event type: ${evt.msgName}`
-      );
+    try{
+      if (evt.msgName === PeerCreatedEvent.name) {
+        await this._handlePeerCreatedEvent(evt as PeerCreatedEvent);
+      } else if (evt.msgName === LedgerAccountsCreatedForPeerEvent.name) {
+        await this._handleLedgerAccountsCreatedForPeerEvent(
+          evt as LedgerAccountsCreatedForPeerEvent
+        );
+      } else if (evt.msgName === AssetCreatedEvent.name) {
+        await this._handleAssetCreatedEvent(evt as AssetCreatedEvent);
+      } else if (evt.msgName === LedgerAccountCreatedForAssetEvent.name) {
+        await this._handleLedgerAccountCreatedForAssetEvent(
+          evt as LedgerAccountCreatedForAssetEvent
+        );
+      } else if (evt.msgName === FxRateCacheExpiredEvent.name) {
+        await this._handleFxRateCacheExpiredEvent(evt as FxRateCacheExpiredEvent);
+      } else {
+        this._logger.debug(
+          `Internal event handler - unhandled event type: ${evt.msgName}`
+        );
+      }
+    }catch(err){
+      this._logger.error(err,`Internal event handler - error handling event${evt.msgName}`);
     }
+
   }
 
   // region peer events saga

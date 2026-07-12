@@ -1,4 +1,4 @@
-import { ILogger } from 'common-types-lib';
+import {ILogger, ITelemetryService} from 'common-types-lib';
 import { AssetAggregate, WalletAddressAggregate } from 'pal-domain-lib';
 import { ServerUnaryCall } from '@grpc/grpc-js';
 import { Status } from '@grpc/grpc-js/build/src/constants';
@@ -24,15 +24,18 @@ export class WalletAddressGrpcHandler {
   private readonly _logger: ILogger;
   private readonly _walletAddressAggregate: WalletAddressAggregate;
   private readonly _assetAggregate: AssetAggregate;
+  private readonly _telemetryService: ITelemetryService;
 
   constructor(
     walletAddressAggregate: WalletAddressAggregate,
     assetAggregate: AssetAggregate,
-    logger: ILogger
+    logger: ILogger,
+    telemetryService: ITelemetryService
   ) {
     this._walletAddressAggregate = walletAddressAggregate;
     this._assetAggregate = assetAggregate;
     this._logger = logger;
+    this._telemetryService = telemetryService;
 
     this._logger.info('WalletAddressGrpcHandler created');
   }

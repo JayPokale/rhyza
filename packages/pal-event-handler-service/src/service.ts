@@ -7,7 +7,7 @@ import {
   IKafkaBuilder,
   KafkaBuilder,
   KafkaConsumerOptions,
-  KafkaLowLevelConsumerOptions
+  KafkaLowLevelConsumerOptions, OpenTelemetryService
 } from 'implementations-lib';
 import {
   ILedgerEventSourcingRepository,
@@ -45,7 +45,7 @@ import {
   ILogger,
   IMessageConsumer,
   IMessageProducer,
-  IRawMessageSerializerFactory,
+  IRawMessageSerializerFactory, ITelemetryService,
   SnapshotEventTopics,
   StateEventTopics
 } from 'common-types-lib';
@@ -55,10 +55,18 @@ import {
 } from './handlers/ledger-state-event-handler';
 import { IntegrationEventHandler } from './handlers/integration-event-handler';
 import { InternalEventHandler } from './handlers/internal-event-handler';
+import { join } from 'path';
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const packageJson = require(join(process.cwd(), 'package.json'));
 
 const BC_NAME = 'PAL';
 const APP_NAME = `${BC_NAME}_EVT_HANDLER_SVC`;
+const APP_VERSION = packageJson.version || "0.0.0";
 const INSTANCE_ID = `${APP_NAME}_${crypto.randomUUID()}`;
+
+const OPEN_TELEMETRY_COLLECTOR_URL =
+  process.env['OPEN_TELEMETRY_COLLECTOR_URL'] || 'http://127.0.0.1:4317';
 
 const REDIS_URL = process.env['REDIS_URL'] || 'redis://localhost:6379';
 
@@ -141,6 +149,7 @@ export class PalLedgerEventHandlerService {
   private static _stateEventHandler: LedgerStateEventHandler;
   private static _integrationEventHandler: IntegrationEventHandler;
   private static _internalEventHandler: InternalEventHandler;
+  private static _telemetryService: ITelemetryService;
 
   static async start(
     logger?: ILogger,
@@ -155,7 +164,8 @@ export class PalLedgerEventHandlerService {
     peerRepo?: IPalPeerRepository,
     fxRepo?: IPalFxRepository,
     aseFxService?: IPalAseFxService,
-    assetRepo?: IPalAssetRepository
+    assetRepo?: IPalAssetRepository,
+    telemetryService?: ITelemetryService
   ): Promise<void> {
     if (!logger) {
       logger = new PinoLogger({
@@ -167,6 +177,16 @@ export class PalLedgerEventHandlerService {
     this._logger = logger;
 
     this._logger.info(`Starting ${PalLedgerEventHandlerService.name}...`);
+
+    if(!telemetryService) {
+      OpenTelemetryService.Start(
+        BC_NAME, APP_NAME, APP_VERSION, INSTANCE_ID,
+        this._logger, OPEN_TELEMETRY_COLLECTOR_URL
+      );
+      telemetryService = OpenTelemetryService.getInstance();
+    }
+    this._telemetryService = telemetryService;
+
 
     if (!msgSerializationFactory) {
       MessageSerializationFactory.instance()
@@ -344,7 +364,8 @@ export class PalLedgerEventHandlerService {
       fxAggregate,
       this._internalEventsConsumer,
       this._producer,
-      this._logger
+      this._logger,
+      this._telemetryService
     );
     await this._internalEventHandler.init();
     this._logger.info(

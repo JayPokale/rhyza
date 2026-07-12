@@ -1,4 +1,4 @@
-import { ILogger } from 'common-types-lib';
+import {ILogger, ITelemetryService} from 'common-types-lib';
 import { ILedgerReadSideRepository } from 'pal-domain-lib';
 import { ServerUnaryCall } from '@grpc/grpc-js';
 
@@ -15,11 +15,16 @@ import {
 export class LedgerGrpcHandler {
   private readonly _logger: ILogger;
   private readonly _ledgerReadSideRepo: ILedgerReadSideRepository;
+  private readonly _telemetryService: ITelemetryService;
 
-  constructor(ledgerReadSideRepo: ILedgerReadSideRepository, logger: ILogger) {
+  constructor(
+    ledgerReadSideRepo: ILedgerReadSideRepository,
+    logger: ILogger,
+    telemetryService: ITelemetryService
+  ) {
     this._ledgerReadSideRepo = ledgerReadSideRepo;
     this._logger = logger;
-
+    this._telemetryService = telemetryService;
     this._logger.info('LedgerGrpcHandler created');
   }
 

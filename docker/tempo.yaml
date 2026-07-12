@@ -25,3 +25,4 @@ metrics_generator:
 
 overrides:
   metrics_generator_processors: [span-metrics]
+  enable_legacy_overrides: true
