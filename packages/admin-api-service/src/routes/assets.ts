@@ -2,6 +2,7 @@
 
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { PalClient } from 'pal-client-lib';
+import type { components } from '../types/generated/openapi.js';
 
 interface AssetRouteOptions extends FastifyPluginOptions {
   palClient: PalClient;
@@ -14,10 +15,7 @@ export async function assetRoutes(
   const { palClient } = opts;
 
   server.post<{
-    Body: {
-      code: string;
-      scale: number;
-    };
+    Body: components['schemas']['AssetCreate'];
   }>('/assets', async (request, reply) => {
     const { code, scale } = request.body;
 

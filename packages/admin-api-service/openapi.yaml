@@ -1,3 +1,5 @@
+# Source of truth for the Rafiki Admin API OpenAPI spec.
+# TypeScript types are generated from this file via: pnpm --filter admin-api-service generate:types
 openapi: 3.1.0
 info:
   title: Rafiki Admin API
