@@ -4,11 +4,28 @@ import {
   IMessageConsumer,
   IMessageProducer
 } from 'common-types-lib';
-import { QuoteFailedEvent, RemoteQuoteReceivedEvent } from 'ilp-domain-lib';
 import {
   CompleteRemoteQuoteCmd,
-  FailRemoteQuoteCmd
+  FailRemoteQuoteCmd,
+  CalculateRemoteQuoteCmd
 } from 'payments-domain-lib';
+import { QuoteFailedEvent, RemoteQuoteReceivedEvent } from 'ilp-domain-lib';
+
+// TODO: pending ILP BC class for inbound remote-quote request. replace stub
+// once published from ilp-domain-lib.
+// How does ILP want to correlate? remote quote calculation is ephemeral (no quote id).
+// packetId? generic correlationId or requestId?
+// peerId/paymentIntentId alone probably cant uniquely identify.
+const RemoteQuoteRequestReceivedEventName = 'RemoteQuoteRequestReceivedEvent';
+interface IlpRemoteQuoteRequestReceivedPayload {
+  packetId: string;
+  peerId: string;
+  paymentIntentId: string;
+  sourceAmount: string;
+  peerAssetCode: string;
+  peerAssetScale: number;
+  requestId: string;
+}
 
 export class PaymentsEventHandler {
   private _msgConsumer: IMessageConsumer;
@@ -46,6 +63,7 @@ export class PaymentsEventHandler {
             paymentIntentId,
             receiveAmountValue: destinationAmount
           },
+          // TODO: requestId required - remove fallback when provided by ILP
           message.requestId ?? ''
         );
         await this._msgProducer.send(cmd);
@@ -64,7 +82,24 @@ export class PaymentsEventHandler {
                 ? 'Quote expired'
                 : 'Quote could not be determined')
           },
+          // TODO: requestId required - remove fallback when provided by ILP
           message.requestId ?? ''
+        );
+        await this._msgProducer.send(cmd);
+        break;
+      }
+      case RemoteQuoteRequestReceivedEventName: {
+        const payload = message.payload as IlpRemoteQuoteRequestReceivedPayload;
+        const cmd = new CalculateRemoteQuoteCmd(
+          {
+            packetId: payload.packetId,
+            peerId: payload.peerId,
+            paymentIntentId: payload.paymentIntentId,
+            sourceAmount: payload.sourceAmount,
+            peerAssetCode: payload.peerAssetCode,
+            peerAssetScale: payload.peerAssetScale
+          },
+          payload.requestId
         );
         await this._msgProducer.send(cmd);
         break;
