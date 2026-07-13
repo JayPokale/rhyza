@@ -1,0 +1,231 @@
+import { defineConfig } from 'astro/config'
+import starlight from '@astrojs/starlight'
+
+import remarkMath from 'remark-math'
+import rehypeMathjax from 'rehype-mathjax'
+import starlightLinksValidator from 'starlight-links-validator'
+import starlightFullViewMode from 'starlight-fullview-mode'
+import { rehypeHeadingIds } from '@astrojs/markdown-remark'
+import rehypeAutolinkHeadings from 'rehype-autolink-headings'
+
+// https://astro.build/config
+export default defineConfig({
+  site: 'https://rafiki.dev',
+  outDir: './build',
+  markdown: {
+    remarkPlugins: [remarkMath],
+    rehypePlugins: [
+      rehypeMathjax,
+      rehypeHeadingIds,
+      [
+        rehypeAutolinkHeadings,
+        {
+          behavior: 'wrap'
+        }
+      ]
+    ]
+  },
+  integrations: [
+    starlight({
+      title: 'Rhyza',
+      description:
+        'Rhyza is open source software that allows an Account Servicing Entity to enable Interledger functionality on its users’ accounts.',
+      customCss: [
+        './node_modules/@interledger/docs-design-system/src/styles/teal-theme.css',
+        './node_modules/@interledger/docs-design-system/src/styles/ilf-docs.css',
+        './src/styles/rhyza.css'
+      ],
+      expressiveCode: {
+        styleOverrides: {
+          borderColor: 'transparent',
+          borderRadius: 'var(--border-radius)'
+        }
+      },
+      components: {
+        Header: './src/components/Header.astro',
+        PageSidebar: './src/components/PageSidebar.astro',
+        Footer: './src/components/Footer.astro'
+      },
+      defaultLocale: 'root',
+      locales: {
+        root: {
+          label: 'English',
+          lang: 'en'
+        }
+      },
+      head: [
+        {
+          tag: 'script',
+          attrs: {
+            src: '/scripts.js',
+            defer: true
+          }
+        },
+        {
+          tag: 'script',
+          attrs: {
+            defer: true,
+            'data-website-id': '75fba178-7dca-4874-adc9-50cf85c83528',
+            src: 'https://uwa.interledger.org/script.js',
+            'data-domains': 'rafiki.dev'
+          }
+        }
+      ],
+      logo: {
+        src: './public/img/icon.svg'
+      },
+      social: [
+        {
+          icon: 'github',
+          label: 'GitHub',
+          href: 'https://github.com/interledger/rafiki/tree/main'
+        }
+      ],
+      sidebar: [
+        {
+          label: 'Overview',
+          translations: {
+            es: 'Introducción'
+          },
+          items: [
+            {
+              label: 'Introducing Rhyza',
+              link: '/overview/overview'
+            },
+            {
+              label: 'Concepts',
+              collapsed: true,
+              items: [
+                {
+                  label: 'Account servicing entity',
+                  link: '/overview/concepts/account-servicing-entity'
+                },
+                {
+                  label: 'Accounting',
+                  link: '/overview/concepts/accounting'
+                },
+                {
+                  label: 'Clearing and settlement',
+                  link: '/overview/concepts/clearing-settlement'
+                },
+                {
+                  label: 'Interledger',
+                  link: '/overview/concepts/interledger'
+                },
+                {
+                  label: 'Open Payments',
+                  link: '/overview/concepts/open-payments'
+                },
+                {
+                  label: 'Wallet addresses',
+                  link: '/overview/concepts/wallet-addresses'
+                }
+              ]
+            }
+          ]
+        },
+        {
+          label: 'Integration',
+          collapsed: true,
+          items: [
+            {
+              label: 'Overview',
+              link: '/integration/overview'
+            },
+            {
+              label: 'Requirements',
+              collapsed: true,
+              items: [
+                {
+                  label: 'Integration checklist',
+                  link: '/integration/requirements/overview'
+                },
+                {
+                  label: 'Assets',
+                  link: '/integration/requirements/assets'
+                },
+                {
+                  label: 'Peers',
+                  link: '/integration/requirements/peers'
+                },
+                {
+                  label: 'Wallet addresses',
+                  link: '/integration/requirements/wallet-addresses'
+                },
+                {
+                  label: 'Webhook events',
+                  link: '/integration/requirements/webhook-events'
+                },
+                {
+                  label: 'Exchange rates',
+                  link: '/integration/requirements/exchange-rates'
+                }
+              ]
+            },
+            {
+              label: 'Test locally',
+              collapsed: true,
+              items: [
+                {
+                  label: 'Local playground',
+                  link: '/integration/playground/overview'
+                }
+              ]
+            }
+          ]
+        },
+        {
+          label: 'Admin API',
+          collapsed: true,
+          items: [
+            {
+              label: 'Overview',
+              link: '/apis/admin-api-overview'
+            },
+            {
+              label: 'API Specification',
+              link: '/apis/scalar/admin-api'
+            }
+          ]
+        },
+        {
+          label: 'Resources',
+          collapsed: true,
+          items: [
+            {
+              label: 'Glossary',
+              link: '/resources/glossary'
+            },
+            {
+              label: 'Architecture',
+              link: '/resources/architecture'
+            },
+            {
+              label: 'Webhook event types',
+              link: '/resources/webhook-event-types'
+            },
+            {
+              label: 'Get involved',
+              link: '/resources/get-involved'
+            }
+          ]
+        }
+      ],
+      plugins: [
+        starlightLinksValidator({
+          exclude: ['/apis/scalar/**'],
+          errorOnLocalLinks: false,
+          errorOnFallbackPages: false,
+          errorOnInvalidHashes: false
+        }),
+        starlightFullViewMode({
+          leftSidebarEnabled: true,
+          rightSidebarEnabled: true
+        })
+      ]
+    })
+  ],
+  server: {
+    port: 1101
+  }
+})

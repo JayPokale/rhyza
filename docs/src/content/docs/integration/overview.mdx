@@ -1,0 +1,114 @@
+---
+title: Integrate Rhyza with your ASE
+---
+
+import { Card, CardGrid, Badge } from '@astrojs/starlight/components'
+
+## Before you begin
+
+You must be, or be working with, an account servicing entity (ASE). An ASE is an entity that provides and maintains payment accounts for its customers and is regulated in the jurisdictions it operates. Examples of ASEs include banks, digital wallet providers, and mobile money providers. The [account servicing entity](/overview/concepts/account-servicing-entity) page provides examples of an ASE's responsibilities and obligations.
+
+For testing purposes, you can set up a [mock account servicing entity](/integration/playground/overview) that's deployed Rhyza. However, Rhyza **should not** be used in production environments by non-regulated ASEs.
+
+## Software components
+
+From an integration perspective, Rhyza is structured around the **core system** (which processes payments, runs the ledger, handles wallet address registration and peering, and dispatches webhooks), the internal **Admin API**, and the external-facing **Open Payments APIs**.
+
+Rhyza's API services consist of the following:
+
+<Card title="Admin API Service" icon="setting">
+  The unified REST interface used by the ASE for all administrative tasks,
+  including managing assets, wallet addresses, and initiating payments. **This
+  is the primary point of integration.**
+  <p></p>
+  <p>[Admin API Reference >](/apis/scalar/admin-api)</p>
+</Card>
+
+<CardGrid>
+  <Card title="Open Payments Auth Server">
+    Standalone service implementing the Open Payments authorization server
+    specification. It must be deployed to handle authorization grants from
+    external clients.
+    <p></p>
+    <p>[Learn more >](/overview/concepts/open-payments#open-payments-auth-server)</p>
+  </Card>
+
+  <Card title="Open Payments Resource Server">
+    Standalone service that hosts and manages access to protected Open Payments
+    resources. It must be deployed to expose wallet addresses and payment
+    resources to the network.
+    <p></p>
+    <p>[Learn more >](/overview/concepts/open-payments#open-payments-resource-server)</p>
+  </Card>
+</CardGrid>
+
+## Integration steps
+
+<CardGrid>
+  <Card title="Integration checklist" icon="approve-check"> Review the integration checklist for more required and optional steps.<p></p><p>[Review the checklist >](/integration/requirements/overview)</p></Card>
+
+<Card title="Assets">
+  <Badge text="Required" variant="danger" /> An asset is a monetary unit
+  represented by a currency code and a scale. Rhyza must be set up for at least
+  one asset.<p></p>
+  <p>[Create an asset >](/integration/requirements/assets)</p>
+</Card>
+
+<Card title="Wallet addresses">
+  <Badge text="Required" variant="danger" /> Each payment account in the ASE's
+  system must be linked to a wallet address. You must have at least one asset in
+  Rhyza before creating wallet addresses.<p></p>
+  <p>[Create a wallet address >](/integration/requirements/wallet-addresses)</p>
+</Card>
+
+<Card title="Webhook endpoint">
+  <Badge text="Required" variant="danger" /> You must expose a webhook endpoint
+  that listens for events dispatched by Rhyza, then react accordingly by
+  calling/interfacing with the Admin API. For example, approving payments.
+  <p></p>
+  <p>
+    [Specify a webhook endpoint >](/integration/requirements/webhook-events)
+  </p>
+</Card>
+
+</CardGrid>
+
+## Payments
+
+The following steps illustrate how to make a basic payment between two wallet addresses on the same Rhyza instance.
+
+<CardGrid>
+
+<Card title="1. Create an incoming payment">
+  {' '}
+  Use the Admin API's `POST /payment-intents` to create an incoming payment
+  resource on the recipient's wallet account.<p></p>
+  <p>[Admin API Reference >](/apis/scalar/admin-api)</p>
+</Card>
+
+<Card title="2. Create a quote">
+  {' '}
+  Use the Admin API's `POST /quotes` to create a quote resource on the sender's
+  wallet account. The quote shows how much it will cost the sender to deliver an
+  amount to the receiver.<p></p>
+  <p>[Admin API Reference >](/apis/scalar/admin-api)</p>
+</Card>
+
+<Card title="3. Create a payment">
+  {' '}
+  Use the Admin API's `POST /payments` to create a payment resource on the
+  sender's wallet account. This operations starts the payment. At this point,
+  the sender's ASE must fund/approve the payment before it sends.<p></p>
+  <p>[Admin API Reference >](/apis/scalar/admin-api)</p>
+</Card>
+
+<Card title="Handle webhook requests">
+  {' '}
+  As the payment flow progresses, the ASE is be notified about events that
+  happen in the system. Some events are actionable, such as an `payment.created`
+  event. Review the webhook events page to learn more about handling each event.
+  <p></p>
+  <p>[Webhook events >](/integration/requirements/webhook-events)</p>
+</Card>
+
+</CardGrid>

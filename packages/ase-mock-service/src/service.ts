@@ -62,6 +62,7 @@ export class MockWebhookIntegrationService {
         await this.handlePaymentCreatedWebhook(webhook);
         break;
       case NotificationType.PaymentIntentCreated:
+      case NotificationType.PaymentIntentCompleted:
       case NotificationType.PaymentCompleted:
       case NotificationType.PaymentFailed:
         break;

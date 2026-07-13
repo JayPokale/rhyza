@@ -12,6 +12,7 @@ import {
   PaymentCompletedEvent,
   PaymentCompleteFailedEvent,
   PaymentCreatedEvent,
+  PaymentIntentCompletedEvent,
   PaymentIntentCreatedEvent
 } from 'payments-domain-lib';
 
@@ -43,6 +44,8 @@ export class NotificationsEventHandler {
   private readonly messageToNotificationType: Record<string, NotificationType> =
     {
       [PaymentIntentCreatedEvent.name]: NotificationType.PaymentIntentCreated,
+      [PaymentIntentCompletedEvent.name]:
+        NotificationType.PaymentIntentCompleted,
       [PaymentCreatedEvent.name]: NotificationType.PaymentCreated,
       [PaymentCompletedEvent.name]: NotificationType.PaymentCompleted,
       [PaymentCompleteFailedEvent.name]: NotificationType.PaymentFailed
