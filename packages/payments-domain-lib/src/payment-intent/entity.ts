@@ -326,6 +326,7 @@ class Payment {
   private _sentAmount: bigint;
   private _cancelledAt?: Date;
   private _cancelReason?: string;
+  private _ledgerTransferId?: string;
 
   private constructor(args: {
     id: string;
@@ -342,6 +343,7 @@ class Payment {
     quoteId?: string;
     cancelledAt?: Date;
     cancelReason?: string;
+    ledgerTransferId?: string;
   }) {
     this._id = args.id;
     this._state = args.state;
@@ -357,6 +359,7 @@ class Payment {
     this._quoteId = args.quoteId;
     this._cancelledAt = args.cancelledAt;
     this._cancelReason = args.cancelReason;
+    this._ledgerTransferId = args.ledgerTransferId;
   }
 
   static create(args: {
@@ -393,7 +396,8 @@ class Payment {
       sentAmount: obj.sentAmount,
       quoteId: obj.quoteId,
       cancelledAt: obj.cancelledAt,
-      cancelReason: obj.cancelReason
+      cancelReason: obj.cancelReason,
+      ledgerTransferId: obj.ledgerTransferId
     });
   }
 
@@ -412,7 +416,8 @@ class Payment {
       sentAmount: this._sentAmount,
       quoteId: this._quoteId,
       cancelledAt: this._cancelledAt,
-      cancelReason: this._cancelReason
+      cancelReason: this._cancelReason,
+      ledgerTransferId: this._ledgerTransferId
     };
   }
 
@@ -431,6 +436,16 @@ class Payment {
       debitAmount: this._debitAmount,
       receiveAmount: this._receiveAmount
     };
+  }
+
+  approveRemoteSend(ledgerTransferId: string): void {
+    if (this._state !== 'CREATED') {
+      throw new PaymentInvalidStateError(
+        `Payment ${this._id} cannot be approved for remote send from state ${this._state}`
+      );
+    }
+    this._state = 'PROCESSING';
+    this._ledgerTransferId = ledgerTransferId;
   }
 
   cancel(reason?: string): void {
@@ -465,6 +480,26 @@ class Payment {
 
   get senderWalletAddressId(): string {
     return this._senderWalletAddressId;
+  }
+
+  get senderWalletAddress(): string {
+    return this._senderWalletAddress;
+  }
+
+  get assetCode(): string {
+    return this._assetCode;
+  }
+
+  get assetScale(): number {
+    return this._assetScale;
+  }
+
+  get debitAmount(): bigint {
+    return this._debitAmount;
+  }
+
+  get ledgerTransferId(): string | undefined {
+    return this._ledgerTransferId;
   }
 }
 
@@ -1035,6 +1070,41 @@ export class PaymentIntent implements IPaymentIntent {
     });
 
     this._payments.push(payment);
+    return payment.toObject();
+  }
+
+  approveRemotePaymentSend(args: {
+    id: string;
+    ledgerTransferId: string;
+  }): IPayment {
+    const { id, ledgerTransferId } = args;
+
+    if (this._destination !== 'REMOTE') {
+      throw new PaymentIntentInvalidState(
+        'Payment intent destination must be remote'
+      );
+    }
+
+    if (this.state !== 'CREATED') {
+      throw new PaymentIntentInvalidState(
+        `Payment intent is in an invalid state for payment: ${this.state}`
+      );
+    }
+
+    if (this.isExpired) {
+      throw new PaymentIntentExpired(
+        `Payment intent is expired at: ${this.expiresAt.toISOString()}`
+      );
+    }
+
+    const payment = this._payments.find((p) => p.id === id);
+    if (!payment) {
+      throw new PaymentNotFoundError(
+        `Payment ${id} not found for ${this.id} payment intent`
+      );
+    }
+
+    payment.approveRemoteSend(ledgerTransferId);
     return payment.toObject();
   }
 

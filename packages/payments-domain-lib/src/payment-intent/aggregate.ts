@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { ILogger, IMessage } from 'common-types-lib';
 import {
   FinalizedRemoteQuoteUpdate,
@@ -51,7 +52,8 @@ import {
   RemoteQuoteCalculationFailedEvent,
   PaymentIntentCompletedEvent,
   PaymentCancelFailedEvent,
-  PaymentCancelledEvent
+  PaymentCancelledEvent,
+  RemotePaymentSendApprovedEvent
 } from './events';
 
 const fxKey = (
@@ -68,6 +70,7 @@ export class PaymentIntentAggregate {
   private newPaymentIntentQuotes = new Map<string, string[]>(); // paymentIntentId, quoteIds
   private newPaymentsMap = new Map<string, string[]>(); // paymentIntentId, paymentIds
   private completedLocalPayments = new Map<string, string[]>(); // paymentIntentId, paymentIds
+  private approvedRemotePayments = new Map<string, string[]>(); // paymentIntentId, paymentIds
   private cancelledPayments = new Map<string, string[]>(); // paymentIntentId, paymentIds
   private finalizedRemoteQuotes = new Map<string, string[]>(); // paymentIntentId, quoteIds
   private paymentIntentMap = new Map<string, IPaymentIntent>();
@@ -822,57 +825,87 @@ export class PaymentIntentAggregate {
 
       const paymentIntent = PaymentIntent.fromObject(paymentIntentObj);
 
-      if (paymentIntent.destination !== 'LOCAL') {
-        throw new PaymentIntentInvalidState(
-          'Payment intent destination must be local'
+      if (paymentIntent.destination === 'LOCAL') {
+        const payment = paymentIntent.completeLocalPayment({ id: paymentId });
+        this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
+        this._appendToMap(
+          this.completedLocalPayments,
+          paymentIntent.id,
+          paymentId
+        );
+
+        const events: IMessage[] = [
+          new PaymentCompletedEvent(
+            {
+              id: payment.id,
+              paymentIntentId: payment.paymentIntentId,
+              senderWalletAddress: payment.senderWalletAddress,
+              debitAmount: String(payment.debitAmount),
+              receiveAmount: String(payment.receiveAmount),
+              sentAmount: String(payment.sentAmount),
+              state: payment.state,
+              createdAt: payment.createdAt,
+              assetCode: payment.assetCode,
+              assetScale: payment.assetScale,
+              receiveAssetCode: paymentIntent.assetCode,
+              receiveAssetScale: paymentIntent.assetScale
+            },
+            cmd.requestId
+          )
+        ];
+        if (paymentIntent.state === 'COMPLETED') {
+          events.push(
+            new PaymentIntentCompletedEvent(
+              {
+                id: paymentIntent.id,
+                createdAt: paymentIntent.createdAt,
+                expiresAt: paymentIntent.expiresAt,
+                receivedAmount: String(paymentIntent.receivedAmount),
+                incomingAmount: String(paymentIntent.incomingAmount),
+                state: paymentIntent.state,
+                assetCode: paymentIntent.assetCode,
+                assetScale: paymentIntent.assetScale
+              },
+              cmd.requestId
+            )
+          );
+        }
+        return events;
+      }
+
+      // REMOTE: transition to PROCESSING and emit approval event for PAL.
+      if (!paymentIntent.destinationIlpAddress) {
+        throw new MissingDestinationIlpAddressError(
+          `Payment intent ${paymentIntentId} is missing destinationIlpAddress`
         );
       }
 
-      const payment = paymentIntent.completeLocalPayment({ id: paymentId });
+      const ledgerTransferId = randomUUID();
+      const payment = paymentIntent.approveRemotePaymentSend({
+        id: paymentId,
+        ledgerTransferId
+      });
       this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
       this._appendToMap(
-        this.completedLocalPayments,
+        this.approvedRemotePayments,
         paymentIntent.id,
         paymentId
       );
 
-      const events: IMessage[] = [
-        new PaymentCompletedEvent(
-          {
-            id: payment.id,
-            paymentIntentId: payment.paymentIntentId,
-            senderWalletAddress: payment.senderWalletAddress,
-            debitAmount: String(payment.debitAmount),
-            receiveAmount: String(payment.receiveAmount),
-            sentAmount: String(payment.sentAmount),
-            state: payment.state,
-            createdAt: payment.createdAt,
-            assetCode: payment.assetCode,
-            assetScale: payment.assetScale,
-            receiveAssetCode: paymentIntent.assetCode,
-            receiveAssetScale: paymentIntent.assetScale
-          },
-          cmd.requestId
-        )
-      ];
-      if (paymentIntent.state === 'COMPLETED') {
-        events.push(
-          new PaymentIntentCompletedEvent(
-            {
-              id: paymentIntent.id,
-              createdAt: paymentIntent.createdAt,
-              expiresAt: paymentIntent.expiresAt,
-              receivedAmount: String(paymentIntent.receivedAmount),
-              incomingAmount: String(paymentIntent.incomingAmount),
-              state: paymentIntent.state,
-              assetCode: paymentIntent.assetCode,
-              assetScale: paymentIntent.assetScale
-            },
-            cmd.requestId
-          )
-        );
-      }
-      return events;
+      return new RemotePaymentSendApprovedEvent(
+        {
+          paymentIntentId: paymentIntent.id,
+          paymentId: payment.id,
+          senderWalletAddress: payment.senderWalletAddress,
+          senderWalletAddressId: payment.senderWalletAddressId,
+          destinationIlpAddress: paymentIntent.destinationIlpAddress,
+          ledgerTransferId,
+          debitAmount: String(payment.debitAmount),
+          assetCode: payment.assetCode,
+          assetScale: payment.assetScale
+        },
+        cmd.requestId
+      );
     } catch (err) {
       return new PaymentCompleteFailedEvent(
         {
@@ -1225,6 +1258,41 @@ export class PaymentIntentAggregate {
       promises.push(this._repo.storeCompletedLocalPayments(updates));
     }
 
+    if (this.approvedRemotePayments.size > 0) {
+      const updates: {
+        payments: {
+          id: string;
+          state: PaymentState;
+          ledgerTransferId: string;
+        }[];
+      }[] = [];
+
+      for (const [
+        paymentIntentId,
+        paymentIds
+      ] of this.approvedRemotePayments.entries()) {
+        const paymentIntent = this.paymentIntentMap.get(paymentIntentId);
+        if (!paymentIntent) {
+          this._logger.error(
+            `Payment intent ${paymentIntentId} missing from paymentIntentMap during flush (approved remote payments)`
+          );
+          continue;
+        }
+
+        updates.push({
+          payments: paymentIntent.payments
+            .filter((p) => paymentIds.includes(p.id))
+            .map((p) => ({
+              id: p.id,
+              state: p.state,
+              ledgerTransferId: p.ledgerTransferId ?? ''
+            }))
+        });
+      }
+
+      promises.push(this._repo.storeApprovedRemotePayments(updates));
+    }
+
     if (this.cancelledPayments.size > 0) {
       const updates: {
         payments: {
@@ -1322,6 +1390,7 @@ export class PaymentIntentAggregate {
       this.walletAddressMap.clear(); // TODO: wallet addresses are OK to be cached
       this.newPaymentsMap.clear();
       this.completedLocalPayments.clear();
+      this.approvedRemotePayments.clear();
       this.cancelledPayments.clear();
       this.finalizedRemoteQuotes.clear();
       this.newPaymentIntentQuotes.clear();

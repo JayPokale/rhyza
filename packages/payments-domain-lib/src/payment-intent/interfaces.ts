@@ -53,6 +53,7 @@ export type IQuote = IPendingQuote | ICompletedQuote | IFailedQuote;
 
 export const PaymentState = {
   CREATED: 'CREATED',
+  PROCESSING: 'PROCESSING',
   COMPLETED: 'COMPLETED',
   CANCELLED: 'CANCELLED'
 } as const;
@@ -73,6 +74,7 @@ export interface IPayment {
   debitAmount: bigint;
   receiveAmount: bigint;
   sentAmount: bigint;
+  ledgerTransferId?: string;
 }
 
 export interface IPaymentIntent {
@@ -179,6 +181,15 @@ export interface IPaymentIntentRepository {
         state: PaymentState;
         cancelledAt: Date;
         cancelReason?: string;
+      }[];
+    }[]
+  ): Promise<void>;
+  storeApprovedRemotePayments(
+    paymentUpdates: {
+      payments: {
+        id: string;
+        state: PaymentState;
+        ledgerTransferId: string;
       }[];
     }[]
   ): Promise<void>;

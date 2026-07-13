@@ -83,6 +83,12 @@ export abstract class PaymentIntentDomainEvent extends DomainEvent {
   ): evt is RemoteQuoteCalculationFailedEvent {
     return evt.msgName === RemoteQuoteCalculationFailedEvent.name;
   }
+
+  static isRemotePaymentSendApprovedEvent(
+    evt: DomainEvent
+  ): evt is RemotePaymentSendApprovedEvent {
+    return evt.msgName === RemotePaymentSendApprovedEvent.name;
+  }
 }
 
 export type PaymentIntentCreatedPayload = {
@@ -363,6 +369,28 @@ export class RemoteQuoteCalculationFailedEvent extends PaymentIntentDomainEvent 
     payload: RemoteQuoteCalculationFailedPayload,
     requestId?: string
   ) {
+    super(payload.paymentIntentId);
+    this.payload = payload;
+    this.requestId = requestId;
+  }
+}
+
+export type RemotePaymentSendApprovedPayload = {
+  paymentIntentId: string;
+  paymentId: string;
+  senderWalletAddress: string;
+  senderWalletAddressId: string;
+  destinationIlpAddress: string;
+  ledgerTransferId: string;
+  debitAmount: string;
+  assetCode: string;
+  assetScale: number;
+};
+
+export class RemotePaymentSendApprovedEvent extends PaymentIntentDomainEvent {
+  payload: RemotePaymentSendApprovedPayload;
+
+  constructor(payload: RemotePaymentSendApprovedPayload, requestId?: string) {
     super(payload.paymentIntentId);
     this.payload = payload;
     this.requestId = requestId;
