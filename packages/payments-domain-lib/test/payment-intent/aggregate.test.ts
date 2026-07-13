@@ -22,7 +22,6 @@ import {
 } from '../../src/commands';
 import {
   MockPaymentIntentRepo,
-  MockRatesAdapter,
   MockRemotePaymentIntentService,
   MockPalService
 } from '../mocks';
@@ -149,7 +148,6 @@ function makeCreatePaymentCmd(
 
 describe('PaymentIntentAggregate.handleBatch', () => {
   let repo: MockPaymentIntentRepo;
-  let mockRatesAdapter: MockRatesAdapter;
   let mockRemotePaymentIntentService: MockRemotePaymentIntentService;
   let mockPalService: MockPalService;
   let aggregate: PaymentIntentAggregate;
@@ -163,12 +161,10 @@ describe('PaymentIntentAggregate.handleBatch', () => {
       assetCode: 'USD',
       assetScale: 2
     });
-    mockRatesAdapter = new MockRatesAdapter();
     mockRemotePaymentIntentService = new MockRemotePaymentIntentService();
     aggregate = new PaymentIntentAggregate(
       repo,
       mockPalService,
-      mockRatesAdapter,
       mockRemotePaymentIntentService,
       new ConsoleLogger()
     );
@@ -319,7 +315,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           receivedAmount: 0n,
           receiverWalletAddress: 'receiver',
           receiverWalletAddressId: crypto.randomUUID(),
-          assetCode: 'USD',
+          assetCode: 'EUR',
           assetScale: 2,
           state: 'CREATED',
           destination: 'LOCAL',
@@ -331,7 +327,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         };
         await repo.storeMany([paymentIntent]);
 
-        mockRatesAdapter.getRate = async () => undefined;
+        mockPalService.getRates = async () => null;
 
         const cmd = makeCreateQuoteCmd({
           paymentIntentId: paymentIntent.id
@@ -996,7 +992,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           receivedAmount: 0n,
           receiverWalletAddress: 'receiver',
           receiverWalletAddressId: crypto.randomUUID(),
-          assetCode: 'USD',
+          assetCode: 'EUR',
           assetScale: 2,
           state: 'CREATED',
           destination: 'LOCAL',
@@ -1008,7 +1004,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         };
         await repo.storeMany([paymentIntent]);
 
-        mockRatesAdapter.getRate = async () => undefined;
+        mockPalService.getRates = async () => null;
 
         const cmd = makeCreatePaymentCmd({
           paymentIntentId: paymentIntent.id

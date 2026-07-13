@@ -1,12 +1,12 @@
 import { ILogger, IMessage } from 'common-types-lib';
 import {
   FinalizedRemoteQuoteUpdate,
+  IFxRateRequest,
   IPalService,
   IPeer,
   IPendingQuote,
   IPaymentIntent,
   IPaymentIntentRepository,
-  IRatesService,
   IRemotePaymentIntentService,
   PaymentIntentDestination,
   PaymentIntentState,
@@ -59,6 +59,9 @@ const fxKey = (
   assetCode: string
 ) => `${peerId}:${direction}:${assetCode}`;
 
+const intraFxKey = (sourceAssetCode: string, destinationAssetCode: string) =>
+  `INTRA:${sourceAssetCode}:${destinationAssetCode}`;
+
 export class PaymentIntentAggregate {
   private newPaymentIntentIds: string[] = [];
   private newPaymentIntentQuotes = new Map<string, string[]>(); // paymentIntentId, quoteIds
@@ -77,7 +80,6 @@ export class PaymentIntentAggregate {
   constructor(
     private _repo: IPaymentIntentRepository,
     private _palService: IPalService,
-    private _ratesService: IRatesService,
     private _remotePaymentIntentService: IRemotePaymentIntentService,
     private _logger: ILogger
   ) {}
@@ -149,14 +151,24 @@ export class PaymentIntentAggregate {
     // second prefetch pass: peers + FX rates. Must come after all intent
     // prefetching (local read, remote import)
     const ilpAddressesToFetch = new Set<string>();
-    const fxToFetch = new Map<
-      string,
-      { peerId: string; direction: 'source' | 'destination'; assetCode: string }
-    >();
+    const fxToFetch = new Map<string, IFxRateRequest>();
 
     for (const cmd of cmds) {
       if (cmd.msgName === CreateQuoteCmd.name) {
-        this._collectIlpAddress(cmd as CreateQuoteCmd, ilpAddressesToFetch);
+        const quoteCmd = cmd as CreateQuoteCmd;
+        this._collectIlpAddress(quoteCmd, ilpAddressesToFetch);
+        this._collectIntraAseFxLookup(
+          quoteCmd.payload.paymentIntentId,
+          quoteCmd.payload.senderWalletAddressId,
+          fxToFetch
+        );
+      } else if (cmd.msgName === CreatePaymentCmd.name) {
+        const paymentCmd = cmd as CreatePaymentCmd;
+        this._collectIntraAseFxLookup(
+          paymentCmd.payload.paymentIntentId,
+          paymentCmd.payload.senderWalletAddressId,
+          fxToFetch
+        );
       } else if (cmd.msgName === CompleteRemoteQuoteCmd.name) {
         this._collectFxLookup(cmd as CompleteRemoteQuoteCmd, fxToFetch);
       } else if (cmd.msgName === CalculateRemoteQuoteCmd.name) {
@@ -176,21 +188,14 @@ export class PaymentIntentAggregate {
           this.peerFetchErrors.set(ilpAddress, err as Error);
         }
       }),
-      ...Array.from(
-        fxToFetch.entries(),
-        async ([key, { peerId, direction, assetCode }]) => {
-          try {
-            const rate = await this._palService.getRates(
-              direction === 'source'
-                ? { peerId, sourceAssetCode: assetCode }
-                : { peerId, destinationAssetCode: assetCode }
-            );
-            this.fxRateMap.set(key, rate ?? null);
-          } catch (err) {
-            this.fxRateFetchErrors.set(key, err as Error);
-          }
+      ...Array.from(fxToFetch.entries(), async ([key, request]) => {
+        try {
+          const rate = await this._palService.getRates(request);
+          this.fxRateMap.set(key, rate ?? null);
+        } catch (err) {
+          this.fxRateFetchErrors.set(key, err as Error);
         }
-      )
+      })
     ]);
 
     for (const cmd of cmds) {
@@ -369,15 +374,10 @@ export class PaymentIntentAggregate {
       );
 
       if (paymentIntent.destination === 'LOCAL') {
-        // TODO: palService.getRates without peer id (when implemented)
-        const exchangeRate = await this._ratesService.getRate(
+        const exchangeRate = this._getIntraAseRate(
           walletAddress.assetCode,
           paymentIntent.assetCode
         );
-
-        if (!exchangeRate) {
-          throw new RatesError('Could not get rates during quoting');
-        }
 
         const completedQuote = paymentIntent.addLocalQuote({
           id: quoteId,
@@ -534,15 +534,10 @@ export class PaymentIntentAggregate {
         );
       }
 
-      // TODO: palService.getRates without peer id (when implemented)
-      const exchangeRate = await this._ratesService.getRate(
+      const exchangeRate = this._getIntraAseRate(
         walletAddress.assetCode,
         paymentIntent.assetCode
       );
-
-      if (!exchangeRate) {
-        throw new RatesError('Could not get rates during quoting');
-      }
 
       const payment = paymentIntent.addLocalPayment({
         id: paymentId,
@@ -1022,10 +1017,7 @@ export class PaymentIntentAggregate {
 
   private _collectFxLookup(
     cmd: CompleteRemoteQuoteCmd,
-    into: Map<
-      string,
-      { peerId: string; direction: 'source' | 'destination'; assetCode: string }
-    >
+    into: Map<string, IFxRateRequest>
   ): void {
     const { paymentIntentId, quoteId } = cmd.payload;
     const intent = this.paymentIntentMap.get(paymentIntentId);
@@ -1041,16 +1033,18 @@ export class PaymentIntentAggregate {
       : 'destination';
     const key = fxKey(peerId, direction, senderAssetCode);
     if (!into.has(key)) {
-      into.set(key, { peerId, direction, assetCode: senderAssetCode });
+      into.set(
+        key,
+        direction === 'source'
+          ? { peerId, sourceAssetCode: senderAssetCode }
+          : { peerId, destinationAssetCode: senderAssetCode }
+      );
     }
   }
 
   private _collectFxLookupForCalculate(
     cmd: CalculateRemoteQuoteCmd,
-    into: Map<
-      string,
-      { peerId: string; direction: 'source' | 'destination'; assetCode: string }
-    >
+    into: Map<string, IFxRateRequest>
   ): void {
     const { paymentIntentId, peerId, peerAssetCode } = cmd.payload;
     const intent = this.paymentIntentMap.get(paymentIntentId);
@@ -1058,8 +1052,42 @@ export class PaymentIntentAggregate {
     if (peerAssetCode === intent.assetCode) return;
     const key = fxKey(peerId, 'source', peerAssetCode);
     if (!into.has(key)) {
-      into.set(key, { peerId, direction: 'source', assetCode: peerAssetCode });
+      into.set(key, { peerId, sourceAssetCode: peerAssetCode });
     }
+  }
+
+  private _collectIntraAseFxLookup(
+    paymentIntentId: string,
+    senderWalletAddressId: string,
+    into: Map<string, IFxRateRequest>
+  ): void {
+    const walletAddress = this.walletAddressMap.get(senderWalletAddressId);
+    if (!walletAddress) return;
+    const intent = this.paymentIntentMap.get(paymentIntentId);
+    if (!intent) return;
+    if (intent.destination !== PaymentIntentDestination.LOCAL) return;
+    const sourceAssetCode = walletAddress.assetCode;
+    const destinationAssetCode = intent.assetCode;
+    if (sourceAssetCode === destinationAssetCode) return;
+    const key = intraFxKey(sourceAssetCode, destinationAssetCode);
+    if (!into.has(key)) {
+      into.set(key, { sourceAssetCode, destinationAssetCode });
+    }
+  }
+
+  private _getIntraAseRate(
+    sourceAssetCode: string,
+    destinationAssetCode: string
+  ): number {
+    if (sourceAssetCode === destinationAssetCode) return 1;
+    const key = intraFxKey(sourceAssetCode, destinationAssetCode);
+    const fxFetchError = this.fxRateFetchErrors.get(key);
+    if (fxFetchError) throw fxFetchError;
+    const rate = this.fxRateMap.get(key) ?? null;
+    if (rate == null) {
+      throw new RatesError('Could not get rates during quoting');
+    }
+    return rate;
   }
 
   private _appendToMap(

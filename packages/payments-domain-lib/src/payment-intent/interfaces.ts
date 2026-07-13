@@ -100,16 +100,10 @@ export interface IWalletAddress {
   assetScale: number;
 }
 
-export interface IRatesService {
-  getRate(
-    sourceAssetCode: string,
-    destinationAssetCode: string
-  ): Promise<number | undefined>;
-}
-
 export type IFxRateRequest =
   | { peerId: string; sourceAssetCode: string }
-  | { peerId: string; destinationAssetCode: string };
+  | { peerId: string; destinationAssetCode: string }
+  | { sourceAssetCode: string; destinationAssetCode: string };
 
 export interface IPeer {
   peerId: string;
