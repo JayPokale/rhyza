@@ -13,17 +13,12 @@ import {
   ILPQuoteRequestReceivedEvent,
   RespondToRemoteQuoteCmd
 } from 'ilp-domain-lib';
-import { IlpEventHandler } from '../src/event-handler';
 import {
-  PAYMENTS_REMOTE_QUOTE_CALCULATED_EVENT,
-  PAYMENTS_REMOTE_QUOTE_CALCULATION_FAILED_EVENT
-} from '../src/payments-contract';
-import {
-  FixedRateQuoteCalculator,
-  PaymentsBcQuoteFixture,
   RemoteQuoteCalculatedEvent,
   RemoteQuoteCalculationFailedEvent
-} from './helpers';
+} from 'payments-domain-lib';
+import { IlpEventHandler } from '../src/event-handler';
+import { FixedRateQuoteCalculator, PaymentsBcQuoteFixture } from './helpers';
 
 class MockProducer implements IMessageProducer {
   readonly sent: IMessage[] = [];
@@ -83,7 +78,10 @@ describe('IlpEventHandler', () => {
       new RemoteQuoteCalculatedEvent({
         peerId: 'peer-1',
         packetId: 'packet-in-1',
-        destinationAmount: '95'
+        paymentIntentId: 'intent-1',
+        receiveAmount: '95',
+        receiveAssetCode: 'USD',
+        receiveAssetScale: 2
       })
     ]);
 
@@ -109,7 +107,9 @@ describe('IlpEventHandler', () => {
       new RemoteQuoteCalculationFailedEvent({
         peerId: 'peer-1',
         packetId: 'packet-in-1',
-        reason: 'no rate'
+        paymentIntentId: 'intent-1',
+        errorName: 'QuoteCalculationFailed',
+        message: 'no rate'
       })
     ]);
 
@@ -151,10 +151,10 @@ describe('PaymentsBcQuoteFixture', () => {
 
     assert.equal(producer.sent.length, 1);
     const event = producer.sent[0] as RemoteQuoteCalculatedEvent;
-    assert.equal(event.msgName, PAYMENTS_REMOTE_QUOTE_CALCULATED_EVENT);
+    assert.equal(event.msgName, RemoteQuoteCalculatedEvent.name);
     assert.equal(event.msgTopic, 'payment-domain-events');
     assert.equal(event.payload.packetId, 'packet-in-1');
-    assert.equal(event.payload.destinationAmount, '100');
+    assert.equal(event.payload.receiveAmount, '100');
   });
 
   test('applies the configured FX rate', async () => {
@@ -171,7 +171,7 @@ describe('PaymentsBcQuoteFixture', () => {
     await consumer.deliver([request()]);
 
     const event = producer.sent[0] as RemoteQuoteCalculatedEvent;
-    assert.equal(event.payload.destinationAmount, '95');
+    assert.equal(event.payload.receiveAmount, '95');
   });
 
   test('emits a calculation-failed event for an invalid amount', async () => {
@@ -197,7 +197,7 @@ describe('PaymentsBcQuoteFixture', () => {
     assert.equal(producer.sent.length, 1);
     assert.equal(
       producer.sent[0].msgName,
-      PAYMENTS_REMOTE_QUOTE_CALCULATION_FAILED_EVENT
+      RemoteQuoteCalculationFailedEvent.name
     );
   });
 });

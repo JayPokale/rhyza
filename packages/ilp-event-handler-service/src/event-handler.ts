@@ -7,11 +7,9 @@ import {
 } from 'common-types-lib';
 import { RespondToRemoteQuoteCmd } from 'ilp-domain-lib';
 import {
-  PAYMENTS_REMOTE_QUOTE_CALCULATED_EVENT,
-  PAYMENTS_REMOTE_QUOTE_CALCULATION_FAILED_EVENT,
-  RemoteQuoteCalculatedPayload,
-  RemoteQuoteCalculationFailedPayload
-} from './payments-contract';
+  RemoteQuoteCalculatedEvent,
+  RemoteQuoteCalculationFailedEvent
+} from 'payments-domain-lib';
 
 export class IlpEventHandler {
   constructor(
@@ -44,19 +42,20 @@ export class IlpEventHandler {
 
   private _toCommand(message: IMessage): RespondToRemoteQuoteCmd | undefined {
     switch (message.msgName) {
-      case PAYMENTS_REMOTE_QUOTE_CALCULATED_EVENT: {
-        const payload = message.payload as RemoteQuoteCalculatedPayload;
+      case RemoteQuoteCalculatedEvent.name: {
+        const payload = message.payload as RemoteQuoteCalculatedEvent['payload'];
         this._logger.debug(
           `Calculated quote for packet ${payload.packetId}; responding to peer ${payload.peerId}`
         );
         return new RespondToRemoteQuoteCmd({
           peerId: payload.peerId,
           packetId: payload.packetId,
-          destinationAmount: payload.destinationAmount
+          destinationAmount: payload.receiveAmount
         });
       }
-      case PAYMENTS_REMOTE_QUOTE_CALCULATION_FAILED_EVENT: {
-        const payload = message.payload as RemoteQuoteCalculationFailedPayload;
+      case RemoteQuoteCalculationFailedEvent.name: {
+        const payload =
+          message.payload as RemoteQuoteCalculationFailedEvent['payload'];
         this._logger.debug(
           `Quote calculation failed for packet ${payload.packetId}; sending generic reject`
         );

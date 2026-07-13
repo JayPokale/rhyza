@@ -9,8 +9,16 @@ import { ILPQuoteRequestReceivedEvent } from 'ilp-domain-lib';
 import {
   RemoteQuoteCalculatedEvent,
   RemoteQuoteCalculationFailedEvent
-} from './payments-bc-events';
+} from 'payments-domain-lib';
 import { FixedRateQuoteCalculator, IQuoteCalculator } from './quote-calculator';
+
+// The ILP-side quote request carries no payment intent or asset info yet
+// (open cross-BC correlation question, see the TODO in
+// payments-event-handler-service). The ILP flow under test ignores these
+// fields, so the fixture fills placeholders.
+const PLACEHOLDER_PAYMENT_INTENT_ID = 'intent-fixture';
+const PLACEHOLDER_ASSET_CODE = 'USD';
+const PLACEHOLDER_ASSET_SCALE = 2;
 
 // Test-only replacement for the Payments BC receiving-quote flow. Wires
 // ILPQuoteRequestReceivedEvent -> RemoteQuoteCalculatedEvent so ILP
@@ -66,7 +74,10 @@ export class PaymentsBcQuoteFixture {
       return new RemoteQuoteCalculatedEvent({
         peerId: payload.peerId,
         packetId: payload.packetId,
-        destinationAmount: result.destinationAmount
+        paymentIntentId: PLACEHOLDER_PAYMENT_INTENT_ID,
+        receiveAmount: result.destinationAmount,
+        receiveAssetCode: PLACEHOLDER_ASSET_CODE,
+        receiveAssetScale: PLACEHOLDER_ASSET_SCALE
       });
     }
 
@@ -76,7 +87,9 @@ export class PaymentsBcQuoteFixture {
     return new RemoteQuoteCalculationFailedEvent({
       peerId: payload.peerId,
       packetId: payload.packetId,
-      reason: result.reason
+      paymentIntentId: PLACEHOLDER_PAYMENT_INTENT_ID,
+      errorName: 'QuoteCalculationFailed',
+      message: result.reason ?? 'unknown'
     });
   }
 }
