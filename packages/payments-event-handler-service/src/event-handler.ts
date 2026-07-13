@@ -8,7 +8,8 @@ import {
   ILPPaymentConfirmedEvent,
   ILPPaymentFailedEvent,
   ILPQuoteFailedEvent,
-  ILPQuoteReceivedEvent
+  ILPQuoteReceivedEvent,
+  ILPQuoteRequestReceivedEvent
 } from 'ilp-domain-lib';
 import {
   CompleteRemoteQuoteCmd,
@@ -36,18 +37,6 @@ type LedgerTransferPayloadWithPaymentIds = {
   paymentIntentId: string;
   paymentId: string;
 };
-
-// TODO: use actual ILP event
-const RemoteQuoteRequestReceivedEventName = 'RemoteQuoteRequestReceivedEvent';
-interface IlpRemoteQuoteRequestReceivedPayload {
-  packetId: string;
-  peerId: string;
-  paymentIntentId: string;
-  sourceAmount: string;
-  peerAssetCode: string;
-  peerAssetScale: number;
-  requestId: string;
-}
 
 export class PaymentsEventHandler {
   private _msgConsumer: IMessageConsumer;
@@ -113,8 +102,9 @@ export class PaymentsEventHandler {
         await this._msgProducer.send(cmd);
         break;
       }
-      case RemoteQuoteRequestReceivedEventName: {
-        const payload = message.payload as IlpRemoteQuoteRequestReceivedPayload;
+      case ILPQuoteRequestReceivedEvent.name: {
+        const payload =
+          message.payload as ILPQuoteRequestReceivedEvent['payload'];
         const cmd = new CalculateRemoteQuoteCmd(
           {
             packetId: payload.packetId,
