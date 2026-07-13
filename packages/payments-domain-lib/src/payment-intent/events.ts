@@ -89,6 +89,28 @@ export abstract class PaymentIntentDomainEvent extends DomainEvent {
   ): evt is RemotePaymentSendApprovedEvent {
     return evt.msgName === RemotePaymentSendApprovedEvent.name;
   }
+
+  static isRemotePaymentPreparedEvent(
+    evt: DomainEvent
+  ): evt is RemotePaymentPreparedEvent {
+    return evt.msgName === RemotePaymentPreparedEvent.name;
+  }
+
+  static isPaymentFailedEvent(evt: DomainEvent): evt is PaymentFailedEvent {
+    return evt.msgName === PaymentFailedEvent.name;
+  }
+
+  static isRemotePaymentSendConfirmedEvent(
+    evt: DomainEvent
+  ): evt is RemotePaymentSendConfirmedEvent {
+    return evt.msgName === RemotePaymentSendConfirmedEvent.name;
+  }
+
+  static isRemotePaymentSendRejectedEvent(
+    evt: DomainEvent
+  ): evt is RemotePaymentSendRejectedEvent {
+    return evt.msgName === RemotePaymentSendRejectedEvent.name;
+  }
 }
 
 export type PaymentIntentCreatedPayload = {
@@ -381,7 +403,6 @@ export type RemotePaymentSendApprovedPayload = {
   senderWalletAddress: string;
   senderWalletAddressId: string;
   destinationIlpAddress: string;
-  ledgerTransferId: string;
   debitAmount: string;
   assetCode: string;
   assetScale: number;
@@ -391,6 +412,87 @@ export class RemotePaymentSendApprovedEvent extends PaymentIntentDomainEvent {
   payload: RemotePaymentSendApprovedPayload;
 
   constructor(payload: RemotePaymentSendApprovedPayload, requestId?: string) {
+    super(payload.paymentIntentId);
+    this.payload = payload;
+    this.requestId = requestId;
+  }
+}
+
+export type RemotePaymentPreparedPayload = {
+  paymentIntentId: string;
+  paymentId: string;
+  ledgerTransferId: string;
+  destinationIlpAddress: string;
+  debitAmount: string;
+  receiveAmount: string;
+  assetCode: string;
+  assetScale: number;
+};
+
+export class RemotePaymentPreparedEvent extends PaymentIntentDomainEvent {
+  payload: RemotePaymentPreparedPayload;
+
+  constructor(payload: RemotePaymentPreparedPayload, requestId?: string) {
+    super(payload.paymentIntentId);
+    this.payload = payload;
+    this.requestId = requestId;
+  }
+}
+
+export type PaymentFailedPayload = {
+  id: string;
+  paymentIntentId: string;
+  senderWalletAddress: string;
+  debitAmount: string | null;
+  receiveAmount: string | null;
+  sentAmount: string | null;
+  state: PaymentState;
+  createdAt: Date;
+  assetCode: string;
+  assetScale: number;
+  receiveAssetCode: string;
+  receiveAssetScale: number;
+  reason?: string;
+};
+
+export class PaymentFailedEvent extends PaymentIntentDomainEvent {
+  payload: PaymentFailedPayload;
+  isErrorEvent = true;
+
+  constructor(payload: PaymentFailedPayload, requestId?: string) {
+    super(payload.paymentIntentId);
+    this.payload = payload;
+    this.requestId = requestId;
+  }
+}
+
+export type RemotePaymentSendConfirmedPayload = {
+  paymentIntentId: string;
+  paymentId: string;
+  ledgerTransferId: string;
+};
+
+export class RemotePaymentSendConfirmedEvent extends PaymentIntentDomainEvent {
+  payload: RemotePaymentSendConfirmedPayload;
+
+  constructor(payload: RemotePaymentSendConfirmedPayload, requestId?: string) {
+    super(payload.paymentIntentId);
+    this.payload = payload;
+    this.requestId = requestId;
+  }
+}
+
+export type RemotePaymentSendRejectedPayload = {
+  paymentIntentId: string;
+  paymentId: string;
+  ledgerTransferId: string;
+  reason?: string;
+};
+
+export class RemotePaymentSendRejectedEvent extends PaymentIntentDomainEvent {
+  payload: RemotePaymentSendRejectedPayload;
+
+  constructor(payload: RemotePaymentSendRejectedPayload, requestId?: string) {
     super(payload.paymentIntentId);
     this.payload = payload;
     this.requestId = requestId;

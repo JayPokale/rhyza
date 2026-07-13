@@ -7,15 +7,34 @@ import {
 import {
   CompleteRemoteQuoteCmd,
   FailRemoteQuoteCmd,
-  CalculateRemoteQuoteCmd
+  CalculateRemoteQuoteCmd,
+  PrepareRemotePaymentCmd,
+  FailRemotePaymentCmd,
+  ConfirmRemotePaymentCmd,
+  RejectRemotePaymentCmd
 } from 'payments-domain-lib';
-import { QuoteFailedEvent, RemoteQuoteReceivedEvent } from 'ilp-domain-lib';
+import {
+  QuoteFailedEvent,
+  RemoteQuoteReceivedEvent,
+  RemotePaymentConfirmedEvent,
+  RemotePaymentFailedEvent
+} from 'ilp-domain-lib';
+import {
+  LedgerOutgoingTransferReservedEvent,
+  LedgerOutgoingTransferInsufficientFundsErrorEvent
+} from 'pal-public-types-lib';
 
-// TODO: pending ILP BC class for inbound remote-quote request. replace stub
-// once published from ilp-domain-lib.
-// How does ILP want to correlate? remote quote calculation is ephemeral (no quote id).
-// packetId? generic correlationId or requestId?
-// peerId/paymentIntentId alone probably cant uniquely identify.
+// TODO: use pal event directly. It needs to be updated with paymentintentId and paymentId
+type LedgerTransferPayloadWithPaymentIds = {
+  requestId: string;
+  transferId: string;
+  isError?: boolean;
+  errorMessage?: string;
+  paymentIntentId: string;
+  paymentId: string;
+};
+
+// TODO: use actual ILP event
 const RemoteQuoteRequestReceivedEventName = 'RemoteQuoteRequestReceivedEvent';
 interface IlpRemoteQuoteRequestReceivedPayload {
   packetId: string;
@@ -37,7 +56,10 @@ export class PaymentsEventHandler {
   }
 
   async start(): Promise<void> {
-    this._msgConsumer.setTopics([DomainEventTopics.IlpEvents]);
+    this._msgConsumer.setTopics([
+      DomainEventTopics.IlpEvents,
+      DomainEventTopics.LedgerEvents
+    ]);
     this._msgConsumer.setBatchCallbackFn(async (messages: IMessage[]) => {
       for (const message of messages) {
         await this._handleEvent(message);
@@ -104,8 +126,62 @@ export class PaymentsEventHandler {
         await this._msgProducer.send(cmd);
         break;
       }
+      case LedgerOutgoingTransferReservedEvent.name: {
+        const payload = message.payload as LedgerTransferPayloadWithPaymentIds;
+        const cmd = new PrepareRemotePaymentCmd(
+          {
+            paymentIntentId: payload.paymentIntentId,
+            paymentId: payload.paymentId,
+            ledgerTransferId: payload.transferId
+          },
+          payload.requestId
+        );
+        await this._msgProducer.send(cmd);
+        break;
+      }
+      case LedgerOutgoingTransferInsufficientFundsErrorEvent.name: {
+        const payload = message.payload as LedgerTransferPayloadWithPaymentIds;
+        const cmd = new FailRemotePaymentCmd(
+          {
+            paymentIntentId: payload.paymentIntentId,
+            paymentId: payload.paymentId,
+            reason: payload.errorMessage ?? 'Insufficient funds'
+          },
+          payload.requestId
+        );
+        await this._msgProducer.send(cmd);
+        break;
+      }
+      case RemotePaymentConfirmedEvent.name: {
+        const payload =
+          message.payload as RemotePaymentConfirmedEvent['payload'];
+        const cmd = new ConfirmRemotePaymentCmd(
+          {
+            paymentIntentId: payload.paymentIntentId,
+            paymentId: payload.paymentId
+          },
+          // TODO: requestId required - remove fallback when provided by ILP
+          message.requestId ?? ''
+        );
+        await this._msgProducer.send(cmd);
+        break;
+      }
+      case RemotePaymentFailedEvent.name: {
+        const payload = message.payload as RemotePaymentFailedEvent['payload'];
+        const cmd = new RejectRemotePaymentCmd(
+          {
+            paymentIntentId: payload.paymentIntentId,
+            paymentId: payload.paymentId,
+            reason: payload.reason
+          },
+          // TODO: requestId required - remove fallback when provided by ILP
+          message.requestId ?? ''
+        );
+        await this._msgProducer.send(cmd);
+        break;
+      }
       default:
-        console.warn(`Unhandled ILP event — msgName: ${message.msgName}`);
+        console.warn(`Unhandled event — msgName: ${message.msgName}`);
     }
   }
 }

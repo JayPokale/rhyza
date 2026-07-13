@@ -18,7 +18,11 @@ import {
   CreatePaymentIntentCmd,
   FailRemoteQuoteCmd,
   CalculateRemoteQuoteCmd,
-  CancelPaymentCmd
+  CancelPaymentCmd,
+  PrepareRemotePaymentCmd,
+  FailRemotePaymentCmd,
+  ConfirmRemotePaymentCmd,
+  RejectRemotePaymentCmd
 } from '../../src/commands';
 import {
   MockPaymentIntentRepo,
@@ -41,7 +45,11 @@ import {
   RemoteQuoteCalculationFailedEvent,
   PaymentCancelledEvent,
   PaymentCancelFailedEvent,
-  RemotePaymentSendApprovedEvent
+  RemotePaymentSendApprovedEvent,
+  RemotePaymentPreparedEvent,
+  PaymentFailedEvent,
+  RemotePaymentSendConfirmedEvent,
+  RemotePaymentSendRejectedEvent
 } from '../../src/payment-intent/events';
 
 function makeApprovePaymentCmd(
@@ -1260,8 +1268,6 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         assert.equal(payload.assetCode, 'USD');
         assert.equal(payload.assetScale, 2);
         assert.equal(payload.senderWalletAddressId, senderWalletAddressId);
-        assert.equal(typeof payload.ledgerTransferId, 'string');
-        assert.ok(payload.ledgerTransferId.length > 0);
 
         const stored = repo
           .getAll()
@@ -1270,10 +1276,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         const storedPayment = stored.payments.find((p) => p.id === paymentId);
         assert.ok(storedPayment);
         assert.equal(storedPayment.state, 'PROCESSING');
-        assert.equal(
-          storedPayment.ledgerTransferId,
-          payload.ledgerTransferId
-        );
+        assert.equal(storedPayment.ledgerTransferId, undefined);
       });
 
       it('fails to approve remote payment if intent has no destinationIlpAddress', async () => {
@@ -1359,6 +1362,421 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           id: paymentId,
           paymentIntentId
         });
+        const { events } = await aggregate.handleBatch([cmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, PaymentCompleteFailedEvent.name);
+        const payload = (events[0] as PaymentCompleteFailedEvent).payload;
+        assert.equal(payload.errorName, 'PaymentInvalidStateError');
+      });
+    });
+
+    describe('handlePrepareRemotePaymentCommand', () => {
+      function makeRemoteIntentWithPayment(
+        paymentIntentId: string,
+        paymentId: string,
+        paymentState: 'PROCESSING' | 'SENDING' | 'CREATED'
+      ): IPaymentIntent {
+        return {
+          id: paymentIntentId,
+          receivedAmount: 0n,
+          receiverWalletAddress: 'remote.domain.com/alice',
+          assetCode: 'USD',
+          assetScale: 2,
+          state: 'CREATED',
+          destination: 'REMOTE',
+          createdAt: new Date(),
+          expiresAt: new Date(Date.now() + 60_000),
+          incomingAmount: null,
+          destinationIlpAddress: 'g.peer.123',
+          quotes: [],
+          payments: [
+            {
+              id: paymentId,
+              state: paymentState,
+              senderWalletAddress: 'domain.com/bob',
+              senderWalletAddressId: 'wallet-1',
+              paymentIntentId,
+              assetCode: 'USD',
+              assetScale: 2,
+              createdAt: new Date(),
+              debitAmount: 500n,
+              receiveAmount: 100n,
+              sentAmount: 0n
+            }
+          ]
+        };
+      }
+
+      it('transitions PROCESSING to SENDING, persists ledgerTransferId, and emits RemotePaymentPreparedEvent', async () => {
+        const paymentIntentId = crypto.randomUUID();
+        const paymentId = crypto.randomUUID();
+        const paymentIntent = makeRemoteIntentWithPayment(
+          paymentIntentId,
+          paymentId,
+          'PROCESSING'
+        );
+        await repo.storeMany([paymentIntent]);
+
+        const palTransferId = 'ledger-pal-mint-123';
+        const cmd = new PrepareRemotePaymentCmd(
+          {
+            paymentIntentId,
+            paymentId,
+            ledgerTransferId: palTransferId
+          },
+          crypto.randomUUID()
+        );
+        const { events } = await aggregate.handleBatch([cmd]);
+        await aggregate.flush();
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, RemotePaymentPreparedEvent.name);
+        const payload = (events[0] as RemotePaymentPreparedEvent).payload;
+        assert.equal(payload.paymentIntentId, paymentIntentId);
+        assert.equal(payload.paymentId, paymentId);
+        assert.equal(payload.ledgerTransferId, palTransferId);
+        assert.equal(payload.destinationIlpAddress, 'g.peer.123');
+        assert.equal(payload.debitAmount, '500');
+        assert.equal(payload.receiveAmount, '100');
+
+        const storedPayment = repo
+          .getAll()
+          .find((i) => i.id === paymentIntentId)
+          ?.payments.find((p) => p.id === paymentId);
+        assert.equal(storedPayment?.state, 'SENDING');
+        assert.equal(storedPayment?.ledgerTransferId, palTransferId);
+      });
+
+      it('fails to prepare if payment intent not found', async () => {
+        const cmd = new PrepareRemotePaymentCmd(
+          {
+            paymentIntentId: crypto.randomUUID(),
+            paymentId: crypto.randomUUID(),
+            ledgerTransferId: 'ledger-1'
+          },
+          crypto.randomUUID()
+        );
+        const { events } = await aggregate.handleBatch([cmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, PaymentCompleteFailedEvent.name);
+        const payload = (events[0] as PaymentCompleteFailedEvent).payload;
+        assert.equal(payload.errorName, 'PaymentIntentNotFoundError');
+      });
+
+      it('fails when payment state is not PROCESSING', async () => {
+        const paymentIntentId = crypto.randomUUID();
+        const paymentId = crypto.randomUUID();
+        const paymentIntent = makeRemoteIntentWithPayment(
+          paymentIntentId,
+          paymentId,
+          'SENDING'
+        );
+        await repo.storeMany([paymentIntent]);
+
+        const cmd = new PrepareRemotePaymentCmd(
+          {
+            paymentIntentId,
+            paymentId,
+            ledgerTransferId: 'ledger-1'
+          },
+          crypto.randomUUID()
+        );
+        const { events } = await aggregate.handleBatch([cmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, PaymentCompleteFailedEvent.name);
+        const payload = (events[0] as PaymentCompleteFailedEvent).payload;
+        assert.equal(payload.errorName, 'PaymentInvalidStateError');
+      });
+    });
+
+    describe('handleFailRemotePaymentCommand', () => {
+      function makeRemoteIntentWithPayment(
+        paymentIntentId: string,
+        paymentId: string,
+        paymentState: 'PROCESSING' | 'FAILED' | 'CREATED'
+      ): IPaymentIntent {
+        return {
+          id: paymentIntentId,
+          receivedAmount: 0n,
+          receiverWalletAddress: 'remote.domain.com/alice',
+          assetCode: 'USD',
+          assetScale: 2,
+          state: 'CREATED',
+          destination: 'REMOTE',
+          createdAt: new Date(),
+          expiresAt: new Date(Date.now() + 60_000),
+          incomingAmount: null,
+          destinationIlpAddress: 'g.peer.123',
+          quotes: [],
+          payments: [
+            {
+              id: paymentId,
+              state: paymentState,
+              senderWalletAddress: 'domain.com/bob',
+              senderWalletAddressId: 'wallet-1',
+              paymentIntentId,
+              assetCode: 'USD',
+              assetScale: 2,
+              createdAt: new Date(),
+              debitAmount: 500n,
+              receiveAmount: 100n,
+              sentAmount: 0n
+            }
+          ]
+        };
+      }
+
+      it('transitions PROCESSING to FAILED and emits PaymentFailedEvent', async () => {
+        const paymentIntentId = crypto.randomUUID();
+        const paymentId = crypto.randomUUID();
+        const paymentIntent = makeRemoteIntentWithPayment(
+          paymentIntentId,
+          paymentId,
+          'PROCESSING'
+        );
+        await repo.storeMany([paymentIntent]);
+
+        const cmd = new FailRemotePaymentCmd(
+          {
+            paymentIntentId,
+            paymentId,
+            reason: 'Insufficient funds'
+          },
+          crypto.randomUUID()
+        );
+        const { events } = await aggregate.handleBatch([cmd]);
+        await aggregate.flush();
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, PaymentFailedEvent.name);
+        const payload = (events[0] as PaymentFailedEvent).payload;
+        assert.equal(payload.id, paymentId);
+        assert.equal(payload.paymentIntentId, paymentIntentId);
+        assert.equal(payload.state, 'FAILED');
+        assert.equal(payload.reason, 'Insufficient funds');
+
+        const storedPayment = repo
+          .getAll()
+          .find((i) => i.id === paymentIntentId)
+          ?.payments.find((p) => p.id === paymentId);
+        assert.equal(storedPayment?.state, 'FAILED');
+        assert.equal(storedPayment?.failReason, 'Insufficient funds');
+      });
+
+      it('fails when payment state is not PROCESSING', async () => {
+        const paymentIntentId = crypto.randomUUID();
+        const paymentId = crypto.randomUUID();
+        const paymentIntent = makeRemoteIntentWithPayment(
+          paymentIntentId,
+          paymentId,
+          'CREATED'
+        );
+        await repo.storeMany([paymentIntent]);
+
+        const cmd = new FailRemotePaymentCmd(
+          {
+            paymentIntentId,
+            paymentId,
+            reason: 'nope'
+          },
+          crypto.randomUUID()
+        );
+        const { events } = await aggregate.handleBatch([cmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, PaymentCompleteFailedEvent.name);
+        const payload = (events[0] as PaymentCompleteFailedEvent).payload;
+        assert.equal(payload.errorName, 'PaymentInvalidStateError');
+      });
+    });
+
+    describe('handleConfirmRemotePaymentCommand', () => {
+      function makeRemoteIntentWithPayment(
+        paymentIntentId: string,
+        paymentId: string,
+        paymentState: 'SENDING' | 'CONFIRMED' | 'PROCESSING'
+      ): IPaymentIntent {
+        return {
+          id: paymentIntentId,
+          receivedAmount: 0n,
+          receiverWalletAddress: 'remote.domain.com/alice',
+          assetCode: 'USD',
+          assetScale: 2,
+          state: 'CREATED',
+          destination: 'REMOTE',
+          createdAt: new Date(),
+          expiresAt: new Date(Date.now() + 60_000),
+          incomingAmount: null,
+          destinationIlpAddress: 'g.peer.123',
+          quotes: [],
+          payments: [
+            {
+              id: paymentId,
+              state: paymentState,
+              senderWalletAddress: 'domain.com/bob',
+              senderWalletAddressId: 'wallet-1',
+              paymentIntentId,
+              assetCode: 'USD',
+              assetScale: 2,
+              createdAt: new Date(),
+              debitAmount: 500n,
+              receiveAmount: 100n,
+              sentAmount: 0n,
+              ledgerTransferId: 'ledger-pal-1'
+            }
+          ]
+        };
+      }
+
+      it('transitions SENDING to CONFIRMED and emits RemotePaymentSendConfirmedEvent', async () => {
+        const paymentIntentId = crypto.randomUUID();
+        const paymentId = crypto.randomUUID();
+        await repo.storeMany([
+          makeRemoteIntentWithPayment(paymentIntentId, paymentId, 'SENDING')
+        ]);
+
+        const cmd = new ConfirmRemotePaymentCmd(
+          { paymentIntentId, paymentId },
+          crypto.randomUUID()
+        );
+        const { events } = await aggregate.handleBatch([cmd]);
+        await aggregate.flush();
+
+        assert.equal(events.length, 1);
+        assert.equal(
+          events[0].msgName,
+          RemotePaymentSendConfirmedEvent.name
+        );
+        const payload = (events[0] as RemotePaymentSendConfirmedEvent).payload;
+        assert.equal(payload.paymentIntentId, paymentIntentId);
+        assert.equal(payload.paymentId, paymentId);
+        assert.equal(payload.ledgerTransferId, 'ledger-pal-1');
+
+        const stored = repo
+          .getAll()
+          .find((i) => i.id === paymentIntentId)
+          ?.payments.find((p) => p.id === paymentId);
+        assert.equal(stored?.state, 'CONFIRMED');
+      });
+
+      it('fails when payment state is not SENDING', async () => {
+        const paymentIntentId = crypto.randomUUID();
+        const paymentId = crypto.randomUUID();
+        await repo.storeMany([
+          makeRemoteIntentWithPayment(paymentIntentId, paymentId, 'PROCESSING')
+        ]);
+
+        const cmd = new ConfirmRemotePaymentCmd(
+          { paymentIntentId, paymentId },
+          crypto.randomUUID()
+        );
+        const { events } = await aggregate.handleBatch([cmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, PaymentCompleteFailedEvent.name);
+        const payload = (events[0] as PaymentCompleteFailedEvent).payload;
+        assert.equal(payload.errorName, 'PaymentInvalidStateError');
+      });
+
+      it('fails when payment intent not found', async () => {
+        const cmd = new ConfirmRemotePaymentCmd(
+          {
+            paymentIntentId: crypto.randomUUID(),
+            paymentId: crypto.randomUUID()
+          },
+          crypto.randomUUID()
+        );
+        const { events } = await aggregate.handleBatch([cmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, PaymentCompleteFailedEvent.name);
+        const payload = (events[0] as PaymentCompleteFailedEvent).payload;
+        assert.equal(payload.errorName, 'PaymentIntentNotFoundError');
+      });
+    });
+
+    describe('handleRejectRemotePaymentCommand', () => {
+      function makeRemoteIntentWithPayment(
+        paymentIntentId: string,
+        paymentId: string,
+        paymentState: 'SENDING' | 'REJECTED' | 'PROCESSING' | 'CONFIRMED'
+      ): IPaymentIntent {
+        return {
+          id: paymentIntentId,
+          receivedAmount: 0n,
+          receiverWalletAddress: 'remote.domain.com/alice',
+          assetCode: 'USD',
+          assetScale: 2,
+          state: 'CREATED',
+          destination: 'REMOTE',
+          createdAt: new Date(),
+          expiresAt: new Date(Date.now() + 60_000),
+          incomingAmount: null,
+          destinationIlpAddress: 'g.peer.123',
+          quotes: [],
+          payments: [
+            {
+              id: paymentId,
+              state: paymentState,
+              senderWalletAddress: 'domain.com/bob',
+              senderWalletAddressId: 'wallet-1',
+              paymentIntentId,
+              assetCode: 'USD',
+              assetScale: 2,
+              createdAt: new Date(),
+              debitAmount: 500n,
+              receiveAmount: 100n,
+              sentAmount: 0n,
+              ledgerTransferId: 'ledger-pal-1'
+            }
+          ]
+        };
+      }
+
+      it('transitions SENDING to REJECTED, persists failReason, and emits RemotePaymentSendRejectedEvent', async () => {
+        const paymentIntentId = crypto.randomUUID();
+        const paymentId = crypto.randomUUID();
+        await repo.storeMany([
+          makeRemoteIntentWithPayment(paymentIntentId, paymentId, 'SENDING')
+        ]);
+
+        const cmd = new RejectRemotePaymentCmd(
+          { paymentIntentId, paymentId, reason: 'REJECTED' },
+          crypto.randomUUID()
+        );
+        const { events } = await aggregate.handleBatch([cmd]);
+        await aggregate.flush();
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, RemotePaymentSendRejectedEvent.name);
+        const payload = (events[0] as RemotePaymentSendRejectedEvent).payload;
+        assert.equal(payload.paymentIntentId, paymentIntentId);
+        assert.equal(payload.paymentId, paymentId);
+        assert.equal(payload.ledgerTransferId, 'ledger-pal-1');
+        assert.equal(payload.reason, 'REJECTED');
+
+        const stored = repo
+          .getAll()
+          .find((i) => i.id === paymentIntentId)
+          ?.payments.find((p) => p.id === paymentId);
+        assert.equal(stored?.state, 'REJECTED');
+        assert.equal(stored?.failReason, 'REJECTED');
+      });
+
+      it('fails when payment state is not SENDING', async () => {
+        const paymentIntentId = crypto.randomUUID();
+        const paymentId = crypto.randomUUID();
+        await repo.storeMany([
+          makeRemoteIntentWithPayment(paymentIntentId, paymentId, 'CONFIRMED')
+        ]);
+
+        const cmd = new RejectRemotePaymentCmd(
+          { paymentIntentId, paymentId, reason: 'REJECTED' },
+          crypto.randomUUID()
+        );
         const { events } = await aggregate.handleBatch([cmd]);
 
         assert.equal(events.length, 1);

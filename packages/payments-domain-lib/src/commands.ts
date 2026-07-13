@@ -41,6 +41,26 @@ export abstract class PaymentIntentCommand extends CommandMsg {
   ): cmd is CalculateRemoteQuoteCmd {
     return cmd.msgName === CalculateRemoteQuoteCmd.name;
   }
+
+  static isPrepareRemotePaymentCmd(cmd: CommandMsg): cmd is PrepareRemotePaymentCmd {
+    return cmd.msgName === PrepareRemotePaymentCmd.name;
+  }
+
+  static isFailRemotePaymentCmd(cmd: CommandMsg): cmd is FailRemotePaymentCmd {
+    return cmd.msgName === FailRemotePaymentCmd.name;
+  }
+
+  static isConfirmRemotePaymentCmd(
+    cmd: CommandMsg
+  ): cmd is ConfirmRemotePaymentCmd {
+    return cmd.msgName === ConfirmRemotePaymentCmd.name;
+  }
+
+  static isRejectRemotePaymentCmd(
+    cmd: CommandMsg
+  ): cmd is RejectRemotePaymentCmd {
+    return cmd.msgName === RejectRemotePaymentCmd.name;
+  }
 }
 
 export type CreatePaymentIntentCmdPayload = {
@@ -178,6 +198,69 @@ export class CalculateRemoteQuoteCmd extends PaymentIntentCommand {
   payload: CalculateRemoteQuoteCmdPayload;
 
   constructor(payload: CalculateRemoteQuoteCmdPayload, requestId: string) {
+    super(payload.paymentIntentId);
+    this.requestId = requestId;
+    this.payload = payload;
+  }
+}
+
+export type PrepareRemotePaymentCmdPayload = {
+  paymentIntentId: string;
+  paymentId: string;
+  ledgerTransferId: string;
+};
+
+export class PrepareRemotePaymentCmd extends PaymentIntentCommand {
+  payload: PrepareRemotePaymentCmdPayload;
+
+  constructor(payload: PrepareRemotePaymentCmdPayload, requestId: string) {
+    super(payload.paymentIntentId);
+    this.requestId = requestId;
+    this.payload = payload;
+  }
+}
+
+export type FailRemotePaymentCmdPayload = {
+  paymentIntentId: string;
+  paymentId: string;
+  reason?: string;
+};
+
+export class FailRemotePaymentCmd extends PaymentIntentCommand {
+  payload: FailRemotePaymentCmdPayload;
+
+  constructor(payload: FailRemotePaymentCmdPayload, requestId: string) {
+    super(payload.paymentIntentId);
+    this.requestId = requestId;
+    this.payload = payload;
+  }
+}
+
+export type ConfirmRemotePaymentCmdPayload = {
+  paymentIntentId: string;
+  paymentId: string;
+};
+
+export class ConfirmRemotePaymentCmd extends PaymentIntentCommand {
+  payload: ConfirmRemotePaymentCmdPayload;
+
+  constructor(payload: ConfirmRemotePaymentCmdPayload, requestId: string) {
+    super(payload.paymentIntentId);
+    this.requestId = requestId;
+    this.payload = payload;
+  }
+}
+
+export type RejectRemotePaymentCmdPayload = {
+  paymentIntentId: string;
+  paymentId: string;
+  reason?: string;
+};
+
+export class RejectRemotePaymentCmd extends PaymentIntentCommand {
+  payload: RejectRemotePaymentCmdPayload;
+
+  constructor(payload: RejectRemotePaymentCmdPayload, requestId: string) {
     super(payload.paymentIntentId);
     this.requestId = requestId;
     this.payload = payload;

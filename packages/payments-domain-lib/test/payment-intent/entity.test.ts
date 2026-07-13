@@ -1565,20 +1565,18 @@ describe('PaymentIntent Entity', () => {
       };
     }
 
-    it('transitions payment from CREATED to PROCESSING and stores ledgerTransferId', () => {
+    it('transitions payment from CREATED to PROCESSING', () => {
       const { paymentIntent, paymentId } = makeRemoteIntentWithCreatedPayment();
-      const ledgerTransferId = crypto.randomUUID();
 
       const payment = paymentIntent.approveRemotePaymentSend({
-        id: paymentId,
-        ledgerTransferId
+        id: paymentId
       });
 
       assert.equal(payment.state, 'PROCESSING');
-      assert.equal(payment.ledgerTransferId, ledgerTransferId);
+      assert.equal(payment.ledgerTransferId, undefined);
       const [reloaded] = paymentIntent.payments;
       assert.equal(reloaded.state, 'PROCESSING');
-      assert.equal(reloaded.ledgerTransferId, ledgerTransferId);
+      assert.equal(reloaded.ledgerTransferId, undefined);
     });
 
     it('throws PaymentIntentInvalidState if destination is LOCAL', () => {
@@ -1595,8 +1593,7 @@ describe('PaymentIntent Entity', () => {
       assert.throws(
         () => {
           paymentIntent.approveRemotePaymentSend({
-            id: crypto.randomUUID(),
-            ledgerTransferId: crypto.randomUUID()
+            id: crypto.randomUUID()
           });
         },
         (err: Error) => {
@@ -1614,10 +1611,7 @@ describe('PaymentIntent Entity', () => {
 
       assert.throws(
         () => {
-          paymentIntent.approveRemotePaymentSend({
-            id: paymentId,
-            ledgerTransferId: crypto.randomUUID()
-          });
+          paymentIntent.approveRemotePaymentSend({ id: paymentId });
         },
         (err: Error) => {
           assert(err instanceof PaymentIntentInvalidState);
@@ -1634,10 +1628,7 @@ describe('PaymentIntent Entity', () => {
 
       assert.throws(
         () => {
-          paymentIntent.approveRemotePaymentSend({
-            id: paymentId,
-            ledgerTransferId: crypto.randomUUID()
-          });
+          paymentIntent.approveRemotePaymentSend({ id: paymentId });
         },
         (err: Error) => {
           assert(err instanceof PaymentIntentExpired);
@@ -1652,8 +1643,7 @@ describe('PaymentIntent Entity', () => {
       assert.throws(
         () => {
           paymentIntent.approveRemotePaymentSend({
-            id: crypto.randomUUID(),
-            ledgerTransferId: crypto.randomUUID()
+            id: crypto.randomUUID()
           });
         },
         (err: Error) => {
@@ -1670,14 +1660,399 @@ describe('PaymentIntent Entity', () => {
 
       assert.throws(
         () => {
-          paymentIntent.approveRemotePaymentSend({
-            id: paymentId,
-            ledgerTransferId: crypto.randomUUID()
-          });
+          paymentIntent.approveRemotePaymentSend({ id: paymentId });
         },
         (err: Error) => {
           assert(err instanceof PaymentInvalidStateError);
           assert.match(err.message, /cannot be approved/);
+          return true;
+        }
+      );
+    });
+  });
+
+  describe('prepareRemotePayment', () => {
+    function makeRemoteIntentWithPaymentInState(
+      paymentState: 'CREATED' | 'PROCESSING' | 'SENDING' | 'COMPLETED' | 'FAILED'
+    ) {
+      const paymentIntentId = crypto.randomUUID();
+      const paymentId = crypto.randomUUID();
+      return {
+        paymentIntentId,
+        paymentId,
+        paymentIntent: PaymentIntent.fromObject({
+          id: paymentIntentId,
+          receiverWalletAddress: 'remote.domain.com/alice',
+          destination: PaymentIntentDestination.REMOTE,
+          assetCode: 'USD',
+          assetScale: 2,
+          incomingAmount: null,
+          receivedAmount: 0n,
+          state: 'CREATED',
+          createdAt: new Date(),
+          expiresAt: new Date(Date.now() + 60_000),
+          destinationIlpAddress: 'g.peer.123',
+          quotes: [],
+          payments: [
+            {
+              id: paymentId,
+              state: paymentState,
+              senderWalletAddress: 'sender',
+              senderWalletAddressId: crypto.randomUUID(),
+              paymentIntentId,
+              assetCode: 'USD',
+              assetScale: 2,
+              createdAt: new Date(),
+              debitAmount: 500n,
+              receiveAmount: 100n,
+              sentAmount: 0n
+            }
+          ]
+        })
+      };
+    }
+
+    it('transitions payment from PROCESSING to SENDING and stores ledgerTransferId', () => {
+      const { paymentIntent, paymentId } =
+        makeRemoteIntentWithPaymentInState('PROCESSING');
+
+      const payment = paymentIntent.prepareRemotePayment({
+        id: paymentId,
+        ledgerTransferId: 'ledger-1'
+      });
+
+      assert.equal(payment.state, 'SENDING');
+      assert.equal(payment.ledgerTransferId, 'ledger-1');
+    });
+
+    it('throws PaymentNotFoundError if payment not on intent', () => {
+      const { paymentIntent } =
+        makeRemoteIntentWithPaymentInState('PROCESSING');
+
+      assert.throws(
+        () => {
+          paymentIntent.prepareRemotePayment({
+            id: crypto.randomUUID(),
+            ledgerTransferId: 'ledger-1'
+          });
+        },
+        (err: Error) => {
+          assert(err instanceof PaymentNotFoundError);
+          return true;
+        }
+      );
+    });
+
+    it('throws PaymentInvalidStateError when payment is CREATED', () => {
+      const { paymentIntent, paymentId } =
+        makeRemoteIntentWithPaymentInState('CREATED');
+
+      assert.throws(
+        () => {
+          paymentIntent.prepareRemotePayment({
+            id: paymentId,
+            ledgerTransferId: 'ledger-1'
+          });
+        },
+        (err: Error) => {
+          assert(err instanceof PaymentInvalidStateError);
+          assert.match(err.message, /cannot be prepared/);
+          return true;
+        }
+      );
+    });
+
+    it('throws PaymentInvalidStateError when payment is already SENDING', () => {
+      const { paymentIntent, paymentId } =
+        makeRemoteIntentWithPaymentInState('SENDING');
+
+      assert.throws(
+        () => {
+          paymentIntent.prepareRemotePayment({
+            id: paymentId,
+            ledgerTransferId: 'ledger-1'
+          });
+        },
+        (err: Error) => {
+          assert(err instanceof PaymentInvalidStateError);
+          return true;
+        }
+      );
+    });
+  });
+
+  describe('failRemotePayment', () => {
+    function makeRemoteIntentWithPaymentInState(
+      paymentState: 'CREATED' | 'PROCESSING' | 'SENDING' | 'FAILED'
+    ) {
+      const paymentIntentId = crypto.randomUUID();
+      const paymentId = crypto.randomUUID();
+      return {
+        paymentIntentId,
+        paymentId,
+        paymentIntent: PaymentIntent.fromObject({
+          id: paymentIntentId,
+          receiverWalletAddress: 'remote.domain.com/alice',
+          destination: PaymentIntentDestination.REMOTE,
+          assetCode: 'USD',
+          assetScale: 2,
+          incomingAmount: null,
+          receivedAmount: 0n,
+          state: 'CREATED',
+          createdAt: new Date(),
+          expiresAt: new Date(Date.now() + 60_000),
+          destinationIlpAddress: 'g.peer.123',
+          quotes: [],
+          payments: [
+            {
+              id: paymentId,
+              state: paymentState,
+              senderWalletAddress: 'sender',
+              senderWalletAddressId: crypto.randomUUID(),
+              paymentIntentId,
+              assetCode: 'USD',
+              assetScale: 2,
+              createdAt: new Date(),
+              debitAmount: 500n,
+              receiveAmount: 100n,
+              sentAmount: 0n
+            }
+          ]
+        })
+      };
+    }
+
+    it('transitions payment from PROCESSING to FAILED and stores reason', () => {
+      const { paymentIntent, paymentId } =
+        makeRemoteIntentWithPaymentInState('PROCESSING');
+
+      const payment = paymentIntent.failRemotePayment({
+        id: paymentId,
+        reason: 'Insufficient funds'
+      });
+
+      assert.equal(payment.state, 'FAILED');
+      assert.equal(payment.failReason, 'Insufficient funds');
+    });
+
+    it('throws PaymentInvalidStateError when payment is CREATED', () => {
+      const { paymentIntent, paymentId } =
+        makeRemoteIntentWithPaymentInState('CREATED');
+
+      assert.throws(
+        () => {
+          paymentIntent.failRemotePayment({ id: paymentId });
+        },
+        (err: Error) => {
+          assert(err instanceof PaymentInvalidStateError);
+          assert.match(err.message, /cannot fail/);
+          return true;
+        }
+      );
+    });
+
+    it('throws PaymentInvalidStateError when payment is SENDING', () => {
+      const { paymentIntent, paymentId } =
+        makeRemoteIntentWithPaymentInState('SENDING');
+
+      assert.throws(
+        () => {
+          paymentIntent.failRemotePayment({ id: paymentId });
+        },
+        (err: Error) => {
+          assert(err instanceof PaymentInvalidStateError);
+          return true;
+        }
+      );
+    });
+
+    it('throws PaymentNotFoundError if payment not on intent', () => {
+      const { paymentIntent } =
+        makeRemoteIntentWithPaymentInState('PROCESSING');
+
+      assert.throws(
+        () => {
+          paymentIntent.failRemotePayment({ id: crypto.randomUUID() });
+        },
+        (err: Error) => {
+          assert(err instanceof PaymentNotFoundError);
+          return true;
+        }
+      );
+    });
+  });
+
+  describe('confirmRemotePayment', () => {
+    function makeIntent(
+      paymentState: 'SENDING' | 'CONFIRMED' | 'CREATED' | 'PROCESSING'
+    ) {
+      const paymentIntentId = crypto.randomUUID();
+      const paymentId = crypto.randomUUID();
+      return {
+        paymentIntentId,
+        paymentId,
+        paymentIntent: PaymentIntent.fromObject({
+          id: paymentIntentId,
+          receiverWalletAddress: 'remote.domain.com/alice',
+          destination: PaymentIntentDestination.REMOTE,
+          assetCode: 'USD',
+          assetScale: 2,
+          incomingAmount: null,
+          receivedAmount: 0n,
+          state: 'CREATED',
+          createdAt: new Date(),
+          expiresAt: new Date(Date.now() + 60_000),
+          destinationIlpAddress: 'g.peer.123',
+          quotes: [],
+          payments: [
+            {
+              id: paymentId,
+              state: paymentState,
+              senderWalletAddress: 'sender',
+              senderWalletAddressId: crypto.randomUUID(),
+              paymentIntentId,
+              assetCode: 'USD',
+              assetScale: 2,
+              createdAt: new Date(),
+              debitAmount: 500n,
+              receiveAmount: 100n,
+              sentAmount: 0n,
+              ledgerTransferId: 'ledger-1'
+            }
+          ]
+        })
+      };
+    }
+
+    it('transitions payment from SENDING to CONFIRMED', () => {
+      const { paymentIntent, paymentId } = makeIntent('SENDING');
+      const payment = paymentIntent.confirmRemotePayment({ id: paymentId });
+      assert.equal(payment.state, 'CONFIRMED');
+    });
+
+    it('throws PaymentNotFoundError if payment not on intent', () => {
+      const { paymentIntent } = makeIntent('SENDING');
+      assert.throws(
+        () =>
+          paymentIntent.confirmRemotePayment({ id: crypto.randomUUID() }),
+        (err: Error) => {
+          assert(err instanceof PaymentNotFoundError);
+          return true;
+        }
+      );
+    });
+
+    it('throws PaymentInvalidStateError when payment is PROCESSING', () => {
+      const { paymentIntent, paymentId } = makeIntent('PROCESSING');
+      assert.throws(
+        () => paymentIntent.confirmRemotePayment({ id: paymentId }),
+        (err: Error) => {
+          assert(err instanceof PaymentInvalidStateError);
+          assert.match(err.message, /cannot be confirmed/);
+          return true;
+        }
+      );
+    });
+
+    it('throws PaymentInvalidStateError when payment already CONFIRMED', () => {
+      const { paymentIntent, paymentId } = makeIntent('CONFIRMED');
+      assert.throws(
+        () => paymentIntent.confirmRemotePayment({ id: paymentId }),
+        (err: Error) => {
+          assert(err instanceof PaymentInvalidStateError);
+          return true;
+        }
+      );
+    });
+  });
+
+  describe('rejectRemotePayment', () => {
+    function makeIntent(
+      paymentState:
+        | 'SENDING'
+        | 'REJECTED'
+        | 'CREATED'
+        | 'PROCESSING'
+        | 'CONFIRMED'
+    ) {
+      const paymentIntentId = crypto.randomUUID();
+      const paymentId = crypto.randomUUID();
+      return {
+        paymentIntentId,
+        paymentId,
+        paymentIntent: PaymentIntent.fromObject({
+          id: paymentIntentId,
+          receiverWalletAddress: 'remote.domain.com/alice',
+          destination: PaymentIntentDestination.REMOTE,
+          assetCode: 'USD',
+          assetScale: 2,
+          incomingAmount: null,
+          receivedAmount: 0n,
+          state: 'CREATED',
+          createdAt: new Date(),
+          expiresAt: new Date(Date.now() + 60_000),
+          destinationIlpAddress: 'g.peer.123',
+          quotes: [],
+          payments: [
+            {
+              id: paymentId,
+              state: paymentState,
+              senderWalletAddress: 'sender',
+              senderWalletAddressId: crypto.randomUUID(),
+              paymentIntentId,
+              assetCode: 'USD',
+              assetScale: 2,
+              createdAt: new Date(),
+              debitAmount: 500n,
+              receiveAmount: 100n,
+              sentAmount: 0n,
+              ledgerTransferId: 'ledger-1'
+            }
+          ]
+        })
+      };
+    }
+
+    it('transitions SENDING to REJECTED and stores failReason', () => {
+      const { paymentIntent, paymentId } = makeIntent('SENDING');
+      const payment = paymentIntent.rejectRemotePayment({
+        id: paymentId,
+        reason: 'EXPIRED'
+      });
+      assert.equal(payment.state, 'REJECTED');
+      assert.equal(payment.failReason, 'EXPIRED');
+    });
+
+    it('throws PaymentInvalidStateError from CONFIRMED', () => {
+      const { paymentIntent, paymentId } = makeIntent('CONFIRMED');
+      assert.throws(
+        () => paymentIntent.rejectRemotePayment({ id: paymentId }),
+        (err: Error) => {
+          assert(err instanceof PaymentInvalidStateError);
+          assert.match(err.message, /cannot be rejected/);
+          return true;
+        }
+      );
+    });
+
+    it('throws PaymentInvalidStateError from PROCESSING', () => {
+      const { paymentIntent, paymentId } = makeIntent('PROCESSING');
+      assert.throws(
+        () => paymentIntent.rejectRemotePayment({ id: paymentId }),
+        (err: Error) => {
+          assert(err instanceof PaymentInvalidStateError);
+          return true;
+        }
+      );
+    });
+
+    it('throws PaymentNotFoundError if payment not on intent', () => {
+      const { paymentIntent } = makeIntent('SENDING');
+      assert.throws(
+        () =>
+          paymentIntent.rejectRemotePayment({ id: crypto.randomUUID() }),
+        (err: Error) => {
+          assert(err instanceof PaymentNotFoundError);
           return true;
         }
       );

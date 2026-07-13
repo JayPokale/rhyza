@@ -1,4 +1,3 @@
-import { randomUUID } from 'crypto';
 import { ILogger, IMessage } from 'common-types-lib';
 import {
   FinalizedRemoteQuoteUpdate,
@@ -24,7 +23,11 @@ import {
   CancelPaymentCmd,
   CompleteRemoteQuoteCmd,
   FailRemoteQuoteCmd,
-  CalculateRemoteQuoteCmd
+  CalculateRemoteQuoteCmd,
+  PrepareRemotePaymentCmd,
+  FailRemotePaymentCmd,
+  ConfirmRemotePaymentCmd,
+  RejectRemotePaymentCmd
 } from '../commands';
 import {
   CannotCreateDuplicatePaymentIntentError,
@@ -53,7 +56,11 @@ import {
   PaymentIntentCompletedEvent,
   PaymentCancelFailedEvent,
   PaymentCancelledEvent,
-  RemotePaymentSendApprovedEvent
+  RemotePaymentSendApprovedEvent,
+  RemotePaymentPreparedEvent,
+  PaymentFailedEvent,
+  RemotePaymentSendConfirmedEvent,
+  RemotePaymentSendRejectedEvent
 } from './events';
 
 const fxKey = (
@@ -71,6 +78,10 @@ export class PaymentIntentAggregate {
   private newPaymentsMap = new Map<string, string[]>(); // paymentIntentId, paymentIds
   private completedLocalPayments = new Map<string, string[]>(); // paymentIntentId, paymentIds
   private approvedRemotePayments = new Map<string, string[]>(); // paymentIntentId, paymentIds
+  private sendingRemotePayments = new Map<string, string[]>(); // paymentIntentId, paymentIds
+  private confirmedRemotePayments = new Map<string, string[]>(); // paymentIntentId, paymentIds
+  private rejectedRemotePayments = new Map<string, string[]>(); // paymentIntentId, paymentIds
+  private failedRemotePayments = new Map<string, string[]>(); // paymentIntentId, paymentIds
   private cancelledPayments = new Map<string, string[]>(); // paymentIntentId, paymentIds
   private finalizedRemoteQuotes = new Map<string, string[]>(); // paymentIntentId, quoteIds
   private paymentIntentMap = new Map<string, IPaymentIntent>();
@@ -127,6 +138,18 @@ export class PaymentIntentAggregate {
         paymentIntentIdsSet.add(payload.paymentIntentId);
       } else if (cmd.msgName === CalculateRemoteQuoteCmd.name) {
         const payload = (cmd as CalculateRemoteQuoteCmd).payload;
+        paymentIntentIdsSet.add(payload.paymentIntentId);
+      } else if (cmd.msgName === PrepareRemotePaymentCmd.name) {
+        const payload = (cmd as PrepareRemotePaymentCmd).payload;
+        paymentIntentIdsSet.add(payload.paymentIntentId);
+      } else if (cmd.msgName === FailRemotePaymentCmd.name) {
+        const payload = (cmd as FailRemotePaymentCmd).payload;
+        paymentIntentIdsSet.add(payload.paymentIntentId);
+      } else if (cmd.msgName === ConfirmRemotePaymentCmd.name) {
+        const payload = (cmd as ConfirmRemotePaymentCmd).payload;
+        paymentIntentIdsSet.add(payload.paymentIntentId);
+      } else if (cmd.msgName === RejectRemotePaymentCmd.name) {
+        const payload = (cmd as RejectRemotePaymentCmd).payload;
         paymentIntentIdsSet.add(payload.paymentIntentId);
       }
     }
@@ -227,6 +250,18 @@ export class PaymentIntentAggregate {
       } else if (cmd.msgName === CalculateRemoteQuoteCmd.name) {
         event = this.handleCalculateRemoteQuoteCommand(
           cmd as CalculateRemoteQuoteCmd
+        );
+      } else if (cmd.msgName === PrepareRemotePaymentCmd.name) {
+        event = this.handlePrepareRemotePaymentCommand(cmd as PrepareRemotePaymentCmd);
+      } else if (cmd.msgName === FailRemotePaymentCmd.name) {
+        event = this.handleFailRemotePaymentCommand(cmd as FailRemotePaymentCmd);
+      } else if (cmd.msgName === ConfirmRemotePaymentCmd.name) {
+        event = this.handleConfirmRemotePaymentCommand(
+          cmd as ConfirmRemotePaymentCmd
+        );
+      } else if (cmd.msgName === RejectRemotePaymentCmd.name) {
+        event = this.handleRejectRemotePaymentCommand(
+          cmd as RejectRemotePaymentCmd
         );
       } else {
         throw new Error('Unexpected command');
@@ -553,6 +588,9 @@ export class PaymentIntentAggregate {
         });
       } else {
         // TODO: support creating payment without quote
+        // In that case we need to fetch remote payment intent. May need
+        // new remoteUrl similiar to create quote then prefetch it. As long
+        // as we require a quote we know we'll have the payment intent.
         if (!quoteId) {
           throw new InvalidQuoteIdError(
             `Remote payment ${paymentId} requires a quoteId`
@@ -880,10 +918,8 @@ export class PaymentIntentAggregate {
         );
       }
 
-      const ledgerTransferId = randomUUID();
       const payment = paymentIntent.approveRemotePaymentSend({
-        id: paymentId,
-        ledgerTransferId
+        id: paymentId
       });
       this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
       this._appendToMap(
@@ -899,7 +935,6 @@ export class PaymentIntentAggregate {
           senderWalletAddress: payment.senderWalletAddress,
           senderWalletAddressId: payment.senderWalletAddressId,
           destinationIlpAddress: paymentIntent.destinationIlpAddress,
-          ledgerTransferId,
           debitAmount: String(payment.debitAmount),
           assetCode: payment.assetCode,
           assetScale: payment.assetScale
@@ -911,6 +946,222 @@ export class PaymentIntentAggregate {
         {
           id: cmd.payload.id,
           paymentIntentId: cmd.payload.paymentIntentId,
+          errorName: (err as Error).constructor.name,
+          message: (err as Error).message
+        },
+        cmd.requestId
+      );
+    }
+  }
+
+  private handlePrepareRemotePaymentCommand(cmd: PrepareRemotePaymentCmd) {
+    this._logger.debug(
+      `handlePrepareRemotePaymentCommand — paymentId: ${cmd.payload.paymentId} paymentIntentId: ${cmd.payload.paymentIntentId}`
+    );
+    const { paymentIntentId, paymentId, ledgerTransferId } = cmd.payload;
+
+    try {
+      const paymentIntentObj = this.paymentIntentMap.get(paymentIntentId);
+      if (!paymentIntentObj) {
+        throw new PaymentIntentNotFoundError(
+          `Payment intent ${paymentIntentId} not found`
+        );
+      }
+
+      const paymentIntent = PaymentIntent.fromObject(paymentIntentObj);
+
+      if (!paymentIntent.destinationIlpAddress) {
+        throw new MissingDestinationIlpAddressError(
+          `Payment intent ${paymentIntentId} is missing destinationIlpAddress`
+        );
+      }
+
+      const payment = paymentIntent.prepareRemotePayment({
+        id: paymentId,
+        ledgerTransferId
+      });
+      this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
+      this._appendToMap(
+        this.sendingRemotePayments,
+        paymentIntent.id,
+        paymentId
+      );
+
+      return new RemotePaymentPreparedEvent(
+        {
+          paymentIntentId: paymentIntent.id,
+          paymentId: payment.id,
+          ledgerTransferId,
+          destinationIlpAddress: paymentIntent.destinationIlpAddress,
+          debitAmount: String(payment.debitAmount),
+          receiveAmount: String(payment.receiveAmount),
+          assetCode: payment.assetCode,
+          assetScale: payment.assetScale
+        },
+        cmd.requestId
+      );
+    } catch (err) {
+      return new PaymentCompleteFailedEvent(
+        {
+          id: cmd.payload.paymentId,
+          paymentIntentId,
+          errorName: (err as Error).constructor.name,
+          message: (err as Error).message
+        },
+        cmd.requestId
+      );
+    }
+  }
+
+  private handleFailRemotePaymentCommand(cmd: FailRemotePaymentCmd) {
+    this._logger.debug(
+      `handleFailRemotePaymentCommand — paymentId: ${cmd.payload.paymentId} paymentIntentId: ${cmd.payload.paymentIntentId} reason: ${cmd.payload.reason}`
+    );
+    const { paymentIntentId, paymentId, reason } = cmd.payload;
+
+    try {
+      const paymentIntentObj = this.paymentIntentMap.get(paymentIntentId);
+      if (!paymentIntentObj) {
+        throw new PaymentIntentNotFoundError(
+          `Payment intent ${paymentIntentId} not found`
+        );
+      }
+
+      const paymentIntent = PaymentIntent.fromObject(paymentIntentObj);
+      const payment = paymentIntent.failRemotePayment({
+        id: paymentId,
+        reason
+      });
+      this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
+      this._appendToMap(this.failedRemotePayments, paymentIntent.id, paymentId);
+
+      return new PaymentFailedEvent(
+        {
+          id: payment.id,
+          paymentIntentId: payment.paymentIntentId,
+          senderWalletAddress: payment.senderWalletAddress,
+          debitAmount: String(payment.debitAmount),
+          receiveAmount: String(payment.receiveAmount),
+          sentAmount: String(payment.sentAmount),
+          state: payment.state,
+          createdAt: payment.createdAt,
+          assetCode: payment.assetCode,
+          assetScale: payment.assetScale,
+          receiveAssetCode: paymentIntent.assetCode,
+          receiveAssetScale: paymentIntent.assetScale,
+          reason
+        },
+        cmd.requestId
+      );
+    } catch (err) {
+      return new PaymentCompleteFailedEvent(
+        {
+          id: cmd.payload.paymentId,
+          paymentIntentId,
+          errorName: (err as Error).constructor.name,
+          message: (err as Error).message
+        },
+        cmd.requestId
+      );
+    }
+  }
+
+  private handleConfirmRemotePaymentCommand(cmd: ConfirmRemotePaymentCmd) {
+    this._logger.debug(
+      `handleConfirmRemotePaymentCommand — paymentId: ${cmd.payload.paymentId} paymentIntentId: ${cmd.payload.paymentIntentId}`
+    );
+    const { paymentIntentId, paymentId } = cmd.payload;
+
+    try {
+      const paymentIntentObj = this.paymentIntentMap.get(paymentIntentId);
+      if (!paymentIntentObj) {
+        throw new PaymentIntentNotFoundError(
+          `Payment intent ${paymentIntentId} not found`
+        );
+      }
+
+      const paymentIntent = PaymentIntent.fromObject(paymentIntentObj);
+      const payment = paymentIntent.confirmRemotePayment({ id: paymentId });
+      this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
+      this._appendToMap(
+        this.confirmedRemotePayments,
+        paymentIntent.id,
+        paymentId
+      );
+
+      if (!payment.ledgerTransferId) {
+        throw new Error(
+          `Payment ${paymentId} is missing ledgerTransferId at confirm time`
+        );
+      }
+
+      return new RemotePaymentSendConfirmedEvent(
+        {
+          paymentIntentId: paymentIntent.id,
+          paymentId: payment.id,
+          ledgerTransferId: payment.ledgerTransferId
+        },
+        cmd.requestId
+      );
+    } catch (err) {
+      return new PaymentCompleteFailedEvent(
+        {
+          id: cmd.payload.paymentId,
+          paymentIntentId,
+          errorName: (err as Error).constructor.name,
+          message: (err as Error).message
+        },
+        cmd.requestId
+      );
+    }
+  }
+
+  private handleRejectRemotePaymentCommand(cmd: RejectRemotePaymentCmd) {
+    this._logger.debug(
+      `handleRejectRemotePaymentCommand — paymentId: ${cmd.payload.paymentId} paymentIntentId: ${cmd.payload.paymentIntentId} reason: ${cmd.payload.reason}`
+    );
+    const { paymentIntentId, paymentId, reason } = cmd.payload;
+
+    try {
+      const paymentIntentObj = this.paymentIntentMap.get(paymentIntentId);
+      if (!paymentIntentObj) {
+        throw new PaymentIntentNotFoundError(
+          `Payment intent ${paymentIntentId} not found`
+        );
+      }
+
+      const paymentIntent = PaymentIntent.fromObject(paymentIntentObj);
+      const payment = paymentIntent.rejectRemotePayment({
+        id: paymentId,
+        reason
+      });
+      this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
+      this._appendToMap(
+        this.rejectedRemotePayments,
+        paymentIntent.id,
+        paymentId
+      );
+
+      if (!payment.ledgerTransferId) {
+        throw new Error(
+          `Payment ${paymentId} is missing ledgerTransferId at reject time`
+        );
+      }
+
+      return new RemotePaymentSendRejectedEvent(
+        {
+          paymentIntentId: paymentIntent.id,
+          paymentId: payment.id,
+          ledgerTransferId: payment.ledgerTransferId,
+          reason
+        },
+        cmd.requestId
+      );
+    } catch (err) {
+      return new PaymentCompleteFailedEvent(
+        {
+          id: cmd.payload.paymentId,
+          paymentIntentId,
           errorName: (err as Error).constructor.name,
           message: (err as Error).message
         },
@@ -1260,11 +1511,7 @@ export class PaymentIntentAggregate {
 
     if (this.approvedRemotePayments.size > 0) {
       const updates: {
-        payments: {
-          id: string;
-          state: PaymentState;
-          ledgerTransferId: string;
-        }[];
+        payments: { id: string; state: PaymentState }[];
       }[] = [];
 
       for (const [
@@ -1282,6 +1529,37 @@ export class PaymentIntentAggregate {
         updates.push({
           payments: paymentIntent.payments
             .filter((p) => paymentIds.includes(p.id))
+            .map((p) => ({ id: p.id, state: p.state }))
+        });
+      }
+
+      promises.push(this._repo.storeApprovedRemotePayments(updates));
+    }
+
+    if (this.sendingRemotePayments.size > 0) {
+      const updates: {
+        payments: {
+          id: string;
+          state: PaymentState;
+          ledgerTransferId: string;
+        }[];
+      }[] = [];
+
+      for (const [
+        paymentIntentId,
+        paymentIds
+      ] of this.sendingRemotePayments.entries()) {
+        const paymentIntent = this.paymentIntentMap.get(paymentIntentId);
+        if (!paymentIntent) {
+          this._logger.error(
+            `Payment intent ${paymentIntentId} missing from paymentIntentMap during flush (sending remote payments)`
+          );
+          continue;
+        }
+
+        updates.push({
+          payments: paymentIntent.payments
+            .filter((p) => paymentIds.includes(p.id))
             .map((p) => ({
               id: p.id,
               state: p.state,
@@ -1290,7 +1568,96 @@ export class PaymentIntentAggregate {
         });
       }
 
-      promises.push(this._repo.storeApprovedRemotePayments(updates));
+      promises.push(this._repo.storeSendingRemotePayments(updates));
+    }
+
+    if (this.confirmedRemotePayments.size > 0) {
+      const updates: {
+        payments: { id: string; state: PaymentState }[];
+      }[] = [];
+
+      for (const [
+        paymentIntentId,
+        paymentIds
+      ] of this.confirmedRemotePayments.entries()) {
+        const paymentIntent = this.paymentIntentMap.get(paymentIntentId);
+        if (!paymentIntent) {
+          this._logger.error(
+            `Payment intent ${paymentIntentId} missing from paymentIntentMap during flush (confirmed remote payments)`
+          );
+          continue;
+        }
+
+        updates.push({
+          payments: paymentIntent.payments
+            .filter((p) => paymentIds.includes(p.id))
+            .map((p) => ({ id: p.id, state: p.state }))
+        });
+      }
+
+      promises.push(this._repo.storeConfirmedRemotePayments(updates));
+    }
+
+    if (this.rejectedRemotePayments.size > 0) {
+      const updates: {
+        payments: { id: string; state: PaymentState; failReason?: string }[];
+      }[] = [];
+
+      for (const [
+        paymentIntentId,
+        paymentIds
+      ] of this.rejectedRemotePayments.entries()) {
+        const paymentIntent = this.paymentIntentMap.get(paymentIntentId);
+        if (!paymentIntent) {
+          this._logger.error(
+            `Payment intent ${paymentIntentId} missing from paymentIntentMap during flush (rejected remote payments)`
+          );
+          continue;
+        }
+
+        updates.push({
+          payments: paymentIntent.payments
+            .filter((p) => paymentIds.includes(p.id))
+            .map((p) => ({
+              id: p.id,
+              state: p.state,
+              failReason: p.failReason
+            }))
+        });
+      }
+
+      promises.push(this._repo.storeRejectedRemotePayments(updates));
+    }
+
+    if (this.failedRemotePayments.size > 0) {
+      const updates: {
+        payments: { id: string; state: PaymentState; failReason?: string }[];
+      }[] = [];
+
+      for (const [
+        paymentIntentId,
+        paymentIds
+      ] of this.failedRemotePayments.entries()) {
+        const paymentIntent = this.paymentIntentMap.get(paymentIntentId);
+        if (!paymentIntent) {
+          this._logger.error(
+            `Payment intent ${paymentIntentId} missing from paymentIntentMap during flush (failed remote payments)`
+          );
+          continue;
+        }
+
+        updates.push({
+          payments: paymentIntent.payments
+            .filter((p) => paymentIds.includes(p.id))
+            .map((p) => ({
+              id: p.id,
+              state: p.state,
+              failReason: p.failReason
+            }))
+        });
+      }
+
+      promises.push(this._repo.storeFailedRemotePayments(updates));
     }
 
     if (this.cancelledPayments.size > 0) {
@@ -1391,6 +1758,10 @@ export class PaymentIntentAggregate {
       this.newPaymentsMap.clear();
       this.completedLocalPayments.clear();
       this.approvedRemotePayments.clear();
+      this.sendingRemotePayments.clear();
+      this.confirmedRemotePayments.clear();
+      this.rejectedRemotePayments.clear();
+      this.failedRemotePayments.clear();
       this.cancelledPayments.clear();
       this.finalizedRemoteQuotes.clear();
       this.newPaymentIntentQuotes.clear();

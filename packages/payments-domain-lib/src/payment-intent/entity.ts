@@ -327,6 +327,7 @@ class Payment {
   private _cancelledAt?: Date;
   private _cancelReason?: string;
   private _ledgerTransferId?: string;
+  private _failReason?: string;
 
   private constructor(args: {
     id: string;
@@ -344,6 +345,7 @@ class Payment {
     cancelledAt?: Date;
     cancelReason?: string;
     ledgerTransferId?: string;
+    failReason?: string;
   }) {
     this._id = args.id;
     this._state = args.state;
@@ -360,6 +362,7 @@ class Payment {
     this._cancelledAt = args.cancelledAt;
     this._cancelReason = args.cancelReason;
     this._ledgerTransferId = args.ledgerTransferId;
+    this._failReason = args.failReason;
   }
 
   static create(args: {
@@ -397,7 +400,8 @@ class Payment {
       quoteId: obj.quoteId,
       cancelledAt: obj.cancelledAt,
       cancelReason: obj.cancelReason,
-      ledgerTransferId: obj.ledgerTransferId
+      ledgerTransferId: obj.ledgerTransferId,
+      failReason: obj.failReason
     });
   }
 
@@ -417,7 +421,8 @@ class Payment {
       quoteId: this._quoteId,
       cancelledAt: this._cancelledAt,
       cancelReason: this._cancelReason,
-      ledgerTransferId: this._ledgerTransferId
+      ledgerTransferId: this._ledgerTransferId,
+      failReason: this._failReason
     };
   }
 
@@ -438,14 +443,56 @@ class Payment {
     };
   }
 
-  approveRemoteSend(ledgerTransferId: string): void {
+  approveRemoteSend(): void {
     if (this._state !== 'CREATED') {
       throw new PaymentInvalidStateError(
         `Payment ${this._id} cannot be approved for remote send from state ${this._state}`
       );
     }
     this._state = 'PROCESSING';
+  }
+
+  prepare(ledgerTransferId: string): void {
+    if (this._state !== 'PROCESSING') {
+      throw new PaymentInvalidStateError(
+        `Payment ${this._id} cannot be prepared from state ${this._state}`
+      );
+    }
+    this._state = 'SENDING';
     this._ledgerTransferId = ledgerTransferId;
+  }
+
+  failRemote(reason?: string): void {
+    if (this._state !== 'PROCESSING') {
+      throw new PaymentInvalidStateError(
+        `Payment ${this._id} cannot fail from state ${this._state}`
+      );
+    }
+    this._state = 'FAILED';
+    if (reason) {
+      this._failReason = reason;
+    }
+  }
+
+  confirm(): void {
+    if (this._state !== 'SENDING') {
+      throw new PaymentInvalidStateError(
+        `Payment ${this._id} cannot be confirmed from state ${this._state}`
+      );
+    }
+    this._state = 'CONFIRMED';
+  }
+
+  reject(reason?: string): void {
+    if (this._state !== 'SENDING') {
+      throw new PaymentInvalidStateError(
+        `Payment ${this._id} cannot be rejected from state ${this._state}`
+      );
+    }
+    this._state = 'REJECTED';
+    if (reason) {
+      this._failReason = reason;
+    }
   }
 
   cancel(reason?: string): void {
@@ -498,8 +545,24 @@ class Payment {
     return this._debitAmount;
   }
 
+  get receiveAmount(): bigint {
+    return this._receiveAmount;
+  }
+
+  get sentAmount(): bigint {
+    return this._sentAmount;
+  }
+
+  get createdAt(): Date {
+    return this._createdAt;
+  }
+
   get ledgerTransferId(): string | undefined {
     return this._ledgerTransferId;
+  }
+
+  get failReason(): string | undefined {
+    return this._failReason;
   }
 }
 
@@ -1073,11 +1136,8 @@ export class PaymentIntent implements IPaymentIntent {
     return payment.toObject();
   }
 
-  approveRemotePaymentSend(args: {
-    id: string;
-    ledgerTransferId: string;
-  }): IPayment {
-    const { id, ledgerTransferId } = args;
+  approveRemotePaymentSend(args: { id: string }): IPayment {
+    const { id } = args;
 
     if (this._destination !== 'REMOTE') {
       throw new PaymentIntentInvalidState(
@@ -1104,7 +1164,66 @@ export class PaymentIntent implements IPaymentIntent {
       );
     }
 
-    payment.approveRemoteSend(ledgerTransferId);
+    payment.approveRemoteSend();
+    return payment.toObject();
+  }
+
+  prepareRemotePayment(args: {
+    id: string;
+    ledgerTransferId: string;
+  }): IPayment {
+    const { id, ledgerTransferId } = args;
+
+    const payment = this._payments.find((p) => p.id === id);
+    if (!payment) {
+      throw new PaymentNotFoundError(
+        `Payment ${id} not found for ${this.id} payment intent`
+      );
+    }
+
+    payment.prepare(ledgerTransferId);
+    return payment.toObject();
+  }
+
+  failRemotePayment(args: { id: string; reason?: string }): IPayment {
+    const { id, reason } = args;
+
+    const payment = this._payments.find((p) => p.id === id);
+    if (!payment) {
+      throw new PaymentNotFoundError(
+        `Payment ${id} not found for ${this.id} payment intent`
+      );
+    }
+
+    payment.failRemote(reason);
+    return payment.toObject();
+  }
+
+  confirmRemotePayment(args: { id: string }): IPayment {
+    const { id } = args;
+
+    const payment = this._payments.find((p) => p.id === id);
+    if (!payment) {
+      throw new PaymentNotFoundError(
+        `Payment ${id} not found for ${this.id} payment intent`
+      );
+    }
+
+    payment.confirm();
+    return payment.toObject();
+  }
+
+  rejectRemotePayment(args: { id: string; reason?: string }): IPayment {
+    const { id, reason } = args;
+
+    const payment = this._payments.find((p) => p.id === id);
+    if (!payment) {
+      throw new PaymentNotFoundError(
+        `Payment ${id} not found for ${this.id} payment intent`
+      );
+    }
+
+    payment.reject(reason);
     return payment.toObject();
   }
 

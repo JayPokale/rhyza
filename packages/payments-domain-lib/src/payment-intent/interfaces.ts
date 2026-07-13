@@ -54,8 +54,12 @@ export type IQuote = IPendingQuote | ICompletedQuote | IFailedQuote;
 export const PaymentState = {
   CREATED: 'CREATED',
   PROCESSING: 'PROCESSING',
+  SENDING: 'SENDING',
+  CONFIRMED: 'CONFIRMED',
+  REJECTED: 'REJECTED',
   COMPLETED: 'COMPLETED',
-  CANCELLED: 'CANCELLED'
+  CANCELLED: 'CANCELLED',
+  FAILED: 'FAILED'
 } as const;
 export type PaymentState = keyof typeof PaymentState;
 
@@ -75,6 +79,7 @@ export interface IPayment {
   receiveAmount: bigint;
   sentAmount: bigint;
   ledgerTransferId?: string;
+  failReason?: string;
 }
 
 export interface IPaymentIntent {
@@ -186,11 +191,31 @@ export interface IPaymentIntentRepository {
   ): Promise<void>;
   storeApprovedRemotePayments(
     paymentUpdates: {
+      payments: { id: string; state: PaymentState }[];
+    }[]
+  ): Promise<void>;
+  storeSendingRemotePayments(
+    paymentUpdates: {
       payments: {
         id: string;
         state: PaymentState;
         ledgerTransferId: string;
       }[];
+    }[]
+  ): Promise<void>;
+  storeFailedRemotePayments(
+    paymentUpdates: {
+      payments: { id: string; state: PaymentState; failReason?: string }[];
+    }[]
+  ): Promise<void>;
+  storeConfirmedRemotePayments(
+    paymentUpdates: {
+      payments: { id: string; state: PaymentState }[];
+    }[]
+  ): Promise<void>;
+  storeRejectedRemotePayments(
+    paymentUpdates: {
+      payments: { id: string; state: PaymentState; failReason?: string }[];
     }[]
   ): Promise<void>;
   storeFinalizedRemoteQuotes(

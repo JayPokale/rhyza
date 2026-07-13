@@ -13,6 +13,7 @@
     "common-types-lib": "workspace:*",
     "ilp-domain-lib": "workspace:*",
     "implementations-lib": "workspace:*",
+    "pal-public-types-lib": "workspace:*",
     "payments-domain-lib": "workspace:*"
   },
   "devDependencies": {
