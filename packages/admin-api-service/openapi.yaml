@@ -258,7 +258,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PaymentCancel'          
+              $ref: '#/components/schemas/PaymentCancel'
   /payment-intents/{intentId}/payments/{id}:
     get:
       summary: Get Payment
