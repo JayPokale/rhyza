@@ -223,7 +223,7 @@ paths:
   /payment-intents/{intentId}/payments/{id}/cancel:
     post:
       summary: Cancel Payment
-      description: Cancel a payment
+      description: Cancel a pending payment
       tags:
         - payments
       operationId: Payments_cancelPayment
@@ -236,7 +236,7 @@ paths:
             type: string
         - name: id
           in: path
-          description: Unique identifier for the payment to be approved
+          description: Unique identifier for the payment to be cancelled
           required: true
           schema:
             type: string
