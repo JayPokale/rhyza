@@ -20,8 +20,9 @@ export class StartRemoteQuoteCmd extends CommandMsg {
   msgTopic: string = CommandTopics.IlpCommands;
   payload: StartRemoteQuoteCmdPayload;
 
-  constructor(payload: StartRemoteQuoteCmdPayload) {
+  constructor(payload: StartRemoteQuoteCmdPayload, requestId: string) {
     super(payload.peerId);
+    this.requestId = requestId;
     this.msgKey = payload.peerId;
     this.payload = payload;
   }
@@ -48,6 +49,26 @@ export class StartRemotePaymentCmd extends CommandMsg {
   constructor(payload: StartRemotePaymentCmdPayload) {
     super(payload.peerId);
     this.msgKey = payload.peerId;
+    this.payload = payload;
+  }
+}
+
+export interface RespondToRemoteQuoteCmdPayload {
+  peerId: string;
+  packetId: string;
+  destinationAmount?: string;
+}
+
+export class RespondToRemoteQuoteCmd extends CommandMsg {
+  contextName: string = BOUNDED_CONTEXT_NAME;
+  aggregateName: string = AGGREGATE_NAME;
+  msgKey: string;
+  msgTopic: string = CommandTopics.IlpCommands;
+  payload: RespondToRemoteQuoteCmdPayload;
+
+  constructor(payload: RespondToRemoteQuoteCmdPayload) {
+    super(payload.peerId);
+    this.msgKey = payload.packetId;
     this.payload = payload;
   }
 }

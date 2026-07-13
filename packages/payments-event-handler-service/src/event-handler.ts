@@ -5,6 +5,12 @@ import {
   IMessageProducer
 } from 'common-types-lib';
 import {
+  ILPPaymentConfirmedEvent,
+  ILPPaymentFailedEvent,
+  ILPQuoteFailedEvent,
+  ILPQuoteReceivedEvent
+} from 'ilp-domain-lib';
+import {
   CompleteRemoteQuoteCmd,
   FailRemoteQuoteCmd,
   CalculateRemoteQuoteCmd,
@@ -14,12 +20,6 @@ import {
   RejectRemotePaymentCmd,
   CompleteRemotePaymentCmd
 } from 'payments-domain-lib';
-import {
-  QuoteFailedEvent,
-  RemoteQuoteReceivedEvent,
-  RemotePaymentConfirmedEvent,
-  RemotePaymentFailedEvent
-} from 'ilp-domain-lib';
 import {
   LedgerOutgoingTransferReservedEvent,
   LedgerOutgoingTransferInsufficientFundsErrorEvent,
@@ -79,9 +79,9 @@ export class PaymentsEventHandler {
 
   private async _handleEvent(message: IMessage): Promise<void> {
     switch (message.msgName) {
-      case RemoteQuoteReceivedEvent.name: {
+      case ILPQuoteReceivedEvent.name: {
         const { quoteId, paymentIntentId, destinationAmount } =
-          message.payload as RemoteQuoteReceivedEvent['payload'];
+          message.payload as ILPQuoteReceivedEvent['payload'];
         const cmd = new CompleteRemoteQuoteCmd(
           {
             quoteId,
@@ -94,8 +94,8 @@ export class PaymentsEventHandler {
         await this._msgProducer.send(cmd);
         break;
       }
-      case QuoteFailedEvent.name: {
-        const payload = message.payload as QuoteFailedEvent['payload'];
+      case ILPQuoteFailedEvent.name: {
+        const payload = message.payload as ILPQuoteFailedEvent['payload'];
         const cmd = new FailRemoteQuoteCmd(
           {
             quoteId: payload.quoteId,
@@ -155,9 +155,8 @@ export class PaymentsEventHandler {
         await this._msgProducer.send(cmd);
         break;
       }
-      case RemotePaymentConfirmedEvent.name: {
-        const payload =
-          message.payload as RemotePaymentConfirmedEvent['payload'];
+      case ILPPaymentConfirmedEvent.name: {
+        const payload = message.payload as ILPPaymentConfirmedEvent['payload'];
         const cmd = new ConfirmRemotePaymentCmd(
           {
             paymentIntentId: payload.paymentIntentId,
@@ -169,8 +168,8 @@ export class PaymentsEventHandler {
         await this._msgProducer.send(cmd);
         break;
       }
-      case RemotePaymentFailedEvent.name: {
-        const payload = message.payload as RemotePaymentFailedEvent['payload'];
+      case ILPPaymentFailedEvent.name: {
+        const payload = message.payload as ILPPaymentFailedEvent['payload'];
         const cmd = new RejectRemotePaymentCmd(
           {
             paymentIntentId: payload.paymentIntentId,

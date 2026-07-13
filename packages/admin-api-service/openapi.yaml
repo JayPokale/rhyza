@@ -2,15 +2,29 @@ openapi: 3.1.0
 info:
   title: Rafiki Admin API
   version: 0.0.0
-tags: []
+tags:
+  - name: assets
+    x-displayName: Assets
+  - name: wallet-addresses
+    x-displayName: Wallet Addresses
+  - name: payment-intents
+    x-displayName: Payment Intents
+  - name: payments
+    x-displayName: Payments
+  - name: quotes
+    x-displayName: Quotes
 paths:
   /assets:
     post:
+      summary: Create Asset
+      description: Create a new asset.
+      tags:
+        - assets
       operationId: Assets_createAsset
       parameters: []
       responses:
         '201':
-          description: The request has succeeded and a new resource has been created as a result.
+          description: The request has succeeded and an asset has been created as a result.
           content:
             application/json:
               schema:
@@ -22,6 +36,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
       requestBody:
+        description: Asset creation details
         required: true
         content:
           application/json:
@@ -29,11 +44,15 @@ paths:
               $ref: '#/components/schemas/AssetCreate'
   /wallet-addresses:
     post:
+      summary: Create Wallet Address
+      description: Create a new wallet address.
+      tags:
+        - wallet-addresses
       operationId: WalletAddresses_createWalletAddress
       parameters: []
       responses:
         '201':
-          description: The request has succeeded and a new resource has been created as a result.
+          description: The request has succeeded and a wallet address been created as a result.
           content:
             application/json:
               schema:
@@ -45,6 +64,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
       requestBody:
+        description: Wallet address creation details
         required: true
         content:
           application/json:
@@ -52,11 +72,15 @@ paths:
               $ref: '#/components/schemas/WalletAddressCreate'
   /payment-intents:
     post:
+      summary: Create Payment Intent
+      description: Create a new payment intent for a receiver's account.
+      tags:
+        - payment-intents
       operationId: PaymentIntents_createPaymentIntent
       parameters: []
       responses:
         '201':
-          description: The request has succeeded and a new resource has been created as a result.
+          description: The request has succeeded and a payment intent has been created as a result.
           content:
             application/json:
               schema:
@@ -68,6 +92,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
       requestBody:
+        description: Payment intent creation details
         required: true
         content:
           application/json:
@@ -75,10 +100,15 @@ paths:
               $ref: '#/components/schemas/PaymentIntentCreate'
   /payment-intents/{id}:
     get:
+      summary: Get Payment Intent
+      description: Retrieve details of a specific payment intent by its unique identifier.
+      tags:
+        - payment-intents
       operationId: PaymentIntents_getPaymentIntent
       parameters:
         - name: id
           in: path
+          description: Unique identifier for the payment intent
           required: true
           schema:
             type: string
@@ -97,11 +127,15 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
   /quotes:
     post:
+      summary: Create Quote
+      description: Create a quote for a payment intent.
+      tags:
+        - quotes
       operationId: Quotes_createQuote
       parameters: []
       responses:
         '201':
-          description: The request has succeeded and a new resource has been created as a result.
+          description: The request has succeeded and a quote has been created as a result.
           content:
             application/json:
               schema:
@@ -119,6 +153,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
       requestBody:
+        description: Quote creation details
         required: true
         content:
           application/json:
@@ -126,11 +161,15 @@ paths:
               $ref: '#/components/schemas/QuoteCreate'
   /payments:
     post:
+      summary: Create Payment
+      description: Create a payment for a sender's account.
+      tags:
+        - payments
       operationId: Payments_createPayment
       parameters: []
       responses:
         '201':
-          description: The request has succeeded and a new resource has been created as a result.
+          description: The request has succeeded and a payment has been created as a result.
           content:
             application/json:
               schema:
@@ -142,22 +181,101 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
       requestBody:
+        description: Payment creation details
         required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/PaymentCreate'
-  /payment-intents/{intentId}/payments/{id}:
-    get:
-      operationId: Payments_getPayment
+  /payment-intents/{intentId}/payments/{id}/approve:
+    post:
+      summary: Approve Payment
+      description: Approve a payment, allowing it to proceed.
+      tags:
+        - payments
+      operationId: Payments_approvePayment
       parameters:
         - name: intentId
           in: path
+          description: Unique identifier for the payment intent
           required: true
           schema:
             type: string
         - name: id
           in: path
+          description: Unique identifier for the payment to be approved
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - id
+                properties:
+                  id:
+                    type: string
+                    description: Unique identifier of the approved payment
+  /payment-intents/{intentId}/payments/{id}/cancel:
+    post:
+      summary: Cancel Payment
+      description: Cancel a pending payment
+      tags:
+        - payments
+      operationId: Payments_cancelPayment
+      parameters:
+        - name: intentId
+          in: path
+          description: Unique identifier for the payment intent
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          description: Unique identifier for the payment to be cancelled
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - id
+                properties:
+                  id:
+                    type: string
+                    description: Unique identifier of the cancelled payment
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentCancel'
+  /payment-intents/{intentId}/payments/{id}:
+    get:
+      summary: Get Payment
+      description: Retrieve details of a specific payment by its ID within a payment intent.
+      tags:
+        - payments
+      operationId: Payments_getPayment
+      parameters:
+        - name: intentId
+          in: path
+          description: Unique identifier for the payment intent
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          description: Unique identifier for the payment
           required: true
           schema:
             type: string
@@ -241,34 +359,38 @@ components:
   schemas:
     ErrorResponse:
       type: object
+      description: Response schema for API errors.
       required:
         - error
       properties:
         error:
           type: string
+          description: A descriptive message explaining the error that occurred.
     AssetCreate:
       type: object
+      description: Schema for creating a new asset.
       required:
         - code
         - scale
       properties:
         code:
           type: string
+          description: The asset code (e.g., "USD", "EUR", "BTC").
         scale:
           type: number
-        liquidityLowThreshold:
-          type: integer
-        liquidityHighThreshold:
-          type: integer
+          description: The number of decimal places for the asset (e.g., 2 for "USD").
     AssetCreateResponse:
       type: object
+      description: Response schema after creating an asset.
       required:
         - code
       properties:
         code:
           type: string
+          description: The unique code of the created asset.
     WalletAddressCreate:
       type: object
+      description: Schema for creating a new wallet address.
       required:
         - address
         - assetCode
@@ -276,46 +398,65 @@ components:
       properties:
         address:
           type: string
+          description: The full wallet address (e.g., "example.com/alice").
         assetCode:
           type: string
+          description: The code of the asset associated with this wallet address.
         publicName:
           type: string
+          description: The name of the wallet address holder that can be displayed publicly.
         isActive:
           type: boolean
+          description: >-
+            Whether the wallet address is active. True by default. While
+            inactive, no resources (payment intents, quotes, or payments) can
+            be created against it, whether as sender or receiver.
     WalletAddressCreateResponse:
       type: object
+      description: Response schema after creating a wallet address.
       required:
         - address
       properties:
         address:
           type: string
+          description: The unique identifier (URL) of the created wallet address.
     PaymentIntentCreate:
       type: object
+      description: Schema for creating a new payment intent.
       required:
         - walletAddress
       properties:
         id:
           type: string
+          description: The unique identifier for the payment intent.
         walletAddress:
           type: string
+          description: The wallet address that will receive the funds.
         incomingAmount:
           type: number
+          description: The maximum amount to be received. The payment intent will complete after reaching this amount.
         expiresAt:
           type: string
           format: date-time
+          description: The date and time when the payment intent expires.
         metadata:
           type: string
+          description: Additional arbitrary data associated with the payment intent.
     PaymentIntentCreateResponse:
       type: object
+      description: Response schema after creating a payment intent.
       required:
         - id
       properties:
         id:
           type: string
+          description: The unique identifier for the created payment intent.
         openPaymentsUrl:
           type: string
+          description: The Open Payments URL for this payment intent.
     Amount:
       type: object
+      description: Represents an amount of money with its currency and scale.
       required:
         - value
         - assetCode
@@ -323,12 +464,16 @@ components:
       properties:
         value:
           type: string
+          description: The value of the amount.
         assetCode:
           type: string
+          description: The asset code for the amount.
         assetScale:
           type: number
+          description: The asset scale for the amount.
     PaymentIntent:
       type: object
+      description: Represents a payment intent which defines a destination and amount for incoming payments.
       required:
         - id
         - state
@@ -338,40 +483,56 @@ components:
       properties:
         id:
           type: string
+          description: The unique identifier for the payment intent.
         state:
           type: string
+          description: The current status of the payment intent.
         destination:
           type: string
+          description: The destination wallet address or account.
         walletAddress:
           type: string
+          description: The wallet address that owns this payment intent.
         incomingAmount:
           $ref: '#/components/schemas/Amount'
+          description: The target amount to be received.
         receivedAmount:
           $ref: '#/components/schemas/Amount'
+          description: The actual amount received so far.
         expiresAt:
           type: string
           format: date-time
+          description: When the payment intent expires.
         destinationIlpAddress:
           type: string
+          description: The ILP address of the payment intent.
     QuoteCreate:
       type: object
+      description: Schema for creating a payment quote.
       required:
         - walletAddress
       properties:
         id:
           type: string
+          description: Unique identifier for the quote.
         walletAddress:
           type: string
+          description: The sender's wallet address.
         paymentIntentId:
           type: string
+          description: The ID of the payment intent this quote is for.
         paymentIntentUrl:
           type: string
+          description: The URL of the payment intent this quote is for.
         debitAmount:
           type: string
+          description: The amount to be debited from the sender's account.
         receiveAmount:
           type: string
+          description: The amount to be received by the recipient.
     Quote:
       type: object
+      description: Represents a payment quote with estimated amounts and exchange rates.
       required:
         - id
         - paymentIntentId
@@ -384,54 +545,73 @@ components:
       properties:
         id:
           type: string
+          description: Unique identifier for the quote.
         paymentIntentId:
           type: string
+          description: The ID of the associated payment intent.
         senderWalletAddress:
           type: string
+          description: The wallet address of the sender.
         senderWalletAddressId:
           type: string
+          description: The unique identifier of the sender's wallet address.
         expiresAt:
           type: string
           format: date-time
+          description: The date and time when the quote expires.
         debitAmount:
           type: string
+          description: The amount that will be debited from the sender.
         receiveAmount:
           type: string
+          description: The amount that will be received by the recipient.
         exchangeRate:
           type: number
+          description: The exchange rate of quote.
     PaymentCreate:
       type: object
+      description: Schema for creating a new payment.
       required:
         - walletAddress
         - paymentIntentId
       properties:
         id:
           type: string
+          description: Unique identifier for the payment.
         walletAddress:
           type: string
+          description: The sender's wallet address.
         paymentIntentId:
           type: string
+          description: The ID of the payment intent being paid.
         quoteId:
           type: string
+          description: The ID of the quote used for this payment.
         debitAmount:
           type: number
+          description: The amount to debit from the sender.
     PaymentCreateResponse:
       type: object
+      description: Response schema after initiating a payment.
       required:
         - id
         - paymentIntentId
       properties:
         id:
           type: string
+          description: Unique identifier for the created payment.
         paymentIntentId:
           type: string
+          description: The unique identifier for the payment intent.
     PaymentCancel:
       type: object
       properties:
         reason:
           type: string
+          description: Reason why the payment was cancelled.
     Payment:
       type: object
+      description: Represents a payment
       required:
         - id
         - state
@@ -444,19 +624,28 @@ components:
       properties:
         id:
           type: string
+          description: Unique identifier for the payment.
         state:
           type: string
+          description: The current state of the payment.
         senderWalletAddress:
           type: string
+          description: The wallet address of the sender.
         assetCode:
           type: string
+          description: The asset code used for the payment.
         assetScale:
           type: number
+          description: The asset scale used for the payment.
         quoteId:
           type: string
+          description: The ID of the quote associated with this payment.
         debitAmount:
           type: string
+          description: The amount debited from the sender.
         receiveAmount:
           type: string
+          description: The amount received by the destination.
         sentAmount:
           type: string
+          description: The total amount sent so far.

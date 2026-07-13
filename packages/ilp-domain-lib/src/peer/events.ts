@@ -3,27 +3,28 @@ import { DomainEvent, DomainEventTopics } from 'common-types-lib';
 const BOUNDED_CONTEXT_NAME = 'ilp';
 const AGGREGATE_NAME = 'ilp-peer';
 
-export interface RemoteQuoteReceivedPayload {
+export interface ILPQuoteReceivedPayload {
   peerId: string;
   paymentIntentId: string;
   quoteId: string;
   destinationAmount: string;
 }
 
-export class RemoteQuoteReceivedEvent extends DomainEvent {
+export class ILPQuoteReceivedEvent extends DomainEvent {
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateName: string = AGGREGATE_NAME;
   msgTopic: string = DomainEventTopics.IlpEvents;
-  payload: RemoteQuoteReceivedPayload;
+  payload: ILPQuoteReceivedPayload;
 
-  constructor(payload: RemoteQuoteReceivedPayload) {
+  constructor(payload: ILPQuoteReceivedPayload, requestId?: string) {
     super(payload.peerId);
     this.msgKey = payload.peerId;
     this.payload = payload;
+    this.requestId = requestId;
   }
 }
 
-export interface QuoteFailedPayload {
+export interface ILPQuoteFailedPayload {
   peerId: string;
   paymentIntentId: string;
   quoteId: string;
@@ -32,63 +33,84 @@ export interface QuoteFailedPayload {
   expired?: boolean;
 }
 
-export class QuoteFailedEvent extends DomainEvent {
+export class ILPQuoteFailedEvent extends DomainEvent {
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateName: string = AGGREGATE_NAME;
   msgTopic: string = DomainEventTopics.IlpEvents;
   isErrorEvent: boolean = true;
-  payload: QuoteFailedPayload;
+  payload: ILPQuoteFailedPayload;
 
-  constructor(payload: QuoteFailedPayload) {
+  constructor(payload: ILPQuoteFailedPayload, requestId?: string) {
+    super(payload.peerId);
+    this.msgKey = payload.peerId;
+    this.payload = payload;
+    this.requestId = requestId;
+  }
+}
+
+export interface ILPQuoteRequestReceivedPayload {
+  peerId: string;
+  packetId: string;
+  destinationIlpAddress: string;
+  incomingAmount: string;
+  expiresAt: string;
+}
+
+export class ILPQuoteRequestReceivedEvent extends DomainEvent {
+  contextName: string = BOUNDED_CONTEXT_NAME;
+  aggregateName: string = AGGREGATE_NAME;
+  msgTopic: string = DomainEventTopics.IlpEvents;
+  payload: ILPQuoteRequestReceivedPayload;
+
+  constructor(payload: ILPQuoteRequestReceivedPayload) {
     super(payload.peerId);
     this.msgKey = payload.peerId;
     this.payload = payload;
   }
 }
 
-export interface RemotePaymentConfirmedPayload {
+export interface ILPPaymentConfirmedPayload {
   peerId: string;
   paymentIntentId: string;
   paymentId: string;
   confirmedAt: string;
 }
 
-export class RemotePaymentConfirmedEvent extends DomainEvent {
+export class ILPPaymentConfirmedEvent extends DomainEvent {
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateName: string = AGGREGATE_NAME;
   msgTopic: string = DomainEventTopics.IlpEvents;
-  payload: RemotePaymentConfirmedPayload;
+  payload: ILPPaymentConfirmedPayload;
 
-  constructor(payload: RemotePaymentConfirmedPayload) {
+  constructor(payload: ILPPaymentConfirmedPayload) {
     super(payload.peerId);
     this.msgKey = payload.peerId;
     this.payload = payload;
   }
 }
 
-export const RemotePaymentFailureReason = {
+export const ILPPaymentFailureReason = {
   REJECTED: 'REJECTED',
   EXPIRED: 'EXPIRED'
 } as const;
-export type RemotePaymentFailureReason =
-  keyof typeof RemotePaymentFailureReason;
+export type ILPPaymentFailureReason = keyof typeof ILPPaymentFailureReason;
 
-export interface RemotePaymentFailedPayload {
+export interface ILPPaymentFailedPayload {
   peerId: string;
   paymentIntentId: string;
   paymentId: string;
   failedAt: string;
-  reason: RemotePaymentFailureReason;
+  reason: ILPPaymentFailureReason;
 }
 
-export class RemotePaymentFailedEvent extends DomainEvent {
+export class ILPPaymentFailedEvent extends DomainEvent {
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateName: string = AGGREGATE_NAME;
   msgTopic: string = DomainEventTopics.IlpEvents;
   isErrorEvent: boolean = true;
-  payload: RemotePaymentFailedPayload;
+  payload: ILPPaymentFailedPayload;
 
-  constructor(payload: RemotePaymentFailedPayload) {
+  constructor(payload: ILPPaymentFailedPayload) {
     super(payload.peerId);
     this.msgKey = payload.peerId;
     this.payload = payload;
