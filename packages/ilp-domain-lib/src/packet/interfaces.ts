@@ -23,6 +23,7 @@ interface QuotePacketCorrelation extends BasePacketCorrelation {
 interface PaymentPacketCorrelation extends BasePacketCorrelation {
   kind: 'PAYMENT';
   paymentId: string;
+  requestId: string;
 }
 
 export type IPacketCorrelation =

@@ -160,7 +160,8 @@ export class IlpPeerAggregate {
       peerId: peer.peerId,
       paymentIntentId: payload.paymentIntentId,
       expiresAt: new Date(payload.expiresAt),
-      paymentId: payload.paymentId
+      paymentId: payload.paymentId,
+      requestId: cmd.requestId
     });
     await this.peerRepo.storePacket(correlation.toObject());
 
@@ -261,12 +262,15 @@ export class IlpPeerAggregate {
 
     if (transitioned.kind === 'PAYMENT') {
       return [
-        new ILPPaymentConfirmedEvent({
-          peerId: transitioned.peerId,
-          paymentIntentId: transitioned.paymentIntentId,
-          paymentId: transitioned.paymentId,
-          confirmedAt: payload.fulfilledAt
-        })
+        new ILPPaymentConfirmedEvent(
+          {
+            peerId: transitioned.peerId,
+            paymentIntentId: transitioned.paymentIntentId,
+            paymentId: transitioned.paymentId,
+            confirmedAt: payload.fulfilledAt
+          },
+          transitioned.requestId
+        )
       ];
     }
 
@@ -317,13 +321,16 @@ export class IlpPeerAggregate {
     }
 
     return [
-      new ILPPaymentFailedEvent({
-        peerId: transitioned.peerId,
-        paymentIntentId: transitioned.paymentIntentId,
-        paymentId: transitioned.paymentId,
-        failedAt: payload.rejectedAt,
-        reason: 'REJECTED'
-      })
+      new ILPPaymentFailedEvent(
+        {
+          peerId: transitioned.peerId,
+          paymentIntentId: transitioned.paymentIntentId,
+          paymentId: transitioned.paymentId,
+          failedAt: payload.rejectedAt,
+          reason: 'REJECTED'
+        },
+        transitioned.requestId
+      )
     ];
   }
 
@@ -353,13 +360,16 @@ export class IlpPeerAggregate {
     }
 
     return [
-      new ILPPaymentFailedEvent({
-        peerId: transitioned.peerId,
-        paymentIntentId: transitioned.paymentIntentId,
-        paymentId: transitioned.paymentId,
-        failedAt: payload.expiredAt,
-        reason: 'EXPIRED'
-      })
+      new ILPPaymentFailedEvent(
+        {
+          peerId: transitioned.peerId,
+          paymentIntentId: transitioned.paymentIntentId,
+          paymentId: transitioned.paymentId,
+          failedAt: payload.expiredAt,
+          reason: 'EXPIRED'
+        },
+        transitioned.requestId
+      )
     ];
   }
 }

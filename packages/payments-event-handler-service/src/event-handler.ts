@@ -103,20 +103,25 @@ export class PaymentsEventHandler {
         break;
       }
       case ILPQuoteRequestReceivedEvent.name: {
-        const payload =
-          message.payload as ILPQuoteRequestReceivedEvent['payload'];
-        const cmd = new CalculateRemoteQuoteCmd(
-          {
-            packetId: payload.packetId,
-            peerId: payload.peerId,
-            paymentIntentId: payload.paymentIntentId,
-            sourceAmount: payload.sourceAmount,
-            peerAssetCode: payload.peerAssetCode,
-            peerAssetScale: payload.peerAssetScale
-          },
-          payload.requestId
-        );
-        await this._msgProducer.send(cmd);
+        // TODO(receiving-quote): ILP's ILPQuoteRequestReceivedPayload does
+        // not currently carry paymentIntentId / sourceAmount / peerAssetCode /
+        // peerAssetScale / requestId. Blocked on ilp-domain-lib adding those
+        // fields (see integration audit for the receiving-quote path).
+        // Not part of the sending slice — left as a no-op until reconciled.
+        // const payload =
+        //   message.payload as ILPQuoteRequestReceivedEvent['payload'];
+        // const cmd = new CalculateRemoteQuoteCmd(
+        //   {
+        //     packetId: payload.packetId,
+        //     peerId: payload.peerId,
+        //     paymentIntentId: payload.paymentIntentId,
+        //     sourceAmount: payload.sourceAmount,
+        //     peerAssetCode: payload.peerAssetCode,
+        //     peerAssetScale: payload.peerAssetScale
+        //   },
+        //   payload.requestId
+        // );
+        // await this._msgProducer.send(cmd);
         break;
       }
       case LedgerOutgoingTransferReservedEvent.name: {
@@ -152,7 +157,6 @@ export class PaymentsEventHandler {
             paymentIntentId: payload.paymentIntentId,
             paymentId: payload.paymentId
           },
-          // TODO: requestId required - remove fallback when provided by ILP
           message.requestId ?? ''
         );
         await this._msgProducer.send(cmd);
@@ -166,7 +170,6 @@ export class PaymentsEventHandler {
             paymentId: payload.paymentId,
             reason: payload.reason
           },
-          // TODO: requestId required - remove fallback when provided by ILP
           message.requestId ?? ''
         );
         await this._msgProducer.send(cmd);

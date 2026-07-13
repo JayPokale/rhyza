@@ -82,10 +82,11 @@ export class ILPPaymentConfirmedEvent extends DomainEvent {
   msgTopic: string = DomainEventTopics.IlpEvents;
   payload: ILPPaymentConfirmedPayload;
 
-  constructor(payload: ILPPaymentConfirmedPayload) {
+  constructor(payload: ILPPaymentConfirmedPayload, requestId?: string) {
     super(payload.peerId);
     this.msgKey = payload.peerId;
     this.payload = payload;
+    this.requestId = requestId;
   }
 }
 
@@ -110,9 +111,10 @@ export class ILPPaymentFailedEvent extends DomainEvent {
   isErrorEvent: boolean = true;
   payload: ILPPaymentFailedPayload;
 
-  constructor(payload: ILPPaymentFailedPayload) {
+  constructor(payload: ILPPaymentFailedPayload, requestId?: string) {
     super(payload.peerId);
     this.msgKey = payload.peerId;
     this.payload = payload;
+    this.requestId = requestId;
   }
 }
