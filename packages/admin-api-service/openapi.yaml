@@ -271,6 +271,7 @@ components:
       properties:
         error:
           type: string
+          x-ms-primary-error-message: true
     AssetCreate:
       type: object
       required:
