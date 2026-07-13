@@ -200,6 +200,11 @@ paths:
                 properties:
                   id:
                     type: string
+                  state:
+                    type: string
+                    enum:
+                      - COMPLETED
+                      - FAILED
   /payment-intents/{intentId}/payments/{id}/cancel:
     post:
       operationId: Payments_cancelPayment

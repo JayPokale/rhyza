@@ -99,6 +99,7 @@ message ApprovePaymentRequest {
 // Response confirming the approval of the payment.
 message ApprovePaymentResponse {
   string id = 1;
+  optional string state = 2;
 }
 
 // Request to cancel a payment.

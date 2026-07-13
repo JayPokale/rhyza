@@ -267,6 +267,8 @@ export class PaymentsServiceServer {
       await this._msgProducer.send(cmd);
     } else if (call.request instanceof ApprovePaymentRequest) {
       const commandId = call.request.getId();
+      // Alternative worth considering:
+      // respond immediately with 202, dont store and listen for event.
       this._storePendingResponse(commandId, call, callback);
       const cmd = new ApprovePaymentCmd(
         { id: commandId, paymentIntentId: call.request.getPaymentIntentId() },
@@ -471,7 +473,14 @@ export class PaymentsServiceServer {
         metadata: new grpc.Metadata()
       });
     } else if (PaymentIntentDomainEvent.isPaymentCompletedEvent(evt)) {
-      const response = new ApprovePaymentResponse().setId(evt.payload.id);
+      const response = new ApprovePaymentResponse()
+        .setId(evt.payload.id)
+        .setState(evt.payload.state);
+      this._resolvePendingResponse(pending, requestId, null, response);
+    } else if (PaymentIntentDomainEvent.isPaymentFailedEvent(evt)) {
+      const response = new ApprovePaymentResponse()
+        .setId(evt.payload.id)
+        .setState(evt.payload.state);
       this._resolvePendingResponse(pending, requestId, null, response);
     } else if (PaymentIntentDomainEvent.isPaymentCompleteFailedEvent(evt)) {
       this._resolvePendingResponse(pending, requestId, {

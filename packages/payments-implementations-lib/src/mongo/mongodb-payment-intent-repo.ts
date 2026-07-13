@@ -623,6 +623,59 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
     }
   }
 
+  async storeCompletedRemotePayments(
+    paymentUpdates: {
+      paymentIntent: {
+        id: string;
+        receivedAmount: bigint;
+        state: PaymentIntentState;
+      };
+      payments: { id: string; state: PaymentState; sentAmount: bigint }[];
+    }[]
+  ): Promise<void> {
+    this._checkInitialisedOrThrow();
+
+    if (paymentUpdates.length === 0) return;
+
+    try {
+      const intentWrites = paymentUpdates.map((update) => ({
+        updateOne: {
+          filter: { id: update.paymentIntent.id },
+          update: {
+            $set: {
+              state: update.paymentIntent.state,
+              receivedAmount: update.paymentIntent.receivedAmount
+            }
+          }
+        }
+      }));
+
+      const paymentWrites = paymentUpdates.flatMap((update) =>
+        update.payments.map((payment) => ({
+          updateOne: {
+            filter: { id: payment.id },
+            update: {
+              $set: {
+                state: payment.state,
+                sentAmount: payment.sentAmount
+              }
+            }
+          }
+        }))
+      );
+
+      await Promise.all([
+        this._paymentIntentCollection.bulkWrite(intentWrites),
+        this._paymentCollection.bulkWrite(paymentWrites)
+      ]);
+    } catch (e) {
+      this._logger.error(e);
+      throw new Error(
+        `Unable to store completed remote payments - error: ${(e as Error).message}`
+      );
+    }
+  }
+
   async storeCancelledPayments(
     paymentUpdates: {
       payments: {

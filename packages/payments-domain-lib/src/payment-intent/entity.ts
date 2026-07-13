@@ -463,7 +463,7 @@ class Payment {
   }
 
   failRemote(reason?: string): void {
-    if (this._state !== 'PROCESSING') {
+    if (this._state !== 'PROCESSING' && this._state !== 'REJECTED') {
       throw new PaymentInvalidStateError(
         `Payment ${this._id} cannot fail from state ${this._state}`
       );
@@ -472,6 +472,20 @@ class Payment {
     if (reason) {
       this._failReason = reason;
     }
+  }
+
+  completeRemote(): { debitAmount: bigint; receiveAmount: bigint } {
+    if (this._state !== 'CONFIRMED') {
+      throw new PaymentInvalidStateError(
+        `Payment ${this._id} cannot complete from state ${this._state}`
+      );
+    }
+    this._sentAmount += this._debitAmount;
+    this._state = 'COMPLETED';
+    return {
+      debitAmount: this._debitAmount,
+      receiveAmount: this._receiveAmount
+    };
   }
 
   confirm(): void {
@@ -1227,6 +1241,25 @@ export class PaymentIntent implements IPaymentIntent {
     return payment.toObject();
   }
 
+  completeRemotePayment(args: { id: string }): IPayment {
+    const { id } = args;
+
+    const payment = this._payments.find((p) => p.id === id);
+    if (!payment) {
+      throw new PaymentNotFoundError(
+        `Payment ${id} not found for ${this.id} payment intent`
+      );
+    }
+
+    const { receiveAmount } = payment.completeRemote();
+    this._receivedAmount += receiveAmount;
+
+    if (this.isIncomingAmountMet) {
+      this._state = 'COMPLETED';
+    }
+    return payment.toObject();
+  }
+
   completeLocalPayment(args: { id: string }): IPayment {
     const { id } = args;
 
@@ -1255,7 +1288,7 @@ export class PaymentIntent implements IPaymentIntent {
     const { receiveAmount } = payment.complete();
     this._receivedAmount += receiveAmount;
 
-    if (this._incomingAmount && this.receivedAmount >= this._incomingAmount) {
+    if (this.isIncomingAmountMet) {
       this._state = 'COMPLETED';
     }
     return payment.toObject();
@@ -1312,6 +1345,13 @@ export class PaymentIntent implements IPaymentIntent {
 
   get isExpired(): boolean {
     return this._expiresAt.getTime() < Date.now();
+  }
+
+  private get isIncomingAmountMet(): boolean {
+    return (
+      this._incomingAmount !== null &&
+      this._receivedAmount >= this._incomingAmount
+    );
   }
 
   get incomingAmount(): bigint | null {

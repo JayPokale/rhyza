@@ -248,7 +248,8 @@ export class PaymentsClient {
           }
 
           return resolve({
-            id: response.getId()
+            id: response.getId(),
+            state: response.getState()
           });
         }
       );

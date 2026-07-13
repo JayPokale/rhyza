@@ -61,6 +61,12 @@ export abstract class PaymentIntentCommand extends CommandMsg {
   ): cmd is RejectRemotePaymentCmd {
     return cmd.msgName === RejectRemotePaymentCmd.name;
   }
+
+  static isCompleteRemotePaymentCmd(
+    cmd: CommandMsg
+  ): cmd is CompleteRemotePaymentCmd {
+    return cmd.msgName === CompleteRemotePaymentCmd.name;
+  }
 }
 
 export type CreatePaymentIntentCmdPayload = {
@@ -261,6 +267,21 @@ export class RejectRemotePaymentCmd extends PaymentIntentCommand {
   payload: RejectRemotePaymentCmdPayload;
 
   constructor(payload: RejectRemotePaymentCmdPayload, requestId: string) {
+    super(payload.paymentIntentId);
+    this.requestId = requestId;
+    this.payload = payload;
+  }
+}
+
+export type CompleteRemotePaymentCmdPayload = {
+  paymentIntentId: string;
+  paymentId: string;
+};
+
+export class CompleteRemotePaymentCmd extends PaymentIntentCommand {
+  payload: CompleteRemotePaymentCmdPayload;
+
+  constructor(payload: CompleteRemotePaymentCmdPayload, requestId: string) {
     super(payload.paymentIntentId);
     this.requestId = requestId;
     this.payload = payload;

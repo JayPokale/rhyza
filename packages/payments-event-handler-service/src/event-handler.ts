@@ -11,7 +11,8 @@ import {
   PrepareRemotePaymentCmd,
   FailRemotePaymentCmd,
   ConfirmRemotePaymentCmd,
-  RejectRemotePaymentCmd
+  RejectRemotePaymentCmd,
+  CompleteRemotePaymentCmd
 } from 'payments-domain-lib';
 import {
   QuoteFailedEvent,
@@ -21,7 +22,9 @@ import {
 } from 'ilp-domain-lib';
 import {
   LedgerOutgoingTransferReservedEvent,
-  LedgerOutgoingTransferInsufficientFundsErrorEvent
+  LedgerOutgoingTransferInsufficientFundsErrorEvent,
+  LedgerOutgoingTransferCommittedEvent,
+  LedgerOutgoingTransferRejectedEvent
 } from 'pal-public-types-lib';
 
 // TODO: use pal event directly. It needs to be updated with paymentintentId and paymentId
@@ -176,6 +179,31 @@ export class PaymentsEventHandler {
           },
           // TODO: requestId required - remove fallback when provided by ILP
           message.requestId ?? ''
+        );
+        await this._msgProducer.send(cmd);
+        break;
+      }
+      case LedgerOutgoingTransferCommittedEvent.name: {
+        const payload = message.payload as LedgerTransferPayloadWithPaymentIds;
+        const cmd = new CompleteRemotePaymentCmd(
+          {
+            paymentIntentId: payload.paymentIntentId,
+            paymentId: payload.paymentId
+          },
+          payload.requestId
+        );
+        await this._msgProducer.send(cmd);
+        break;
+      }
+      case LedgerOutgoingTransferRejectedEvent.name: {
+        const payload = message.payload as LedgerTransferPayloadWithPaymentIds;
+        const cmd = new FailRemotePaymentCmd(
+          {
+            paymentIntentId: payload.paymentIntentId,
+            paymentId: payload.paymentId,
+            reason: payload.errorMessage
+          },
+          payload.requestId
         );
         await this._msgProducer.send(cmd);
         break;

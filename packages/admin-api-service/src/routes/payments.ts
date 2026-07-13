@@ -87,8 +87,8 @@ export async function paymentRoutes(
       const { intentId, id } = request.params;
 
       try {
-        await paymentsClient.approvePayment(intentId, id);
-        return reply.status(200).send({ id });
+        const result = await paymentsClient.approvePayment(intentId, id);
+        return reply.status(200).send({ id: result.id, state: result.state });
       } catch (err) {
         server.log.error(err);
         return reply.status(500).send({ error: (err as Error).message });

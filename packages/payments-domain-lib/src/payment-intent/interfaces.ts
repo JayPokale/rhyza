@@ -218,6 +218,16 @@ export interface IPaymentIntentRepository {
       payments: { id: string; state: PaymentState; failReason?: string }[];
     }[]
   ): Promise<void>;
+  storeCompletedRemotePayments(
+    paymentUpdates: {
+      paymentIntent: {
+        id: string;
+        receivedAmount: bigint;
+        state: PaymentIntentState;
+      };
+      payments: { id: string; state: PaymentState; sentAmount: bigint }[];
+    }[]
+  ): Promise<void>;
   storeFinalizedRemoteQuotes(
     updates: FinalizedRemoteQuoteUpdate[]
   ): Promise<void>;
