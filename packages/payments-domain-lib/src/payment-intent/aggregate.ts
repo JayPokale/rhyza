@@ -4,6 +4,7 @@ import {
   IFxRateRequest,
   IPalService,
   IPeer,
+  IPayment,
   IPendingQuote,
   IPaymentIntent,
   IPaymentIntentRepository,
@@ -528,29 +529,44 @@ export class PaymentIntentAggregate {
 
       const paymentIntent = PaymentIntent.fromObject(paymentIntentObj);
 
-      if (paymentIntent.destination !== 'LOCAL') {
-        throw new PaymentIntentInvalidState(
-          'Payment intent destination must be local'
+      let payment: IPayment;
+      if (paymentIntent.destination === 'LOCAL') {
+        const exchangeRate = this._getIntraAseRate(
+          walletAddress.assetCode,
+          paymentIntent.assetCode
         );
+
+        payment = paymentIntent.addLocalPayment({
+          id: paymentId,
+          senderWalletAddress: {
+            id: senderWalletAddressId,
+            address: senderWalletAddress,
+            assetScale: walletAddress.assetScale,
+            assetCode: walletAddress.assetCode
+          },
+          exchangeRate,
+          quoteId,
+          debitAmount: debitAmount ? BigInt(debitAmount) : undefined
+        });
+      } else {
+        // TODO: support creating payment without quote
+        if (!quoteId) {
+          throw new InvalidQuoteIdError(
+            `Remote payment ${paymentId} requires a quoteId`
+          );
+        }
+
+        payment = paymentIntent.addRemotePayment({
+          id: paymentId,
+          quoteId,
+          senderWalletAddress: {
+            id: senderWalletAddressId,
+            address: senderWalletAddress,
+            assetScale: walletAddress.assetScale,
+            assetCode: walletAddress.assetCode
+          }
+        });
       }
-
-      const exchangeRate = this._getIntraAseRate(
-        walletAddress.assetCode,
-        paymentIntent.assetCode
-      );
-
-      const payment = paymentIntent.addLocalPayment({
-        id: paymentId,
-        senderWalletAddress: {
-          id: senderWalletAddressId,
-          address: senderWalletAddress,
-          assetScale: walletAddress.assetScale,
-          assetCode: walletAddress.assetCode
-        },
-        exchangeRate,
-        quoteId,
-        debitAmount: debitAmount ? BigInt(debitAmount) : undefined
-      });
 
       this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
       this._appendToMap(this.newPaymentsMap, paymentIntent.id, paymentId);

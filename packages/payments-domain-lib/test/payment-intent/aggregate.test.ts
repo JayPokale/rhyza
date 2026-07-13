@@ -1047,6 +1047,85 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           cmd.payload.id
         );
       });
+
+      it('creates remote payment from a completed quote', async () => {
+        const paymentIntentId = crypto.randomUUID();
+        const quoteId = crypto.randomUUID();
+        const paymentIntent: IPaymentIntent = {
+          id: paymentIntentId,
+          receivedAmount: 0n,
+          receiverWalletAddress: 'remote.domain.com/alice',
+          assetCode: 'USD',
+          assetScale: 2,
+          state: 'CREATED',
+          destination: 'REMOTE',
+          createdAt: new Date(),
+          expiresAt: new Date(Date.now() + 60_000),
+          incomingAmount: null,
+          destinationIlpAddress: 'g.peer.123',
+          quotes: [
+            {
+              id: quoteId,
+              state: 'COMPLETED',
+              senderWalletAddress: 'domain.com/bob',
+              senderWalletAddressId: 'wallet-1',
+              debitAmount: 500n,
+              receiveAmount: 100n,
+              exchangeRate: 0.2,
+              expiresAt: new Date(Date.now() + 60_000)
+            }
+          ],
+          payments: []
+        };
+        await repo.storeMany([paymentIntent]);
+
+        const cmd = makeCreatePaymentCmd({
+          paymentIntentId,
+          quoteId
+        });
+        const { events } = await aggregate.handleBatch([cmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, PaymentCreatedEvent.name);
+        const payload = (events[0] as PaymentCreatedEvent).payload;
+        assert.equal(payload.id, cmd.payload.id);
+        assert.equal(payload.paymentIntentId, paymentIntentId);
+        assert.equal(payload.debitAmount, '500');
+        assert.equal(payload.receiveAmount, '100');
+        assert.equal(payload.state, 'CREATED');
+      });
+
+      it('fails remote payment when quoteId is missing', async () => {
+        const paymentIntentId = crypto.randomUUID();
+        const paymentIntent: IPaymentIntent = {
+          id: paymentIntentId,
+          receivedAmount: 0n,
+          receiverWalletAddress: 'remote.domain.com/alice',
+          assetCode: 'USD',
+          assetScale: 2,
+          state: 'CREATED',
+          destination: 'REMOTE',
+          createdAt: new Date(),
+          expiresAt: new Date(Date.now() + 60_000),
+          incomingAmount: null,
+          destinationIlpAddress: 'g.peer.123',
+          quotes: [],
+          payments: []
+        };
+        await repo.storeMany([paymentIntent]);
+
+        const cmd = makeCreatePaymentCmd({
+          paymentIntentId,
+          quoteId: undefined
+        });
+        const { events } = await aggregate.handleBatch([cmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, PaymentCreateFailedEvent.name);
+        const payload = (events[0] as PaymentCreateFailedEvent).payload;
+        assert.equal(payload.errorName, 'InvalidQuoteIdError');
+        assert.match(payload.message, /requires a quoteId/);
+      });
     });
 
     describe('handlePaymentApproveCommand', () => {
