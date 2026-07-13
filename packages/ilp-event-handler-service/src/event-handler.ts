@@ -43,7 +43,8 @@ export class IlpEventHandler {
   private _toCommand(message: IMessage): RespondToRemoteQuoteCmd | undefined {
     switch (message.msgName) {
       case RemoteQuoteCalculatedEvent.name: {
-        const payload = message.payload as RemoteQuoteCalculatedEvent['payload'];
+        const payload =
+          message.payload as RemoteQuoteCalculatedEvent['payload'];
         this._logger.debug(
           `Calculated quote for packet ${payload.packetId}; responding to peer ${payload.peerId}`
         );

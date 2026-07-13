@@ -93,8 +93,7 @@ export const ILPPaymentFailureReason = {
   REJECTED: 'REJECTED',
   EXPIRED: 'EXPIRED'
 } as const;
-export type ILPPaymentFailureReason =
-  keyof typeof ILPPaymentFailureReason;
+export type ILPPaymentFailureReason = keyof typeof ILPPaymentFailureReason;
 
 export interface ILPPaymentFailedPayload {
   peerId: string;

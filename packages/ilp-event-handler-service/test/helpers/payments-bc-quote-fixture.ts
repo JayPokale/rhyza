@@ -57,8 +57,7 @@ export class PaymentsBcQuoteFixture {
   }
 
   private async _calculate(message: IMessage): Promise<IMessage> {
-    const payload =
-      message.payload as ILPQuoteRequestReceivedEvent['payload'];
+    const payload = message.payload as ILPQuoteRequestReceivedEvent['payload'];
 
     const result = await this._calculator.calculate({
       peerId: payload.peerId,

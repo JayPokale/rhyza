@@ -288,10 +288,7 @@ describe('ILP command handler <-> connector over Kafka topics', () => {
       (determined[0] as ILPQuoteReceivedEvent).payload.destinationAmount,
       '95'
     );
-    assert.equal(
-      (determined[0] as ILPQuoteReceivedEvent).requestId,
-      'req-1'
-    );
+    assert.equal((determined[0] as ILPQuoteReceivedEvent).requestId, 'req-1');
     assert.equal(eventsOnTopic(bus, ILPQuoteFailedEvent.name).length, 0);
   });
 });
