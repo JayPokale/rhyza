@@ -13,7 +13,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Create an asset */
+        /**
+         * Create Asset
+         * @description Create a new asset.
+         */
         post: operations["Assets_createAsset"];
         delete?: never;
         options?: never;
@@ -30,7 +33,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Create a wallet address */
+        /**
+         * Create Wallet Address
+         * @description Create a new wallet address.
+         */
         post: operations["WalletAddresses_createWalletAddress"];
         delete?: never;
         options?: never;
@@ -47,7 +53,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Create a payment intent */
+        /**
+         * Create Payment Intent
+         * @description Create a new payment intent for a receiver's account.
+         */
         post: operations["PaymentIntents_createPaymentIntent"];
         delete?: never;
         options?: never;
@@ -62,7 +71,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get a payment intent */
+        /**
+         * Get Payment Intent
+         * @description Retrieve details of a specific payment intent by its unique identifier.
+         */
         get: operations["PaymentIntents_getPaymentIntent"];
         put?: never;
         post?: never;
@@ -81,7 +93,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Create a quote */
+        /**
+         * Create Quote
+         * @description Create a quote for a payment intent.
+         */
         post: operations["Quotes_createQuote"];
         delete?: never;
         options?: never;
@@ -98,25 +113,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Create a payment */
+        /**
+         * Create Payment
+         * @description Create a payment for a sender's account.
+         */
         post: operations["Payments_createPayment"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/payment-intents/{intentId}/payments/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get a payment */
-        get: operations["Payments_getPayment"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -132,7 +133,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Approve a payment */
+        /**
+         * Approve Payment
+         * @description Approve a payment, allowing it to proceed.
+         */
         post: operations["Payments_approvePayment"];
         delete?: never;
         options?: never;
@@ -149,8 +153,31 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Cancel a payment */
+        /**
+         * Cancel Payment
+         * @description Cancel a pending payment
+         */
         post: operations["Payments_cancelPayment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payment-intents/{intentId}/payments/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Payment
+         * @description Retrieve details of a specific payment by its ID within a payment intent.
+         */
+        get: operations["Payments_getPayment"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -161,97 +188,173 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @description Response schema for API errors. */
         ErrorResponse: {
+            /** @description A descriptive message explaining the error that occurred. */
             error: string;
         };
+        /** @description Schema for creating a new asset. */
         AssetCreate: {
+            /** @description The asset code (e.g., "USD", "EUR", "BTC"). */
             code: string;
+            /** @description The number of decimal places for the asset (e.g., 2 for "USD"). */
             scale: number;
-            liquidityLowThreshold?: number;
-            liquidityHighThreshold?: number;
         };
+        /** @description Response schema after creating an asset. */
         AssetCreateResponse: {
+            /** @description The unique code of the created asset. */
             code: string;
         };
+        /** @description Schema for creating a new wallet address. */
         WalletAddressCreate: {
+            /** @description The full wallet address (e.g., "example.com/alice"). */
             address: string;
+            /** @description The code of the asset associated with this wallet address. */
             assetCode: string;
+            /** @description The name of the wallet address holder that can be displayed publicly. */
             publicName: string;
+            /** @description Whether the wallet address is active. True by default. While inactive, no resources (payment intents, quotes, or payments) can be created against it, whether as sender or receiver. */
             isActive?: boolean;
         };
+        /** @description Response schema after creating a wallet address. */
         WalletAddressCreateResponse: {
+            /** @description The unique identifier (URL) of the created wallet address. */
             address: string;
         };
+        /** @description Schema for creating a new payment intent. */
         PaymentIntentCreate: {
+            /** @description The unique identifier for the payment intent. */
             id?: string;
+            /** @description The wallet address that will receive the funds. */
             walletAddress: string;
+            /** @description The maximum amount to be received. The payment intent will complete after reaching this amount. */
             incomingAmount?: number;
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description The date and time when the payment intent expires.
+             */
             expiresAt?: string;
+            /** @description Additional arbitrary data associated with the payment intent. */
             metadata?: string;
         };
+        /** @description Response schema after creating a payment intent. */
         PaymentIntentCreateResponse: {
+            /** @description The unique identifier for the created payment intent. */
             id: string;
+            /** @description The Open Payments URL for this payment intent. */
             openPaymentsUrl?: string;
         };
+        /** @description Represents an amount of money with its currency and scale. */
         Amount: {
+            /** @description The value of the amount. */
             value: string;
+            /** @description The asset code for the amount. */
             assetCode: string;
+            /** @description The asset scale for the amount. */
             assetScale: number;
         };
+        /** @description Represents a payment intent which defines a destination and amount for incoming payments. */
         PaymentIntent: {
+            /** @description The unique identifier for the payment intent. */
             id: string;
+            /** @description The current status of the payment intent. */
             state: string;
+            /** @description The destination wallet address or account. */
             destination: string;
+            /** @description The wallet address that owns this payment intent. */
             walletAddress: string;
+            /** @description The target amount to be received. */
             incomingAmount?: components["schemas"]["Amount"];
+            /** @description The actual amount received so far. */
             receivedAmount: components["schemas"]["Amount"];
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description When the payment intent expires.
+             */
             expiresAt?: string;
+            /** @description The ILP address of the payment intent. */
             destinationIlpAddress?: string;
         };
+        /** @description Schema for creating a payment quote. */
         QuoteCreate: {
+            /** @description Unique identifier for the quote. */
             id?: string;
+            /** @description The sender's wallet address. */
             walletAddress: string;
+            /** @description The ID of the payment intent this quote is for. */
             paymentIntentId?: string;
+            /** @description The URL of the payment intent this quote is for. */
             paymentIntentUrl?: string;
+            /** @description The amount to be debited from the sender's account. */
             debitAmount?: string;
+            /** @description The amount to be received by the recipient. */
             receiveAmount?: string;
         };
+        /** @description Represents a payment quote with estimated amounts and exchange rates. */
         Quote: {
+            /** @description Unique identifier for the quote. */
             id: string;
+            /** @description The ID of the associated payment intent. */
             paymentIntentId: string;
+            /** @description The wallet address of the sender. */
             senderWalletAddress: string;
+            /** @description The unique identifier of the sender's wallet address. */
             senderWalletAddressId: string;
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description The date and time when the quote expires.
+             */
             expiresAt: string;
+            /** @description The amount that will be debited from the sender. */
             debitAmount: string;
+            /** @description The amount that will be received by the recipient. */
             receiveAmount: string;
+            /** @description The exchange rate of quote. */
             exchangeRate: number;
         };
+        /** @description Schema for creating a new payment. */
         PaymentCreate: {
+            /** @description Unique identifier for the payment. */
             id?: string;
+            /** @description The sender's wallet address. */
             walletAddress: string;
+            /** @description The ID of the payment intent being paid. */
             paymentIntentId: string;
+            /** @description The ID of the quote used for this payment. */
             quoteId?: string;
+            /** @description The amount to debit from the sender. */
             debitAmount?: number;
         };
+        /** @description Response schema after initiating a payment. */
         PaymentCreateResponse: {
+            /** @description Unique identifier for the created payment. */
             id: string;
+            /** @description The unique identifier for the payment intent. */
             paymentIntentId: string;
         };
         PaymentCancel: {
+            /** @description Reason why the payment was cancelled. */
             reason?: string;
         };
+        /** @description Represents a payment */
         Payment: {
+            /** @description Unique identifier for the payment. */
             id: string;
+            /** @description The current state of the payment. */
             state: string;
+            /** @description The wallet address of the sender. */
             senderWalletAddress: string;
+            /** @description The asset code used for the payment. */
             assetCode: string;
+            /** @description The asset scale used for the payment. */
             assetScale: number;
+            /** @description The ID of the quote associated with this payment. */
             quoteId?: string;
+            /** @description The amount debited from the sender. */
             debitAmount: string;
+            /** @description The amount received by the destination. */
             receiveAmount: string;
+            /** @description The total amount sent so far. */
             sentAmount: string;
         };
     };
@@ -270,13 +373,14 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
+        /** @description Asset creation details */
         requestBody: {
             content: {
                 "application/json": components["schemas"]["AssetCreate"];
             };
         };
         responses: {
-            /** @description The request has succeeded and a new resource has been created as a result. */
+            /** @description The request has succeeded and an asset has been created as a result. */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -303,13 +407,14 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
+        /** @description Wallet address creation details */
         requestBody: {
             content: {
                 "application/json": components["schemas"]["WalletAddressCreate"];
             };
         };
         responses: {
-            /** @description The request has succeeded and a new resource has been created as a result. */
+            /** @description The request has succeeded and a wallet address been created as a result. */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -336,13 +441,14 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
+        /** @description Payment intent creation details */
         requestBody: {
             content: {
                 "application/json": components["schemas"]["PaymentIntentCreate"];
             };
         };
         responses: {
-            /** @description The request has succeeded and a new resource has been created as a result. */
+            /** @description The request has succeeded and a payment intent has been created as a result. */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -367,6 +473,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Unique identifier for the payment intent */
                 id: string;
             };
             cookie?: never;
@@ -400,13 +507,14 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
+        /** @description Quote creation details */
         requestBody: {
             content: {
                 "application/json": components["schemas"]["QuoteCreate"];
             };
         };
         responses: {
-            /** @description The request has succeeded and a new resource has been created as a result. */
+            /** @description The request has succeeded and a quote has been created as a result. */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -442,13 +550,14 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
+        /** @description Payment creation details */
         requestBody: {
             content: {
                 "application/json": components["schemas"]["PaymentCreate"];
             };
         };
         responses: {
-            /** @description The request has succeeded and a new resource has been created as a result. */
+            /** @description The request has succeeded and a payment has been created as a result. */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -468,44 +577,14 @@ export interface operations {
             };
         };
     };
-    Payments_getPayment: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                intentId: string;
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The request has succeeded. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Payment"];
-                };
-            };
-            /** @description Payment not found. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
     Payments_approvePayment: {
         parameters: {
             query?: never;
             header?: never;
             path: {
+                /** @description Unique identifier for the payment intent */
                 intentId: string;
+                /** @description Unique identifier for the payment to be approved */
                 id: string;
             };
             cookie?: never;
@@ -519,17 +598,9 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
+                        /** @description Unique identifier of the approved payment */
                         id: string;
                     };
-                };
-            };
-            /** @description Payment approval failed. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -539,7 +610,9 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Unique identifier for the payment intent */
                 intentId: string;
+                /** @description Unique identifier for the payment to be cancelled */
                 id: string;
             };
             cookie?: never;
@@ -557,12 +630,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
+                        /** @description Unique identifier of the cancelled payment */
                         id: string;
                     };
                 };
             };
-            /** @description Payment cancellation failed. */
-            500: {
+        };
+    };
+    Payments_getPayment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Unique identifier for the payment intent */
+                intentId: string;
+                /** @description Unique identifier for the payment */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Payment"];
+                };
+            };
+            /** @description Payment not found. */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

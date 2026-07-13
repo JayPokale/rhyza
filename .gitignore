@@ -46,3 +46,7 @@ dist
 !packages/admin-api-service/src/types/generated/openapi.d.ts
 
 .agents
+
+# Docs
+.astro
+docs/build

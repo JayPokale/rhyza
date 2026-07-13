@@ -1,0 +1,79 @@
+---
+title: Local Playground
+---
+
+The local playground is a pre-configured [Docker Compose](https://docs.docker.com/compose/) environment that allows you to run the entire Rhyza stack on your local machine. This setup is ideal for development, testing, and exploring Rhyza's APIs.
+
+## Docker Compose Setup
+
+The Docker Compose file is located in the `docker` directory of the repository. It includes all necessary services, including:
+
+- **Core Services**: The services that run Rhyza's core logic, routing, and processing.
+- **Admin API**: The primary interface for administrative tasks.
+- **Open Payments Servers**: Standalone Auth and Resource servers for Open Payments functionality.
+- **Infrastructure**: MongoDB, Kafka, and Redis.
+- **Observability**: Prometheus, Grafana, and Tempo for monitoring and tracing.
+
+### Web Interfaces
+
+The playground also provides several web interfaces for monitoring and interacting with the system:
+
+- **Redpanda Console (Kafka UI)**: [http://localhost:8080](http://localhost:8080)
+- **Grafana (Dashboards)**: [http://localhost:4501](http://localhost:4501)
+- **Prometheus (Metrics)**: [http://localhost:9090](http://localhost:9090)
+
+### Prerequisites
+
+- [Docker](https://docs.docker.com/get-docker/)
+- [Docker Compose](https://docs.docker.com/compose/install/)
+
+### Getting Started
+
+1. From the root directory, run the following command to start the services:
+
+   ```bash
+   pnpm docker up
+   ```
+
+2. Verify that the services are running:
+   ```bash
+   pnpm docker ps
+   ```
+
+## Useful Commands
+
+Here are some common commands you might use while working with the local playground, which should be run from the root directory:
+
+| Command                              | Description                                                              |
+| :----------------------------------- | :----------------------------------------------------------------------- |
+| `pnpm docker up`                     | Starts all services in the background, rebuilding if necessary.          |
+| `pnpm docker up -d`                  | Starts all services (detached)                                           |
+| `pnpm docker up --build`             | Builds & starts all services                                             |
+| `pnpm docker down`                   | Stops and removes all containers and networks.                           |
+| `pnpm docker down --volumes`         | Stops and removes all containers, networks, and persistent data volumes. |
+| `pnpm docker logs -f`                | Follow the logs of all running services.                                 |
+| `pnpm docker logs -f [service_name]` | Follow logs for a specific service (e.g., `admin-api-service`).          |
+
+## Using Bruno
+
+[Bruno](https://www.usebruno.com/) is an open-source IDE for exploring and testing APIs. A collection of Bruno requests is provided in the repository to help you get started with Rhyza's APIs.
+
+### Setup
+
+1. Open Bruno and select **Open Collection**.
+2. Navigate to the `bruno/collections/rafiki-v2` directory in your local repository.
+3. Once the collection is loaded, select the **Rafiki v2** environment from the environment dropdown in the top right corner.
+
+### Available Collections
+
+- **Admin API**: Requests for managing assets, wallet addresses, and payments. These requests are proxied through Nginx on port `80` by default.
+- **Open Payments**: Requests for interacting with the Open Payments Resource Server (running on port `3002`).
+
+### Connecting to Services
+
+The Bruno environment is pre-configured with the following variables:
+
+- `adminApiUrl`: `localhost` (proxied to the Admin API Service).
+- `openPaymentsResourceServerUrl`: `localhost:3002`.
+
+You can use these requests to perform tasks such as creating assets, setting up wallet addresses, and initiating payments directly against your local Rhyza instance.
