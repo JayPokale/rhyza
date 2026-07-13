@@ -162,8 +162,6 @@ services:
       KAFKA_URL: kafka:19092
       MONGODB_URL: mongodb://root:mongoPass@mongodb:27017/
       WEBHOOK_URL: http://ase-mock-service:3000/webhooks
-    ports:
-      - '5100:5100'
     depends_on:
       init-kafka:
         condition: service_completed_successfully
@@ -180,8 +178,6 @@ services:
     environment:
       KAFKA_URL: kafka:19092
       UV_THREADPOOL_SIZE: 128
-    ports:
-      - '5101:5101'
     depends_on:
       mongodb:
         condition: service_healthy
@@ -288,6 +284,7 @@ services:
       - 8080:8080
     networks:
       - rafiki-v2
+    profiles: [full-build]
 
   init-kafka:
     image: apache/kafka:4.0.0
@@ -347,6 +344,7 @@ services:
       - '4318:4318'
     networks:
       - rafiki-v2
+    profiles: [full-build]
 
   prometheus:
     image: prom/prometheus:latest
@@ -359,6 +357,7 @@ services:
       - '9090:9090'
     networks:
       - rafiki-v2
+    profiles: [full-build]
 
   tempo:
     image: grafana/tempo:latest
@@ -385,6 +384,7 @@ services:
       - prometheus
     networks:
       - rafiki-v2
+    profiles: [full-build]
 
   nginx:
     image: nginx:latest
@@ -396,6 +396,7 @@ services:
       - rafiki-v2
     sysctls:
       net.ipv4.ip_local_port_range: '10240 65535'
+    profiles: [full-build]
 
 networks:
   rafiki-v2:
