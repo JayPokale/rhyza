@@ -256,7 +256,7 @@ export class PaymentIntentAggregate {
           cmd as CalculateRemoteQuoteCmd
         );
       } else if (cmd.msgName === PrepareRemotePaymentCmd.name) {
-        event = this.handlePrepareRemotePaymentCommand(
+        event = await this.handlePrepareRemotePaymentCommand(
           cmd as PrepareRemotePaymentCmd
         );
       } else if (cmd.msgName === FailRemotePaymentCmd.name) {
@@ -966,7 +966,9 @@ export class PaymentIntentAggregate {
     }
   }
 
-  private handlePrepareRemotePaymentCommand(cmd: PrepareRemotePaymentCmd) {
+  private async handlePrepareRemotePaymentCommand(
+    cmd: PrepareRemotePaymentCmd
+  ) {
     this._logger.debug(
       `handlePrepareRemotePaymentCommand — paymentId: ${cmd.payload.paymentId} paymentIntentId: ${cmd.payload.paymentIntentId}`
     );
@@ -988,6 +990,20 @@ export class PaymentIntentAggregate {
         );
       }
 
+      if (!paymentIntent.remoteUrl) {
+        throw new Error(
+          `Payment intent ${paymentIntentId} is missing remoteUrl; cannot fetch sharedSecret`
+        );
+      }
+
+      // Fresh sharedSecret per prepare — the OP server regenerates on each
+      // fetch, and we deliberately don't persist it on the intent nor prefetch
+      // to ensure its not stale.
+      const remoteDetails =
+        await this._remotePaymentIntentService.fetchIncomingPayment(
+          paymentIntent.remoteUrl
+        );
+
       const payment = paymentIntent.prepareRemotePayment({
         id: paymentId,
         ledgerTransferId
@@ -1008,7 +1024,8 @@ export class PaymentIntentAggregate {
           debitAmount: String(payment.debitAmount),
           receiveAmount: String(payment.receiveAmount),
           assetCode: payment.assetCode,
-          assetScale: payment.assetScale
+          assetScale: payment.assetScale,
+          sharedSecret: remoteDetails.sharedSecret
         },
         cmd.requestId
       );

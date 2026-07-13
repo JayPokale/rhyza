@@ -6,17 +6,19 @@ import { PalClient, parseAddressToDomainAndPathName } from 'pal-client-lib';
 import { PaymentsClient } from 'payments-client-lib';
 import { OpenPaymentsResourceServerRouteError } from '../errors';
 import { components } from '../types/generated/resource-server-types';
+import { IIlpClient } from '../stubs/ilp-client.js';
 
 interface IncomingPaymentRouteOptions extends FastifyPluginOptions {
   palClient: PalClient;
   paymentsClient: PaymentsClient;
+  ilpClient: IIlpClient;
 }
 
 export async function incomingPaymentRoutes(
   server: FastifyInstance,
   opts: IncomingPaymentRouteOptions
 ): Promise<void> {
-  const { palClient, paymentsClient } = opts;
+  const { palClient, paymentsClient, ilpClient } = opts;
 
   server.post<{
     Body: components['schemas']['create-incoming-payment-request'];
@@ -111,6 +113,7 @@ export async function incomingPaymentRoutes(
 
     const response: components['schemas']['incoming-payment'] & {
       destinationIlpAddress?: string;
+      sharedSecret: string;
     } = {
       id: paymentIntent.id,
       expiresAt: paymentIntent.expiresAt,
@@ -121,7 +124,8 @@ export async function incomingPaymentRoutes(
         value: String(paymentIntent.receivedAmount),
         assetCode: paymentIntent.assetCode,
         assetScale: paymentIntent.assetScale
-      }
+      },
+      sharedSecret: await ilpClient.generateStreamCredentials()
     };
 
     if (paymentIntent.incomingAmount != null) {

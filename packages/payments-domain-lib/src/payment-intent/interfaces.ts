@@ -132,6 +132,7 @@ export interface IRemotePaymentIntentDetails {
   receivedAmount: bigint;
   expiresAt?: string;
   destinationIlpAddress: string;
+  sharedSecret: string;
 }
 
 export interface IRemotePaymentIntentService {

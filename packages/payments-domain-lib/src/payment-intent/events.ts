@@ -427,6 +427,7 @@ export type RemotePaymentPreparedPayload = {
   receiveAmount: string;
   assetCode: string;
   assetScale: number;
+  sharedSecret: string;
 };
 
 export class RemotePaymentPreparedEvent extends PaymentIntentDomainEvent {

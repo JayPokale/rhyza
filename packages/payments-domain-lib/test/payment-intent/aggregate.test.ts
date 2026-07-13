@@ -854,7 +854,8 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           assetScale: 2,
           receivedAmount: 0n,
           destinationIlpAddress: 'g.peer.123',
-          expiresAt: new Date(Date.now() + 60_000).toISOString()
+          expiresAt: new Date(Date.now() + 60_000).toISOString(),
+          sharedSecret: 'stub-shared-secret'
         });
       });
 
@@ -1390,6 +1391,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           expiresAt: new Date(Date.now() + 60_000),
           incomingAmount: null,
           destinationIlpAddress: 'g.peer.123',
+          remoteUrl: 'https://remote.domain.com/incoming-payments/abc',
           quotes: [],
           payments: [
             {
@@ -1408,6 +1410,18 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           ]
         };
       }
+
+      beforeEach(() => {
+        mockRemotePaymentIntentService.fetchIncomingPayment = async () => ({
+          walletAddress: 'remote.domain.com/alice',
+          assetCode: 'USD',
+          assetScale: 2,
+          receivedAmount: 0n,
+          destinationIlpAddress: 'g.peer.123',
+          expiresAt: new Date(Date.now() + 60_000).toISOString(),
+          sharedSecret: 'fresh-per-prepare-secret'
+        });
+      });
 
       it('transitions PROCESSING to SENDING, persists ledgerTransferId, and emits RemotePaymentPreparedEvent', async () => {
         const paymentIntentId = crypto.randomUUID();
@@ -1440,6 +1454,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         assert.equal(payload.destinationIlpAddress, 'g.peer.123');
         assert.equal(payload.debitAmount, '500');
         assert.equal(payload.receiveAmount, '100');
+        assert.equal(payload.sharedSecret, 'fresh-per-prepare-secret');
 
         const storedPayment = repo
           .getAll()
@@ -2354,7 +2369,8 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         assetScale: 2,
         receivedAmount: 0n,
         destinationIlpAddress: 'g.peer.123',
-        expiresAt: new Date(Date.now() + 60_000).toISOString()
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+        sharedSecret: 'stub-shared-secret'
       });
 
       const cmd = makeCreateQuoteCmd({ remoteUrl: REMOTE_URL });
