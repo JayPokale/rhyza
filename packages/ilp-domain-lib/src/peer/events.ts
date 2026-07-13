@@ -24,7 +24,7 @@ export class ILPQuoteReceivedEvent extends DomainEvent {
   }
 }
 
-export interface QuoteFailedPayload {
+export interface ILPQuoteFailedPayload {
   peerId: string;
   paymentIntentId: string;
   quoteId: string;
@@ -33,14 +33,14 @@ export interface QuoteFailedPayload {
   expired?: boolean;
 }
 
-export class QuoteFailedEvent extends DomainEvent {
+export class ILPQuoteFailedEvent extends DomainEvent {
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateName: string = AGGREGATE_NAME;
   msgTopic: string = DomainEventTopics.IlpEvents;
   isErrorEvent: boolean = true;
-  payload: QuoteFailedPayload;
+  payload: ILPQuoteFailedPayload;
 
-  constructor(payload: QuoteFailedPayload, requestId?: string) {
+  constructor(payload: ILPQuoteFailedPayload, requestId?: string) {
     super(payload.peerId);
     this.msgKey = payload.peerId;
     this.payload = payload;

@@ -15,7 +15,7 @@ import { Peer } from './entity';
 import { DuplicatePeer, UnknownPeer } from './errors';
 import {
   ILPQuoteReceivedEvent,
-  QuoteFailedEvent,
+  ILPQuoteFailedEvent,
   ILPPaymentConfirmedEvent,
   ILPPaymentFailedEvent,
   ILPQuoteRequestReceivedEvent
@@ -303,7 +303,7 @@ export class IlpPeerAggregate {
       }
 
       return [
-        new QuoteFailedEvent(
+        new ILPQuoteFailedEvent(
           {
             peerId: transitioned.peerId,
             paymentIntentId: transitioned.paymentIntentId,
@@ -340,7 +340,7 @@ export class IlpPeerAggregate {
 
     if (transitioned.kind === 'QUOTE') {
       return [
-        new QuoteFailedEvent(
+        new ILPQuoteFailedEvent(
           {
             peerId: transitioned.peerId,
             paymentIntentId: transitioned.paymentIntentId,

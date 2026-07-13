@@ -18,7 +18,7 @@ import {
   IPeer,
   ProcessRejectPacketCmd,
   ILPQuoteReceivedEvent,
-  QuoteFailedEvent,
+  ILPQuoteFailedEvent,
   ILPPaymentFailedEvent,
   StartRemoteQuoteCmd
 } from 'ilp-domain-lib';
@@ -203,7 +203,7 @@ const eventsOnTopic = (bus: InMemoryBus, name: string) =>
   );
 
 describe('ILP command handler <-> connector over Kafka topics', () => {
-  test('start quote -> connector probe -> peer reject -> QuoteFailedEvent', async () => {
+  test('start quote -> connector probe -> peer reject -> ILPQuoteFailedEvent', async () => {
     const { bus, producer } = await wireSystem(true);
 
     // A StartRemoteQuoteCmd lands on ilp-commands (from Payments BC).
@@ -229,18 +229,18 @@ describe('ILP command handler <-> connector over Kafka topics', () => {
     assert.equal(reject.payload.paymentIntentId, 'intent-1');
 
     // The scaffolded connector does not yet decode STREAM amounts, so a reject
-    // resolves to a QuoteFailedEvent. Either way the reject travelled the full
+    // resolves to a ILPQuoteFailedEvent. Either way the reject travelled the full
     // path and was never surfaced as an ILP transport error.
-    const failed = eventsOnTopic(bus, QuoteFailedEvent.name);
+    const failed = eventsOnTopic(bus, ILPQuoteFailedEvent.name);
     assert.equal(failed.length, 1);
-    assert.equal((failed[0] as QuoteFailedEvent).payload.quoteId, 'quote-1');
-    assert.equal((failed[0] as QuoteFailedEvent).requestId, 'req-1');
+    assert.equal((failed[0] as ILPQuoteFailedEvent).payload.quoteId, 'quote-1');
+    assert.equal((failed[0] as ILPQuoteFailedEvent).requestId, 'req-1');
 
     // A quote reject must never trigger the payment failure/liquidity path.
     assert.equal(eventsOnTopic(bus, ILPPaymentFailedEvent.name).length, 0);
   });
 
-  test('a quote with no response before expiry -> QuoteFailedEvent (timeout)', async () => {
+  test('a quote with no response before expiry -> ILPQuoteFailedEvent (timeout)', async () => {
     const { bus, producer } = await wireSystem(false);
 
     await producer.send(startQuote());
@@ -254,10 +254,10 @@ describe('ILP command handler <-> connector over Kafka topics', () => {
       })
     );
 
-    const failed = eventsOnTopic(bus, QuoteFailedEvent.name);
+    const failed = eventsOnTopic(bus, ILPQuoteFailedEvent.name);
     assert.equal(failed.length, 1);
-    assert.equal((failed[0] as QuoteFailedEvent).payload.expired, true);
-    assert.equal((failed[0] as QuoteFailedEvent).requestId, 'req-1');
+    assert.equal((failed[0] as ILPQuoteFailedEvent).payload.expired, true);
+    assert.equal((failed[0] as ILPQuoteFailedEvent).requestId, 'req-1');
     assert.equal(eventsOnTopic(bus, ILPPaymentFailedEvent.name).length, 0);
   });
 
@@ -292,6 +292,6 @@ describe('ILP command handler <-> connector over Kafka topics', () => {
       (determined[0] as ILPQuoteReceivedEvent).requestId,
       'req-1'
     );
-    assert.equal(eventsOnTopic(bus, QuoteFailedEvent.name).length, 0);
+    assert.equal(eventsOnTopic(bus, ILPQuoteFailedEvent.name).length, 0);
   });
 });

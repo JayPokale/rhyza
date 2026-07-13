@@ -4,7 +4,7 @@ import {
   IMessageConsumer,
   IMessageProducer
 } from 'common-types-lib';
-import { QuoteFailedEvent, ILPQuoteReceivedEvent } from 'ilp-domain-lib';
+import { ILPQuoteFailedEvent, ILPQuoteReceivedEvent } from 'ilp-domain-lib';
 import {
   CompleteRemoteQuoteCmd,
   FailRemoteQuoteCmd
@@ -51,8 +51,8 @@ export class PaymentsEventHandler {
         await this._msgProducer.send(cmd);
         break;
       }
-      case QuoteFailedEvent.name: {
-        const payload = message.payload as QuoteFailedEvent['payload'];
+      case ILPQuoteFailedEvent.name: {
+        const payload = message.payload as ILPQuoteFailedEvent['payload'];
         const cmd = new FailRemoteQuoteCmd(
           {
             quoteId: payload.quoteId,
