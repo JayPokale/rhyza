@@ -35,7 +35,6 @@ import {
   WalletAddressNotFoundError,
   WalletAddressInactiveError,
   PaymentIntentNotFoundError,
-  PaymentIntentInvalidState,
   RatesError,
   MissingDestinationIlpAddressError,
   PeerNotFoundError,
