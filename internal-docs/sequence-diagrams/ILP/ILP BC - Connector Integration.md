@@ -52,7 +52,7 @@ Two dedicated topics carry the connector - ILP aggregate traffic. Domain events 
 | ------------------------ | ---------------------- | ------------------------------------------------------------------------------------ |
 | `ilp-commands`           | Connector -> Aggregate | Commands the aggregate must process (incoming prepare, terminal results of outbound) |
 | `ilp-connector-commands` | Aggregate -> Connector | Commands the connector must execute on the wire (dispatch prepare, send response)    |
-| `ilp-domain-events`      | Aggregate -> other BCs | Public domain events (unchanged, e.g. `RemotePaymentConfirmedEvent`)                 |
+| `ilp-domain-events`      | Aggregate -> other BCs | Public domain events (unchanged, e.g. `ILPPaymentConfirmedEvent`)                 |
 
 ## Commands
 

@@ -10,7 +10,7 @@ import {
   IMessageProducerAcks
 } from 'common-types-lib';
 import {
-  RemoteQuoteRequestReceivedEvent,
+  ILPQuoteRequestReceivedEvent,
   RespondToRemoteQuoteCmd
 } from 'ilp-domain-lib';
 import { IlpEventHandler } from '../src/event-handler';
@@ -60,7 +60,7 @@ class MockConsumer implements IMessageConsumer {
 }
 
 const request = () =>
-  new RemoteQuoteRequestReceivedEvent({
+  new ILPQuoteRequestReceivedEvent({
     peerId: 'peer-1',
     packetId: 'packet-in-1',
     destinationIlpAddress: 'g.us.alice',
@@ -185,7 +185,7 @@ describe('PaymentsBcQuoteFixture', () => {
     await fixture.start();
 
     await consumer.deliver([
-      new RemoteQuoteRequestReceivedEvent({
+      new ILPQuoteRequestReceivedEvent({
         peerId: 'peer-1',
         packetId: 'packet-in-1',
         destinationIlpAddress: 'g.us.alice',

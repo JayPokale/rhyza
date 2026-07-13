@@ -20,8 +20,9 @@ export class StartRemoteQuoteCmd extends CommandMsg {
   msgTopic: string = CommandTopics.IlpCommands;
   payload: StartRemoteQuoteCmdPayload;
 
-  constructor(payload: StartRemoteQuoteCmdPayload) {
+  constructor(payload: StartRemoteQuoteCmdPayload, requestId: string) {
     super(payload.peerId);
+    this.requestId = requestId;
     this.msgKey = payload.peerId;
     this.payload = payload;
   }

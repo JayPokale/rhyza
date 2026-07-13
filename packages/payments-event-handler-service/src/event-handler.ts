@@ -4,7 +4,7 @@ import {
   IMessageConsumer,
   IMessageProducer
 } from 'common-types-lib';
-import { QuoteFailedEvent, RemoteQuoteReceivedEvent } from 'ilp-domain-lib';
+import { QuoteFailedEvent, ILPQuoteReceivedEvent } from 'ilp-domain-lib';
 import {
   CompleteRemoteQuoteCmd,
   FailRemoteQuoteCmd
@@ -37,9 +37,9 @@ export class PaymentsEventHandler {
 
   private async _handleEvent(message: IMessage): Promise<void> {
     switch (message.msgName) {
-      case RemoteQuoteReceivedEvent.name: {
+      case ILPQuoteReceivedEvent.name: {
         const { quoteId, paymentIntentId, destinationAmount } =
-          message.payload as RemoteQuoteReceivedEvent['payload'];
+          message.payload as ILPQuoteReceivedEvent['payload'];
         const cmd = new CompleteRemoteQuoteCmd(
           {
             quoteId,

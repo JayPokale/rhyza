@@ -5,7 +5,7 @@ import {
   IMessageConsumer,
   IMessageProducer
 } from 'common-types-lib';
-import { RemoteQuoteRequestReceivedEvent } from 'ilp-domain-lib';
+import { ILPQuoteRequestReceivedEvent } from 'ilp-domain-lib';
 import {
   RemoteQuoteCalculatedEvent,
   RemoteQuoteCalculationFailedEvent
@@ -13,7 +13,7 @@ import {
 import { FixedRateQuoteCalculator, IQuoteCalculator } from './quote-calculator';
 
 // Test-only replacement for the Payments BC receiving-quote flow. Wires
-// RemoteQuoteRequestReceivedEvent -> RemoteQuoteCalculatedEvent so ILP
+// ILPQuoteRequestReceivedEvent -> RemoteQuoteCalculatedEvent so ILP
 // integration tests can run without the real Payments BC.
 export class PaymentsBcQuoteFixture {
   constructor(
@@ -39,7 +39,7 @@ export class PaymentsBcQuoteFixture {
     const out: IMessage[] = [];
 
     for (const message of messages) {
-      if (message.msgName !== RemoteQuoteRequestReceivedEvent.name) continue;
+      if (message.msgName !== ILPQuoteRequestReceivedEvent.name) continue;
       out.push(await this._calculate(message));
     }
 
@@ -50,7 +50,7 @@ export class PaymentsBcQuoteFixture {
 
   private async _calculate(message: IMessage): Promise<IMessage> {
     const payload =
-      message.payload as RemoteQuoteRequestReceivedEvent['payload'];
+      message.payload as ILPQuoteRequestReceivedEvent['payload'];
 
     const result = await this._calculator.calculate({
       peerId: payload.peerId,

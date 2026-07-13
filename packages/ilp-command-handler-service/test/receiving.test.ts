@@ -14,8 +14,8 @@ import {
   IlpPeerAggregate,
   IPeer,
   ProcessPreparePacketCmd,
-  RemotePaymentFailedEvent,
-  RemoteQuoteRequestReceivedEvent,
+  ILPPaymentFailedEvent,
+  ILPQuoteRequestReceivedEvent,
   RespondToRemoteQuoteCmd
 } from 'ilp-domain-lib';
 import {
@@ -97,14 +97,14 @@ const rejectFor = (producer: MockProducer): DispatchRejectPacketCmd =>
   ) as DispatchRejectPacketCmd;
 
 describe('IlpCommandHandler — remote quote receiving', () => {
-  test('an inbound probe publishes a RemoteQuoteRequestReceivedEvent', async () => {
+  test('an inbound probe publishes a ILPQuoteRequestReceivedEvent', async () => {
     const { producer, consumer } = await startedHandler();
     await consumer.deliver([inboundProbe()]);
 
     const event = producer.sent.find(
-      (m) => m.msgName === RemoteQuoteRequestReceivedEvent.name
-    ) as RemoteQuoteRequestReceivedEvent;
-    assert.ok(event, 'expected a RemoteQuoteRequestReceivedEvent');
+      (m) => m.msgName === ILPQuoteRequestReceivedEvent.name
+    ) as ILPQuoteRequestReceivedEvent;
+    assert.ok(event, 'expected a ILPQuoteRequestReceivedEvent');
     assert.equal(event.msgTopic, 'ilp-domain-events');
     assert.equal(event.payload.peerId, 'peer-1');
     assert.equal(event.payload.packetId, 'packet-in-1');
@@ -153,7 +153,7 @@ describe('IlpCommandHandler — remote quote receiving', () => {
     assert.equal(reject.payload.data, undefined, 'must not leak detail');
     assert.equal(
       producer.sent.filter(
-        (m) => m.msgName === RemoteQuoteRequestReceivedEvent.name
+        (m) => m.msgName === ILPQuoteRequestReceivedEvent.name
       ).length,
       0
     );
@@ -169,7 +169,7 @@ describe('IlpCommandHandler — remote quote receiving', () => {
     assert.equal(reject.payload.rejectCode, 'T00');
     assert.equal(
       producer.sent.filter(
-        (m) => m.msgName === RemoteQuoteRequestReceivedEvent.name
+        (m) => m.msgName === ILPQuoteRequestReceivedEvent.name
       ).length,
       0
     );
@@ -213,7 +213,7 @@ describe('IlpCommandHandler — remote quote receiving', () => {
     ]);
 
     assert.equal(
-      producer.sent.filter((m) => m.msgName === RemotePaymentFailedEvent.name)
+      producer.sent.filter((m) => m.msgName === ILPPaymentFailedEvent.name)
         .length,
       0
     );

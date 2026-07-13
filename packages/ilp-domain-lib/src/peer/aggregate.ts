@@ -14,11 +14,11 @@ import { PacketNotFound } from '../packet/errors';
 import { Peer } from './entity';
 import { DuplicatePeer, UnknownPeer } from './errors';
 import {
-  RemoteQuoteReceivedEvent,
+  ILPQuoteReceivedEvent,
   QuoteFailedEvent,
-  RemotePaymentConfirmedEvent,
-  RemotePaymentFailedEvent,
-  RemoteQuoteRequestReceivedEvent
+  ILPPaymentConfirmedEvent,
+  ILPPaymentFailedEvent,
+  ILPQuoteRequestReceivedEvent
 } from './events';
 import { IPeer, IPeerRepository } from './interfaces';
 
@@ -123,7 +123,8 @@ export class IlpPeerAggregate {
       peerId: peer.peerId,
       paymentIntentId: payload.paymentIntentId,
       expiresAt,
-      quoteId: payload.quoteId
+      quoteId: payload.quoteId,
+      requestId: cmd.requestId
     });
     await this.peerRepo.storePacket(correlation.toObject());
 
@@ -199,7 +200,7 @@ export class IlpPeerAggregate {
     }
 
     return [
-      new RemoteQuoteRequestReceivedEvent({
+      new ILPQuoteRequestReceivedEvent({
         peerId: peer.peerId,
         packetId: payload.packetId,
         destinationIlpAddress: payload.destinationIlpAddress,
@@ -260,7 +261,7 @@ export class IlpPeerAggregate {
 
     if (transitioned.kind === 'PAYMENT') {
       return [
-        new RemotePaymentConfirmedEvent({
+        new ILPPaymentConfirmedEvent({
           peerId: transitioned.peerId,
           paymentIntentId: transitioned.paymentIntentId,
           paymentId: transitioned.paymentId,
@@ -289,28 +290,34 @@ export class IlpPeerAggregate {
     if (transitioned.kind === 'QUOTE') {
       if (payload.destinationAmount !== undefined) {
         return [
-          new RemoteQuoteReceivedEvent({
-            peerId: transitioned.peerId,
-            paymentIntentId: transitioned.paymentIntentId,
-            quoteId: transitioned.quoteId,
-            destinationAmount: payload.destinationAmount
-          })
+          new ILPQuoteReceivedEvent(
+            {
+              peerId: transitioned.peerId,
+              paymentIntentId: transitioned.paymentIntentId,
+              quoteId: transitioned.quoteId,
+              destinationAmount: payload.destinationAmount
+            },
+            transitioned.requestId
+          )
         ];
       }
 
       return [
-        new QuoteFailedEvent({
-          peerId: transitioned.peerId,
-          paymentIntentId: transitioned.paymentIntentId,
-          quoteId: transitioned.quoteId,
-          rejectCode: payload.rejectCode,
-          rejectMessage: payload.rejectMessage
-        })
+        new QuoteFailedEvent(
+          {
+            peerId: transitioned.peerId,
+            paymentIntentId: transitioned.paymentIntentId,
+            quoteId: transitioned.quoteId,
+            rejectCode: payload.rejectCode,
+            rejectMessage: payload.rejectMessage
+          },
+          transitioned.requestId
+        )
       ];
     }
 
     return [
-      new RemotePaymentFailedEvent({
+      new ILPPaymentFailedEvent({
         peerId: transitioned.peerId,
         paymentIntentId: transitioned.paymentIntentId,
         paymentId: transitioned.paymentId,
@@ -333,17 +340,20 @@ export class IlpPeerAggregate {
 
     if (transitioned.kind === 'QUOTE') {
       return [
-        new QuoteFailedEvent({
-          peerId: transitioned.peerId,
-          paymentIntentId: transitioned.paymentIntentId,
-          quoteId: transitioned.quoteId,
-          expired: true
-        })
+        new QuoteFailedEvent(
+          {
+            peerId: transitioned.peerId,
+            paymentIntentId: transitioned.paymentIntentId,
+            quoteId: transitioned.quoteId,
+            expired: true
+          },
+          transitioned.requestId
+        )
       ];
     }
 
     return [
-      new RemotePaymentFailedEvent({
+      new ILPPaymentFailedEvent({
         peerId: transitioned.peerId,
         paymentIntentId: transitioned.paymentIntentId,
         paymentId: transitioned.paymentId,

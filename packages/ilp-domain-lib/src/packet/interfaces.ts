@@ -17,6 +17,7 @@ interface BasePacketCorrelation {
 interface QuotePacketCorrelation extends BasePacketCorrelation {
   kind: 'QUOTE';
   quoteId: string;
+  requestId: string;
 }
 
 interface PaymentPacketCorrelation extends BasePacketCorrelation {

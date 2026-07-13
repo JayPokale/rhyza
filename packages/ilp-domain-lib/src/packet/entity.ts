@@ -10,6 +10,7 @@ export class PacketCorrelation {
     paymentIntentId: string;
     expiresAt: Date;
     quoteId: string;
+    requestId: string;
   }): PacketCorrelation {
     return new PacketCorrelation({ ...args, kind: 'QUOTE', state: 'PENDING' });
   }

@@ -14,7 +14,7 @@ import {
 import {
   IlpPeerAggregate,
   IPeer,
-  RemoteQuoteRequestReceivedEvent
+  ILPQuoteRequestReceivedEvent
 } from 'ilp-domain-lib';
 import {
   InMemoryPeerRepository,
@@ -189,7 +189,7 @@ const requestReceivedEvents = (bus: InMemoryBus) =>
   bus.published.filter(
     (m) =>
       m.msgTopic === DomainEventTopics.IlpEvents &&
-      m.msgName === RemoteQuoteRequestReceivedEvent.name
+      m.msgName === ILPQuoteRequestReceivedEvent.name
   );
 
 describe('ILP receiving quote flow over Kafka topics', () => {
