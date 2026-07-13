@@ -11,6 +11,19 @@ A rate probe precedes every Interledger payment to provide a quote that estimate
 
 ---
 
+## Rate scopes
+
+Every exchange rate Rhyza holds is scoped in one of two ways:
+
+- **Peer rate** — applies only to payments made through a specific peer, identified by `peerId`.
+- **Intra-ASE rate** — applies ASE-wide to any conversion between the two given asset codes, independent of peer.
+
+A peer rate and an Intra-ASE rate for the same asset pair are set, cached, and expired independently of one another, so both can be active for the same pair at the same time.
+
+Both the Pull and Push models below support setting/fetching either scope: include `peerId` to target a peer rate, or omit it to target the Intra-ASE rate for that asset pair.
+
+---
+
 ## Pull model
 
 In the pull model, Rhyza requests exchange rates from the ASE whenever a rate is needed and not available in its local cache.
@@ -25,11 +38,24 @@ EXCHANGE_RATES_URL: http://cloud-nine-wallet/rates
 
 ### Pull request specification
 
-The configured endpoint must accept <Badge text="GET" variant="note" size="medium"/> requests. Rhyza will include the base asset code as a query parameter.
+The configured endpoint must accept <Badge text="GET" variant="note" size="medium"/> requests. Rhyza always includes the base asset code as a query parameter. When Rhyza needs a peer rate rather than the Intra-ASE rate, it also includes a `peerId` query parameter identifying the peer.
 
-```bash title="Example API request"
+```bash title="Example API request (Intra-ASE rate)"
 GET https://cloud-nine-wallet/rates?base=USD
 ```
+
+```bash title="Example API request (peer rate)"
+GET https://cloud-nine-wallet/rates?base=USD&peerId=480ef339-7842-4501-a905-923fc1339cef
+```
+
+<div class="overflow-table">
+
+| Query parameter | Type   | Description                                                                                | Required |
+| ---------------- | ------ | ------------------------------------------------------------------------------------------- | -------- |
+| `base`            | String | The base asset code to get rates for.                                                        | Y        |
+| `peerId`          | String | The unique identifier of the peer to get a peer-scoped rate for. Omitted for Intra-ASE rates. | N        |
+
+</div>
 
 ### Pull response specification
 
@@ -63,7 +89,7 @@ In the push model, the ASE sets exchange rates in Rhyza directly via the Admin A
 
 ### Using the Admin API
 
-Exchange rates are pushed to Rhyza by sending a <Badge text="POST" variant="note" size="medium"/> request to the `/rates` endpoint. Rates set via the push model are associated with a specific peer.
+Exchange rates are pushed to Rhyza by sending a <Badge text="POST" variant="note" size="medium"/> request to the `/rates` endpoint. Include `peerId` in the payload to set a peer rate; omit it to set the Intra-ASE rate for the asset pair instead.
 
 #### Set exchange rate request
 
@@ -71,7 +97,7 @@ Exchange rates are pushed to Rhyza by sending a <Badge text="POST" variant="note
 POST https://rhyza.example.com/rates
 ```
 
-```json title="Example payload"
+```json title="Example payload (peer rate)"
 {
   "peerId": "480ef339-7842-4501-a905-923fc1339cef",
   "sourceAssetCode": "USD",
@@ -81,15 +107,24 @@ POST https://rhyza.example.com/rates
 }
 ```
 
+```json title="Example payload (Intra-ASE rate)"
+{
+  "sourceAssetCode": "USD",
+  "destinationAssetCode": "EUR",
+  "rate": 0.92,
+  "rateTtlSecs": 3600
+}
+```
+
 <div class="overflow-table">
 
-| Field                  | Type   | Description                                                               | Required |
-| ---------------------- | ------ | ------------------------------------------------------------------------- | -------- |
-| `peerId`               | String | The unique identifier of the peer these rates apply to.                   | Y        |
-| `sourceAssetCode`      | String | The source currency code (e.g., "USD").                                   | Y        |
-| `destinationAssetCode` | String | The destination currency code (e.g., "EUR").                              | Y        |
-| `rate`                 | Number | The exchange rate from the source asset to the destination asset.         | Y        |
-| `rateTtlSecs`          | Number | The time-to-live for this rate in seconds. If omitted, a default is used. | N        |
+| Field                  | Type   | Description                                                                                     | Required |
+| ---------------------- | ------ | ------------------------------------------------------------------------------------------------ | -------- |
+| `peerId`               | String | The unique identifier of the peer this rate applies to. Omit to set the Intra-ASE rate instead.  | N        |
+| `sourceAssetCode`      | String | The source currency code (e.g., "USD").                                                          | Y        |
+| `destinationAssetCode` | String | The destination currency code (e.g., "EUR").                                                      | Y        |
+| `rate`                 | Number | The exchange rate from the source asset to the destination asset.                                | Y        |
+| `rateTtlSecs`          | Number | The time-to-live for this rate in seconds. If omitted, a default is used.                        | N        |
 
 </div>
 
@@ -98,6 +133,13 @@ POST https://rhyza.example.com/rates
 For the Pull model, you can specify how long Rhyza caches exchange rates via the `EXCHANGE_RATES_LIFETIME_SECS` environment variable (default is `3600` seconds). Caching improves performance by reducing the number of outgoing requests to your rates endpoint.
 
 For the Push model, the `rateTtlSecs` provided in the API request determines the lifetime of the specific rate. If a pushed rate is not available or has expired, Rhyza will attempt to pull the rate from the `EXCHANGE_RATES_URL` if configured. If the pull model is not configured or also fails to provide a rate, Rhyza will fail the payment or quote request with an error.
+
+Because peer rates and Intra-ASE rates are cached separately, expiry of one does not affect the other, and each is refreshed (via the Pull model) or re-pushed independently.
+
+Pulled and pushed rates expire differently:
+
+- **Pulled rates** are refreshed proactively in the background shortly before they expire, so a payment or quote is not delayed waiting on a live pull.
+- **Pushed rates** are not refreshed in the background. Once a pushed rate's `rateTtlSecs` elapses, it is only replaced the next time that rate is requested, at which point Rhyza falls back to the Pull model synchronously. If `rateTtlSecs` is omitted when the rate is pushed, the rate never expires and stays in effect — Rhyza will not fall back to pulling for that asset pair (or peer) until the ASE pushes a new rate.
 
 ---
 

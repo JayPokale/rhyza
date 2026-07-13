@@ -9,7 +9,10 @@ import {
   NotificationType
 } from 'notifications-domain-lib';
 import {
+  PaymentCompletedEvent,
+  PaymentCompleteFailedEvent,
   PaymentCreatedEvent,
+  PaymentIntentCompletedEvent,
   PaymentIntentCreatedEvent
 } from 'payments-domain-lib';
 
@@ -41,7 +44,11 @@ export class NotificationsEventHandler {
   private readonly messageToNotificationType: Record<string, NotificationType> =
     {
       [PaymentIntentCreatedEvent.name]: NotificationType.PaymentIntentCreated,
-      [PaymentCreatedEvent.name]: NotificationType.PaymentCreated
+      [PaymentIntentCompletedEvent.name]:
+        NotificationType.PaymentIntentCompleted,
+      [PaymentCreatedEvent.name]: NotificationType.PaymentCreated,
+      [PaymentCompletedEvent.name]: NotificationType.PaymentCompleted,
+      [PaymentCompleteFailedEvent.name]: NotificationType.PaymentFailed
     };
 
   private async _handleEvent(message: IMessage) {
@@ -59,10 +66,9 @@ export class NotificationsEventHandler {
     message: IMessage,
     type: NotificationType
   ) {
-    console.log(`${message.msgName} received with id ${message.payload.id}`);
-    const { id, ...data } = message.payload;
+    console.log(`${message.msgName} received with id ${message.msgId}`);
     const cmd = new CreateNotificationCmd(
-      { id, type, data },
+      { id: message.msgId, type, data: message.payload },
       message.requestId
     );
     await this._msgProducer.send(cmd);

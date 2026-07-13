@@ -6,8 +6,10 @@ import {
   ILedgerReadSideRepository,
   PeerAggregate,
   IPalPeerRepository,
-  IPalPeerAseFxService,
-  PeerFxCacheExpiryService
+  IPalAseFxService,
+  FxCacheExpiryService,
+  IPalFxRepository,
+  FxAggregate
 } from 'pal-domain-lib';
 import { PalGrpcServer } from './grpc/grpc-service';
 import process from 'process';
@@ -17,6 +19,7 @@ import {
   CreateLedgerAccountsForPeerCmdSerde,
   CreateLedgerCmdSerde,
   MongoDbAssetRepo,
+  MongoDbFxRepo,
   MongoDbLedgerReadSideRepo,
   MongoDbPeerRepo,
   MongoDbWalletRepo
@@ -45,7 +48,10 @@ import crypto from 'crypto';
 const SVC_PORT = process.env['SVC_PORT']
   ? parseInt(process.env['SVC_PORT'])
   : 50051;
-const INSTANCE_ID = `ES_LEDGER_POC_SVC__${crypto.randomUUID()}`;
+
+const BC_NAME = 'PAL';
+const APP_NAME = `${BC_NAME}_API_SVC`;
+const INSTANCE_ID = `${APP_NAME}_${crypto.randomUUID()}`;
 
 // Message Consumer/Publisher
 const KAFKA_URL =
@@ -94,7 +100,8 @@ const REQUIRED_TOPICS = [
   DomainEventTopics.LedgerEvents,
   DomainEventTopics.AssetEvents,
   DomainEventTopics.PeerEvents,
-  CommandTopics.LedgerCommands
+  CommandTopics.LedgerCommands,
+  DomainEventTopics.FxRateEvents
 ];
 
 export class PalApiService {
@@ -104,10 +111,12 @@ export class PalApiService {
   private static _assetRepo: IPalAssetRepository;
   private static _walletRepo: IPalWalletAddressRepository;
   private static _peerRepo: IPalPeerRepository;
-  private static _aseFxService: IPalPeerAseFxService;
+  private static _fxRepo: IPalFxRepository;
+  private static _aseFxService: IPalAseFxService;
   private static _ledgerReadSideRepo: ILedgerReadSideRepository;
   private static _producer: IMessageProducer;
   private static _consumer: IMessageConsumer;
+  private static _fxCacheExpiryService: FxCacheExpiryService;
   private static grpcService: PalGrpcServer;
 
   static async start(
@@ -117,11 +126,16 @@ export class PalApiService {
     assetRepo?: IPalAssetRepository,
     walletRepo?: IPalWalletAddressRepository,
     peerRepo?: IPalPeerRepository,
-    aseFxService?: IPalPeerAseFxService,
+    fxRepo?: IPalFxRepository,
+    aseFxService?: IPalAseFxService,
     ledgerReadSideRepo?: ILedgerReadSideRepository
   ): Promise<void> {
     if (!logger) {
-      logger = new PinoLogger();
+      logger = new PinoLogger({
+        bcName: BC_NAME,
+        appName: APP_NAME,
+        instanceId: INSTANCE_ID
+      });
     }
     this._logger = logger;
 
@@ -179,6 +193,12 @@ export class PalApiService {
     }
     this._peerRepo = peerRepo;
 
+    if (!fxRepo) {
+      fxRepo = new MongoDbFxRepo(MONGO_URL, logger);
+      await (fxRepo as MongoDbFxRepo).init();
+    }
+    this._fxRepo = fxRepo;
+
     if (!aseFxService) {
       aseFxService = new AseFxServiceAdapter(
         EXCHANGE_RATES_URL,
@@ -212,10 +232,17 @@ export class PalApiService {
       this._logger
     );
 
-    const peerAggregate = new PeerAggregate(
-      this._peerRepo,
+    const peerAggregate = new PeerAggregate(this._peerRepo, this._logger);
+
+    this._fxCacheExpiryService = new FxCacheExpiryService(
+      this._producer,
+      this._logger
+    );
+
+    const fxAggregate = new FxAggregate(
+      this._fxRepo,
       this._aseFxService,
-      new PeerFxCacheExpiryService(this._producer, this._logger),
+      this._fxCacheExpiryService,
       this._logger
     );
 
@@ -225,6 +252,7 @@ export class PalApiService {
       assetAggregate,
       walletAggregate,
       peerAggregate,
+      fxAggregate,
       this._producer,
       this._consumer,
       this._ledgerReadSideRepo,
@@ -239,6 +267,10 @@ export class PalApiService {
 
     if (this._producer) {
       await this._producer.disconnect();
+    }
+
+    if (this._fxCacheExpiryService) {
+      this._fxCacheExpiryService.destroy();
     }
   }
 }

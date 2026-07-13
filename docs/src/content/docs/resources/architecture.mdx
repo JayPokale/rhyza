@@ -4,22 +4,41 @@ title: Architecture
 
 import { LinkOut, LargeImg } from '@interledger/docs-design-system'
 
-Rhyza is a decoupled, event-driven system divided into five distinct modules (bounded contexts). This architecture prioritizes horizontal scalability and a simplified developer experience.
+Rhyza is designed to prioritize horizontal scalability, ease of integration, and high performance. From an integration perspective, Rhyza's architecture consists of three primary areas:
 
-- **Payments**: Stores, initiates, and receives payments.
-- **ILP**: Handles sending and receiving ILP packets between peers.
-- **PAL (Peers, Accounts, Ledger)**: Manages assets, wallet addresses, peers, and all ledger/liquidity functionality.
-- **Auth**: Manages Open Payments Auth grants and access tokens.
-- **Notifications**: Communicates system events to the ASE via webhook events.
+### Core System
+The core system houses Rhyza's central business logic and data storage. The Admin API and Open Payments APIs act as interface layers that call the core system services to execute actions and manage resources.
 
-The Open Payments and Admin API servers act as stateless layers that translate external requests into internal commands for these modules.
+Specifically, the core system:
+- Stores assets, wallet addresses, and Open Payments grants.
+- Calculates payment quotes.
+- Processes payments, routing STREAM and ILP packets between peers.
+- Maintains the double-entry accounting ledger and peer balances.
+- Manages peering configuration.
+- Dispatches webhook events asynchronously to the ASE.
+
+### Admin API
+The Admin API Service is the internal, private REST interface used by the ASE to call the core system for administrative tasks. Through this API, the ASE can do actions such as:
+- Configure supported asset types
+- Register wallet addresses
+- Manage peering relationships and liquidity
+- Dynamically update exchange rates
+
+### Open Payments APIs
+The Open Payments Auth and Resource servers are external-facing standalone services that enable public third-party integration:
+- **Open Payments Auth Server**: Implements the GNAP protocol so third-party applications can request client access grants and tokens from account holders.
+- **Open Payments Resource Server**: Exposes standard endpoints for wallet addresses, quotes, and incoming/outgoing payment resource tracking.
+
+
+
+
 
 ### Infrastructure & Implementation
 
 Rhyza relies on modern infrastructure for high performance and scalability:
 
 - **MongoDB**: The default database used for high write throughput and native horizontal scalability.
-- **Kafka**: The foundation for the event-driven architecture, enabling asynchronous communication across modules.
+- **Kafka**: The foundation for the event-driven architecture, enabling asynchronous processing.
 - **Custom Accounting Ledger**: An event-sourced ledger built directly on Kafka that provides a highly performant, auditable accounting system.
 - **Redis**: Used as a cache for sharing STREAM connection details and session data across processes.
 

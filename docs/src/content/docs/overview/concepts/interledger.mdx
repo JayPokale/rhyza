@@ -12,7 +12,7 @@ At the core of Interledger is the Interledger Protocol (ILP). It's a request/res
 
 These packets of data carry information about a payment. Typically, information about a single aggregate payment from sender to receiver is split into multiple ILP packets.
 
-Each packet represents a conditional IOU which affects financial accounting balances between peers. Amounts adjust based on the sender's asset, the receiver's asset, and Rhyza's configured [exchange rates service](/integration/requirements/exchange-rates). Then, the amounts are used to update [peer liquidity](/overview/concepts/accounting) in the PAL (Peers, Accounts, Liquidity) Bounded Context, which maintains its own ledger.
+Each packet represents a conditional IOU which affects financial accounting balances between peers. Amounts adjust based on the sender's asset, the receiver's asset, and Rhyza's configured [exchange rates service](/integration/requirements/exchange-rates). Then, the amounts are used to update [peer liquidity](/overview/concepts/accounting) in Rhyza's ledger.
 
 ## Peers
 
@@ -30,7 +30,7 @@ Each node on the Interledger network can take on the role of sender, connector, 
 - Connector - An intermediary between a sender and receiver that forwards ILP packets. Connectors can facilitate payments to or from anyone they're peered with.
 - Receiver - The final recipient of the ILP packets and, as such, the payment.
 
-If the sender and receiver nodes are peers, then the payment flow is straightforward and no intermediary connector nodes are needed. However, if the sender and receiver aren't peers, then the payment must route through one or more connectors. Rhyza's ILP Bounded Context includes an Interledger connector for sending and receiving ILP packets.
+If the sender and receiver nodes are peers, then the payment flow is straightforward and no intermediary connector nodes are needed. However, if the sender and receiver aren't peers, then the payment must route through one or more connectors. Rhyza includes an Interledger connector for sending and receiving ILP packets.
 
 In the image below, the sender node (A) and the receiver node (C) share a common peer (B). In payments from the sender to the receiver, node B performs the role of connector to facilitate payments between the two.
 
@@ -54,6 +54,6 @@ See [Wallet addresses](/overview/concepts/wallet-addresses) for more information
 
 The <LinkOut href='https://interledger.org/developers/rfcs/stream-protocol/'>STREAM Protocol</LinkOut> is the transport layer protocol in the Interledger Protocol stack. STREAM sets up a connection between two counterparties to facilitate direct payments over Interledger.
 
-Rhyza's ILP Bounded Context includes an Interledger connector for sending and receiving STREAM packets. STREAM packets are encoded, encrypted, and sent as the `data` field in ILP packets. The protocol uses the shared secret to authenticate and encrypt packets, and to generate conditions and fulfillments.
+Rhyza's Interledger connector supports sending and receiving STREAM packets. STREAM packets are encoded, encrypted, and sent as the `data` field in ILP packets. The protocol uses the shared secret to authenticate and encrypt packets, and to generate conditions and fulfillments.
 
 A critical function of STREAM is to determine the path exchange rate and handle any changes in the rate. Rhyza's exchange rates service allows you to provide exchange rate information.

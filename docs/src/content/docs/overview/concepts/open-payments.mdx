@@ -14,13 +14,13 @@ Rhyza provides Open Payments functionality through standalone services that expo
 
 ### Open Payments Resource Server
 
-The Open Payments Resource Server is a standalone service that exposes the endpoints defined in the <LinkOut href="https://openpayments.dev/apis/resource-server/">Open Payments specification</LinkOut>. It acts as a stateless translation layer that validates incoming requests and communicates with internal system modules (such as Payments and PAL) to manage resources like incoming payments, quotes, and outgoing payments.
+The Open Payments Resource Server is a standalone service that exposes the endpoints defined in the <LinkOut href="https://openpayments.dev/apis/resource-server/">Open Payments specification</LinkOut>. It acts as a stateless translation layer that validates incoming requests and interfaces with Rhyza's backend to manage resources like incoming payments, quotes, and outgoing payments.
 
 ### Open Payments Auth Server
 
 The Open Payments Auth Server is a standalone service that implements the Open Payments authorization server specification. It is responsible for delegating authorization (via grants) to clients, resolving public keys for authentication, and managing access tokens. Open Payments leverages the Grant Negotiation and Authorization Protocol (GNAP) for delegating authorization.
 
-[Learn more about the system modules](/overview/overview#system-architecture)
+[Learn more about Rhyza's system architecture](/overview/overview#system-architecture)
 
 ## Example use cases
 

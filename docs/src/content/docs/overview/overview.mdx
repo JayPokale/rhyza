@@ -27,30 +27,6 @@ If a merchant accepts Interledger or Open Payments as a payment method, then a c
 
 With <LinkOut href="https://webmonetization.org">Web Monetization</LinkOut>, site visitors can pay an amount of their choosing to a participating site with little to no interaction. Both the site and the site visitor must have an Open Payments-enabled wallet address to receive and send payments. Rhyza’s implementation of the Open Payments standard means you can assign one or more wallet addresses to your account holders’ accounts, making these accounts support incoming and outgoing Web Monetization payments right out of the box.
 
-## System Architecture
-
-Rhyza is a decoupled, event-driven system organized into multiple **bounded contexts**, each composed of specialized services (APIs, domain logic, and event handlers) that communicate via Kafka.
-
-- **Payments**: Stores, initiates, and receives payments. Includes services for payment intent lifecycle, quoting, and payments.
-- **PAL (Peers, Accounts, and Liquidity)**: Manages assets, wallet addresses, peers, and the core accounting ledger and liquidity functionality.
-- **ILP**: Handles the Interledger Protocol (ILP) layer, routing packets between peers and managing connections.
-- **Auth**: Internal authorization services that manage Open Payments grants and access tokens.
-- **Notifications**: Processes system events and delivers webhooks to the ASE.
-
-### External interfaces
-
-External communication is handled by two primary layers:
-
-- **Admin API Service**: The unified REST interface used by the ASE for all administrative tasks. This is the **primary point of integration**.
-- **Open Payments Servers**: Standalone services (Auth and Resource) that enable Open Payments functionality for third-party clients.
-
-These layers translate requests into internal commands for the relevant bounded contexts.
-
-### Infrastructure
-
-Rhyza uses Kafka and MongoDB as its main infrastructure components.
-
-[Learn more about the infrastructure requirements](/integration/requirements/overview)
 
 ## Interledger
 
@@ -67,3 +43,17 @@ Open Payments is an API standard and set of open RESTful APIs that facilitate in
 By following the Open Payments standard, Rhyza allows your customers' accounts to become Open Payments-enabled. Clients, such as mobile apps, can then call the standalone Open Payments Resource Server to securely retrieve transaction data and initiate payments from your customers' accounts, after being authorized by the standalone Open Payments Auth Server.
 
 [Learn more about Open Payments](/overview/concepts/open-payments)
+
+## System Architecture
+
+Rhyza's architecture consists of three primary areas:
+
+- **Core System**: The central logic and storage engine that manages assets, wallet addresses, quotes, payment routing, peering, and webhooks. Rhyza's APIs call this core system to execute actions.
+- **Admin API**: The internal REST interface used by the ASE to call the core system for administrative tasks, such as configuring assets, managing peering relationships, and initiating payments.
+- **Open Payments APIs**: The external-facing API endpoints (Auth and Resource servers) that allow third-party applications to request client authorization and access account resources.
+
+### Infrastructure
+
+Rhyza uses Kafka and MongoDB as its main infrastructure components.
+
+[Learn more about the infrastructure requirements](/integration/requirements/overview)
