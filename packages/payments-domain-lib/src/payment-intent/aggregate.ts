@@ -257,9 +257,13 @@ export class PaymentIntentAggregate {
           cmd as CalculateRemoteQuoteCmd
         );
       } else if (cmd.msgName === PrepareRemotePaymentCmd.name) {
-        event = this.handlePrepareRemotePaymentCommand(cmd as PrepareRemotePaymentCmd);
+        event = this.handlePrepareRemotePaymentCommand(
+          cmd as PrepareRemotePaymentCmd
+        );
       } else if (cmd.msgName === FailRemotePaymentCmd.name) {
-        event = this.handleFailRemotePaymentCommand(cmd as FailRemotePaymentCmd);
+        event = this.handleFailRemotePaymentCommand(
+          cmd as FailRemotePaymentCmd
+        );
       } else if (cmd.msgName === ConfirmRemotePaymentCmd.name) {
         event = this.handleConfirmRemotePaymentCommand(
           cmd as ConfirmRemotePaymentCmd

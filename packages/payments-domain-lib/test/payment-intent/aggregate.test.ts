@@ -1647,10 +1647,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         await aggregate.flush();
 
         assert.equal(events.length, 1);
-        assert.equal(
-          events[0].msgName,
-          RemotePaymentSendConfirmedEvent.name
-        );
+        assert.equal(events[0].msgName, RemotePaymentSendConfirmedEvent.name);
         const payload = (events[0] as RemotePaymentSendConfirmedEvent).payload;
         assert.equal(payload.paymentIntentId, paymentIntentId);
         assert.equal(payload.paymentId, paymentId);
@@ -1848,9 +1845,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         assert.equal(payload.state, 'COMPLETED');
         assert.equal(payload.sentAmount, '500');
 
-        const stored = repo
-          .getAll()
-          .find((i) => i.id === paymentIntentId);
+        const stored = repo.getAll().find((i) => i.id === paymentIntentId);
         const storedPayment = stored?.payments.find((p) => p.id === paymentId);
         assert.equal(storedPayment?.state, 'COMPLETED');
         assert.equal(storedPayment?.sentAmount, 500n);
@@ -1884,9 +1879,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         assert.equal(intentPayload.id, paymentIntentId);
         assert.equal(intentPayload.state, 'COMPLETED');
 
-        const stored = repo
-          .getAll()
-          .find((i) => i.id === paymentIntentId);
+        const stored = repo.getAll().find((i) => i.id === paymentIntentId);
         assert.equal(stored?.state, 'COMPLETED');
       });
 
@@ -1970,10 +1963,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           .find((i) => i.id === paymentIntentId)
           ?.payments.find((p) => p.id === paymentId);
         assert.equal(storedPayment?.state, 'FAILED');
-        assert.equal(
-          storedPayment?.failReason,
-          'PAL voided reserved transfer'
-        );
+        assert.equal(storedPayment?.failReason, 'PAL voided reserved transfer');
       });
     });
 

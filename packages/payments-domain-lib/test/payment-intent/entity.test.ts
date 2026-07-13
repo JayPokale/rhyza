@@ -1673,7 +1673,12 @@ describe('PaymentIntent Entity', () => {
 
   describe('prepareRemotePayment', () => {
     function makeRemoteIntentWithPaymentInState(
-      paymentState: 'CREATED' | 'PROCESSING' | 'SENDING' | 'COMPLETED' | 'FAILED'
+      paymentState:
+        | 'CREATED'
+        | 'PROCESSING'
+        | 'SENDING'
+        | 'COMPLETED'
+        | 'FAILED'
     ) {
       const paymentIntentId = crypto.randomUUID();
       const paymentId = crypto.randomUUID();
@@ -1783,12 +1788,7 @@ describe('PaymentIntent Entity', () => {
 
   describe('failRemotePayment', () => {
     function makeRemoteIntentWithPaymentInState(
-      paymentState:
-        | 'CREATED'
-        | 'PROCESSING'
-        | 'SENDING'
-        | 'REJECTED'
-        | 'FAILED'
+      paymentState: 'CREATED' | 'PROCESSING' | 'SENDING' | 'REJECTED' | 'FAILED'
     ) {
       const paymentIntentId = crypto.randomUUID();
       const paymentId = crypto.randomUUID();
@@ -1951,8 +1951,7 @@ describe('PaymentIntent Entity', () => {
     it('throws PaymentNotFoundError if payment not on intent', () => {
       const { paymentIntent } = makeIntent('SENDING');
       assert.throws(
-        () =>
-          paymentIntent.confirmRemotePayment({ id: crypto.randomUUID() }),
+        () => paymentIntent.confirmRemotePayment({ id: crypto.randomUUID() }),
         (err: Error) => {
           assert(err instanceof PaymentNotFoundError);
           return true;
@@ -2067,8 +2066,7 @@ describe('PaymentIntent Entity', () => {
     it('throws PaymentNotFoundError if payment not on intent', () => {
       const { paymentIntent } = makeIntent('SENDING');
       assert.throws(
-        () =>
-          paymentIntent.rejectRemotePayment({ id: crypto.randomUUID() }),
+        () => paymentIntent.rejectRemotePayment({ id: crypto.randomUUID() }),
         (err: Error) => {
           assert(err instanceof PaymentNotFoundError);
           return true;
@@ -2127,8 +2125,7 @@ describe('PaymentIntent Entity', () => {
     }
 
     it('transitions CONFIRMED to COMPLETED and updates receivedAmount', () => {
-      const { paymentIntent, paymentId } =
-        makeRemoteIntent('CONFIRMED');
+      const { paymentIntent, paymentId } = makeRemoteIntent('CONFIRMED');
 
       const payment = paymentIntent.completeRemotePayment({ id: paymentId });
 
@@ -2161,8 +2158,7 @@ describe('PaymentIntent Entity', () => {
     it('throws PaymentNotFoundError if payment not on intent', () => {
       const { paymentIntent } = makeRemoteIntent('CONFIRMED');
       assert.throws(
-        () =>
-          paymentIntent.completeRemotePayment({ id: crypto.randomUUID() }),
+        () => paymentIntent.completeRemotePayment({ id: crypto.randomUUID() }),
         (err: Error) => {
           assert(err instanceof PaymentNotFoundError);
           return true;

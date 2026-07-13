@@ -42,7 +42,9 @@ export abstract class PaymentIntentCommand extends CommandMsg {
     return cmd.msgName === CalculateRemoteQuoteCmd.name;
   }
 
-  static isPrepareRemotePaymentCmd(cmd: CommandMsg): cmd is PrepareRemotePaymentCmd {
+  static isPrepareRemotePaymentCmd(
+    cmd: CommandMsg
+  ): cmd is PrepareRemotePaymentCmd {
     return cmd.msgName === PrepareRemotePaymentCmd.name;
   }
 
