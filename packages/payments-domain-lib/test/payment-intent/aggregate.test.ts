@@ -336,7 +336,6 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           receiverWalletAddress: 'receiver',
           receiverWalletAddressId: crypto.randomUUID(),
           assetCode: 'EUR',
-          assetCode: 'EUR',
           assetScale: 2,
           state: 'CREATED',
           destination: 'LOCAL',
@@ -349,7 +348,6 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         };
         await repo.storeMany([paymentIntent]);
 
-        mockPalService.getRates = async () => null;
         mockPalService.getRates = async () => null;
 
         const cmd = makeCreateQuoteCmd({
@@ -1553,8 +1551,6 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           destinationIlpAddress: 'g.peer.123',
           expiresAt: new Date(Date.now() + 60_000).toISOString(),
           sharedSecret: 'stub-shared-secret'
-          expiresAt: new Date(Date.now() + 60_000).toISOString(),
-          sharedSecret: 'stub-shared-secret'
         });
       });
 
@@ -1704,7 +1700,6 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           receiverWalletAddress: 'receiver',
           receiverWalletAddressId: crypto.randomUUID(),
           assetCode: 'EUR',
-          assetCode: 'EUR',
           assetScale: 2,
           state: 'CREATED',
           destination: 'LOCAL',
@@ -1717,7 +1712,6 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         };
         await repo.storeMany([paymentIntent]);
 
-        mockPalService.getRates = async () => null;
         mockPalService.getRates = async () => null;
 
         const cmd = makeCreatePaymentCmd({
@@ -3092,8 +3086,6 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         assetScale: 2,
         receivedAmount: 0n,
         destinationIlpAddress: 'g.peer.123',
-        expiresAt: new Date(Date.now() + 60_000).toISOString(),
-        sharedSecret: 'stub-shared-secret'
         expiresAt: new Date(Date.now() + 60_000).toISOString(),
         sharedSecret: 'stub-shared-secret'
       });
