@@ -42,7 +42,8 @@ tmp
 
 dist
 **/src/proto_generated/
-**/src/types/generated/
+**/src/types/generated/*
+!packages/admin-api-service/src/types/generated/openapi.d.ts
 
 .agents
 

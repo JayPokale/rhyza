@@ -4,6 +4,10 @@
 // @ts-ignore
 import { ApproveRequestBuilderRequestsMetadata, type ApproveRequestBuilder } from './approve/index.js';
 // @ts-ignore
+import { CancelRequestBuilderRequestsMetadata, type CancelRequestBuilder } from './cancel/index.js';
+// @ts-ignore
+import { PaymentIntentsRequestBuilderNavigationMetadata, type PaymentIntentsRequestBuilder } from './paymentIntents/index.js';
+// @ts-ignore
 import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata } from '@microsoft/kiota-abstractions';
 
 /**
@@ -14,6 +18,14 @@ export interface PaymentsItemRequestBuilder extends BaseRequestBuilder<PaymentsI
      * The approve property
      */
     get approve(): ApproveRequestBuilder;
+    /**
+     * The cancel property
+     */
+    get cancel(): CancelRequestBuilder;
+    /**
+     * The paymentIntents property
+     */
+    get paymentIntents(): PaymentIntentsRequestBuilder;
 }
 /**
  * Uri template for the request builder.
@@ -25,6 +37,12 @@ export const PaymentsItemRequestBuilderUriTemplate = "{+baseurl}/payments/{id}";
 export const PaymentsItemRequestBuilderNavigationMetadata: Record<Exclude<keyof PaymentsItemRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
     approve: {
         requestsMetadata: ApproveRequestBuilderRequestsMetadata,
+    },
+    cancel: {
+        requestsMetadata: CancelRequestBuilderRequestsMetadata,
+    },
+    paymentIntents: {
+        navigationMetadata: PaymentIntentsRequestBuilderNavigationMetadata,
     },
 };
 /* tslint:enable */

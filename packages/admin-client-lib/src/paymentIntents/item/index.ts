@@ -4,18 +4,12 @@
 // @ts-ignore
 import { createErrorResponseFromDiscriminatorValue, createPaymentIntentFromDiscriminatorValue, type ErrorResponse, type PaymentIntent } from '../../models/index.js';
 // @ts-ignore
-import { PaymentsRequestBuilderNavigationMetadata, type PaymentsRequestBuilder } from './payments/index.js';
-// @ts-ignore
-import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
+import { type BaseRequestBuilder, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
 
 /**
- * Builds and executes requests for operations under /payment-intents/{-id}
+ * Builds and executes requests for operations under /payment-intents/{id}
  */
-export interface ItemRequestBuilder extends BaseRequestBuilder<ItemRequestBuilder> {
-    /**
-     * The payments property
-     */
-    get payments(): PaymentsRequestBuilder;
+export interface PaymentIntentsItemRequestBuilder extends BaseRequestBuilder<PaymentIntentsItemRequestBuilder> {
     /**
      * Retrieve details of a specific payment intent by its unique identifier.
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
@@ -33,21 +27,13 @@ export interface ItemRequestBuilder extends BaseRequestBuilder<ItemRequestBuilde
 /**
  * Uri template for the request builder.
  */
-export const ItemRequestBuilderUriTemplate = "{+baseurl}/payment-intents/{%2Did}";
-/**
- * Metadata for all the navigation properties in the request builder.
- */
-export const ItemRequestBuilderNavigationMetadata: Record<Exclude<keyof ItemRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
-    payments: {
-        navigationMetadata: PaymentsRequestBuilderNavigationMetadata,
-    },
-};
+export const PaymentIntentsItemRequestBuilderUriTemplate = "{+baseurl}/payment-intents/{id}";
 /**
  * Metadata for all the requests in the request builder.
  */
-export const ItemRequestBuilderRequestsMetadata: RequestsMetadata = {
+export const PaymentIntentsItemRequestBuilderRequestsMetadata: RequestsMetadata = {
     get: {
-        uriTemplate: ItemRequestBuilderUriTemplate,
+        uriTemplate: PaymentIntentsItemRequestBuilderUriTemplate,
         responseBodyContentType: "application/json",
         errorMappings: {
             404: createErrorResponseFromDiscriminatorValue as ParsableFactory<Parsable>,
