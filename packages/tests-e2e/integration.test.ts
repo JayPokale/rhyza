@@ -5,8 +5,9 @@ import {
   DockerComposeEnvironment,
   StartedDockerComposeEnvironment
 } from 'testcontainers';
-import { createAdminClient } from 'admin-client-lib';
-import { AdminApiClient } from 'admin-client-lib/dist/adminApiClient';
+import { AdminApiClient, createAdminApiClient } from 'admin-client-lib';
+import { AnonymousAuthenticationProvider } from '@microsoft/kiota-abstractions';
+import { FetchRequestAdapter } from '@microsoft/kiota-http-fetchlibrary';
 
 const ADMIN_API_URL = 'http://localhost:3001';
 const COMPOSE_FILE = 'docker-compose.yaml';
@@ -21,7 +22,10 @@ describe('E2E tests', () => {
       COMPOSE_FILE
     ).up();
 
-    client = createAdminClient(ADMIN_API_URL);
+    const authProvider = new AnonymousAuthenticationProvider();
+    const adapter = new FetchRequestAdapter(authProvider);
+    adapter.baseUrl = ADMIN_API_URL;
+    client = createAdminApiClient(adapter);
   });
 
   test('Local', async () => {
