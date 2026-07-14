@@ -89,12 +89,7 @@
                   "multiLane": false
                 },
                 "legend": {
-                  "calcs": [
-                    "lastNotNull",
-                    "min",
-                    "max",
-                    "mean"
-                  ],
+                  "calcs": ["lastNotNull", "min", "max", "mean"],
                   "displayMode": "table",
                   "enableFacetedFilter": false,
                   "overflow": "ellipsis",
@@ -217,9 +212,7 @@
                 "orientation": "auto",
                 "percentChangeColorMode": "standard",
                 "reduceOptions": {
-                  "calcs": [
-                    "lastNotNull"
-                  ],
+                  "calcs": ["lastNotNull"],
                   "fields": "",
                   "values": false
                 },
@@ -345,12 +338,7 @@
                   "multiLane": false
                 },
                 "legend": {
-                  "calcs": [
-                    "lastNotNull",
-                    "min",
-                    "max",
-                    "mean"
-                  ],
+                  "calcs": ["lastNotNull", "min", "max", "mean"],
                   "displayMode": "table",
                   "enableFacetedFilter": false,
                   "overflow": "ellipsis",
@@ -538,12 +526,7 @@
                   "multiLane": false
                 },
                 "legend": {
-                  "calcs": [
-                    "lastNotNull",
-                    "min",
-                    "max",
-                    "mean"
-                  ],
+                  "calcs": ["lastNotNull", "min", "max", "mean"],
                   "displayMode": "table",
                   "enableFacetedFilter": false,
                   "overflow": "ellipsis",
@@ -689,9 +672,7 @@
                 "orientation": "auto",
                 "percentChangeColorMode": "standard",
                 "reduceOptions": {
-                  "calcs": [
-                    "lastNotNull"
-                  ],
+                  "calcs": ["lastNotNull"],
                   "fields": "",
                   "values": false
                 },
