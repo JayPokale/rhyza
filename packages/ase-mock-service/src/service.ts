@@ -5,6 +5,9 @@ import Fastify, {
 } from 'fastify';
 import { NotificationType } from 'notifications-domain-lib';
 import { PaymentCreatedPayload } from 'payments-domain-lib';
+import { AdminApiClient, createAdminApiClient } from 'admin-client-lib';
+import { AnonymousAuthenticationProvider } from '@microsoft/kiota-abstractions';
+import { FetchRequestAdapter } from '@microsoft/kiota-http-fetchlibrary';
 import { RATES } from './rates-data';
 
 const HOST = process.env['HOST'] || '0.0.0.0';
@@ -30,9 +33,10 @@ class WebhookServiceError extends Error {
 
 export class MockWebhookIntegrationService {
   private static server: FastifyInstance;
+  private static client: AdminApiClient;
+
   public static async start() {
     this.server = Fastify({ logger: true });
-
     this.server.post<{ Body: Webhook }>('/webhooks', async (request, reply) => {
       try {
         console.log('Webhook received:', request.body);
@@ -49,6 +53,12 @@ export class MockWebhookIntegrationService {
         }
       }
     });
+
+    // admin api client
+    const authProvider = new AnonymousAuthenticationProvider();
+    const adapter = new FetchRequestAdapter(authProvider);
+    adapter.baseUrl = ADMIN_URL;
+    this.client = createAdminApiClient(adapter);
 
     // ASE Rates mock handler
     this.server.get('/rates', this.handleGetRates.bind(this));
@@ -81,14 +91,21 @@ export class MockWebhookIntegrationService {
       throw new WebhookServiceError('Payment intent id is missing', 400);
     }
 
-    const response = await fetch(
-      `${ADMIN_URL}/payment-intents/${payload.paymentIntentId}/payments/${payload.id}/approve`,
-      {
-        method: 'POST'
+    try {
+      const response = await this.client.payments
+        .byId(payload.id)
+        .approve.post({ intentId: payload.paymentIntentId });
+
+      if (!response) {
+        throw new WebhookServiceError('Failed to approve payment', 401);
       }
-    );
-    if (!response.ok) {
-      throw new WebhookServiceError('Failed to approve payment', 401);
+    } catch (err) {
+      throw new WebhookServiceError(
+        err instanceof Error && err.message
+          ? err.message
+          : 'Failed to approve payment',
+        401
+      );
     }
   }
 
