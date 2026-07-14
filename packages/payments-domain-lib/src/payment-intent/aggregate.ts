@@ -1415,13 +1415,10 @@ export class PaymentIntentAggregate {
 
   private handleAcceptReceivedPaymentCommand(cmd: AcceptReceivedPaymentCmd) {
     this._logger.debug(
-      `handleAcceptReceivedPaymentCommand — receivedPaymentId: ${cmd.payload.id} paymentIntentId: ${cmd.payload.paymentIntentId}`
+      `handleAcceptReceivedPaymentCommand — receivedPaymentId: ${cmd.payload.receivedPaymentId} paymentIntentId: ${cmd.payload.paymentIntentId}`
     );
-    const {
-      id: receivedPaymentId,
-      paymentIntentId,
-      ledgerTransferId
-    } = cmd.payload;
+    const { receivedPaymentId, paymentIntentId, ledgerTransferId } =
+      cmd.payload;
 
     try {
       const paymentIntentObj = this.paymentIntentMap.get(paymentIntentId);
@@ -1473,9 +1470,9 @@ export class PaymentIntentAggregate {
 
   private handleFailReceivedPaymentCommand(cmd: FailReceivedPaymentCmd) {
     this._logger.debug(
-      `handleFailReceivedPaymentCommand — receivedPaymentId: ${cmd.payload.id} paymentIntentId: ${cmd.payload.paymentIntentId} reason: ${cmd.payload.reason}`
+      `handleFailReceivedPaymentCommand — receivedPaymentId: ${cmd.payload.receivedPaymentId} paymentIntentId: ${cmd.payload.paymentIntentId} reason: ${cmd.payload.reason}`
     );
-    const { id: receivedPaymentId, paymentIntentId, reason } = cmd.payload;
+    const { receivedPaymentId, paymentIntentId, reason } = cmd.payload;
 
     try {
       const paymentIntentObj = this.paymentIntentMap.get(paymentIntentId);
@@ -1529,9 +1526,9 @@ export class PaymentIntentAggregate {
     cmd: FinalizeReceivedPaymentCmd
   ) {
     this._logger.debug(
-      `handleFinalizeReceivedPaymentCommand — receivedPaymentId: ${cmd.payload.id} paymentIntentId: ${cmd.payload.paymentIntentId}`
+      `handleFinalizeReceivedPaymentCommand — receivedPaymentId: ${cmd.payload.receivedPaymentId} paymentIntentId: ${cmd.payload.paymentIntentId}`
     );
-    const { id: receivedPaymentId, paymentIntentId } = cmd.payload;
+    const { receivedPaymentId, paymentIntentId } = cmd.payload;
 
     try {
       const paymentIntentObj = this.paymentIntentMap.get(paymentIntentId);

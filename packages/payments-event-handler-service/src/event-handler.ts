@@ -178,7 +178,7 @@ export class PaymentsEventHandler {
           message.payload as LedgerTransferPayloadWithReceivedPaymentIds;
         const cmd = new AcceptReceivedPaymentCmd(
           {
-            id: payload.receivedPaymentId,
+            receivedPaymentId: payload.receivedPaymentId,
             paymentIntentId: payload.paymentIntentId,
             ledgerTransferId: payload.transferId
           },
@@ -192,7 +192,7 @@ export class PaymentsEventHandler {
           message.payload as LedgerTransferPayloadWithReceivedPaymentIds;
         const cmd = new FinalizeReceivedPaymentCmd(
           {
-            id: payload.receivedPaymentId,
+            receivedPaymentId: payload.receivedPaymentId,
             paymentIntentId: payload.paymentIntentId
           },
           payload.requestId
@@ -206,7 +206,7 @@ export class PaymentsEventHandler {
           message.payload as LedgerTransferPayloadWithReceivedPaymentIds;
         const cmd = new FailReceivedPaymentCmd(
           {
-            id: payload.receivedPaymentId,
+            receivedPaymentId: payload.receivedPaymentId,
             paymentIntentId: payload.paymentIntentId,
             reason: payload.errorMessage ?? 'Ledger transfer failed'
           },

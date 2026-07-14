@@ -1172,7 +1172,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
 
         const cmd = new AcceptReceivedPaymentCmd(
           {
-            id: receivedPaymentId,
+            receivedPaymentId,
             paymentIntentId: intent.id,
             ledgerTransferId: 'transfer-1'
           },
@@ -1197,7 +1197,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
 
         const cmd = new AcceptReceivedPaymentCmd(
           {
-            id: receivedPaymentId,
+            receivedPaymentId,
             paymentIntentId: intent.id,
             ledgerTransferId: 'transfer-1'
           },
@@ -1222,7 +1222,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
 
         const cmd = new AcceptReceivedPaymentCmd(
           {
-            id: receivedPaymentId,
+            receivedPaymentId,
             paymentIntentId: intent.id,
             ledgerTransferId: 'transfer-1'
           },
@@ -1238,7 +1238,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
       it('fails to accept when the payment intent is missing', async () => {
         const cmd = new AcceptReceivedPaymentCmd(
           {
-            id: crypto.randomUUID(),
+            receivedPaymentId: crypto.randomUUID(),
             paymentIntentId: 'nonexistent',
             ledgerTransferId: 'transfer-1'
           },
@@ -1257,7 +1257,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
 
         const cmd = new AcceptReceivedPaymentCmd(
           {
-            id: 'nonexistent',
+            receivedPaymentId: 'nonexistent',
             paymentIntentId: intent.id,
             ledgerTransferId: 'transfer-1'
           },
@@ -1276,7 +1276,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
 
         const cmd = new FailReceivedPaymentCmd(
           {
-            id: receivedPaymentId,
+            receivedPaymentId,
             paymentIntentId: intent.id,
             reason: 'Insufficient funds'
           },
@@ -1308,7 +1308,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
 
         const cmd = new FailReceivedPaymentCmd(
           {
-            id: receivedPaymentId,
+            receivedPaymentId,
             paymentIntentId: intent.id,
             reason: 'Ledger transfer rejected'
           },
@@ -1332,7 +1332,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
 
         const cmd = new FailReceivedPaymentCmd(
           {
-            id: receivedPaymentId,
+            receivedPaymentId,
             paymentIntentId: intent.id,
             reason: 'too late'
           },
@@ -1392,7 +1392,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         paymentIntentId: string
       ): FinalizeReceivedPaymentCmd {
         return new FinalizeReceivedPaymentCmd(
-          { id: receivedPaymentId, paymentIntentId },
+          { receivedPaymentId, paymentIntentId },
           crypto.randomUUID()
         );
       }

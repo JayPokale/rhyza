@@ -335,7 +335,7 @@ export class ValidateReceivedPaymentCmd extends PaymentIntentCommand {
 }
 
 export type AcceptReceivedPaymentCmdPayload = {
-  id: string;
+  receivedPaymentId: string;
   paymentIntentId: string;
   ledgerTransferId: string;
 };
@@ -351,7 +351,7 @@ export class AcceptReceivedPaymentCmd extends PaymentIntentCommand {
 }
 
 export type FailReceivedPaymentCmdPayload = {
-  id: string;
+  receivedPaymentId: string;
   paymentIntentId: string;
   reason?: string;
 };
@@ -367,7 +367,7 @@ export class FailReceivedPaymentCmd extends PaymentIntentCommand {
 }
 
 export type FinalizeReceivedPaymentCmdPayload = {
-  id: string;
+  receivedPaymentId: string;
   paymentIntentId: string;
 };
 
