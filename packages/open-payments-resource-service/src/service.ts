@@ -81,7 +81,7 @@ export class OpenPaymentsResourceServer {
     this.server.register(incomingPaymentRoutes, {
       palClient: this.palClient,
       paymentsClient: this.paymentsClient,
-      ilpClient: new StubIlpClient(STREAM_SERVER_SECRET)
+      ilpClient: new StubIlpClient()
     });
 
     this.server.register(quoteRoutes, {
