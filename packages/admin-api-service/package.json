@@ -8,7 +8,7 @@
     "prebuild": "pnpm run generate:types",
     "build": "tsc --build",
     "lint:openapi": "redocly lint openapi.yaml --lint-config error --format=stylish",
-    "generate:types": "openapi-typescript openapi.yaml -o src/types/generated/openapi.d.ts"
+    "generate:types": "openapi-ts"
   },
   "keywords": [],
   "author": "",
@@ -20,8 +20,8 @@
     "payments-client-lib": "workspace:*"
   },
   "devDependencies": {
+    "@hey-api/openapi-ts": "0.99.0",
     "@redocly/cli": "^2.31.2",
-    "openapi-typescript": "^7.6.1",
     "tsx": "^4.19.3"
   }
 }
