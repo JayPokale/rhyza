@@ -102,7 +102,7 @@ export class PaymentsEventHandler {
         break;
       }
       case ILPQuoteRequestReceivedEvent.name: {
-        // TODO(receiving-quote): ILP's ILPQuoteRequestReceivedPayload does
+        // TODO: ILP's ILPQuoteRequestReceivedPayload does
         // not currently carry paymentIntentId / sourceAmount / peerAssetCode /
         // peerAssetScale / requestId.
         // const payload =
