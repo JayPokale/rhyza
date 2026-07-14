@@ -14,7 +14,6 @@ import {
 import {
   CompleteRemoteQuoteCmd,
   FailRemoteQuoteCmd,
-  CalculateRemoteQuoteCmd,
   PrepareRemotePaymentCmd,
   FailRemotePaymentCmd,
   ConfirmRemotePaymentCmd,
