@@ -6,7 +6,7 @@ import { AssetsRequestBuilderRequestsMetadata, type AssetsRequestBuilder } from 
 // @ts-ignore
 import { PaymentIntentsRequestBuilderNavigationMetadata, PaymentIntentsRequestBuilderRequestsMetadata, type PaymentIntentsRequestBuilder } from './paymentIntents/index.js';
 // @ts-ignore
-import { PaymentsRequestBuilderRequestsMetadata, type PaymentsRequestBuilder } from './payments/index.js';
+import { PaymentsRequestBuilderNavigationMetadata, PaymentsRequestBuilderRequestsMetadata, type PaymentsRequestBuilder } from './payments/index.js';
 // @ts-ignore
 import { QuotesRequestBuilderRequestsMetadata, type QuotesRequestBuilder } from './quotes/index.js';
 // @ts-ignore
@@ -95,6 +95,7 @@ export const AdminApiClientNavigationMetadata: Record<Exclude<keyof AdminApiClie
     },
     payments: {
         requestsMetadata: PaymentsRequestBuilderRequestsMetadata,
+        navigationMetadata: PaymentsRequestBuilderNavigationMetadata,
     },
     quotes: {
         requestsMetadata: QuotesRequestBuilderRequestsMetadata,

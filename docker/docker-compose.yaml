@@ -284,7 +284,7 @@ services:
       - 8080:8080
     networks:
       - rafiki-v2
-    profiles: [full-build]
+    profiles: [with-observability]
 
   init-kafka:
     image: apache/kafka:4.0.0
@@ -344,7 +344,7 @@ services:
       - '4318:4318'
     networks:
       - rafiki-v2
-    profiles: [full-build]
+    profiles: [with-observability]
 
   prometheus:
     image: prom/prometheus:latest
@@ -357,7 +357,7 @@ services:
       - '9090:9090'
     networks:
       - rafiki-v2
-    profiles: [full-build]
+    profiles: [with-observability]
 
   tempo:
     image: grafana/tempo:latest
@@ -384,7 +384,7 @@ services:
       - prometheus
     networks:
       - rafiki-v2
-    profiles: [full-build]
+    profiles: [with-observability]
 
   nginx:
     image: nginx:latest
@@ -396,7 +396,7 @@ services:
       - rafiki-v2
     sysctls:
       net.ipv4.ip_local_port_range: '10240 65535'
-    profiles: [full-build]
+    profiles: [with-observability]
 
 networks:
   rafiki-v2:

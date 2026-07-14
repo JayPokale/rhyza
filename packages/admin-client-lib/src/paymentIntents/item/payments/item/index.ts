@@ -4,8 +4,6 @@
 // @ts-ignore
 import { createErrorResponseFromDiscriminatorValue, createPaymentFromDiscriminatorValue, type ErrorResponse, type Payment } from '../../../../models/index.js';
 // @ts-ignore
-import { ApproveRequestBuilderRequestsMetadata, type ApproveRequestBuilder } from './approve/index.js';
-// @ts-ignore
 import { CancelRequestBuilderRequestsMetadata, type CancelRequestBuilder } from './cancel/index.js';
 // @ts-ignore
 import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
@@ -14,10 +12,6 @@ import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type 
  * Builds and executes requests for operations under /payment-intents/{-id}/payments/{id}
  */
 export interface PaymentsItemRequestBuilder extends BaseRequestBuilder<PaymentsItemRequestBuilder> {
-    /**
-     * The approve property
-     */
-    get approve(): ApproveRequestBuilder;
     /**
      * The cancel property
      */
@@ -44,9 +38,6 @@ export const PaymentsItemRequestBuilderUriTemplate = "{+baseurl}/payment-intents
  * Metadata for all the navigation properties in the request builder.
  */
 export const PaymentsItemRequestBuilderNavigationMetadata: Record<Exclude<keyof PaymentsItemRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
-    approve: {
-        requestsMetadata: ApproveRequestBuilderRequestsMetadata,
-    },
     cancel: {
         requestsMetadata: CancelRequestBuilderRequestsMetadata,
     },

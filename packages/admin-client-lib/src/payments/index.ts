@@ -4,12 +4,20 @@
 // @ts-ignore
 import { createErrorResponseFromDiscriminatorValue, createPaymentCreateResponseFromDiscriminatorValue, serializePaymentCreate, serializePaymentCreateResponse, type ErrorResponse, type PaymentCreate, type PaymentCreateResponse } from '../models/index.js';
 // @ts-ignore
-import { type BaseRequestBuilder, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
+import { PaymentsItemRequestBuilderNavigationMetadata, type PaymentsItemRequestBuilder } from './item/index.js';
+// @ts-ignore
+import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
 
 /**
  * Builds and executes requests for operations under /payments
  */
 export interface PaymentsRequestBuilder extends BaseRequestBuilder<PaymentsRequestBuilder> {
+    /**
+     * Gets an item from the ApiSdk.payments.item collection
+     * @param id Unique identifier for the payment to be approved
+     * @returns {PaymentsItemRequestBuilder}
+     */
+     byId(id: string) : PaymentsItemRequestBuilder;
     /**
      * Create a payment for a sender's account.
      * @param body Schema for creating a new payment.
@@ -30,6 +38,15 @@ export interface PaymentsRequestBuilder extends BaseRequestBuilder<PaymentsReque
  * Uri template for the request builder.
  */
 export const PaymentsRequestBuilderUriTemplate = "{+baseurl}/payments";
+/**
+ * Metadata for all the navigation properties in the request builder.
+ */
+export const PaymentsRequestBuilderNavigationMetadata: Record<Exclude<keyof PaymentsRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
+    byId: {
+        navigationMetadata: PaymentsItemRequestBuilderNavigationMetadata,
+        pathParametersMappings: ["id"],
+    },
+};
 /**
  * Metadata for all the requests in the request builder.
  */

@@ -4,9 +4,9 @@
 // @ts-ignore
 import { serializePaymentCancel, type PaymentCancel } from '../../../../../models/index.js';
 // @ts-ignore
-import { type AdditionalDataHolder, type BaseRequestBuilder, type Parsable, type ParsableFactory, type ParseNode, type RequestConfiguration, type RequestInformation, type RequestsMetadata, type SerializationWriter } from '@microsoft/kiota-abstractions';
+import { type BaseRequestBuilder, type Parsable, type ParsableFactory, type ParseNode, type RequestConfiguration, type RequestInformation, type RequestsMetadata, type SerializationWriter } from '@microsoft/kiota-abstractions';
 
-export interface CancelPostResponse extends AdditionalDataHolder, Parsable {
+export interface CancelPostResponse extends Parsable {
     /**
      * Unique identifier of the cancelled payment
      */
@@ -61,7 +61,6 @@ export function deserializeIntoCancelPostResponse(cancelPostResponse: Partial<Ca
 export function serializeCancelPostResponse(writer: SerializationWriter, cancelPostResponse: Partial<CancelPostResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!cancelPostResponse || isSerializingDerivedType) { return; }
     writer.writeStringValue("id", cancelPostResponse.id);
-    writer.writeAdditionalData(cancelPostResponse.additionalData);
 }
 /**
  * Uri template for the request builder.
