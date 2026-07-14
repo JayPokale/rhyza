@@ -525,7 +525,8 @@ export class PaymentIntentAggregate {
           peerId: peer.peerId,
           peerAssetCode: peer.assetCode,
           peerAssetScale: peer.assetScale,
-          sourceAmount: sourceAmount.toString()
+          sourceAmount: sourceAmount.toString(),
+          destinationIlpAddress
         },
         cmd.requestId
       );

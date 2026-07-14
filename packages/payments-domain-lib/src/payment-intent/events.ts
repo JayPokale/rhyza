@@ -344,6 +344,7 @@ export type RemoteQuoteRequestedPayload = {
   peerAssetCode: string;
   peerAssetScale: number;
   sourceAmount: string;
+  destinationIlpAddress: string;
 };
 
 export class RemoteQuoteRequestedEvent extends PaymentIntentDomainEvent {
