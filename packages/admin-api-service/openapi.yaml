@@ -211,16 +211,11 @@ paths:
           schema:
             type: string
       requestBody:
+        required: true
         content:
           application/json:
             schema:
-              type: object
-              required:
-                - intentId
-              properties:
-                intentId:
-                  type: string
-              additionalProperties: false
+              $ref: '#/components/schemas/PaymentApprove'
       responses:
         '200':
           description: The request has succeeded.
@@ -235,7 +230,7 @@ paths:
                     type: string
                     description: Unique identifier of the approved payment
                 additionalProperties: false
-  /payment-intents/{intentId}/payments/{id}/cancel:
+  /payments/{id}/cancel:
     post:
       summary: Cancel Payment
       description: Cancel a pending payment
@@ -243,18 +238,18 @@ paths:
         - payments
       operationId: Payments_cancelPayment
       parameters:
-        - name: intentId
-          in: path
-          description: Unique identifier for the payment intent
-          required: true
-          schema:
-            type: string
         - name: id
           in: path
           description: Unique identifier for the payment to be cancelled
           required: true
           schema:
             type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentCancel'
       responses:
         '200':
           description: The request has succeeded.
@@ -269,13 +264,7 @@ paths:
                     type: string
                     description: Unique identifier of the cancelled payment
                 additionalProperties: false
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PaymentCancel'
-  /payment-intents/{intentId}/payments/{id}:
+  /payments/{id}/payment-intents/{intentId}:
     get:
       summary: Get Payment
       description: Retrieve details of a specific payment by its ID within a payment intent.
@@ -557,9 +546,22 @@ components:
         paymentIntentId:
           type: string
           description: The unique identifier for the payment intent.
+    PaymentApprove:
+      type: object
+      required:
+        - intentId
+      properties:
+        intentId:
+          type: string
+          description: Payment intent the payment is for.
     PaymentCancel:
       type: object
+      required:
+        - intentId
       properties:
+        intentId:
+          type: string
+          description: Payment intent the payment is for.
         reason:
           type: string
           description: Reason why the payment was cancelled.

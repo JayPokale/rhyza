@@ -124,7 +124,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/payment-intents/{intentId}/payments/{id}/approve": {
+    "/payments/{id}/approve": {
         parameters: {
             query?: never;
             header?: never;
@@ -144,7 +144,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/payment-intents/{intentId}/payments/{id}/cancel": {
+    "/payments/{id}/cancel": {
         parameters: {
             query?: never;
             header?: never;
@@ -164,7 +164,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/payment-intents/{intentId}/payments/{id}": {
+    "/payments/{id}/payment-intents/{intentId}": {
         parameters: {
             query?: never;
             header?: never;
@@ -332,7 +332,13 @@ export interface components {
             /** @description The unique identifier for the payment intent. */
             paymentIntentId: string;
         };
+        PaymentApprove: {
+            /** @description Payment intent the payment is for. */
+            intentId: string;
+        };
         PaymentCancel: {
+            /** @description Payment intent the payment is for. */
+            intentId: string;
             /** @description Reason why the payment was cancelled. */
             reason?: string;
         };
@@ -582,14 +588,16 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description Unique identifier for the payment intent */
-                intentId: string;
                 /** @description Unique identifier for the payment to be approved */
                 id: string;
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentApprove"];
+            };
+        };
         responses: {
             /** @description The request has succeeded. */
             200: {
@@ -610,14 +618,12 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description Unique identifier for the payment intent */
-                intentId: string;
                 /** @description Unique identifier for the payment to be cancelled */
                 id: string;
             };
             cookie?: never;
         };
-        requestBody?: {
+        requestBody: {
             content: {
                 "application/json": components["schemas"]["PaymentCancel"];
             };

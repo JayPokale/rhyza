@@ -47,7 +47,7 @@ export async function paymentRoutes(
 
   server.get<{
     Params: operations['Payments_getPayment']['parameters']['path'];
-  }>('/payment-intents/:intentId/payments/:id', async (request, reply) => {
+  }>('/payments/:id/payment-intents/:intentId', async (request, reply) => {
     const { intentId, id } = request.params;
 
     let payment;
@@ -75,37 +75,33 @@ export async function paymentRoutes(
 
   server.post<{
     Params: operations['Payments_approvePayment']['parameters']['path'];
-  }>(
-    '/payment-intents/:intentId/payments/:id/approve',
-    async (request, reply) => {
-      const { intentId, id } = request.params;
+    Body: components['schemas']['PaymentApprove'];
+  }>('/payments/:id/approve', async (request, reply) => {
+    const { id } = request.params;
+    const { intentId } = request.body ?? {};
 
-      try {
-        await paymentsClient.approvePayment(intentId, id);
-        return reply.status(200).send({ id });
-      } catch (err) {
-        server.log.error(err);
-        return reply.status(500).send({ error: (err as Error).message });
-      }
+    try {
+      await paymentsClient.approvePayment(intentId, id);
+      return reply.status(200).send({ id });
+    } catch (err) {
+      server.log.error(err);
+      return reply.status(500).send({ error: (err as Error).message });
     }
-  );
+  });
 
   server.post<{
     Params: operations['Payments_cancelPayment']['parameters']['path'];
     Body: components['schemas']['PaymentCancel'];
-  }>(
-    '/payment-intents/:intentId/payments/:id/cancel',
-    async (request, reply) => {
-      const { intentId, id } = request.params;
-      const { reason } = request.body ?? {};
+  }>('/payments/:id/cancel', async (request, reply) => {
+    const { id } = request.params;
+    const { intentId, reason } = request.body ?? {};
 
-      try {
-        await paymentsClient.cancelPayment(intentId, id, reason);
-        return reply.status(200).send({ id });
-      } catch (err) {
-        server.log.error(err);
-        return reply.status(500).send({ error: (err as Error).message });
-      }
+    try {
+      await paymentsClient.cancelPayment(intentId, id, reason);
+      return reply.status(200).send({ id });
+    } catch (err) {
+      server.log.error(err);
+      return reply.status(500).send({ error: (err as Error).message });
     }
-  );
+  });
 }
