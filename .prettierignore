@@ -8,3 +8,4 @@ packages/open-payments-resource-service/src/types/generated
 .astro
 docs/
 packages/admin-client-lib/*
+packages/admin-api-service/src/types/generated/*
