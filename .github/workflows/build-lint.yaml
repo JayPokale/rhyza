@@ -10,7 +10,6 @@ on:
 
 jobs:
   build-lint:
-    timeout-minutes: 120
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -28,6 +27,11 @@ jobs:
       - name: Build
         run: |
           pnpm build
+      - name: Docker build
+        run: |
+          docker compose \
+            -f ./docker/docker-compose.yaml \
+            build
       - name: Run E2E tests
         run: |
           pnpm e2e
