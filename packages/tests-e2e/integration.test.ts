@@ -17,10 +17,9 @@ describe('E2E tests', () => {
   let client: AdminApiClient;
   before(async () => {
     const composeDir = path.resolve(__dirname, '../../docker');
-    environment = await new DockerComposeEnvironment(
-      composeDir,
-      COMPOSE_FILE
-    ).up();
+    environment = await new DockerComposeEnvironment(composeDir, COMPOSE_FILE)
+      .withNoRecreate()
+      .up();
 
     const authProvider = new AnonymousAuthenticationProvider();
     const adapter = new FetchRequestAdapter(authProvider);
