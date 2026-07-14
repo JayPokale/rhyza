@@ -1,25 +1,25 @@
 import assert from 'assert';
 import { test, describe, before, after } from 'node:test';
-import path from 'path';
-import {
-  DockerComposeEnvironment,
-  StartedDockerComposeEnvironment
-} from 'testcontainers';
+// import path from 'path';
+// import {
+//   DockerComposeEnvironment,
+//   StartedDockerComposeEnvironment
+// } from 'testcontainers';
 import { AdminApiClient, createAdminApiClient } from 'admin-client-lib';
 import { AnonymousAuthenticationProvider } from '@microsoft/kiota-abstractions';
 import { FetchRequestAdapter } from '@microsoft/kiota-http-fetchlibrary';
 
 const ADMIN_API_URL = 'http://localhost:3001';
-const COMPOSE_FILE = 'docker-compose.yaml';
+// const COMPOSE_FILE = 'docker-compose.yaml';
 
 describe('E2E tests', () => {
-  let environment: StartedDockerComposeEnvironment;
+  // let environment: StartedDockerComposeEnvironment;
   let client: AdminApiClient;
   before(async () => {
-    const composeDir = path.resolve(__dirname, '../../docker');
-    environment = await new DockerComposeEnvironment(composeDir, COMPOSE_FILE)
-      .withNoRecreate()
-      .up();
+    // const composeDir = path.resolve(__dirname, '../../docker');
+    // environment = await new DockerComposeEnvironment(composeDir, COMPOSE_FILE)
+    //   .withNoRecreate()
+    //   .up();
 
     const authProvider = new AnonymousAuthenticationProvider();
     const adapter = new FetchRequestAdapter(authProvider);
@@ -89,6 +89,6 @@ describe('E2E tests', () => {
   // test('Remote', async () => {});
 
   after(async () => {
-    await environment?.down();
+    // await environment?.down();
   });
 });

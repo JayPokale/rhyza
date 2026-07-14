@@ -31,7 +31,7 @@ jobs:
         run: |
           docker compose \
             -f ./docker/docker-compose.yaml \
-            build
+            up -d --build
       - name: Run E2E tests
         run: |
           pnpm e2e
