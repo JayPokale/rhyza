@@ -5,6 +5,7 @@ import { PalClient } from 'pal-client-lib';
 import { PaymentsClient } from 'payments-client-lib';
 import { assetRoutes } from './routes/assets.js';
 import { walletAddressRoutes } from './routes/wallet-addresses.js';
+import { peerRoutes } from './routes/peers.js';
 import { paymentIntentRoutes } from './routes/payment-intents.js';
 import { quoteRoutes } from './routes/quotes.js';
 import { paymentRoutes } from './routes/payments.js';
@@ -61,6 +62,9 @@ export class AdminApiService {
       palClient: this.palClient
     });
     this.server.register(walletAddressRoutes, {
+      palClient: this.palClient
+    });
+    this.server.register(peerRoutes, {
       palClient: this.palClient
     });
     this.server.register(paymentIntentRoutes, {

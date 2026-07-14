@@ -4,28 +4,38 @@ import {
   IMessageConsumer,
   IMessageProducer
 } from 'common-types-lib';
-import { ILPQuoteFailedEvent, ILPQuoteReceivedEvent } from 'ilp-domain-lib';
+import {
+  ILPPaymentConfirmedEvent,
+  ILPPaymentFailedEvent,
+  ILPQuoteFailedEvent,
+  ILPQuoteReceivedEvent,
+  ILPQuoteRequestReceivedEvent
+} from 'ilp-domain-lib';
 import {
   CompleteRemoteQuoteCmd,
   FailRemoteQuoteCmd,
-  CalculateRemoteQuoteCmd
+  PrepareRemotePaymentCmd,
+  FailRemotePaymentCmd,
+  ConfirmRemotePaymentCmd,
+  RejectRemotePaymentCmd,
+  CompleteRemotePaymentCmd
 } from 'payments-domain-lib';
+import {
+  LedgerOutgoingTransferReservedEvent,
+  LedgerOutgoingTransferInsufficientFundsErrorEvent,
+  LedgerOutgoingTransferCommittedEvent,
+  LedgerOutgoingTransferRejectedEvent
+} from 'pal-public-types-lib';
 
-// TODO: pending ILP BC class for inbound remote-quote request. replace stub
-// once published from ilp-domain-lib.
-// How does ILP want to correlate? remote quote calculation is ephemeral (no quote id).
-// packetId? generic correlationId or requestId?
-// peerId/paymentIntentId alone probably cant uniquely identify.
-const RemoteQuoteRequestReceivedEventName = 'RemoteQuoteRequestReceivedEvent';
-interface IlpRemoteQuoteRequestReceivedPayload {
-  packetId: string;
-  peerId: string;
-  paymentIntentId: string;
-  sourceAmount: string;
-  peerAssetCode: string;
-  peerAssetScale: number;
+// TODO: use pal event directly. It needs to be updated with paymentintentId and paymentId
+type LedgerTransferPayloadWithPaymentIds = {
   requestId: string;
-}
+  transferId: string;
+  isError?: boolean;
+  errorMessage?: string;
+  paymentIntentId: string;
+  paymentId: string;
+};
 
 export class PaymentsEventHandler {
   private _msgConsumer: IMessageConsumer;
@@ -37,7 +47,10 @@ export class PaymentsEventHandler {
   }
 
   async start(): Promise<void> {
-    this._msgConsumer.setTopics([DomainEventTopics.IlpEvents]);
+    this._msgConsumer.setTopics([
+      DomainEventTopics.IlpEvents,
+      DomainEventTopics.LedgerEvents
+    ]);
     this._msgConsumer.setBatchCallbackFn(async (messages: IMessage[]) => {
       for (const message of messages) {
         await this._handleEvent(message);
@@ -88,16 +101,96 @@ export class PaymentsEventHandler {
         await this._msgProducer.send(cmd);
         break;
       }
-      case RemoteQuoteRequestReceivedEventName: {
-        const payload = message.payload as IlpRemoteQuoteRequestReceivedPayload;
-        const cmd = new CalculateRemoteQuoteCmd(
+      case ILPQuoteRequestReceivedEvent.name: {
+        // TODO: ILP's ILPQuoteRequestReceivedPayload does
+        // not currently carry paymentIntentId / sourceAmount / peerAssetCode /
+        // peerAssetScale / requestId.
+        // const payload =
+        //   message.payload as ILPQuoteRequestReceivedEvent['payload'];
+        // const cmd = new CalculateRemoteQuoteCmd(
+        //   {
+        //     packetId: payload.packetId,
+        //     peerId: payload.peerId,
+        //     paymentIntentId: payload.paymentIntentId,
+        //     sourceAmount: payload.sourceAmount,
+        //     peerAssetCode: payload.peerAssetCode,
+        //     peerAssetScale: payload.peerAssetScale
+        //   },
+        //   payload.requestId
+        // );
+        // await this._msgProducer.send(cmd);
+        break;
+      }
+      case LedgerOutgoingTransferReservedEvent.name: {
+        const payload = message.payload as LedgerTransferPayloadWithPaymentIds;
+        const cmd = new PrepareRemotePaymentCmd(
           {
-            packetId: payload.packetId,
-            peerId: payload.peerId,
             paymentIntentId: payload.paymentIntentId,
-            sourceAmount: payload.sourceAmount,
-            peerAssetCode: payload.peerAssetCode,
-            peerAssetScale: payload.peerAssetScale
+            paymentId: payload.paymentId,
+            ledgerTransferId: payload.transferId
+          },
+          payload.requestId
+        );
+        await this._msgProducer.send(cmd);
+        break;
+      }
+      case LedgerOutgoingTransferInsufficientFundsErrorEvent.name: {
+        const payload = message.payload as LedgerTransferPayloadWithPaymentIds;
+        const cmd = new FailRemotePaymentCmd(
+          {
+            paymentIntentId: payload.paymentIntentId,
+            paymentId: payload.paymentId,
+            reason: payload.errorMessage ?? 'Insufficient funds'
+          },
+          payload.requestId
+        );
+        await this._msgProducer.send(cmd);
+        break;
+      }
+      case ILPPaymentConfirmedEvent.name: {
+        const payload = message.payload as ILPPaymentConfirmedEvent['payload'];
+        const cmd = new ConfirmRemotePaymentCmd(
+          {
+            paymentIntentId: payload.paymentIntentId,
+            paymentId: payload.paymentId
+          },
+          message.requestId ?? ''
+        );
+        await this._msgProducer.send(cmd);
+        break;
+      }
+      case ILPPaymentFailedEvent.name: {
+        const payload = message.payload as ILPPaymentFailedEvent['payload'];
+        const cmd = new RejectRemotePaymentCmd(
+          {
+            paymentIntentId: payload.paymentIntentId,
+            paymentId: payload.paymentId,
+            reason: payload.reason
+          },
+          message.requestId ?? ''
+        );
+        await this._msgProducer.send(cmd);
+        break;
+      }
+      case LedgerOutgoingTransferCommittedEvent.name: {
+        const payload = message.payload as LedgerTransferPayloadWithPaymentIds;
+        const cmd = new CompleteRemotePaymentCmd(
+          {
+            paymentIntentId: payload.paymentIntentId,
+            paymentId: payload.paymentId
+          },
+          payload.requestId
+        );
+        await this._msgProducer.send(cmd);
+        break;
+      }
+      case LedgerOutgoingTransferRejectedEvent.name: {
+        const payload = message.payload as LedgerTransferPayloadWithPaymentIds;
+        const cmd = new FailRemotePaymentCmd(
+          {
+            paymentIntentId: payload.paymentIntentId,
+            paymentId: payload.paymentId,
+            reason: payload.errorMessage
           },
           payload.requestId
         );
@@ -105,7 +198,7 @@ export class PaymentsEventHandler {
         break;
       }
       default:
-        console.warn(`Unhandled ILP event — msgName: ${message.msgName}`);
+        console.warn(`Unhandled event — msgName: ${message.msgName}`);
     }
   }
 }

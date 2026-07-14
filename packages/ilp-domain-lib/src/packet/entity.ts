@@ -21,6 +21,7 @@ export class PacketCorrelation {
     paymentIntentId: string;
     expiresAt: Date;
     paymentId: string;
+    requestId: string;
   }): PacketCorrelation {
     return new PacketCorrelation({
       ...args,

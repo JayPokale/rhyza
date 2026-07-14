@@ -8,8 +8,7 @@ import {
 import {
   MongoDbPaymentIntentRepo,
   RemotePaymentIntentAdapter,
-  PalAdapter,
-  StaticRatesAdapter
+  PalAdapter
 } from 'payments-implementations-lib';
 import { PaymentIntentAggregate } from 'payments-domain-lib';
 import { PalClient } from 'pal-client-lib';
@@ -61,13 +60,11 @@ export class PaymentsCommandHandlerService {
     const palClient = new PalClient(PAL_GRPC_URL);
 
     const palAdapter = new PalAdapter(palClient);
-    const staticRatesAdapter = new StaticRatesAdapter();
     const remotePaymentIntentAdapter = new RemotePaymentIntentAdapter();
 
     const aggregate = new PaymentIntentAggregate(
       this.repo,
       palAdapter,
-      staticRatesAdapter,
       remotePaymentIntentAdapter,
       logger.child('aggregate')
     );

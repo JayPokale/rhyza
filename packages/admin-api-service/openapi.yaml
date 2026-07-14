@@ -229,6 +229,11 @@ paths:
                   id:
                     type: string
                     description: Unique identifier of the approved payment
+                  state:
+                    type: string
+                    enum:
+                      - COMPLETED
+                      - FAILED
                 additionalProperties: false
   /payments/{id}/cancel:
     post:

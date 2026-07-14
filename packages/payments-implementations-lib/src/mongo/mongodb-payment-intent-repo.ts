@@ -460,6 +460,222 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
     }
   }
 
+  async storeApprovedRemotePayments(
+    paymentUpdates: {
+      payments: { id: string; state: PaymentState }[];
+    }[]
+  ): Promise<void> {
+    this._checkInitialisedOrThrow();
+
+    if (paymentUpdates.length === 0) return;
+
+    try {
+      const paymentWrites = paymentUpdates.flatMap((update) =>
+        update.payments.map((payment) => ({
+          updateOne: {
+            filter: { id: payment.id },
+            update: { $set: { state: payment.state } }
+          }
+        }))
+      );
+
+      await this._paymentCollection.bulkWrite(paymentWrites);
+    } catch (e) {
+      this._logger.error(e);
+      throw new Error(
+        `Unable to store approved remote payments - error: ${(e as Error).message}`
+      );
+    }
+  }
+
+  async storeSendingRemotePayments(
+    paymentUpdates: {
+      payments: {
+        id: string;
+        state: PaymentState;
+        ledgerTransferId: string;
+      }[];
+    }[]
+  ): Promise<void> {
+    this._checkInitialisedOrThrow();
+
+    if (paymentUpdates.length === 0) return;
+
+    try {
+      const paymentWrites = paymentUpdates.flatMap((update) =>
+        update.payments.map((payment) => ({
+          updateOne: {
+            filter: { id: payment.id },
+            update: {
+              $set: {
+                state: payment.state,
+                ledgerTransferId: payment.ledgerTransferId
+              }
+            }
+          }
+        }))
+      );
+
+      await this._paymentCollection.bulkWrite(paymentWrites);
+    } catch (e) {
+      this._logger.error(e);
+      throw new Error(
+        `Unable to store sending remote payments - error: ${(e as Error).message}`
+      );
+    }
+  }
+
+  async storeFailedRemotePayments(
+    paymentUpdates: {
+      payments: { id: string; state: PaymentState; failReason?: string }[];
+    }[]
+  ): Promise<void> {
+    this._checkInitialisedOrThrow();
+
+    if (paymentUpdates.length === 0) return;
+
+    try {
+      const paymentWrites = paymentUpdates.flatMap((update) =>
+        update.payments.map((payment) => ({
+          updateOne: {
+            filter: { id: payment.id },
+            update: {
+              $set: {
+                state: payment.state,
+                ...(payment.failReason
+                  ? { failReason: payment.failReason }
+                  : {})
+              }
+            }
+          }
+        }))
+      );
+
+      await this._paymentCollection.bulkWrite(paymentWrites);
+    } catch (e) {
+      this._logger.error(e);
+      throw new Error(
+        `Unable to store failed remote payments - error: ${(e as Error).message}`
+      );
+    }
+  }
+
+  async storeConfirmedRemotePayments(
+    paymentUpdates: {
+      payments: { id: string; state: PaymentState }[];
+    }[]
+  ): Promise<void> {
+    this._checkInitialisedOrThrow();
+
+    if (paymentUpdates.length === 0) return;
+
+    try {
+      const paymentWrites = paymentUpdates.flatMap((update) =>
+        update.payments.map((payment) => ({
+          updateOne: {
+            filter: { id: payment.id },
+            update: { $set: { state: payment.state } }
+          }
+        }))
+      );
+
+      await this._paymentCollection.bulkWrite(paymentWrites);
+    } catch (e) {
+      this._logger.error(e);
+      throw new Error(
+        `Unable to store confirmed remote payments - error: ${(e as Error).message}`
+      );
+    }
+  }
+
+  async storeRejectedRemotePayments(
+    paymentUpdates: {
+      payments: { id: string; state: PaymentState; failReason?: string }[];
+    }[]
+  ): Promise<void> {
+    this._checkInitialisedOrThrow();
+
+    if (paymentUpdates.length === 0) return;
+
+    try {
+      const paymentWrites = paymentUpdates.flatMap((update) =>
+        update.payments.map((payment) => ({
+          updateOne: {
+            filter: { id: payment.id },
+            update: {
+              $set: {
+                state: payment.state,
+                ...(payment.failReason
+                  ? { failReason: payment.failReason }
+                  : {})
+              }
+            }
+          }
+        }))
+      );
+
+      await this._paymentCollection.bulkWrite(paymentWrites);
+    } catch (e) {
+      this._logger.error(e);
+      throw new Error(
+        `Unable to store rejected remote payments - error: ${(e as Error).message}`
+      );
+    }
+  }
+
+  async storeCompletedRemotePayments(
+    paymentUpdates: {
+      paymentIntent: {
+        id: string;
+        receivedAmount: bigint;
+        state: PaymentIntentState;
+      };
+      payments: { id: string; state: PaymentState; sentAmount: bigint }[];
+    }[]
+  ): Promise<void> {
+    this._checkInitialisedOrThrow();
+
+    if (paymentUpdates.length === 0) return;
+
+    try {
+      const intentWrites = paymentUpdates.map((update) => ({
+        updateOne: {
+          filter: { id: update.paymentIntent.id },
+          update: {
+            $set: {
+              state: update.paymentIntent.state,
+              receivedAmount: update.paymentIntent.receivedAmount
+            }
+          }
+        }
+      }));
+
+      const paymentWrites = paymentUpdates.flatMap((update) =>
+        update.payments.map((payment) => ({
+          updateOne: {
+            filter: { id: payment.id },
+            update: {
+              $set: {
+                state: payment.state,
+                sentAmount: payment.sentAmount
+              }
+            }
+          }
+        }))
+      );
+
+      await Promise.all([
+        this._paymentIntentCollection.bulkWrite(intentWrites),
+        this._paymentCollection.bulkWrite(paymentWrites)
+      ]);
+    } catch (e) {
+      this._logger.error(e);
+      throw new Error(
+        `Unable to store completed remote payments - error: ${(e as Error).message}`
+      );
+    }
+  }
+
   async storeCancelledPayments(
     paymentUpdates: {
       payments: {

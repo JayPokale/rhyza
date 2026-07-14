@@ -33,7 +33,14 @@ export class RemotePaymentIntentAdapter implements IRemotePaymentIntentService {
       receivedAmount: { value: string; assetCode: string; assetScale: number };
       expiresAt?: string;
       destinationIlpAddress?: string;
+      sharedSecret?: string;
     };
+
+    if (!data.sharedSecret) {
+      throw new Error(
+        `Remote incoming payment ${url} response missing sharedSecret`
+      );
+    }
 
     return {
       walletAddress: data.walletAddress,
@@ -45,7 +52,8 @@ export class RemotePaymentIntentAdapter implements IRemotePaymentIntentService {
       receivedAmount: BigInt(data.receivedAmount.value),
       expiresAt: data.expiresAt,
       destinationIlpAddress:
-        data.destinationIlpAddress ?? STUB_DESTINATION_ILP_ADDRESS
+        data.destinationIlpAddress ?? STUB_DESTINATION_ILP_ADDRESS,
+      sharedSecret: data.sharedSecret
     };
   }
 }

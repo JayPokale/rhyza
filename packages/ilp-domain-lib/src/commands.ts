@@ -46,8 +46,9 @@ export class StartRemotePaymentCmd extends CommandMsg {
   msgTopic: string = CommandTopics.IlpCommands;
   payload: StartRemotePaymentCmdPayload;
 
-  constructor(payload: StartRemotePaymentCmdPayload) {
+  constructor(payload: StartRemotePaymentCmdPayload, requestId: string) {
     super(payload.peerId);
+    this.requestId = requestId;
     this.msgKey = payload.peerId;
     this.payload = payload;
   }

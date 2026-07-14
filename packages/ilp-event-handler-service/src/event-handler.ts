@@ -1,14 +1,16 @@
 import {
+  CommandMsg,
   DomainEventTopics,
   ILogger,
   IMessage,
   IMessageConsumer,
   IMessageProducer
 } from 'common-types-lib';
-import { RespondToRemoteQuoteCmd } from 'ilp-domain-lib';
+import { RespondToRemoteQuoteCmd, StartRemoteQuoteCmd } from 'ilp-domain-lib';
 import {
   RemoteQuoteCalculatedEvent,
-  RemoteQuoteCalculationFailedEvent
+  RemoteQuoteCalculationFailedEvent,
+  RemoteQuoteRequestedEvent
 } from 'payments-domain-lib';
 
 export class IlpEventHandler {
@@ -33,15 +35,33 @@ export class IlpEventHandler {
   private async _handleBatch(messages: IMessage[]): Promise<void> {
     const commands = messages
       .map((m) => this._toCommand(m))
-      .filter((c): c is RespondToRemoteQuoteCmd => c !== undefined);
+      .filter((c): c is CommandMsg => c !== undefined);
 
     if (commands.length > 0) {
       await this._msgProducer.send(commands);
     }
   }
 
-  private _toCommand(message: IMessage): RespondToRemoteQuoteCmd | undefined {
+  private _toCommand(message: IMessage): CommandMsg | undefined {
     switch (message.msgName) {
+      case RemoteQuoteRequestedEvent.name: {
+        const payload = message.payload as RemoteQuoteRequestedEvent['payload'];
+        this._logger.debug(
+          `Starting remote quote for paymentIntent ${payload.paymentIntentId} to peer ${payload.peerId}`
+        );
+        return new StartRemoteQuoteCmd(
+          {
+            peerId: payload.peerId,
+            paymentIntentId: payload.paymentIntentId,
+            quoteId: payload.quoteId,
+            destinationIlpAddress: payload.destinationIlpAddress,
+            sourceAmount: payload.sourceAmount,
+            sourceAssetCode: payload.senderAssetCode,
+            sourceAssetScale: payload.senderAssetScale
+          },
+          payload.requestId
+        );
+      }
       case RemoteQuoteCalculatedEvent.name: {
         const payload =
           message.payload as RemoteQuoteCalculatedEvent['payload'];

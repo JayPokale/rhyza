@@ -19,6 +19,7 @@ export interface ICreatePaymentResponse {
 
 export interface IApprovePaymentResponse {
   id: string;
+  state?: string;
 }
 
 export interface ICancelPaymentResponse {

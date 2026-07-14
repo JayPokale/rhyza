@@ -22,6 +22,7 @@ import {
   IQuote,
   PaymentIntentDestination,
   PaymentIntentState,
+  PaymentState,
   QuoteState
 } from './interfaces';
 
@@ -310,6 +311,275 @@ class Quote implements IBaseQuote {
   }
 }
 
+class Payment {
+  private _id: string;
+  private _senderWalletAddress: string;
+  private _senderWalletAddressId: string;
+  private _paymentIntentId: string;
+  private _assetCode: string;
+  private _assetScale: number;
+  private _createdAt: Date;
+  private _debitAmount: bigint;
+  private _receiveAmount: bigint;
+  private _quoteId?: string;
+  private _state: PaymentState;
+  private _sentAmount: bigint;
+  private _cancelledAt?: Date;
+  private _cancelReason?: string;
+  private _ledgerTransferId?: string;
+  private _failReason?: string;
+
+  private constructor(args: {
+    id: string;
+    state: PaymentState;
+    senderWalletAddress: string;
+    senderWalletAddressId: string;
+    paymentIntentId: string;
+    assetCode: string;
+    assetScale: number;
+    createdAt: Date;
+    debitAmount: bigint;
+    receiveAmount: bigint;
+    sentAmount: bigint;
+    quoteId?: string;
+    cancelledAt?: Date;
+    cancelReason?: string;
+    ledgerTransferId?: string;
+    failReason?: string;
+  }) {
+    this._id = args.id;
+    this._state = args.state;
+    this._senderWalletAddress = args.senderWalletAddress;
+    this._senderWalletAddressId = args.senderWalletAddressId;
+    this._paymentIntentId = args.paymentIntentId;
+    this._assetCode = args.assetCode;
+    this._assetScale = args.assetScale;
+    this._createdAt = args.createdAt;
+    this._debitAmount = args.debitAmount;
+    this._receiveAmount = args.receiveAmount;
+    this._sentAmount = args.sentAmount;
+    this._quoteId = args.quoteId;
+    this._cancelledAt = args.cancelledAt;
+    this._cancelReason = args.cancelReason;
+    this._ledgerTransferId = args.ledgerTransferId;
+    this._failReason = args.failReason;
+  }
+
+  static create(args: {
+    id: string;
+    senderWalletAddress: string;
+    senderWalletAddressId: string;
+    paymentIntentId: string;
+    assetCode: string;
+    assetScale: number;
+    debitAmount: bigint;
+    receiveAmount: bigint;
+    quoteId?: string;
+  }): Payment {
+    return new Payment({
+      ...args,
+      state: 'CREATED',
+      createdAt: new Date(),
+      sentAmount: 0n
+    });
+  }
+
+  static fromObject(obj: IPayment): Payment {
+    return new Payment({
+      id: obj.id,
+      state: obj.state,
+      senderWalletAddress: obj.senderWalletAddress,
+      senderWalletAddressId: obj.senderWalletAddressId,
+      paymentIntentId: obj.paymentIntentId,
+      assetCode: obj.assetCode,
+      assetScale: obj.assetScale,
+      createdAt: obj.createdAt,
+      debitAmount: obj.debitAmount,
+      receiveAmount: obj.receiveAmount,
+      sentAmount: obj.sentAmount,
+      quoteId: obj.quoteId,
+      cancelledAt: obj.cancelledAt,
+      cancelReason: obj.cancelReason,
+      ledgerTransferId: obj.ledgerTransferId,
+      failReason: obj.failReason
+    });
+  }
+
+  toObject(): IPayment {
+    return {
+      id: this._id,
+      state: this._state,
+      senderWalletAddress: this._senderWalletAddress,
+      senderWalletAddressId: this._senderWalletAddressId,
+      paymentIntentId: this._paymentIntentId,
+      assetCode: this._assetCode,
+      assetScale: this._assetScale,
+      createdAt: this._createdAt,
+      debitAmount: this._debitAmount,
+      receiveAmount: this._receiveAmount,
+      sentAmount: this._sentAmount,
+      quoteId: this._quoteId,
+      cancelledAt: this._cancelledAt,
+      cancelReason: this._cancelReason,
+      ledgerTransferId: this._ledgerTransferId,
+      failReason: this._failReason
+    };
+  }
+
+  complete(): { debitAmount: bigint; receiveAmount: bigint } {
+    if (this._state === 'CANCELLED') {
+      throw new PaymentInvalidStateError(`Payment ${this._id} was cancelled`);
+    }
+    if (this._state === 'COMPLETED') {
+      throw new PaymentInvalidStateError(
+        `Payment ${this._id} is already completed`
+      );
+    }
+    this._sentAmount += this._debitAmount;
+    this._state = 'COMPLETED';
+    return {
+      debitAmount: this._debitAmount,
+      receiveAmount: this._receiveAmount
+    };
+  }
+
+  approveRemoteSend(): void {
+    if (this._state !== 'CREATED') {
+      throw new PaymentInvalidStateError(
+        `Payment ${this._id} cannot be approved for remote send from state ${this._state}`
+      );
+    }
+    this._state = 'PROCESSING';
+  }
+
+  prepare(ledgerTransferId: string): void {
+    if (this._state !== 'PROCESSING') {
+      throw new PaymentInvalidStateError(
+        `Payment ${this._id} cannot be prepared from state ${this._state}`
+      );
+    }
+    this._state = 'SENDING';
+    this._ledgerTransferId = ledgerTransferId;
+  }
+
+  failRemote(reason?: string): void {
+    if (this._state !== 'PROCESSING' && this._state !== 'REJECTED') {
+      throw new PaymentInvalidStateError(
+        `Payment ${this._id} cannot fail from state ${this._state}`
+      );
+    }
+    this._state = 'FAILED';
+    if (reason) {
+      this._failReason = reason;
+    }
+  }
+
+  completeRemote(): { debitAmount: bigint; receiveAmount: bigint } {
+    if (this._state !== 'CONFIRMED') {
+      throw new PaymentInvalidStateError(
+        `Payment ${this._id} cannot complete from state ${this._state}`
+      );
+    }
+    this._sentAmount += this._debitAmount;
+    this._state = 'COMPLETED';
+    return {
+      debitAmount: this._debitAmount,
+      receiveAmount: this._receiveAmount
+    };
+  }
+
+  confirm(): void {
+    if (this._state !== 'SENDING') {
+      throw new PaymentInvalidStateError(
+        `Payment ${this._id} cannot be confirmed from state ${this._state}`
+      );
+    }
+    this._state = 'CONFIRMED';
+  }
+
+  reject(reason?: string): void {
+    if (this._state !== 'SENDING') {
+      throw new PaymentInvalidStateError(
+        `Payment ${this._id} cannot be rejected from state ${this._state}`
+      );
+    }
+    this._state = 'REJECTED';
+    if (reason) {
+      this._failReason = reason;
+    }
+  }
+
+  cancel(reason?: string): void {
+    if (this._state === 'CANCELLED') {
+      throw new PaymentInvalidStateError(
+        `Payment ${this._id} is already cancelled`
+      );
+    }
+    if (this._state === 'COMPLETED') {
+      throw new PaymentInvalidStateError(
+        `Payment ${this._id} is already complete`
+      );
+    }
+    this._state = 'CANCELLED';
+    this._cancelledAt = new Date();
+    if (reason) {
+      this._cancelReason = reason;
+    }
+  }
+
+  get id(): string {
+    return this._id;
+  }
+
+  get state(): PaymentState {
+    return this._state;
+  }
+
+  get quoteId(): string | undefined {
+    return this._quoteId;
+  }
+
+  get senderWalletAddressId(): string {
+    return this._senderWalletAddressId;
+  }
+
+  get senderWalletAddress(): string {
+    return this._senderWalletAddress;
+  }
+
+  get assetCode(): string {
+    return this._assetCode;
+  }
+
+  get assetScale(): number {
+    return this._assetScale;
+  }
+
+  get debitAmount(): bigint {
+    return this._debitAmount;
+  }
+
+  get receiveAmount(): bigint {
+    return this._receiveAmount;
+  }
+
+  get sentAmount(): bigint {
+    return this._sentAmount;
+  }
+
+  get createdAt(): Date {
+    return this._createdAt;
+  }
+
+  get ledgerTransferId(): string | undefined {
+    return this._ledgerTransferId;
+  }
+
+  get failReason(): string | undefined {
+    return this._failReason;
+  }
+}
+
 export class PaymentIntent implements IPaymentIntent {
   private _id: string;
   private _receiverWalletAddressId: string | undefined;
@@ -323,7 +593,7 @@ export class PaymentIntent implements IPaymentIntent {
   private _incomingAmount: bigint | null;
   private _receivedAmount: bigint;
   private _quotes: Quote[] = [];
-  private _payments: IPayment[] = [];
+  private _payments: Payment[] = [];
   private _destinationIlpAddress: string | undefined;
   private _remoteUrl: string | undefined;
 
@@ -340,7 +610,7 @@ export class PaymentIntent implements IPaymentIntent {
     receivedAmount: bigint = 0n,
     state: PaymentIntentState = PaymentIntentState.CREATED,
     quotes: Quote[] = [],
-    payments: IPayment[] = [],
+    payments: Payment[] = [],
     destinationIlpAddress?: string,
     remoteUrl?: string
   ) {
@@ -435,22 +705,7 @@ export class PaymentIntent implements IPaymentIntent {
       obj.receivedAmount,
       obj.state,
       obj.quotes.map((q) => Quote.fromObject(q)),
-      obj.payments.map((payment) => ({
-        id: payment.id,
-        senderWalletAddress: payment.senderWalletAddress,
-        senderWalletAddressId: payment.senderWalletAddressId,
-        paymentIntentId: payment.paymentIntentId,
-        quoteId: payment.quoteId,
-        assetCode: payment.assetCode,
-        assetScale: payment.assetScale,
-        createdAt: payment.createdAt,
-        sentAmount: payment.sentAmount,
-        state: payment.state,
-        debitAmount: payment.debitAmount,
-        receiveAmount: payment.receiveAmount,
-        cancelledAt: payment.cancelledAt,
-        cancelReason: payment.cancelReason
-      })),
+      obj.payments.map((p) => Payment.fromObject(p)),
       obj.destinationIlpAddress,
       obj.remoteUrl
     );
@@ -470,22 +725,7 @@ export class PaymentIntent implements IPaymentIntent {
       incomingAmount: this._incomingAmount,
       receivedAmount: this._receivedAmount,
       quotes: this._quotes.map((q) => q.toObject()),
-      payments: this._payments.map((payment) => ({
-        id: payment.id,
-        state: payment.state,
-        senderWalletAddress: payment.senderWalletAddress,
-        paymentIntentId: this.id,
-        senderWalletAddressId: payment.senderWalletAddressId,
-        quoteId: payment.quoteId,
-        assetCode: payment.assetCode,
-        assetScale: payment.assetScale,
-        createdAt: payment.createdAt,
-        debitAmount: payment.debitAmount,
-        receiveAmount: payment.receiveAmount,
-        sentAmount: payment.sentAmount,
-        cancelledAt: payment.cancelledAt,
-        cancelReason: payment.cancelReason
-      })),
+      payments: this._payments.map((p) => p.toObject()),
       destinationIlpAddress: this._destinationIlpAddress,
       remoteUrl: this._remoteUrl
     };
@@ -806,23 +1046,218 @@ export class PaymentIntent implements IPaymentIntent {
       );
     }
 
-    const payment: IPayment = {
+    const payment = Payment.create({
       id,
-      state: 'CREATED',
       senderWalletAddress: senderWalletAddress.address,
       senderWalletAddressId: senderWalletAddress.id,
       paymentIntentId: this.id,
       assetCode: senderWalletAddress.assetCode,
       assetScale: senderWalletAddress.assetScale,
-      createdAt: new Date(),
       debitAmount: paymentDebitAmount,
       receiveAmount: paymentReceiveAmount,
-      sentAmount: 0n,
       quoteId
-    };
+    });
 
     this._payments.push(payment);
-    return payment;
+    return payment.toObject();
+  }
+
+  addRemotePayment(args: {
+    id: string;
+    quoteId: string;
+    senderWalletAddress: {
+      id: string;
+      address: string;
+      assetCode: string;
+      assetScale: number;
+    };
+  }): IPayment {
+    const { id, quoteId, senderWalletAddress } = args;
+
+    if (this._destination !== 'REMOTE') {
+      throw new PaymentIntentInvalidState(
+        'Payment intent destination must be remote'
+      );
+    }
+
+    if (this.state !== 'CREATED') {
+      throw new PaymentIntentInvalidState(
+        `Payment intent is in an invalid state for payment: ${this.state}`
+      );
+    }
+
+    if (this.isExpired) {
+      throw new PaymentIntentExpired(
+        `Payment intent is expired at: ${this.expiresAt.toISOString()}`
+      );
+    }
+
+    if (this._payments.find((payment) => payment.id === id)) {
+      throw new InvalidPaymentIdError(
+        `Duplicate payment id ${id} exists for ${this.id} payment intent`
+      );
+    }
+
+    const quote = this.quotes.find((q) => q.id === quoteId);
+    if (!quote) {
+      throw new InvalidQuoteIdError(
+        `Could not find ${quoteId} quote for ${this.id} payment intent`
+      );
+    }
+
+    if (quote.senderWalletAddressId !== senderWalletAddress.id) {
+      throw new InvalidQuoteStateError(
+        `Invalid sender wallet address for quote ${quoteId}`
+      );
+    }
+
+    if (quote.state !== 'COMPLETED') {
+      throw new InvalidQuoteStateError(
+        `Quote ${quoteId} is not completed for payment creation`
+      );
+    }
+
+    if (quote.expiresAt.getTime() <= Date.now()) {
+      throw new QuoteExpiredError(
+        `Quote expired for payment creation against payment intent: ${this.id}`
+      );
+    }
+
+    if (
+      this._payments.find(
+        (payment) =>
+          payment.quoteId === quoteId && payment.state !== 'CANCELLED'
+      )
+    ) {
+      throw new InvalidQuoteStateError(
+        `Already consumed quote ${quoteId} for payment ${id}`
+      );
+    }
+
+    const payment = Payment.create({
+      id,
+      senderWalletAddress: senderWalletAddress.address,
+      senderWalletAddressId: senderWalletAddress.id,
+      paymentIntentId: this.id,
+      assetCode: senderWalletAddress.assetCode,
+      assetScale: senderWalletAddress.assetScale,
+      debitAmount: quote.debitAmount,
+      receiveAmount: quote.receiveAmount,
+      quoteId
+    });
+
+    this._payments.push(payment);
+    return payment.toObject();
+  }
+
+  approveRemotePaymentSend(args: { id: string }): IPayment {
+    const { id } = args;
+
+    if (this._destination !== 'REMOTE') {
+      throw new PaymentIntentInvalidState(
+        'Payment intent destination must be remote'
+      );
+    }
+
+    if (this.state !== 'CREATED') {
+      throw new PaymentIntentInvalidState(
+        `Payment intent is in an invalid state for payment: ${this.state}`
+      );
+    }
+
+    if (this.isExpired) {
+      throw new PaymentIntentExpired(
+        `Payment intent is expired at: ${this.expiresAt.toISOString()}`
+      );
+    }
+
+    const payment = this._payments.find((p) => p.id === id);
+    if (!payment) {
+      throw new PaymentNotFoundError(
+        `Payment ${id} not found for ${this.id} payment intent`
+      );
+    }
+
+    payment.approveRemoteSend();
+    return payment.toObject();
+  }
+
+  prepareRemotePayment(args: {
+    id: string;
+    ledgerTransferId: string;
+  }): IPayment {
+    const { id, ledgerTransferId } = args;
+
+    const payment = this._payments.find((p) => p.id === id);
+    if (!payment) {
+      throw new PaymentNotFoundError(
+        `Payment ${id} not found for ${this.id} payment intent`
+      );
+    }
+
+    payment.prepare(ledgerTransferId);
+    return payment.toObject();
+  }
+
+  failRemotePayment(args: { id: string; reason?: string }): IPayment {
+    const { id, reason } = args;
+
+    const payment = this._payments.find((p) => p.id === id);
+    if (!payment) {
+      throw new PaymentNotFoundError(
+        `Payment ${id} not found for ${this.id} payment intent`
+      );
+    }
+
+    payment.failRemote(reason);
+    return payment.toObject();
+  }
+
+  confirmRemotePayment(args: { id: string }): IPayment {
+    const { id } = args;
+
+    const payment = this._payments.find((p) => p.id === id);
+    if (!payment) {
+      throw new PaymentNotFoundError(
+        `Payment ${id} not found for ${this.id} payment intent`
+      );
+    }
+
+    payment.confirm();
+    return payment.toObject();
+  }
+
+  rejectRemotePayment(args: { id: string; reason?: string }): IPayment {
+    const { id, reason } = args;
+
+    const payment = this._payments.find((p) => p.id === id);
+    if (!payment) {
+      throw new PaymentNotFoundError(
+        `Payment ${id} not found for ${this.id} payment intent`
+      );
+    }
+
+    payment.reject(reason);
+    return payment.toObject();
+  }
+
+  completeRemotePayment(args: { id: string }): IPayment {
+    const { id } = args;
+
+    const payment = this._payments.find((p) => p.id === id);
+    if (!payment) {
+      throw new PaymentNotFoundError(
+        `Payment ${id} not found for ${this.id} payment intent`
+      );
+    }
+
+    const { receiveAmount } = payment.completeRemote();
+    this._receivedAmount += receiveAmount;
+
+    if (this.isIncomingAmountMet) {
+      this._state = 'COMPLETED';
+    }
+    return payment.toObject();
   }
 
   completeLocalPayment(args: { id: string }): IPayment {
@@ -840,32 +1275,23 @@ export class PaymentIntent implements IPaymentIntent {
       );
     }
 
-    const payment = this._payments.find((payment) => payment.id === id);
+    const payment = this._payments.find((p) => p.id === id);
     if (!payment) {
       throw new PaymentNotFoundError(
         `Payment ${id} not found for ${this.id} payment intent`
       );
     }
 
-    if (payment.state === 'CANCELLED') {
-      throw new PaymentInvalidStateError(`Payment ${id} was cancelled`);
-    }
-
-    if (payment.state === 'COMPLETED') {
-      throw new PaymentInvalidStateError(`Payment ${id} is already completed`);
-    }
-
     // TODO: determine if we want to allow paying more than the incomingAmount.
     // For now, the logic is that we allow overpaying the incomingAmount once.
 
-    payment.sentAmount += payment.debitAmount;
-    this._receivedAmount += payment.receiveAmount;
+    const { receiveAmount } = payment.complete();
+    this._receivedAmount += receiveAmount;
 
-    if (this._incomingAmount && this.receivedAmount >= this._incomingAmount) {
+    if (this.isIncomingAmountMet) {
       this._state = 'COMPLETED';
     }
-    payment.state = 'COMPLETED';
-    return payment;
+    return payment.toObject();
   }
 
   cancelPayment(args: { id: string; reason?: string }): void {
@@ -878,19 +1304,7 @@ export class PaymentIntent implements IPaymentIntent {
       );
     }
 
-    if (payment.state === 'CANCELLED') {
-      throw new PaymentInvalidStateError(`Payment ${id} is already cancelled`);
-    }
-
-    if (payment.state === 'COMPLETED') {
-      throw new PaymentInvalidStateError(`Payment ${id} is already complete`);
-    }
-
-    payment.state = 'CANCELLED';
-    payment.cancelledAt = new Date();
-    if (reason) {
-      payment.cancelReason = reason;
-    }
+    payment.cancel(reason);
   }
 
   get id(): string {
@@ -933,6 +1347,13 @@ export class PaymentIntent implements IPaymentIntent {
     return this._expiresAt.getTime() < Date.now();
   }
 
+  private get isIncomingAmountMet(): boolean {
+    return (
+      this._incomingAmount !== null &&
+      this._receivedAmount >= this._incomingAmount
+    );
+  }
+
   get incomingAmount(): bigint | null {
     return this._incomingAmount;
   }
@@ -946,7 +1367,7 @@ export class PaymentIntent implements IPaymentIntent {
   }
 
   get payments(): IPayment[] {
-    return this._payments;
+    return this._payments.map((p) => p.toObject());
   }
 
   get destinationIlpAddress(): string | undefined {

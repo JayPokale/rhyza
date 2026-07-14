@@ -14,6 +14,7 @@ import { FastifyOpenApiValidator } from './validator.js';
 import crypto from 'crypto';
 import { ILogger } from '../../common-types-lib/dist/logger.js';
 import { PinoLogger } from 'implementations-lib';
+import { StubIlpClient } from './stubs/ilp-client.js';
 
 const BC_NAME = 'OPEN_PAYMENTS';
 const APP_NAME = `${BC_NAME}_API_SVC`;
@@ -79,8 +80,8 @@ export class OpenPaymentsResourceServer {
 
     this.server.register(incomingPaymentRoutes, {
       palClient: this.palClient,
-
-      paymentsClient: this.paymentsClient
+      paymentsClient: this.paymentsClient,
+      ilpClient: new StubIlpClient()
     });
 
     this.server.register(quoteRoutes, {

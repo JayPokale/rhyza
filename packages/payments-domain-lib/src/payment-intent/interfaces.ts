@@ -53,8 +53,13 @@ export type IQuote = IPendingQuote | ICompletedQuote | IFailedQuote;
 
 export const PaymentState = {
   CREATED: 'CREATED',
+  PROCESSING: 'PROCESSING',
+  SENDING: 'SENDING',
+  CONFIRMED: 'CONFIRMED',
+  REJECTED: 'REJECTED',
   COMPLETED: 'COMPLETED',
-  CANCELLED: 'CANCELLED'
+  CANCELLED: 'CANCELLED',
+  FAILED: 'FAILED'
 } as const;
 export type PaymentState = keyof typeof PaymentState;
 
@@ -73,6 +78,8 @@ export interface IPayment {
   debitAmount: bigint;
   receiveAmount: bigint;
   sentAmount: bigint;
+  ledgerTransferId?: string;
+  failReason?: string;
 }
 
 export interface IPaymentIntent {
@@ -100,16 +107,10 @@ export interface IWalletAddress {
   assetScale: number;
 }
 
-export interface IRatesService {
-  getRate(
-    sourceAssetCode: string,
-    destinationAssetCode: string
-  ): Promise<number | undefined>;
-}
-
 export type IFxRateRequest =
   | { peerId: string; sourceAssetCode: string }
-  | { peerId: string; destinationAssetCode: string };
+  | { peerId: string; destinationAssetCode: string }
+  | { sourceAssetCode: string; destinationAssetCode: string };
 
 export interface IPeer {
   peerId: string;
@@ -131,6 +132,7 @@ export interface IRemotePaymentIntentDetails {
   receivedAmount: bigint;
   expiresAt?: string;
   destinationIlpAddress: string;
+  sharedSecret: string;
 }
 
 export interface IRemotePaymentIntentService {
@@ -186,6 +188,45 @@ export interface IPaymentIntentRepository {
         cancelledAt: Date;
         cancelReason?: string;
       }[];
+    }[]
+  ): Promise<void>;
+  storeApprovedRemotePayments(
+    paymentUpdates: {
+      payments: { id: string; state: PaymentState }[];
+    }[]
+  ): Promise<void>;
+  storeSendingRemotePayments(
+    paymentUpdates: {
+      payments: {
+        id: string;
+        state: PaymentState;
+        ledgerTransferId: string;
+      }[];
+    }[]
+  ): Promise<void>;
+  storeFailedRemotePayments(
+    paymentUpdates: {
+      payments: { id: string; state: PaymentState; failReason?: string }[];
+    }[]
+  ): Promise<void>;
+  storeConfirmedRemotePayments(
+    paymentUpdates: {
+      payments: { id: string; state: PaymentState }[];
+    }[]
+  ): Promise<void>;
+  storeRejectedRemotePayments(
+    paymentUpdates: {
+      payments: { id: string; state: PaymentState; failReason?: string }[];
+    }[]
+  ): Promise<void>;
+  storeCompletedRemotePayments(
+    paymentUpdates: {
+      paymentIntent: {
+        id: string;
+        receivedAmount: bigint;
+        state: PaymentIntentState;
+      };
+      payments: { id: string; state: PaymentState; sentAmount: bigint }[];
     }[]
   ): Promise<void>;
   storeFinalizedRemoteQuotes(
