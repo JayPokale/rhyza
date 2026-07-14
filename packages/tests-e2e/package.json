@@ -3,7 +3,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "tests-e2e": "COMPOSE_PARALLEL_LIMIT=1 DEBUG=testcontainers* node --import tsx --test integration.test.ts",
+    "tests-e2e": "docker compose -f ../../docker/docker-compose.yaml build && DEBUG=testcontainers* node --import tsx --test integration.test.ts",
     "build": "tsc --build"
   },
   "keywords": [],

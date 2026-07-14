@@ -4,7 +4,7 @@ services:
     build:
       context: ../
       dockerfile: ./packages/admin-api-service/Dockerfile
-    restart: no
+    restart: always
     environment:
       PAL_GRPC_URL: pal-api-service:50051
       PAYMENTS_GRPC_URL: payments-api-service:50052
@@ -26,7 +26,7 @@ services:
     build:
       context: ../
       dockerfile: ./packages/open-payments-resource-service/Dockerfile
-    restart: no
+    restart: always
     environment:
       PAL_GRPC_URL: pal-api-service:50051
       PAYMENTS_GRPC_URL: payments-api-service:50052
@@ -51,7 +51,7 @@ services:
     build:
       context: ../
       dockerfile: ./packages/pal-api-service/Dockerfile
-    restart: no
+    restart: always
     environment:
       MONGO_URL: mongodb://root:mongoPass@mongodb:27017/
       KAFKA_URL: kafka:19092
@@ -70,7 +70,7 @@ services:
     build:
       context: ../
       dockerfile: ./packages/pal-ledger-command-handler-service/Dockerfile
-    restart: no
+    restart: always
     environment:
       KAFKA_URL: kafka:19092
       REDIS_URL: redis:6379
@@ -87,7 +87,7 @@ services:
     build:
       context: ../
       dockerfile: ./packages/pal-event-handler-service/Dockerfile
-    restart: no
+    restart: always
     environment:
       MONGO_URL: mongodb://root:mongoPass@mongodb:27017/
       KAFKA_URL: kafka:19092
@@ -106,7 +106,7 @@ services:
     build:
       context: ../
       dockerfile: ./packages/payments-api-service/Dockerfile
-    restart: no
+    restart: always
     environment:
       KAFKA_URL: kafka:19092
       MONGODB_URL: mongodb://root:mongoPass@mongodb:27017
@@ -124,7 +124,7 @@ services:
     build:
       context: ../
       dockerfile: ./packages/payments-command-handler-service/Dockerfile
-    restart: no
+    restart: always
     environment:
       KAFKA_URL: kafka:19092
       MONGODB_URL: mongodb://root:mongoPass@mongodb:27017
@@ -145,7 +145,7 @@ services:
     build:
       context: ../
       dockerfile: ./packages/payments-event-handler-service/Dockerfile
-    restart: no
+    restart: always
     environment:
       KAFKA_URL: kafka:19092
     depends_on:
@@ -157,7 +157,7 @@ services:
     build:
       context: ../
       dockerfile: ./packages/notifications-command-handler-service/Dockerfile
-    restart: no
+    restart: always
     environment:
       KAFKA_URL: kafka:19092
       MONGODB_URL: mongodb://root:mongoPass@mongodb:27017/
@@ -174,7 +174,7 @@ services:
     build:
       context: ../
       dockerfile: ./packages/notifications-event-handler-service/Dockerfile
-    restart: no
+    restart: always
     environment:
       KAFKA_URL: kafka:19092
       UV_THREADPOOL_SIZE: 128
@@ -190,7 +190,7 @@ services:
     build:
       context: ../
       dockerfile: ./packages/ilp-connector-service/Dockerfile
-    restart: no
+    restart: always
     environment:
       KAFKA_URL: kafka:19092
     depends_on:
@@ -202,7 +202,7 @@ services:
     build:
       context: ../
       dockerfile: ./packages/ase-mock-service/Dockerfile
-    restart: no
+    restart: always
     environment:
       HOST: ase-mock-service
       PORT: 3000
@@ -218,7 +218,7 @@ services:
     build:
       context: ../
       dockerfile: ./packages/ilp-command-handler-service/Dockerfile
-    restart: no
+    restart: always
     environment:
       KAFKA_URL: kafka:19092
     depends_on:
@@ -231,7 +231,7 @@ services:
     build:
       context: ../
       dockerfile: ./packages/ilp-event-handler-service/Dockerfile
-    restart: no
+    restart: always
     environment:
       KAFKA_URL: kafka:19092
     depends_on:
