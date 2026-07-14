@@ -7,7 +7,10 @@ import {
   PaymentsClient,
   PaymentIntentNotFoundError
 } from 'payments-client-lib';
-import type { components, operations } from '../types/generated/openapi.js';
+import {
+  PaymentIntentsGetPaymentIntentData,
+  type PaymentIntentCreate
+} from '../types/generated';
 
 interface PaymentIntentRouteOptions extends FastifyPluginOptions {
   palClient: PalClient;
@@ -22,7 +25,7 @@ export async function paymentIntentRoutes(
   const { palClient, paymentsClient, openPaymentsUrl } = opts;
 
   server.post<{
-    Body: components['schemas']['PaymentIntentCreate'];
+    Body: PaymentIntentCreate;
   }>('/payment-intents', async (request, reply) => {
     const { walletAddress, incomingAmount, expiresAt, metadata } = request.body;
 
@@ -59,7 +62,7 @@ export async function paymentIntentRoutes(
   });
 
   server.get<{
-    Params: operations['PaymentIntents_getPaymentIntent']['parameters']['path'];
+    Params: PaymentIntentsGetPaymentIntentData['path'];
   }>('/payment-intents/:id', async (request, reply) => {
     const { id } = request.params;
 
