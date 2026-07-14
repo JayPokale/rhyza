@@ -17,6 +17,7 @@ interface BasePacketCorrelation {
 interface QuotePacketCorrelation extends BasePacketCorrelation {
   kind: 'QUOTE';
   quoteId: string;
+  requestId: string;
 }
 
 interface PaymentPacketCorrelation extends BasePacketCorrelation {
@@ -31,6 +32,16 @@ export type IPacketCorrelation =
 // To be implemented by the adapter for sending packets.
 export interface IPeeringClient {
   dispatch(input: PacketDispatch): Promise<void>;
+  dispatchReject(input: RejectDispatch): Promise<void>;
+}
+
+export interface RejectDispatch {
+  peerId: string;
+  packetId: string;
+  rejectCode: string;
+  rejectMessage?: string;
+  triggeredBy?: string;
+  destinationAmount?: string;
 }
 
 export type PacketDispatch = QuoteDispatch | PaymentDispatch;

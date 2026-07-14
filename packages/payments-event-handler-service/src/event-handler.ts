@@ -4,12 +4,12 @@ import {
   IMessageConsumer,
   IMessageProducer
 } from 'common-types-lib';
+import { ILPQuoteFailedEvent, ILPQuoteReceivedEvent } from 'ilp-domain-lib';
 import {
   CompleteRemoteQuoteCmd,
   FailRemoteQuoteCmd,
   CalculateRemoteQuoteCmd
 } from 'payments-domain-lib';
-import { QuoteFailedEvent, RemoteQuoteReceivedEvent } from 'ilp-domain-lib';
 
 // TODO: pending ILP BC class for inbound remote-quote request. replace stub
 // once published from ilp-domain-lib.
@@ -54,9 +54,9 @@ export class PaymentsEventHandler {
 
   private async _handleEvent(message: IMessage): Promise<void> {
     switch (message.msgName) {
-      case RemoteQuoteReceivedEvent.name: {
+      case ILPQuoteReceivedEvent.name: {
         const { quoteId, paymentIntentId, destinationAmount } =
-          message.payload as RemoteQuoteReceivedEvent['payload'];
+          message.payload as ILPQuoteReceivedEvent['payload'];
         const cmd = new CompleteRemoteQuoteCmd(
           {
             quoteId,
@@ -69,8 +69,8 @@ export class PaymentsEventHandler {
         await this._msgProducer.send(cmd);
         break;
       }
-      case QuoteFailedEvent.name: {
-        const payload = message.payload as QuoteFailedEvent['payload'];
+      case ILPQuoteFailedEvent.name: {
+        const payload = message.payload as ILPQuoteFailedEvent['payload'];
         const cmd = new FailRemoteQuoteCmd(
           {
             quoteId: payload.quoteId,

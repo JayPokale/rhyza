@@ -1,0 +1,25 @@
+{
+  "name": "ilp-event-handler-service",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "test": "node --import tsx --test test/*.test.ts",
+    "start": "node dist/index.js",
+    "build": "tsc --build"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "common-types-lib": "workspace:*",
+    "ilp-domain-lib": "workspace:*",
+    "implementations-lib": "workspace:*",
+    "payments-domain-lib": "workspace:*"
+  },
+  "devDependencies": {
+    "ilp-command-handler-service": "workspace:*",
+    "ilp-connector-service": "workspace:*",
+    "ilp-implementations-lib": "workspace:*",
+    "tsx": "^4.19.3"
+  }
+}

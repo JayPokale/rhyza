@@ -17,9 +17,9 @@ import {
   IlpPeerAggregate,
   IPeer,
   ProcessRejectPacketCmd,
-  RemoteQuoteReceivedEvent,
-  QuoteFailedEvent,
-  RemotePaymentFailedEvent,
+  ILPQuoteReceivedEvent,
+  ILPQuoteFailedEvent,
+  ILPPaymentFailedEvent,
   StartRemoteQuoteCmd
 } from 'ilp-domain-lib';
 import {
@@ -142,15 +142,18 @@ const PEER: IPeer = {
 };
 
 const startQuote = () =>
-  new StartRemoteQuoteCmd({
-    peerId: 'peer-1',
-    paymentIntentId: 'intent-1',
-    quoteId: 'quote-1',
-    destinationIlpAddress: 'g.peer.bob',
-    sourceAmount: '100',
-    sourceAssetCode: 'USD',
-    sourceAssetScale: 2
-  });
+  new StartRemoteQuoteCmd(
+    {
+      peerId: 'peer-1',
+      paymentIntentId: 'intent-1',
+      quoteId: 'quote-1',
+      destinationIlpAddress: 'g.peer.bob',
+      sourceAmount: '100',
+      sourceAssetCode: 'USD',
+      sourceAssetScale: 2
+    },
+    'req-1'
+  );
 
 // Wires the real command handler and the real connector together over the bus,
 // exactly as the two deployed services are wired over Kafka.
@@ -200,7 +203,7 @@ const eventsOnTopic = (bus: InMemoryBus, name: string) =>
   );
 
 describe('ILP command handler <-> connector over Kafka topics', () => {
-  test('start quote -> connector probe -> peer reject -> QuoteFailedEvent', async () => {
+  test('start quote -> connector probe -> peer reject -> ILPQuoteFailedEvent', async () => {
     const { bus, producer } = await wireSystem(true);
 
     // A StartRemoteQuoteCmd lands on ilp-commands (from Payments BC).
@@ -226,17 +229,18 @@ describe('ILP command handler <-> connector over Kafka topics', () => {
     assert.equal(reject.payload.paymentIntentId, 'intent-1');
 
     // The scaffolded connector does not yet decode STREAM amounts, so a reject
-    // resolves to a QuoteFailedEvent. Either way the reject travelled the full
+    // resolves to a ILPQuoteFailedEvent. Either way the reject travelled the full
     // path and was never surfaced as an ILP transport error.
-    const failed = eventsOnTopic(bus, QuoteFailedEvent.name);
+    const failed = eventsOnTopic(bus, ILPQuoteFailedEvent.name);
     assert.equal(failed.length, 1);
-    assert.equal((failed[0] as QuoteFailedEvent).payload.quoteId, 'quote-1');
+    assert.equal((failed[0] as ILPQuoteFailedEvent).payload.quoteId, 'quote-1');
+    assert.equal((failed[0] as ILPQuoteFailedEvent).requestId, 'req-1');
 
     // A quote reject must never trigger the payment failure/liquidity path.
-    assert.equal(eventsOnTopic(bus, RemotePaymentFailedEvent.name).length, 0);
+    assert.equal(eventsOnTopic(bus, ILPPaymentFailedEvent.name).length, 0);
   });
 
-  test('a quote with no response before expiry -> QuoteFailedEvent (timeout)', async () => {
+  test('a quote with no response before expiry -> ILPQuoteFailedEvent (timeout)', async () => {
     const { bus, producer } = await wireSystem(false);
 
     await producer.send(startQuote());
@@ -250,13 +254,14 @@ describe('ILP command handler <-> connector over Kafka topics', () => {
       })
     );
 
-    const failed = eventsOnTopic(bus, QuoteFailedEvent.name);
+    const failed = eventsOnTopic(bus, ILPQuoteFailedEvent.name);
     assert.equal(failed.length, 1);
-    assert.equal((failed[0] as QuoteFailedEvent).payload.expired, true);
-    assert.equal(eventsOnTopic(bus, RemotePaymentFailedEvent.name).length, 0);
+    assert.equal((failed[0] as ILPQuoteFailedEvent).payload.expired, true);
+    assert.equal((failed[0] as ILPQuoteFailedEvent).requestId, 'req-1');
+    assert.equal(eventsOnTopic(bus, ILPPaymentFailedEvent.name).length, 0);
   });
 
-  test('a reject carrying decoded amounts -> RemoteQuoteReceivedEvent', async () => {
+  test('a reject carrying decoded amounts -> ILPQuoteReceivedEvent', async () => {
     // The connector cannot decode STREAM amounts yet, so we inject the reject a
     // future connector would emit (amounts present) onto ilp-commands to prove
     // the determined path flows through the same seam end to end.
@@ -277,12 +282,13 @@ describe('ILP command handler <-> connector over Kafka topics', () => {
       })
     );
 
-    const determined = eventsOnTopic(bus, RemoteQuoteReceivedEvent.name);
+    const determined = eventsOnTopic(bus, ILPQuoteReceivedEvent.name);
     assert.equal(determined.length, 1);
     assert.equal(
-      (determined[0] as RemoteQuoteReceivedEvent).payload.destinationAmount,
+      (determined[0] as ILPQuoteReceivedEvent).payload.destinationAmount,
       '95'
     );
-    assert.equal(eventsOnTopic(bus, QuoteFailedEvent.name).length, 0);
+    assert.equal((determined[0] as ILPQuoteReceivedEvent).requestId, 'req-1');
+    assert.equal(eventsOnTopic(bus, ILPQuoteFailedEvent.name).length, 0);
   });
 });
