@@ -3,7 +3,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc --build",
+    "build": "pnpm generate && tsc --build",
     "generate": "kiota generate -l typescript -d ../admin-api-service/openapi.yaml -c AdminApiClient -o ./src"
   },
   "keywords": [],
@@ -12,6 +12,7 @@
   "dependencies": {
     "@microsoft/kiota-abstractions": "1.0.0-preview.103",
     "@microsoft/kiota-bundle": "1.0.0-preview.103",
+    "@microsoft/kiota-http-fetchlibrary": "1.0.0-preview.103",
     "@microsoft/kiota-serialization-form": "1.0.0-preview.103",
     "@microsoft/kiota-serialization-json": "1.0.0-preview.103",
     "@microsoft/kiota-serialization-multipart": "1.0.0-preview.103",

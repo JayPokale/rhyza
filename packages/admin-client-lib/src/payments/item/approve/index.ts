@@ -11,7 +11,12 @@ export interface ApprovePostResponse extends Parsable {
      * Unique identifier of the approved payment
      */
     id?: string | null;
+    /**
+     * The state property
+     */
+    state?: ApprovePostResponse_state | null;
 }
+export type ApprovePostResponse_state = (typeof ApprovePostResponse_stateObject)[keyof typeof ApprovePostResponse_stateObject];
 /**
  * Builds and executes requests for operations under /payments/{id}/approve
  */
@@ -49,6 +54,7 @@ export function createApprovePostResponseFromDiscriminatorValue(parseNode: Parse
 export function deserializeIntoApprovePostResponse(approvePostResponse: Partial<ApprovePostResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "id": n => { approvePostResponse.id = n.getStringValue(); },
+        "state": n => { approvePostResponse.state = n.getEnumValue<ApprovePostResponse_state>(ApprovePostResponse_stateObject); },
     }
 }
 /**
@@ -61,11 +67,16 @@ export function deserializeIntoApprovePostResponse(approvePostResponse: Partial<
 export function serializeApprovePostResponse(writer: SerializationWriter, approvePostResponse: Partial<ApprovePostResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!approvePostResponse || isSerializingDerivedType) { return; }
     writer.writeStringValue("id", approvePostResponse.id);
+    writer.writeEnumValue<ApprovePostResponse_state>("state", approvePostResponse.state);
 }
 /**
  * Uri template for the request builder.
  */
 export const ApproveRequestBuilderUriTemplate = "{+baseurl}/payments/{id}/approve";
+export const ApprovePostResponse_stateObject = {
+    COMPLETED: "COMPLETED",
+    FAILED: "FAILED",
+} as const;
 /**
  * Metadata for all the requests in the request builder.
  */
