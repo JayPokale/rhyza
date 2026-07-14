@@ -99,9 +99,6 @@ importers:
 
   packages/admin-api-service:
     dependencies:
-      admin-client-lib:
-        specifier: workspace:*
-        version: link:../admin-client-lib
       fastify:
         specifier: ~5.3.3
         version: 5.3.3
@@ -912,6 +909,9 @@ importers:
   packages/tests-e2e:
     dependencies:
       '@microsoft/kiota-abstractions':
+        specifier: 1.0.0-preview.103
+        version: 1.0.0-preview.103
+      '@microsoft/kiota-http-fetchlibrary':
         specifier: 1.0.0-preview.103
         version: 1.0.0-preview.103
       admin-client-lib:

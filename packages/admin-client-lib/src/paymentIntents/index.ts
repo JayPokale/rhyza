@@ -4,7 +4,7 @@
 // @ts-ignore
 import { createErrorResponseFromDiscriminatorValue, createPaymentIntentCreateResponseFromDiscriminatorValue, serializePaymentIntentCreate, serializePaymentIntentCreateResponse, type ErrorResponse, type PaymentIntentCreate, type PaymentIntentCreateResponse } from '../models/index.js';
 // @ts-ignore
-import { ItemRequestBuilderNavigationMetadata, ItemRequestBuilderRequestsMetadata, type ItemRequestBuilder } from './item/index.js';
+import { PaymentIntentsItemRequestBuilderRequestsMetadata, type PaymentIntentsItemRequestBuilder } from './item/index.js';
 // @ts-ignore
 import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
 
@@ -15,9 +15,9 @@ export interface PaymentIntentsRequestBuilder extends BaseRequestBuilder<Payment
     /**
      * Gets an item from the ApiSdk.paymentIntents.item collection
      * @param id Unique identifier for the payment intent
-     * @returns {ItemRequestBuilder}
+     * @returns {PaymentIntentsItemRequestBuilder}
      */
-     byId(id: string) : ItemRequestBuilder;
+     byId(id: string) : PaymentIntentsItemRequestBuilder;
     /**
      * Create a new payment intent for a receiver's account.
      * @param body Schema for creating a new payment intent.
@@ -43,9 +43,8 @@ export const PaymentIntentsRequestBuilderUriTemplate = "{+baseurl}/payment-inten
  */
 export const PaymentIntentsRequestBuilderNavigationMetadata: Record<Exclude<keyof PaymentIntentsRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
     byId: {
-        requestsMetadata: ItemRequestBuilderRequestsMetadata,
-        navigationMetadata: ItemRequestBuilderNavigationMetadata,
-        pathParametersMappings: ["%2Did"],
+        requestsMetadata: PaymentIntentsItemRequestBuilderRequestsMetadata,
+        pathParametersMappings: ["id"],
     },
 };
 /**
