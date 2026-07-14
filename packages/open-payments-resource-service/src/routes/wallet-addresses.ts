@@ -21,7 +21,7 @@ export async function walletAddressRoutes(
     const { walletAddressPath } = request.params;
 
     const alias = await opts.palClient.ResolveWalletAddressAlias(
-      null,
+      opts.openPaymentsResourceServerUrl,
       walletAddressPath
     );
 
