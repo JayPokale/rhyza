@@ -6,6 +6,7 @@ import {
   IMessageProducer
 } from 'common-types-lib';
 import {
+  CreatePeerCmd,
   ExpirePacketCmd,
   IlpPeerAggregate,
   ProcessFulfillPacketCmd,
@@ -13,10 +14,13 @@ import {
   ProcessRejectPacketCmd,
   RespondToRemoteQuoteCmd,
   StartRemotePaymentCmd,
-  StartRemoteQuoteCmd
+  StartRemoteQuoteCmd,
+  UpdatePeerCmd
 } from 'ilp-domain-lib';
 
 const HANDLED_COMMANDS = new Set<string>([
+  CreatePeerCmd.name,
+  UpdatePeerCmd.name,
   StartRemoteQuoteCmd.name,
   StartRemotePaymentCmd.name,
   ProcessPreparePacketCmd.name,

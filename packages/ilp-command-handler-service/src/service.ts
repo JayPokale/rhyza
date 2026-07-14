@@ -4,14 +4,21 @@ import {
   MessageSerializationFactory,
   PinoLogger
 } from 'implementations-lib';
-import { IlpPeerAggregate, IPeer, IPeeringClient } from 'ilp-domain-lib';
+import {
+  IlpPeerAggregate,
+  IPeer,
+  IPeeringClient,
+  IPeerRepository
+} from 'ilp-domain-lib';
 import {
   InMemoryPeerRepository,
-  KafkaPeeringClient
+  KafkaPeeringClient,
+  MongoDbPeerRepository
 } from 'ilp-implementations-lib';
 import { IlpCommandHandler } from './cmd-handler';
 
 const KAFKA_URL = process.env['KAFKA_URL'] || 'localhost:9093';
+const MONGODB_URL = process.env['MONGODB_URL'] || 'mongodb://localhost:27017';
 const CONSUMER_GROUP_ID = 'ilp-command-handler';
 
 export class IlpCommandHandlerService {
@@ -19,12 +26,15 @@ export class IlpCommandHandlerService {
   private static _producer: IMessageProducer;
   private static _consumer: IMessageConsumer;
   private static _commandHandler: IlpCommandHandler;
+  private static _peerRepo: IPeerRepository & { destroy?(): Promise<void> };
 
   static async start(deps?: {
     logger?: ILogger;
     producer?: IMessageProducer;
     consumer?: IMessageConsumer;
     peeringClient?: IPeeringClient;
+    peerRepo?: IPeerRepository;
+    // Only used by tests / seeding InMemoryPeerRepository
     seedPeers?: IPeer[];
   }): Promise<void> {
     this._logger = deps?.logger ?? new PinoLogger();
@@ -50,7 +60,21 @@ export class IlpCommandHandlerService {
 
     await this._producer.connect();
 
-    const peerRepo = new InMemoryPeerRepository(deps?.seedPeers);
+    let peerRepo: IPeerRepository;
+    if (deps?.peerRepo) {
+      peerRepo = deps.peerRepo;
+    } else if (deps?.seedPeers) {
+      peerRepo = new InMemoryPeerRepository(deps.seedPeers);
+    } else {
+      const mongoRepo = new MongoDbPeerRepository(
+        MONGODB_URL,
+        this._logger.child('peer-repo')
+      );
+      await mongoRepo.init();
+      this._peerRepo = mongoRepo;
+      peerRepo = mongoRepo;
+    }
+
     const peeringClient =
       deps?.peeringClient ??
       new KafkaPeeringClient(this._producer, this._logger);
@@ -73,6 +97,9 @@ export class IlpCommandHandlerService {
     }
     if (this._producer) {
       await this._producer.disconnect();
+    }
+    if (this._peerRepo?.destroy) {
+      await this._peerRepo.destroy();
     }
   }
 }

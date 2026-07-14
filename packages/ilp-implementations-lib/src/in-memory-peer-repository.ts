@@ -15,6 +15,10 @@ export class InMemoryPeerRepository implements IPeerRepository {
     return this._peers.get(peerId);
   }
 
+  async fetchAll(): Promise<IPeer[]> {
+    return Array.from(this._peers.values());
+  }
+
   async store(peer: IPeer): Promise<void> {
     this._peers.set(peer.peerId, peer);
   }

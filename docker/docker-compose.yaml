@@ -225,9 +225,30 @@ services:
     restart: always
     environment:
       KAFKA_URL: kafka:19092
+      MONGODB_URL: mongodb://root:mongoPass@mongodb:27017
     depends_on:
       init-kafka:
         condition: service_completed_successfully
+      mongodb:
+        condition: service_healthy
+    networks:
+      - rafiki-v2
+
+  ilp-api-service:
+    build:
+      context: ../
+      dockerfile: ./packages/ilp-api-service/Dockerfile
+    restart: always
+    environment:
+      KAFKA_URL: kafka:19092
+      MONGODB_URL: mongodb://root:mongoPass@mongodb:27017
+    ports:
+      - '50053:50053'
+    depends_on:
+      init-kafka:
+        condition: service_completed_successfully
+      mongodb:
+        condition: service_healthy
     networks:
       - rafiki-v2
 
