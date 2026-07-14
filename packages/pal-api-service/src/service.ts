@@ -30,7 +30,8 @@ import {
   ILogger,
   IMessageConsumer,
   IMessageProducer,
-  IRawMessageSerializerFactory, ITelemetryService,
+  IRawMessageSerializerFactory,
+  ITelemetryService,
   SnapshotEventTopics,
   StateEventTopics
 } from 'common-types-lib';
@@ -40,7 +41,8 @@ import {
   KafkaConsumerOptions,
   KafkaProducerCompressionCodecs,
   KafkaProducerOptions,
-  MessageSerializationFactory, OpenTelemetryService,
+  MessageSerializationFactory,
+  OpenTelemetryService,
   PinoLogger
 } from 'implementations-lib';
 import crypto from 'crypto';
@@ -55,12 +57,11 @@ const SVC_PORT = process.env['SVC_PORT']
 
 const BC_NAME = 'PAL';
 const APP_NAME = `${BC_NAME}_API_SVC`;
-const APP_VERSION = packageJson.version || "0.0.0";
+const APP_VERSION = packageJson.version || '0.0.0';
 const INSTANCE_ID = `${APP_NAME}_${crypto.randomUUID()}`;
 
 const OPEN_TELEMETRY_COLLECTOR_URL =
   process.env['OPEN_TELEMETRY_COLLECTOR_URL'] || 'http://127.0.0.1:4317';
-
 
 // Message Consumer/Publisher
 const KAFKA_URL =
@@ -152,10 +153,14 @@ export class PalApiService {
 
     this._logger.info(`Starting ${this.constructor.name}...`);
 
-    if(!telemetryService) {
+    if (!telemetryService) {
       OpenTelemetryService.Start(
-        BC_NAME, APP_NAME, APP_VERSION, INSTANCE_ID,
-        this._logger, OPEN_TELEMETRY_COLLECTOR_URL
+        BC_NAME,
+        APP_NAME,
+        APP_VERSION,
+        INSTANCE_ID,
+        this._logger,
+        OPEN_TELEMETRY_COLLECTOR_URL
       );
       telemetryService = OpenTelemetryService.getInstance();
     }

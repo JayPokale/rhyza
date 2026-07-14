@@ -1,4 +1,4 @@
-import {ILogger, ITelemetryService} from 'common-types-lib';
+import { ILogger, ITelemetryService } from 'common-types-lib';
 import { ILedgerReadSideRepository } from 'pal-domain-lib';
 import { ServerUnaryCall } from '@grpc/grpc-js';
 

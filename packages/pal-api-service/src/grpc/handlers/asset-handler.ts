@@ -1,4 +1,4 @@
-import {ILogger, IMessageProducer, ITelemetryService} from 'common-types-lib';
+import { ILogger, IMessageProducer, ITelemetryService } from 'common-types-lib';
 import { AssetAggregate } from 'pal-domain-lib';
 import { sendUnaryData, ServerUnaryCall } from '@grpc/grpc-js';
 import { Status } from '@grpc/grpc-js/build/src/constants';

@@ -5,7 +5,10 @@ import {
   IMessage,
   DomainEventTopics,
   DomainEvent,
-  MessageTypes, ITelemetryService
+  MessageTypes,
+  ITelemetryService,
+  ITelemetryHistogram,
+  TELEMETRY_PROPS_CALL_NAME_PROP
 } from 'common-types-lib';
 import {
   AssetCreatedEvent,
@@ -39,6 +42,8 @@ export class InternalEventHandler {
   private readonly _peerAggregate: PeerAggregate;
   private readonly _fxAggregate: FxAggregate;
   private readonly _telemetryService: ITelemetryService;
+  private readonly _batchHistogram: ITelemetryHistogram;
+  private readonly _singleEventHistogram: ITelemetryHistogram;
 
   constructor(
     peerAggregate: PeerAggregate,
@@ -56,6 +61,12 @@ export class InternalEventHandler {
     this._fxAggregate = fxAggregate;
     this._msgConsumer = messageConsumer;
     this._msgProducer = msgProducer;
+
+    this._batchHistogram =
+      this._telemetryService.getHistogram(BATCH_HISTOGRAM_NAME);
+    this._singleEventHistogram = this._telemetryService.getHistogram(
+      EVENTS_HISTOGRAM_NAME
+    );
   }
 
   private async _handleMessageBatch(messages: IMessage[]) {
@@ -63,18 +74,16 @@ export class InternalEventHandler {
     // NOTE: we shouldn't log ignored events, they can be the majority
 
     this._telemetryService.updateGauge(BATCH_SIZE_GAUGE_NAME, messages.length);
-    const batchTimerFn = this._telemetryService.startTimer(
-      BATCH_HISTOGRAM_NAME
-    )
+    const batchTimerFn = this._batchHistogram.startTimer();
 
     for (const msg of messages) {
       if (msg.msgType !== MessageTypes.DOMAIN_EVENT) {
         continue;
       }
 
-      const evtTimerFn = this._telemetryService.startTimer(
-        EVENTS_HISTOGRAM_NAME, { eventName: msg.msgName }
-      )
+      const evtTimerFn = this._singleEventHistogram.startTimer({
+        [TELEMETRY_PROPS_CALL_NAME_PROP]: msg.msgName
+      });
       await this._handleEvent(msg as DomainEvent);
       evtTimerFn();
     }
@@ -91,7 +100,7 @@ export class InternalEventHandler {
   }
 
   private async _handleEvent(evt: DomainEvent): Promise<void> {
-    try{
+    try {
       if (evt.msgName === PeerCreatedEvent.name) {
         await this._handlePeerCreatedEvent(evt as PeerCreatedEvent);
       } else if (evt.msgName === LedgerAccountsCreatedForPeerEvent.name) {
@@ -105,16 +114,22 @@ export class InternalEventHandler {
           evt as LedgerAccountCreatedForAssetEvent
         );
       } else if (evt.msgName === FxRateCacheExpiredEvent.name) {
-        await this._handleFxRateCacheExpiredEvent(evt as FxRateCacheExpiredEvent);
-      } else {
-        this._logger.debug(
-          `Internal event handler - unhandled event type: ${evt.msgName}`
+        await this._handleFxRateCacheExpiredEvent(
+          evt as FxRateCacheExpiredEvent
         );
+      } else {
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+        this._logger.isDebugEnabled() &&
+          this._logger.debug(
+            `Internal event handler - unhandled event type: ${evt.msgName}`
+          );
       }
-    }catch(err){
-      this._logger.error(err,`Internal event handler - error handling event${evt.msgName}`);
+    } catch (err) {
+      this._logger.error(
+        err,
+        `Internal event handler - error handling event${evt.msgName}`
+      );
     }
-
   }
 
   // region peer events saga

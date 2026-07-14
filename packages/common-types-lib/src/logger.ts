@@ -16,6 +16,13 @@ export interface ILogger {
   child(componentName: string): ILogger;
 
   setLogLevel: (logLevel: any) => void;
+
+  isTraceEnabled(): boolean;
+  isDebugEnabled(): boolean;
+  isInfoEnabled(): boolean;
+  isWarnEnabled(): boolean;
+  isErrorEnabled(): boolean;
+  isFatalEnabled(): boolean;
 }
 
 // default implementation of ILogger which uses the console (no ext dependencies)

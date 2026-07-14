@@ -1,6 +1,10 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import {
-  ILogger, ITelemetryCounter, ITelemetryGauge, ITelemetryHistogram, ITelemetryService,
+  ILogger,
+  ITelemetryCounter,
+  ITelemetryGauge,
+  ITelemetryHistogram,
+  ITelemetryService,
   ITelemetryServiceAttributes
 } from 'common-types-lib';
 import process from 'process';
@@ -29,13 +33,16 @@ import {
   Gauge,
   Histogram,
   MetricOptions,
+  Tracer,
   metrics
 } from '@opentelemetry/api';
 
 const OPEN_TELEMETRY_COLLECTOR_URL =
   process.env['OPEN_TELEMETRY_COLLECTOR_URL'] || 'http://127.0.0.1:4317';
 
-const OPEN_TELEMETRY_EXPORT_INTERVAL_MS = process.env['OPEN_TELEMETRY_EXPORT_INTERVAL_MS']
+const OPEN_TELEMETRY_EXPORT_INTERVAL_MS = process.env[
+  'OPEN_TELEMETRY_EXPORT_INTERVAL_MS'
+]
   ? parseInt(process.env['OPEN_TELEMETRY_EXPORT_INTERVAL_MS'])
   : 15_000;
 
@@ -49,6 +56,7 @@ export class OpenTelemetryService implements ITelemetryService {
 
   private _histograms: Map<string, Histogram>;
   private _gauges: Map<string, Gauge>;
+  //private _tracers: Map<string, Tracer>;
 
   fastifyOtelInstrumentation?: FastifyOtelInstrumentation;
   // private _provider: NodeTracerProvider;
@@ -71,6 +79,7 @@ export class OpenTelemetryService implements ITelemetryService {
     this._counters = new Map();
     this._histograms = new Map();
     this._gauges = new Map();
+    //this._tracers = new Map();
   }
 
   static getInstance(): ITelemetryService {
@@ -233,48 +242,101 @@ export class OpenTelemetryService implements ITelemetryService {
     };
   }
 
-  public getHistogram(name: string, attributes?: ITelemetryServiceAttributes): ITelemetryHistogram{
+  // Methods to return instances of the metrics to be long-lived
+  // with attributes pre-filled on the get
+
+  public getHistogram(
+    name: string,
+    attributes?: ITelemetryServiceAttributes
+  ): ITelemetryHistogram {
     const histo = this._getOrCreateHistogram(name, attributes);
 
     return {
-      observe:(value: number, attributes?: ITelemetryServiceAttributes)=>{
+      observe: (value: number, attributes?: ITelemetryServiceAttributes) => {
         histo.record(value, attributes);
       },
-      startTimer:(attributes?: ITelemetryServiceAttributes): (additionalAttributes?: ITelemetryServiceAttributes)=>void => {
+      startTimer: (
+        attributes?: ITelemetryServiceAttributes
+      ): ((additionalAttributes?: ITelemetryServiceAttributes) => void) => {
         const start = process.hrtime.bigint();
-        return (additionalAttributes?: ITelemetryServiceAttributes) =>{
+        return (additionalAttributes?: ITelemetryServiceAttributes) => {
           const elapsedNs = Number(process.hrtime.bigint() - start);
           this.recordHistogram(name, elapsedNs, {
             ...attributes,
             ...additionalAttributes
           });
-        }
+        };
       }
     };
   }
 
-  public getGauge(name: string, attributes?: ITelemetryServiceAttributes): ITelemetryGauge{
+  public getGauge(
+    name: string,
+    attributes?: ITelemetryServiceAttributes
+  ): ITelemetryGauge {
     const gauge = this._getOrCreateGauge(name, attributes);
     return {
-      set:(value:number, attributes?: ITelemetryServiceAttributes)=>{
+      set: (value: number, attributes?: ITelemetryServiceAttributes) => {
         gauge.record(value, attributes);
       }
-    }
+    };
   }
 
-  public getCounter(name: string, attributes?: ITelemetryServiceAttributes): ITelemetryCounter{
+  public getCounter(
+    name: string,
+    attributes?: ITelemetryServiceAttributes
+  ): ITelemetryCounter {
     const counter = this._getOrCreateCounter(name, attributes);
     return {
-      dec:(amount?:number, attributes?: ITelemetryServiceAttributes) => {
-        if(!amount) amount = -1;
-        if(amount > 0) amount = amount * -1;
+      dec: (amount?: number, attributes?: ITelemetryServiceAttributes) => {
+        if (!amount) amount = -1;
+        if (amount > 0) amount = amount * -1;
         counter.add(amount, attributes);
       },
-      inc:(amount:number, attributes?: ITelemetryServiceAttributes)=>{
-        if(!amount) amount = 1;
+      inc: (amount: number, attributes?: ITelemetryServiceAttributes) => {
+        if (!amount) amount = 1;
         counter.add(amount, attributes);
       }
-    }
+    };
   }
 
+  /*
+  // tracing - WIP
+
+  private _getOrCreateTracer(name: string) {
+    let tracer = this._tracers.get(name);
+    if (tracer) return tracer;
+
+    tracer = trace.getTracer(name);
+    this._tracers.set(name, tracer);
+
+    return tracer;
+  }
+
+  public startActiveSpan(
+    name: string,
+    fn: (span: ITelemetrySpan) => void
+  ): void {
+    const tracer = this._getOrCreateTracer(name);
+
+    tracer.startActiveSpan(name, (span: Span) => {
+      const wrapperSpan: ITelemetrySpan = {
+        setAttribute: (key: string, value: string) => {
+          span.setAttribute(key, value);
+        },
+        recordException: (error: Error) => {
+          span.recordException(error);
+        },
+        setStatus: (status: { code: number; message: string }) => {
+          span.setStatus(status);
+        }
+      };
+
+      fn(wrapperSpan);
+
+      // automatically call end() when the span is done
+      span.end();
+    });
+  }
+  */
 }

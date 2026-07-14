@@ -33,8 +33,12 @@ import {
   ILogger,
   IMessage,
   IMessageConsumer,
-  IMessageProducer, ITelemetryService,
-  MessageTypes
+  IMessageProducer,
+  ITelemetryHistogram,
+  ITelemetryService,
+  MessageTypes,
+  TELEMETRY_PROPS_CALL_NAME_PROP,
+  TELEMETRY_PROPS_SUCCESS_PROP
 } from 'common-types-lib';
 
 import process from 'process';
@@ -91,6 +95,8 @@ export class PalGrpcServer {
   private readonly _responseRegistry: PendingResponseRegistry;
   private readonly _eventHandlerRegistry: EventHandlerRegistry;
   private readonly _requestHandlerRegistry: RequestHandlerRegistry;
+
+  private readonly _requestsHistogram: ITelemetryHistogram;
 
   private _startedAt: number;
   private _terminating: boolean;
@@ -231,6 +237,10 @@ export class PalGrpcServer {
       getFxRate: this._handleUnary.bind(this),
       setFxRate: this._handleUnary.bind(this)
     });
+
+    this._requestsHistogram = this._telemetryService.getHistogram(
+      REQUESTS_HISTOGRAM_NAME
+    );
   }
 
   async start(): Promise<void> {
@@ -469,15 +479,15 @@ export class PalGrpcServer {
   ): Promise<void> {
     const reqPath = call.getPath();
     const callName = reqPath.split('/').pop() || reqPath;
-    const timerFn = this._telemetryService.startTimer(
-      REQUESTS_HISTOGRAM_NAME, {callName: callName}
-    );
+    const timerFn = this._requestsHistogram.startTimer({
+      [TELEMETRY_PROPS_CALL_NAME_PROP]: callName
+    });
     const handlerObject = this._requestHandlerRegistry.get(reqPath);
 
     const startTime = Date.now();
 
     if (!handlerObject) {
-      timerFn({success: false});
+      timerFn({ [TELEMETRY_PROPS_SUCCESS_PROP]: false });
       callback(
         new Error(`Invalid request type: ${call.request.constructor.name}`)
       );
@@ -488,8 +498,10 @@ export class PalGrpcServer {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const resp: UnaryResponse<any> = await handlerObject.func(call, callback);
       // stop timer, after internal processing and before returning
-      timerFn({success: true});
-      this._logger.debug(`Grpc call ${callName} took ${Date.now() - startTime}ms`);
+      timerFn({ [TELEMETRY_PROPS_SUCCESS_PROP]: true });
+      this._logger.debug(
+        `Grpc call ${callName} took ${Date.now() - startTime}ms`
+      );
       if (!handlerObject.async) {
         if (resp) {
           callback(resp.error || null, resp.resp || null);
@@ -497,10 +509,11 @@ export class PalGrpcServer {
           callback({ code: grpc.status.UNKNOWN, message: 'Unknown error' });
         }
       }
-
     } catch (err) {
-      timerFn({success: false});
-      this._logger.debug(`Grpc call ${callName} FAILED and took ${Date.now() - startTime}ms`);
+      timerFn({ [TELEMETRY_PROPS_SUCCESS_PROP]: false });
+      this._logger.debug(
+        `Grpc call ${callName} FAILED and took ${Date.now() - startTime}ms`
+      );
       if (
         err instanceof PeerNotFoundError ||
         err instanceof AssetNotFoundError ||

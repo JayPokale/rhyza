@@ -7,7 +7,8 @@ import {
   IKafkaBuilder,
   KafkaBuilder,
   KafkaConsumerOptions,
-  KafkaLowLevelConsumerOptions, OpenTelemetryService
+  KafkaLowLevelConsumerOptions,
+  OpenTelemetryService
 } from 'implementations-lib';
 import {
   ILedgerEventSourcingRepository,
@@ -45,7 +46,8 @@ import {
   ILogger,
   IMessageConsumer,
   IMessageProducer,
-  IRawMessageSerializerFactory, ITelemetryService,
+  IRawMessageSerializerFactory,
+  ITelemetryService,
   SnapshotEventTopics,
   StateEventTopics
 } from 'common-types-lib';
@@ -62,7 +64,7 @@ const packageJson = require(join(process.cwd(), 'package.json'));
 
 const BC_NAME = 'PAL';
 const APP_NAME = `${BC_NAME}_EVT_HANDLER_SVC`;
-const APP_VERSION = packageJson.version || "0.0.0";
+const APP_VERSION = packageJson.version || '0.0.0';
 const INSTANCE_ID = `${APP_NAME}_${crypto.randomUUID()}`;
 
 const OPEN_TELEMETRY_COLLECTOR_URL =
@@ -178,15 +180,18 @@ export class PalLedgerEventHandlerService {
 
     this._logger.info(`Starting ${PalLedgerEventHandlerService.name}...`);
 
-    if(!telemetryService) {
+    if (!telemetryService) {
       OpenTelemetryService.Start(
-        BC_NAME, APP_NAME, APP_VERSION, INSTANCE_ID,
-        this._logger, OPEN_TELEMETRY_COLLECTOR_URL
+        BC_NAME,
+        APP_NAME,
+        APP_VERSION,
+        INSTANCE_ID,
+        this._logger,
+        OPEN_TELEMETRY_COLLECTOR_URL
       );
       telemetryService = OpenTelemetryService.getInstance();
     }
     this._telemetryService = telemetryService;
-
 
     if (!msgSerializationFactory) {
       MessageSerializationFactory.instance()
@@ -274,7 +279,8 @@ export class PalLedgerEventHandlerService {
     const ledgerAggregate = new LedgerAggregate(
       this._esRepo,
       this._producer,
-      logger
+      logger,
+      this._telemetryService
     );
 
     const configs: LedgerStateEventHandlerConfigs = {
