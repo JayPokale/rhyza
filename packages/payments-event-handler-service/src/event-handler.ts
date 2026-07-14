@@ -104,9 +104,7 @@ export class PaymentsEventHandler {
       case ILPQuoteRequestReceivedEvent.name: {
         // TODO(receiving-quote): ILP's ILPQuoteRequestReceivedPayload does
         // not currently carry paymentIntentId / sourceAmount / peerAssetCode /
-        // peerAssetScale / requestId. Blocked on ilp-domain-lib adding those
-        // fields (see integration audit for the receiving-quote path).
-        // Not part of the sending slice — left as a no-op until reconciled.
+        // peerAssetScale / requestId.
         // const payload =
         //   message.payload as ILPQuoteRequestReceivedEvent['payload'];
         // const cmd = new CalculateRemoteQuoteCmd(
