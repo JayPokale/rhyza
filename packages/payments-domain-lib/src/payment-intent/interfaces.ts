@@ -220,6 +220,16 @@ export interface IPaymentIntentRepository {
       }[];
     }[]
   ): Promise<void>;
+  storeFinalizedReceivedPayments(
+    receivedPaymentUpdates: {
+      paymentIntent: {
+        id: string;
+        receivedAmount: bigint;
+        state: PaymentIntentState;
+      };
+      receivedPayments: { id: string; state: ReceivedPaymentState }[];
+    }[]
+  ): Promise<void>;
   storeCompletedLocalPayments(
     paymentUpdates: {
       paymentIntent: {

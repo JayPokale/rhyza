@@ -541,6 +541,54 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
     }
   }
 
+  async storeFinalizedReceivedPayments(
+    receivedPaymentUpdates: {
+      paymentIntent: {
+        id: string;
+        receivedAmount: bigint;
+        state: PaymentIntentState;
+      };
+      receivedPayments: { id: string; state: ReceivedPaymentState }[];
+    }[]
+  ): Promise<void> {
+    this._checkInitialisedOrThrow();
+
+    if (receivedPaymentUpdates.length === 0) return;
+
+    try {
+      const intentWrites = receivedPaymentUpdates.map((update) => ({
+        updateOne: {
+          filter: { id: update.paymentIntent.id },
+          update: {
+            $set: {
+              state: update.paymentIntent.state,
+              receivedAmount: update.paymentIntent.receivedAmount
+            }
+          }
+        }
+      }));
+
+      const receivedPaymentWrites = receivedPaymentUpdates.flatMap((update) =>
+        update.receivedPayments.map((receivedPayment) => ({
+          updateOne: {
+            filter: { id: receivedPayment.id },
+            update: { $set: { state: receivedPayment.state } }
+          }
+        }))
+      );
+
+      await Promise.all([
+        this._paymentIntentCollection.bulkWrite(intentWrites),
+        this._receivedPaymentCollection.bulkWrite(receivedPaymentWrites)
+      ]);
+    } catch (e) {
+      this._logger.error(e);
+      throw new Error(
+        `Unable to store finalized received payments - error: ${(e as Error).message}`
+      );
+    }
+  }
+
   async storeFinalizedRemoteQuotes(
     updates: FinalizedRemoteQuoteUpdate[]
   ): Promise<void> {

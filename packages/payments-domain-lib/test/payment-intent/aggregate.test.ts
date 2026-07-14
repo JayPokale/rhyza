@@ -26,7 +26,8 @@ import {
   CompleteRemotePaymentCmd,
   ValidateReceivedPaymentCmd,
   AcceptReceivedPaymentCmd,
-  FailReceivedPaymentCmd
+  FailReceivedPaymentCmd,
+  FinalizeReceivedPaymentCmd
 } from '../../src/commands';
 import {
   MockPaymentIntentRepo,
@@ -57,7 +58,8 @@ import {
   ReceivedPaymentValidatedEvent,
   ReceivedPaymentValidationFailedEvent,
   ReceivedPaymentAcceptedEvent,
-  ReceivedPaymentFailedEvent
+  ReceivedPaymentFailedEvent,
+  ReceivedPaymentFinalizedEvent
 } from '../../src/payment-intent/events';
 
 function makeApprovePaymentCmd(
@@ -1341,6 +1343,199 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         assert.equal(events[0].msgName, ReceivedPaymentFailedEvent.name);
         const payload = (events[0] as ReceivedPaymentFailedEvent).payload;
         assert.equal(payload.errorName, 'PaymentInvalidStateError');
+      });
+    });
+
+    describe('handleFinalizeReceivedPaymentCommand', () => {
+      function makeIntentWithReceivedPayment(overrides?: {
+        receivedPaymentState?: IPaymentIntent['receivedPayments'][number]['state'];
+        incomingAmount?: bigint | null;
+        receiveAmount?: bigint;
+      }): { intent: IPaymentIntent; receivedPaymentId: string } {
+        const intentId = crypto.randomUUID();
+        const receivedPaymentId = crypto.randomUUID();
+        const intent: IPaymentIntent = {
+          id: intentId,
+          receivedAmount: 0n,
+          receiverWalletAddress: 'domain.com/alice',
+          receiverWalletAddressId: 'wallet-1',
+          assetCode: 'USD',
+          assetScale: 2,
+          state: 'CREATED',
+          destination: 'LOCAL',
+          createdAt: new Date(),
+          expiresAt: new Date(Date.now() + 60_000),
+          incomingAmount: overrides?.incomingAmount ?? null,
+          quotes: [],
+          sentPayments: [],
+          receivedPayments: [
+            {
+              id: receivedPaymentId,
+              state: overrides?.receivedPaymentState ?? 'ACCEPTED',
+              paymentIntentId: intentId,
+              packetId: 'packet-1',
+              peerId: 'peer-1',
+              peerAssetCode: 'USD',
+              peerAssetScale: 2,
+              sourceAmount: 100n,
+              receiveAmount: overrides?.receiveAmount ?? 100n,
+              createdAt: new Date(),
+              ledgerTransferId: 'transfer-1'
+            }
+          ]
+        };
+        return { intent, receivedPaymentId };
+      }
+
+      function makeFinalizeCmd(
+        receivedPaymentId: string,
+        paymentIntentId: string
+      ): FinalizeReceivedPaymentCmd {
+        return new FinalizeReceivedPaymentCmd(
+          { id: receivedPaymentId, paymentIntentId },
+          crypto.randomUUID()
+        );
+      }
+
+      it('finalizes an ACCEPTED received payment and accumulates receivedAmount', async () => {
+        const { intent, receivedPaymentId } = makeIntentWithReceivedPayment();
+        await repo.storeMany([intent]);
+
+        const { events } = await aggregate.handleBatch([
+          makeFinalizeCmd(receivedPaymentId, intent.id)
+        ]);
+        await aggregate.flush();
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, ReceivedPaymentFinalizedEvent.name);
+        const payload = (events[0] as ReceivedPaymentFinalizedEvent).payload;
+        assert.equal(payload.paymentIntentId, intent.id);
+        assert.equal(payload.receivedPaymentId, receivedPaymentId);
+        assert.equal(payload.packetId, 'packet-1');
+        assert.equal(payload.peerId, 'peer-1');
+        assert.equal(payload.sourceAmount, '100');
+        assert.equal(payload.receiveAmount, '100');
+        assert.equal(payload.receiveAssetCode, 'USD');
+        assert.equal(payload.receiveAssetScale, 2);
+        assert.equal(payload.state, 'FINALIZED');
+
+        const stored = repo.getAll().find((p) => p.id === intent.id);
+        assert(stored);
+        assert.equal(stored.receivedAmount, 100n);
+        assert.equal(stored.state, 'CREATED'); // no incomingAmount -> not completed
+        assert.equal(stored.receivedPayments[0].state, 'FINALIZED');
+      });
+
+      it('completes the intent and emits PaymentIntentCompletedEvent when incomingAmount is met', async () => {
+        const { intent, receivedPaymentId } = makeIntentWithReceivedPayment({
+          incomingAmount: 100n
+        });
+        await repo.storeMany([intent]);
+
+        const { events } = await aggregate.handleBatch([
+          makeFinalizeCmd(receivedPaymentId, intent.id)
+        ]);
+        await aggregate.flush();
+
+        assert.equal(events.length, 2);
+        assert.equal(events[0].msgName, ReceivedPaymentFinalizedEvent.name);
+        assert.equal(events[1].msgName, PaymentIntentCompletedEvent.name);
+        const intentPayload = (events[1] as PaymentIntentCompletedEvent)
+          .payload;
+        assert.equal(intentPayload.receivedAmount, '100');
+        assert.equal(intentPayload.state, 'COMPLETED');
+
+        const stored = repo.getAll().find((p) => p.id === intent.id);
+        assert(stored);
+        assert.equal(stored.state, 'COMPLETED');
+      });
+
+      it('accumulates receivedAmount across multiple finalized payments', async () => {
+        const intentId = crypto.randomUUID();
+        const rp = (id: string) => ({
+          id,
+          state: 'ACCEPTED' as const,
+          paymentIntentId: intentId,
+          packetId: crypto.randomUUID(),
+          peerId: 'peer-1',
+          peerAssetCode: 'USD',
+          peerAssetScale: 2,
+          sourceAmount: 60n,
+          receiveAmount: 60n,
+          createdAt: new Date(),
+          ledgerTransferId: crypto.randomUUID()
+        });
+        const intent: IPaymentIntent = {
+          id: intentId,
+          receivedAmount: 0n,
+          receiverWalletAddress: 'domain.com/alice',
+          receiverWalletAddressId: 'wallet-1',
+          assetCode: 'USD',
+          assetScale: 2,
+          state: 'CREATED',
+          destination: 'LOCAL',
+          createdAt: new Date(),
+          expiresAt: new Date(Date.now() + 60_000),
+          incomingAmount: 120n,
+          quotes: [],
+          sentPayments: [],
+          receivedPayments: [rp('rp-1'), rp('rp-2')]
+        };
+        await repo.storeMany([intent]);
+
+        const { events } = await aggregate.handleBatch([
+          makeFinalizeCmd('rp-1', intentId),
+          makeFinalizeCmd('rp-2', intentId)
+        ]);
+        await aggregate.flush();
+
+        // rp-1 finalized, rp-2 finalized + intent completed
+        assert.equal(events.length, 3);
+        assert.equal(events[2].msgName, PaymentIntentCompletedEvent.name);
+
+        const stored = repo.getAll().find((p) => p.id === intentId);
+        assert(stored);
+        assert.equal(stored.receivedAmount, 120n);
+        assert.equal(stored.state, 'COMPLETED');
+        assert(stored.receivedPayments.every((r) => r.state === 'FINALIZED'));
+      });
+
+      it('fails to finalize from a non-ACCEPTED state', async () => {
+        const { intent, receivedPaymentId } = makeIntentWithReceivedPayment({
+          receivedPaymentState: 'VALIDATED'
+        });
+        await repo.storeMany([intent]);
+
+        const { events } = await aggregate.handleBatch([
+          makeFinalizeCmd(receivedPaymentId, intent.id)
+        ]);
+
+        assert.equal(events[0].msgName, ReceivedPaymentFailedEvent.name);
+        const payload = (events[0] as ReceivedPaymentFailedEvent).payload;
+        assert.equal(payload.errorName, 'PaymentInvalidStateError');
+      });
+
+      it('fails to finalize when the payment intent is missing', async () => {
+        const { events } = await aggregate.handleBatch([
+          makeFinalizeCmd(crypto.randomUUID(), 'nonexistent')
+        ]);
+
+        assert.equal(events[0].msgName, ReceivedPaymentFailedEvent.name);
+        const payload = (events[0] as ReceivedPaymentFailedEvent).payload;
+        assert.equal(payload.errorName, 'PaymentIntentNotFoundError');
+      });
+
+      it('fails to finalize when the received payment is missing', async () => {
+        const { intent } = makeIntentWithReceivedPayment();
+        await repo.storeMany([intent]);
+
+        const { events } = await aggregate.handleBatch([
+          makeFinalizeCmd('nonexistent', intent.id)
+        ]);
+
+        assert.equal(events[0].msgName, ReceivedPaymentFailedEvent.name);
+        const payload = (events[0] as ReceivedPaymentFailedEvent).payload;
+        assert.equal(payload.errorName, 'PaymentNotFoundError');
       });
     });
 

@@ -21,7 +21,8 @@ import {
   CompleteRemotePaymentCmd,
   ValidateReceivedPaymentCmd,
   AcceptReceivedPaymentCmd,
-  FailReceivedPaymentCmd
+  FailReceivedPaymentCmd,
+  FinalizeReceivedPaymentCmd
 } from 'payments-domain-lib';
 import {
   LedgerOutgoingTransferReservedEvent,
@@ -30,7 +31,8 @@ import {
   LedgerOutgoingTransferRejectedEvent,
   LedgerIncomingTransferReservedEvent,
   LedgerIncomingTransferInsufficientFundsErrorEvent,
-  LedgerIncomingTransferRejectedEvent
+  LedgerIncomingTransferRejectedEvent,
+  LedgerIncomingTransferCommittedEvent
 } from 'pal-public-types-lib';
 
 // TODO: use pal event directly. It needs to be updated with paymentintentId and paymentId
@@ -179,6 +181,19 @@ export class PaymentsEventHandler {
             id: payload.receivedPaymentId,
             paymentIntentId: payload.paymentIntentId,
             ledgerTransferId: payload.transferId
+          },
+          payload.requestId
+        );
+        await this._msgProducer.send(cmd);
+        break;
+      }
+      case LedgerIncomingTransferCommittedEvent.name: {
+        const payload =
+          message.payload as LedgerTransferPayloadWithReceivedPaymentIds;
+        const cmd = new FinalizeReceivedPaymentCmd(
+          {
+            id: payload.receivedPaymentId,
+            paymentIntentId: payload.paymentIntentId
           },
           payload.requestId
         );

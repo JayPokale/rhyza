@@ -654,6 +654,16 @@ class ReceivedPayment {
     }
   }
 
+  finalize(): { receiveAmount: bigint } {
+    if (this._state !== 'ACCEPTED') {
+      throw new PaymentInvalidStateError(
+        `Received payment ${this._id} cannot be finalized from state ${this._state}`
+      );
+    }
+    this._state = 'FINALIZED';
+    return { receiveAmount: this._receiveAmount };
+  }
+
   toObject(): IReceivedPayment {
     return {
       id: this._id,
@@ -1493,6 +1503,25 @@ export class PaymentIntent implements IPaymentIntent {
     }
 
     receivedPayment.fail(reason);
+    return receivedPayment.toObject();
+  }
+
+  finalizeReceivedPayment(args: { id: string }): IReceivedPayment {
+    const { id } = args;
+
+    const receivedPayment = this._receivedPayments.find((rp) => rp.id === id);
+    if (!receivedPayment) {
+      throw new PaymentNotFoundError(
+        `Received payment ${id} not found for ${this.id} payment intent`
+      );
+    }
+
+    const { receiveAmount } = receivedPayment.finalize();
+    this._receivedAmount += receiveAmount;
+
+    if (this.isIncomingAmountMet) {
+      this._state = 'COMPLETED';
+    }
     return receivedPayment.toObject();
   }
 
