@@ -1,0 +1,101 @@
+# rbac.yaml
+#
+# RBAC — Role-Based Access Control
+#
+# Kubernetes uses RBAC to control what actions a pod/user can perform.
+# The operator needs permission to:
+#   - Watch RafikiInstance custom resources
+#   - Create/patch/delete Deployments, StatefulSets, Services, Jobs, Secrets
+#
+# Three objects are needed:
+#   1. ServiceAccount — the "identity" the operator pod runs as
+#   2. ClusterRole    — a set of permissions (what can be done, to what)
+#   3. ClusterRoleBinding — ties the ServiceAccount to the ClusterRole
+#
+# Why ClusterRole instead of Role?
+#   RafikiInstances can exist in any namespace, and the operator watches
+#   them cluster-wide. ClusterRole applies across all namespaces.
+#   If you wanted to restrict the operator to a single namespace, you'd
+#   use Role + RoleBinding instead.
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rafiki-system
+  labels:
+    app: rafiki-operator
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rafiki-operator
+  namespace: rafiki-system
+  labels:
+    app: rafiki-operator
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: rafiki-operator
+  labels:
+    app: rafiki-operator
+rules:
+  # Watch and manage RafikiInstance custom resources
+  - apiGroups: ['rafiki.interledger.org']
+    resources: ['rafikiinstances']
+    verbs: ['get', 'list', 'watch']
+
+  # Update the status subresource (so the operator can write .status)
+  - apiGroups: ['rafiki.interledger.org']
+    resources: ['rafikiinstances/status']
+    verbs: ['get', 'patch', 'update']
+
+  # Manage application Deployments
+  - apiGroups: ['apps']
+    resources: ['deployments', 'statefulsets']
+    verbs: ['get', 'list', 'watch', 'create', 'update', 'patch', 'delete']
+
+  # Manage Services, Secrets, ConfigMaps, Namespaces
+  - apiGroups: ['']
+    resources: ['services', 'secrets', 'configmaps', 'namespaces']
+    verbs: ['get', 'list', 'watch', 'create', 'update', 'patch', 'delete']
+
+  # Manage the Kafka init Job
+  - apiGroups: ['batch']
+    resources: ['jobs']
+    verbs: ['get', 'list', 'watch', 'create', 'update', 'patch', 'delete']
+
+  # Manage the Ingress exposing open-payments-resource-service publicly
+  - apiGroups: ['networking.k8s.io']
+    resources: ['ingresses']
+    verbs: ['get', 'list', 'watch', 'create', 'update', 'patch', 'delete']
+
+  # Allow initContainers in app pods to read Job status (waitForKafkaInit)
+  - apiGroups: ['batch']
+    resources: ['jobs/status']
+    verbs: ['get']
+
+  # Create the per-namespace Role/RoleBinding that lets app pods'
+  # initContainers (running as the "default" ServiceAccount) read Jobs
+  - apiGroups: ['rbac.authorization.k8s.io']
+    resources: ['roles', 'rolebindings']
+    verbs: ['get', 'list', 'watch', 'create', 'update', 'patch', 'delete']
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: rafiki-operator
+  labels:
+    app: rafiki-operator
+subjects:
+  - kind: ServiceAccount
+    name: rafiki-operator
+    namespace: rafiki-system
+roleRef:
+  kind: ClusterRole
+  name: rafiki-operator
+  apiGroup: rbac.authorization.k8s.io

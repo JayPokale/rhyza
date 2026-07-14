@@ -1,0 +1,65 @@
+# operator.yaml
+#
+# Kubernetes Deployment for the operator itself.
+#
+# The operator runs as a regular Pod inside the cluster (in the rafiki-system
+# namespace). From inside the cluster it uses the projected ServiceAccount
+# token to authenticate against the Kubernetes API — this is called
+# "in-cluster config" and is automatically handled by KubeConfig.loadFromDefault().
+
+---
+# First, create the namespace for the operator itself.
+# Rafiki instances will be created in their own namespace (e.g. "rafiki").
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rafiki-system
+  labels:
+    app: rafiki-operator
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rafiki-operator
+  namespace: rafiki-system
+  labels:
+    app: rafiki-operator
+spec:
+  replicas: 1 # Operators are typically singleton — only 1 replica
+  selector:
+    matchLabels:
+      app: rafiki-operator
+  template:
+    metadata:
+      labels:
+        app: rafiki-operator
+    spec:
+      # Use the ServiceAccount defined in rbac.yaml.
+      # This is how the pod gets its Kubernetes permissions.
+      serviceAccountName: rafiki-operator
+
+      containers:
+        - name: operator
+          # Replace this with your actual image after building and pushing.
+          # See README.md for how to build and push the image.
+          image: rafiki-operator:dev
+          imagePullPolicy: Never
+
+          # Resource limits — keep the operator lightweight
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+
+          # Liveness probe — restart the operator if it hangs
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 3
