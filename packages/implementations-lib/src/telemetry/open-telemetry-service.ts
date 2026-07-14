@@ -249,11 +249,14 @@ export class OpenTelemetryService implements ITelemetryService {
     name: string,
     attributes?: ITelemetryServiceAttributes
   ): ITelemetryHistogram {
-    const histo = this._getOrCreateHistogram(name, attributes);
+    const histo = this._getOrCreateHistogram(name);
 
     return {
-      observe: (value: number, attributes?: ITelemetryServiceAttributes) => {
-        histo.record(value, attributes);
+      observe: (
+        value: number,
+        additionalAttributes?: ITelemetryServiceAttributes
+      ) => {
+        histo.record(value, { ...attributes, ...additionalAttributes });
       },
       startTimer: (
         attributes?: ITelemetryServiceAttributes
@@ -276,8 +279,11 @@ export class OpenTelemetryService implements ITelemetryService {
   ): ITelemetryGauge {
     const gauge = this._getOrCreateGauge(name, attributes);
     return {
-      set: (value: number, attributes?: ITelemetryServiceAttributes) => {
-        gauge.record(value, attributes);
+      set: (
+        value: number,
+        additionalAttributes?: ITelemetryServiceAttributes
+      ) => {
+        gauge.record(value, { ...attributes, ...additionalAttributes });
       }
     };
   }
@@ -288,14 +294,20 @@ export class OpenTelemetryService implements ITelemetryService {
   ): ITelemetryCounter {
     const counter = this._getOrCreateCounter(name, attributes);
     return {
-      dec: (amount?: number, attributes?: ITelemetryServiceAttributes) => {
+      dec: (
+        amount?: number,
+        additionalAttributes?: ITelemetryServiceAttributes
+      ) => {
         if (!amount) amount = -1;
         if (amount > 0) amount = amount * -1;
-        counter.add(amount, attributes);
+        counter.add(amount, { ...attributes, ...additionalAttributes });
       },
-      inc: (amount: number, attributes?: ITelemetryServiceAttributes) => {
+      inc: (
+        amount: number,
+        additionalAttributes?: ITelemetryServiceAttributes
+      ) => {
         if (!amount) amount = 1;
-        counter.add(amount, attributes);
+        counter.add(amount, { ...attributes, ...additionalAttributes });
       }
     };
   }
