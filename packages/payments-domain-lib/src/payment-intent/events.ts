@@ -1,5 +1,9 @@
 import { DomainEvent, DomainEventTopics } from 'common-types-lib';
-import { PaymentIntentState, PaymentState } from './interfaces';
+import {
+  PaymentIntentState,
+  SentPaymentState,
+  ReceivedPaymentState
+} from './interfaces';
 
 export abstract class PaymentIntentDomainEvent extends DomainEvent {
   msgTopic: string = DomainEventTopics.PaymentEvents;
@@ -111,6 +115,30 @@ export abstract class PaymentIntentDomainEvent extends DomainEvent {
   ): evt is RemotePaymentSendRejectedEvent {
     return evt.msgName === RemotePaymentSendRejectedEvent.name;
   }
+
+  static isReceivedPaymentValidatedEvent(
+    evt: DomainEvent
+  ): evt is ReceivedPaymentValidatedEvent {
+    return evt.msgName === ReceivedPaymentValidatedEvent.name;
+  }
+
+  static isReceivedPaymentValidationFailedEvent(
+    evt: DomainEvent
+  ): evt is ReceivedPaymentValidationFailedEvent {
+    return evt.msgName === ReceivedPaymentValidationFailedEvent.name;
+  }
+
+  static isReceivedPaymentAcceptedEvent(
+    evt: DomainEvent
+  ): evt is ReceivedPaymentAcceptedEvent {
+    return evt.msgName === ReceivedPaymentAcceptedEvent.name;
+  }
+
+  static isReceivedPaymentFailedEvent(
+    evt: DomainEvent
+  ): evt is ReceivedPaymentFailedEvent {
+    return evt.msgName === ReceivedPaymentFailedEvent.name;
+  }
 }
 
 export type PaymentIntentCreatedPayload = {
@@ -219,7 +247,7 @@ export type PaymentCreatedPayload = {
   debitAmount: string | null;
   receiveAmount: string | null;
   sentAmount: string | null;
-  state: PaymentState;
+  state: SentPaymentState;
   createdAt: Date;
   assetCode: string;
   assetScale: number;
@@ -261,7 +289,7 @@ export type PaymentCompletedPayload = {
   debitAmount: string | null;
   receiveAmount: string | null;
   sentAmount: string | null;
-  state: PaymentState;
+  state: SentPaymentState;
   createdAt: Date;
   assetCode: string;
   assetScale: number;
@@ -448,7 +476,7 @@ export type PaymentFailedPayload = {
   debitAmount: string | null;
   receiveAmount: string | null;
   sentAmount: string | null;
-  state: PaymentState;
+  state: SentPaymentState;
   createdAt: Date;
   assetCode: string;
   assetScale: number;
@@ -495,6 +523,94 @@ export class RemotePaymentSendRejectedEvent extends PaymentIntentDomainEvent {
   payload: RemotePaymentSendRejectedPayload;
 
   constructor(payload: RemotePaymentSendRejectedPayload, requestId?: string) {
+    super(payload.paymentIntentId);
+    this.payload = payload;
+    this.requestId = requestId;
+  }
+}
+
+export type ReceivedPaymentValidatedPayload = {
+  paymentIntentId: string;
+  receivedPaymentId: string;
+  packetId: string;
+  peerId: string;
+  sourceAmount: string;
+  peerAssetCode: string;
+  peerAssetScale: number;
+  receiveAmount: string;
+  receiveAssetCode: string;
+  receiveAssetScale: number;
+  receiverWalletAddressId?: string;
+  state: ReceivedPaymentState;
+  createdAt: Date;
+};
+
+export class ReceivedPaymentValidatedEvent extends PaymentIntentDomainEvent {
+  payload: ReceivedPaymentValidatedPayload;
+
+  constructor(payload: ReceivedPaymentValidatedPayload, requestId?: string) {
+    super(payload.paymentIntentId);
+    this.payload = payload;
+    this.requestId = requestId;
+  }
+}
+
+export type ReceivedPaymentValidationFailedPayload = {
+  paymentIntentId: string;
+  receivedPaymentId: string;
+  packetId: string;
+  peerId: string;
+  errorName: string;
+  message: string;
+};
+
+export class ReceivedPaymentValidationFailedEvent extends PaymentIntentDomainEvent {
+  payload: ReceivedPaymentValidationFailedPayload;
+  isErrorEvent = true;
+
+  constructor(
+    payload: ReceivedPaymentValidationFailedPayload,
+    requestId?: string
+  ) {
+    super(payload.paymentIntentId);
+    this.payload = payload;
+    this.requestId = requestId;
+  }
+}
+
+export type ReceivedPaymentAcceptedPayload = {
+  paymentIntentId: string;
+  receivedPaymentId: string;
+  packetId: string;
+  peerId: string;
+  ledgerTransferId: string;
+  state: ReceivedPaymentState;
+};
+
+export class ReceivedPaymentAcceptedEvent extends PaymentIntentDomainEvent {
+  payload: ReceivedPaymentAcceptedPayload;
+
+  constructor(payload: ReceivedPaymentAcceptedPayload, requestId?: string) {
+    super(payload.paymentIntentId);
+    this.payload = payload;
+    this.requestId = requestId;
+  }
+}
+
+export type ReceivedPaymentFailedPayload = {
+  paymentIntentId: string;
+  receivedPaymentId: string;
+  packetId?: string;
+  peerId?: string;
+  errorName: string;
+  message: string;
+};
+
+export class ReceivedPaymentFailedEvent extends PaymentIntentDomainEvent {
+  payload: ReceivedPaymentFailedPayload;
+  isErrorEvent = true;
+
+  constructor(payload: ReceivedPaymentFailedPayload, requestId?: string) {
     super(payload.paymentIntentId);
     this.payload = payload;
     this.requestId = requestId;

@@ -120,7 +120,8 @@ describe('PaymentIntent Entity', () => {
         createdAt: new Date(),
         expiresAt: new Date(Date.now() - 1000),
         quotes: [],
-        payments: []
+        sentPayments: [],
+        receivedPayments: []
       });
 
       assert.equal(paymentIntent.isExpired, true);
@@ -255,7 +256,8 @@ describe('PaymentIntent Entity', () => {
         createdAt: new Date(),
         expiresAt: new Date(Date.now() + 1000),
         quotes: [],
-        payments: []
+        sentPayments: [],
+        receivedPayments: []
       });
 
       assert.throws(
@@ -294,7 +296,8 @@ describe('PaymentIntent Entity', () => {
         createdAt: new Date(),
         expiresAt: new Date(Date.now() - 1000), // in the past
         quotes: [],
-        payments: []
+        sentPayments: [],
+        receivedPayments: []
       });
 
       assert.throws(
@@ -333,7 +336,8 @@ describe('PaymentIntent Entity', () => {
         createdAt: new Date(),
         expiresAt: new Date(Date.now() + 1000),
         quotes: [],
-        payments: []
+        sentPayments: [],
+        receivedPayments: []
       });
 
       assert.throws(
@@ -619,8 +623,8 @@ describe('PaymentIntent Entity', () => {
         }
       });
 
-      assert.equal(paymentIntent.payments.length, 1);
-      const payment = paymentIntent.payments[0];
+      assert.equal(paymentIntent.sentPayments.length, 1);
+      const payment = paymentIntent.sentPayments[0];
       assert.equal(payment.id, paymentId);
       assert.equal(payment.quoteId, quoteId);
       assert.equal(payment.debitAmount, 200n);
@@ -651,8 +655,8 @@ describe('PaymentIntent Entity', () => {
         }
       });
 
-      assert.equal(paymentIntent.payments.length, 1);
-      const payment = paymentIntent.payments[0];
+      assert.equal(paymentIntent.sentPayments.length, 1);
+      const payment = paymentIntent.sentPayments[0];
       assert.equal(payment.id, paymentId);
       assert.equal(payment.debitAmount, 200n);
       assert.equal(payment.receiveAmount, 100n);
@@ -682,8 +686,8 @@ describe('PaymentIntent Entity', () => {
         }
       });
 
-      assert.equal(paymentIntent.payments.length, 1);
-      const payment = paymentIntent.payments[0];
+      assert.equal(paymentIntent.sentPayments.length, 1);
+      const payment = paymentIntent.sentPayments[0];
       assert.equal(payment.id, paymentId);
       assert.equal(payment.debitAmount, 200n);
       assert.equal(payment.receiveAmount, 100n);
@@ -787,7 +791,8 @@ describe('PaymentIntent Entity', () => {
             expiresAt: new Date(Date.now() + 1000 * 60)
           }
         ],
-        payments: [
+        receivedPayments: [],
+        sentPayments: [
           {
             id: crypto.randomUUID(),
             state: 'COMPLETED',
@@ -851,7 +856,8 @@ describe('PaymentIntent Entity', () => {
             senderWalletAddressId
           }
         ],
-        payments: []
+        sentPayments: [],
+        receivedPayments: []
       });
 
       assert.throws(
@@ -902,7 +908,8 @@ describe('PaymentIntent Entity', () => {
             senderWalletAddressId
           }
         ],
-        payments: []
+        sentPayments: [],
+        receivedPayments: []
       });
 
       assert.throws(
@@ -941,7 +948,8 @@ describe('PaymentIntent Entity', () => {
         createdAt: new Date(),
         expiresAt: new Date(Date.now() + 1000 * 60),
         quotes: [],
-        payments: []
+        sentPayments: [],
+        receivedPayments: []
       });
 
       assert.throws(
@@ -980,7 +988,8 @@ describe('PaymentIntent Entity', () => {
         createdAt: new Date(),
         expiresAt: new Date(Date.now() - 1000),
         quotes: [],
-        payments: []
+        sentPayments: [],
+        receivedPayments: []
       });
 
       assert.throws(
@@ -1031,7 +1040,8 @@ describe('PaymentIntent Entity', () => {
             senderWalletAddressId: crypto.randomUUID()
           }
         ],
-        payments: []
+        sentPayments: [],
+        receivedPayments: []
       });
 
       assert.throws(
@@ -1132,8 +1142,8 @@ describe('PaymentIntent Entity', () => {
           }
         });
 
-        assert.equal(paymentIntent.payments.length, 1);
-        const payment = paymentIntent.payments[0];
+        assert.equal(paymentIntent.sentPayments.length, 1);
+        const payment = paymentIntent.sentPayments[0];
         assert.equal(payment.id, paymentId);
         assert.equal(payment.receiveAmount, test.expectedReceiveAmount);
         assert.equal(payment.debitAmount, test.debitAmount);
@@ -1150,7 +1160,7 @@ describe('PaymentIntent Entity', () => {
       quoteExpiresAt?: Date;
       intentExpiresAt?: Date;
       intentState?: 'CREATED' | 'COMPLETED';
-      extraPayments?: IPaymentIntent['payments'];
+      extraPayments?: IPaymentIntent['sentPayments'];
     }) {
       const paymentIntentId = crypto.randomUUID();
       const quoteId = overrides?.quoteId ?? crypto.randomUUID();
@@ -1190,7 +1200,8 @@ describe('PaymentIntent Entity', () => {
                 overrides?.quoteExpiresAt ?? new Date(Date.now() + 60_000)
             }
           ],
-          payments: overrides?.extraPayments ?? []
+          sentPayments: overrides?.extraPayments ?? [],
+          receivedPayments: []
         })
       };
     }
@@ -1216,7 +1227,7 @@ describe('PaymentIntent Entity', () => {
         }
       });
 
-      assert.equal(paymentIntent.payments.length, 1);
+      assert.equal(paymentIntent.sentPayments.length, 1);
       assert.equal(payment.id, paymentId);
       assert.equal(payment.state, 'CREATED');
       assert.equal(payment.quoteId, quoteId);
@@ -1410,7 +1421,8 @@ describe('PaymentIntent Entity', () => {
             senderWalletAddressId
           }
         ],
-        payments: []
+        sentPayments: [],
+        receivedPayments: []
       });
 
       assert.throws(
@@ -1545,7 +1557,8 @@ describe('PaymentIntent Entity', () => {
               expiresAt: new Date(Date.now() + 60_000)
             }
           ],
-          payments: [
+          receivedPayments: [],
+          sentPayments: [
             {
               id: paymentId,
               state: overrides?.paymentState ?? 'CREATED',
@@ -1574,7 +1587,7 @@ describe('PaymentIntent Entity', () => {
 
       assert.equal(payment.state, 'PROCESSING');
       assert.equal(payment.ledgerTransferId, undefined);
-      const [reloaded] = paymentIntent.payments;
+      const [reloaded] = paymentIntent.sentPayments;
       assert.equal(reloaded.state, 'PROCESSING');
       assert.equal(reloaded.ledgerTransferId, undefined);
     });
@@ -1698,7 +1711,8 @@ describe('PaymentIntent Entity', () => {
           expiresAt: new Date(Date.now() + 60_000),
           destinationIlpAddress: 'g.peer.123',
           quotes: [],
-          payments: [
+          receivedPayments: [],
+          sentPayments: [
             {
               id: paymentId,
               state: paymentState,
@@ -1808,7 +1822,8 @@ describe('PaymentIntent Entity', () => {
           expiresAt: new Date(Date.now() + 60_000),
           destinationIlpAddress: 'g.peer.123',
           quotes: [],
-          payments: [
+          receivedPayments: [],
+          sentPayments: [
             {
               id: paymentId,
               state: paymentState,
@@ -1922,7 +1937,8 @@ describe('PaymentIntent Entity', () => {
           expiresAt: new Date(Date.now() + 60_000),
           destinationIlpAddress: 'g.peer.123',
           quotes: [],
-          payments: [
+          receivedPayments: [],
+          sentPayments: [
             {
               id: paymentId,
               state: paymentState,
@@ -2010,7 +2026,8 @@ describe('PaymentIntent Entity', () => {
           expiresAt: new Date(Date.now() + 60_000),
           destinationIlpAddress: 'g.peer.123',
           quotes: [],
-          payments: [
+          receivedPayments: [],
+          sentPayments: [
             {
               id: paymentId,
               state: paymentState,
@@ -2104,7 +2121,8 @@ describe('PaymentIntent Entity', () => {
           expiresAt: new Date(Date.now() + 60_000),
           destinationIlpAddress: 'g.peer.123',
           quotes: [],
-          payments: [
+          receivedPayments: [],
+          sentPayments: [
             {
               id: paymentId,
               state: paymentState,
@@ -2216,7 +2234,7 @@ describe('PaymentIntent Entity', () => {
 
       paymentIntent.completeLocalPayment({ id: paymentId });
 
-      const payment = paymentIntent.payments[0];
+      const payment = paymentIntent.sentPayments[0];
       assert.equal(payment.state, 'COMPLETED');
       assert.equal(payment.sentAmount, 100n);
       assert.equal(paymentIntent.receivedAmount, 100n);
@@ -2250,7 +2268,7 @@ describe('PaymentIntent Entity', () => {
 
       paymentIntent.completeLocalPayment({ id: paymentId });
 
-      const payment = paymentIntent.payments[0];
+      const payment = paymentIntent.sentPayments[0];
       assert.equal(payment.state, 'COMPLETED');
       assert.equal(payment.sentAmount, 100n);
       assert.equal(paymentIntent.receivedAmount, 100n);
@@ -2284,7 +2302,7 @@ describe('PaymentIntent Entity', () => {
 
       paymentIntent.completeLocalPayment({ id: paymentId });
 
-      const payment = paymentIntent.payments[0];
+      const payment = paymentIntent.sentPayments[0];
       assert.equal(payment.state, 'COMPLETED');
       assert.equal(payment.sentAmount, 110n);
       assert.equal(paymentIntent.incomingAmount, 100n);
@@ -2307,7 +2325,8 @@ describe('PaymentIntent Entity', () => {
         createdAt: new Date(),
         expiresAt: new Date(Date.now() + 1000 * 60),
         quotes: [],
-        payments: []
+        sentPayments: [],
+        receivedPayments: []
       });
 
       assert.throws(
@@ -2336,7 +2355,8 @@ describe('PaymentIntent Entity', () => {
         createdAt: new Date(),
         expiresAt: new Date(Date.now() - 1000),
         quotes: [],
-        payments: []
+        sentPayments: [],
+        receivedPayments: []
       });
 
       assert.throws(
@@ -2389,7 +2409,8 @@ describe('PaymentIntent Entity', () => {
         createdAt: new Date(),
         expiresAt: new Date(Date.now() + 1000 * 60),
         quotes: [],
-        payments: [
+        receivedPayments: [],
+        sentPayments: [
           {
             id: 'payment-1',
             state: 'COMPLETED',
@@ -2448,7 +2469,7 @@ describe('PaymentIntent Entity', () => {
       paymentIntent.cancelPayment({ id: paymentId, reason: 'user requested' });
       const afterCancel = Date.now();
 
-      const payment = paymentIntent.payments[0];
+      const payment = paymentIntent.sentPayments[0];
       assert.equal(payment.state, 'CANCELLED');
       assert.equal(payment.cancelReason, 'user requested');
       assert.ok(payment.cancelledAt);
@@ -2500,7 +2521,8 @@ describe('PaymentIntent Entity', () => {
         createdAt: new Date(),
         expiresAt: new Date(Date.now() + 1000 * 60),
         quotes: [],
-        payments: [
+        receivedPayments: [],
+        sentPayments: [
           {
             id: 'payment-1',
             state: 'CANCELLED',
@@ -2547,7 +2569,8 @@ describe('PaymentIntent Entity', () => {
         createdAt: new Date(),
         expiresAt: new Date(Date.now() + 1000 * 60),
         quotes: [],
-        payments: [
+        receivedPayments: [],
+        sentPayments: [
           {
             id: 'payment-1',
             state: 'COMPLETED',
@@ -2671,7 +2694,8 @@ describe('PaymentIntent Entity', () => {
         createdAt: new Date(),
         expiresAt: new Date(Date.now() + 1000 * 60),
         quotes: [],
-        payments: []
+        sentPayments: [],
+        receivedPayments: []
       });
 
       assert.throws(
@@ -2710,7 +2734,8 @@ describe('PaymentIntent Entity', () => {
         createdAt: new Date(),
         expiresAt: new Date(Date.now() - 1000),
         quotes: [],
-        payments: []
+        sentPayments: [],
+        receivedPayments: []
       });
 
       assert.throws(
@@ -2915,7 +2940,8 @@ describe('PaymentIntent Entity', () => {
             senderWalletAddressId: crypto.randomUUID()
           }
         ],
-        payments: []
+        sentPayments: [],
+        receivedPayments: []
       });
 
       assert.throws(
@@ -3152,7 +3178,7 @@ describe('PaymentIntent Entity', () => {
     });
   });
 
-  describe('calculateInboundQuoteAmount', () => {
+  describe('convertPeerAmount', () => {
     const makeIntent = (
       overrides: Partial<{ assetCode: string; assetScale: number }> = {}
     ) =>
@@ -3169,7 +3195,7 @@ describe('PaymentIntent Entity', () => {
     it('same asset+scale: returns sourceAmount unchanged', () => {
       const intent = makeIntent({ assetCode: 'USD', assetScale: 2 });
 
-      const receiveAmount = intent.calculateInboundQuoteAmount({
+      const receiveAmount = intent.convertPeerAmount({
         sourceAmount: 100n,
         peerAssetCode: 'USD',
         peerAssetScale: 2
@@ -3181,7 +3207,7 @@ describe('PaymentIntent Entity', () => {
     it('same asset+scale: ignores fxRate when provided', () => {
       const intent = makeIntent({ assetCode: 'USD', assetScale: 2 });
 
-      const receiveAmount = intent.calculateInboundQuoteAmount({
+      const receiveAmount = intent.convertPeerAmount({
         sourceAmount: 100n,
         peerAssetCode: 'USD',
         peerAssetScale: 2,
@@ -3195,7 +3221,7 @@ describe('PaymentIntent Entity', () => {
       const intent = makeIntent({ assetCode: 'USD', assetScale: 4 });
 
       // 100 (USD/2 = 1.00 USD) -> 10000 (USD/4 = 1.00 USD)
-      const receiveAmount = intent.calculateInboundQuoteAmount({
+      const receiveAmount = intent.convertPeerAmount({
         sourceAmount: 100n,
         peerAssetCode: 'USD',
         peerAssetScale: 2
@@ -3208,7 +3234,7 @@ describe('PaymentIntent Entity', () => {
       const intent = makeIntent({ assetCode: 'USD', assetScale: 2 });
 
       // 10000 (USD/4 = 1.00 USD) -> 100 (USD/2 = 1.00 USD)
-      const receiveAmount = intent.calculateInboundQuoteAmount({
+      const receiveAmount = intent.convertPeerAmount({
         sourceAmount: 10000n,
         peerAssetCode: 'USD',
         peerAssetScale: 4
@@ -3220,7 +3246,7 @@ describe('PaymentIntent Entity', () => {
     it('same asset code, different scale: ignores fxRate when provided', () => {
       const intent = makeIntent({ assetCode: 'USD', assetScale: 4 });
 
-      const receiveAmount = intent.calculateInboundQuoteAmount({
+      const receiveAmount = intent.convertPeerAmount({
         sourceAmount: 100n,
         peerAssetCode: 'USD',
         peerAssetScale: 2,
@@ -3234,7 +3260,7 @@ describe('PaymentIntent Entity', () => {
     it('cross-asset rate > 1: floors sourceAmount * fxRate', () => {
       const intent = makeIntent({ assetCode: 'XRP', assetScale: 2 });
 
-      const receiveAmount = intent.calculateInboundQuoteAmount({
+      const receiveAmount = intent.convertPeerAmount({
         sourceAmount: 100n,
         peerAssetCode: 'USD',
         peerAssetScale: 2,
@@ -3248,7 +3274,7 @@ describe('PaymentIntent Entity', () => {
     it('cross-asset rate < 1: floors sourceAmount * fxRate', () => {
       const intent = makeIntent({ assetCode: 'EUR', assetScale: 2 });
 
-      const receiveAmount = intent.calculateInboundQuoteAmount({
+      const receiveAmount = intent.convertPeerAmount({
         sourceAmount: 100n,
         peerAssetCode: 'USD',
         peerAssetScale: 2,
@@ -3263,7 +3289,7 @@ describe('PaymentIntent Entity', () => {
       // peer EUR/2, receiver XRP/4, 1 EUR = 2 XRP
       const intent = makeIntent({ assetCode: 'XRP', assetScale: 4 });
 
-      const receiveAmount = intent.calculateInboundQuoteAmount({
+      const receiveAmount = intent.convertPeerAmount({
         sourceAmount: 100n,
         peerAssetCode: 'EUR',
         peerAssetScale: 2,
@@ -3278,7 +3304,7 @@ describe('PaymentIntent Entity', () => {
       // peer XRP/4, receiver EUR/2, 1 XRP = 0.5 EUR
       const intent = makeIntent({ assetCode: 'EUR', assetScale: 2 });
 
-      const receiveAmount = intent.calculateInboundQuoteAmount({
+      const receiveAmount = intent.convertPeerAmount({
         sourceAmount: 20000n,
         peerAssetCode: 'XRP',
         peerAssetScale: 4,
@@ -3294,7 +3320,7 @@ describe('PaymentIntent Entity', () => {
 
       assert.throws(
         () => {
-          intent.calculateInboundQuoteAmount({
+          intent.convertPeerAmount({
             sourceAmount: 100n,
             peerAssetCode: 'USD',
             peerAssetScale: 2

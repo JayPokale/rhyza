@@ -18,13 +18,19 @@ import {
   FailRemotePaymentCmd,
   ConfirmRemotePaymentCmd,
   RejectRemotePaymentCmd,
-  CompleteRemotePaymentCmd
+  CompleteRemotePaymentCmd,
+  ValidateReceivedPaymentCmd,
+  AcceptReceivedPaymentCmd,
+  FailReceivedPaymentCmd
 } from 'payments-domain-lib';
 import {
   LedgerOutgoingTransferReservedEvent,
   LedgerOutgoingTransferInsufficientFundsErrorEvent,
   LedgerOutgoingTransferCommittedEvent,
-  LedgerOutgoingTransferRejectedEvent
+  LedgerOutgoingTransferRejectedEvent,
+  LedgerIncomingTransferReservedEvent,
+  LedgerIncomingTransferInsufficientFundsErrorEvent,
+  LedgerIncomingTransferRejectedEvent
 } from 'pal-public-types-lib';
 
 // TODO: use pal event directly. It needs to be updated with paymentintentId and paymentId
@@ -35,6 +41,29 @@ type LedgerTransferPayloadWithPaymentIds = {
   errorMessage?: string;
   paymentIntentId: string;
   paymentId: string;
+};
+
+// TODO: use pal event directly. It needs to be updated with paymentIntentId
+// and receivedPaymentId
+type LedgerTransferPayloadWithReceivedPaymentIds = {
+  requestId: string;
+  transferId: string;
+  isError?: boolean;
+  errorMessage?: string;
+  paymentIntentId: string;
+  receivedPaymentId: string;
+};
+
+// TODO: ILP BC does not publish this event yet — assumed contract for the
+// inbound prepare packet. Replace with the real event type once ILP adds it.
+const ILP_PAYMENT_RECEIVED_EVENT_NAME = 'ILPPaymentReceivedEvent';
+type ILPPaymentReceivedPayload = {
+  packetId: string;
+  peerId: string;
+  paymentIntentId: string;
+  sourceAmount: string;
+  peerAssetCode: string;
+  peerAssetScale: number;
 };
 
 export class PaymentsEventHandler {
@@ -112,13 +141,63 @@ export class PaymentsEventHandler {
         //     packetId: payload.packetId,
         //     peerId: payload.peerId,
         //     paymentIntentId: payload.paymentIntentId,
-        //     sourceAmount: payload.sourceAmount,
+        //     sourceAmount: payload.incomingAmount,
         //     peerAssetCode: payload.peerAssetCode,
         //     peerAssetScale: payload.peerAssetScale
         //   },
         //   payload.requestId
         // );
         // await this._msgProducer.send(cmd);
+        break;
+      }
+      case ILP_PAYMENT_RECEIVED_EVENT_NAME: {
+        const payload = message.payload as ILPPaymentReceivedPayload;
+        const cmd = new ValidateReceivedPaymentCmd(
+          {
+            id: crypto.randomUUID(),
+            paymentIntentId: payload.paymentIntentId,
+            packetId: payload.packetId,
+            peerId: payload.peerId,
+            sourceAmount: payload.sourceAmount,
+            peerAssetCode: payload.peerAssetCode,
+            peerAssetScale: payload.peerAssetScale
+          },
+          // TODO: requestId required - remove fallback when provided by ILP
+          message.requestId ?? ''
+        );
+        await this._msgProducer.send(cmd);
+        break;
+      }
+      case LedgerIncomingTransferReservedEvent.name: {
+        // TODO: auto-accepting. Design calls for marking pending-acceptance,
+        // webhooking the ASE via Notifications, and the ASE accepting through
+        // the admin API.
+        const payload =
+          message.payload as LedgerTransferPayloadWithReceivedPaymentIds;
+        const cmd = new AcceptReceivedPaymentCmd(
+          {
+            id: payload.receivedPaymentId,
+            paymentIntentId: payload.paymentIntentId,
+            ledgerTransferId: payload.transferId
+          },
+          payload.requestId
+        );
+        await this._msgProducer.send(cmd);
+        break;
+      }
+      case LedgerIncomingTransferInsufficientFundsErrorEvent.name:
+      case LedgerIncomingTransferRejectedEvent.name: {
+        const payload =
+          message.payload as LedgerTransferPayloadWithReceivedPaymentIds;
+        const cmd = new FailReceivedPaymentCmd(
+          {
+            id: payload.receivedPaymentId,
+            paymentIntentId: payload.paymentIntentId,
+            reason: payload.errorMessage ?? 'Ledger transfer failed'
+          },
+          payload.requestId
+        );
+        await this._msgProducer.send(cmd);
         break;
       }
       case LedgerOutgoingTransferReservedEvent.name: {

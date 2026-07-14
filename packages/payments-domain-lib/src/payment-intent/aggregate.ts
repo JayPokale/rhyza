@@ -4,14 +4,15 @@ import {
   IFxRateRequest,
   IPalService,
   IPeer,
-  IPayment,
+  ISentPayment,
   IPendingQuote,
   IPaymentIntent,
   IPaymentIntentRepository,
   IRemotePaymentIntentService,
   PaymentIntentDestination,
   PaymentIntentState,
-  PaymentState,
+  SentPaymentState,
+  ReceivedPaymentState,
   IWalletAddress
 } from './interfaces';
 import { PaymentIntent } from './entity';
@@ -28,7 +29,10 @@ import {
   FailRemotePaymentCmd,
   ConfirmRemotePaymentCmd,
   RejectRemotePaymentCmd,
-  CompleteRemotePaymentCmd
+  CompleteRemotePaymentCmd,
+  ValidateReceivedPaymentCmd,
+  AcceptReceivedPaymentCmd,
+  FailReceivedPaymentCmd
 } from '../commands';
 import {
   CannotCreateDuplicatePaymentIntentError,
@@ -60,7 +64,11 @@ import {
   RemotePaymentPreparedEvent,
   PaymentFailedEvent,
   RemotePaymentSendConfirmedEvent,
-  RemotePaymentSendRejectedEvent
+  RemotePaymentSendRejectedEvent,
+  ReceivedPaymentValidatedEvent,
+  ReceivedPaymentValidationFailedEvent,
+  ReceivedPaymentAcceptedEvent,
+  ReceivedPaymentFailedEvent
 } from './events';
 
 const fxKey = (
@@ -75,7 +83,7 @@ const intraFxKey = (sourceAssetCode: string, destinationAssetCode: string) =>
 export class PaymentIntentAggregate {
   private newPaymentIntentIds: string[] = [];
   private newPaymentIntentQuotes = new Map<string, string[]>(); // paymentIntentId, quoteIds
-  private newPaymentsMap = new Map<string, string[]>(); // paymentIntentId, paymentIds
+  private newSentPaymentsMap = new Map<string, string[]>(); // paymentIntentId, paymentIds
   private completedLocalPayments = new Map<string, string[]>(); // paymentIntentId, paymentIds
   private approvedRemotePayments = new Map<string, string[]>(); // paymentIntentId, paymentIds
   private sendingRemotePayments = new Map<string, string[]>(); // paymentIntentId, paymentIds
@@ -84,6 +92,9 @@ export class PaymentIntentAggregate {
   private completedRemotePayments = new Map<string, string[]>(); // paymentIntentId, paymentIds
   private failedRemotePayments = new Map<string, string[]>(); // paymentIntentId, paymentIds
   private cancelledPayments = new Map<string, string[]>(); // paymentIntentId, paymentIds
+  private newReceivedPayments = new Map<string, string[]>(); // paymentIntentId, receivedPaymentIds
+  private acceptedReceivedPayments = new Map<string, string[]>(); // paymentIntentId, receivedPaymentIds
+  private failedReceivedPayments = new Map<string, string[]>(); // paymentIntentId, receivedPaymentIds
   private finalizedRemoteQuotes = new Map<string, string[]>(); // paymentIntentId, quoteIds
   private paymentIntentMap = new Map<string, IPaymentIntent>();
   private walletAddressMap = new Map<string, IWalletAddress>();
@@ -155,6 +166,15 @@ export class PaymentIntentAggregate {
       } else if (cmd.msgName === CompleteRemotePaymentCmd.name) {
         const payload = (cmd as CompleteRemotePaymentCmd).payload;
         paymentIntentIdsSet.add(payload.paymentIntentId);
+      } else if (cmd.msgName === ValidateReceivedPaymentCmd.name) {
+        const payload = (cmd as ValidateReceivedPaymentCmd).payload;
+        paymentIntentIdsSet.add(payload.paymentIntentId);
+      } else if (cmd.msgName === AcceptReceivedPaymentCmd.name) {
+        const payload = (cmd as AcceptReceivedPaymentCmd).payload;
+        paymentIntentIdsSet.add(payload.paymentIntentId);
+      } else if (cmd.msgName === FailReceivedPaymentCmd.name) {
+        const payload = (cmd as FailReceivedPaymentCmd).payload;
+        paymentIntentIdsSet.add(payload.paymentIntentId);
       }
     }
 
@@ -203,8 +223,13 @@ export class PaymentIntentAggregate {
       } else if (cmd.msgName === CompleteRemoteQuoteCmd.name) {
         this._collectFxLookup(cmd as CompleteRemoteQuoteCmd, fxToFetch);
       } else if (cmd.msgName === CalculateRemoteQuoteCmd.name) {
-        this._collectFxLookupForCalculate(
-          cmd as CalculateRemoteQuoteCmd,
+        this._collectInboundFxLookup(
+          (cmd as CalculateRemoteQuoteCmd).payload,
+          fxToFetch
+        );
+      } else if (cmd.msgName === ValidateReceivedPaymentCmd.name) {
+        this._collectInboundFxLookup(
+          (cmd as ValidateReceivedPaymentCmd).payload,
           fxToFetch
         );
       }
@@ -274,6 +299,18 @@ export class PaymentIntentAggregate {
       } else if (cmd.msgName === CompleteRemotePaymentCmd.name) {
         event = this.handleCompleteRemotePaymentCommand(
           cmd as CompleteRemotePaymentCmd
+        );
+      } else if (cmd.msgName === ValidateReceivedPaymentCmd.name) {
+        event = this.handleValidateReceivedPaymentCommand(
+          cmd as ValidateReceivedPaymentCmd
+        );
+      } else if (cmd.msgName === AcceptReceivedPaymentCmd.name) {
+        event = this.handleAcceptReceivedPaymentCommand(
+          cmd as AcceptReceivedPaymentCmd
+        );
+      } else if (cmd.msgName === FailReceivedPaymentCmd.name) {
+        event = this.handleFailReceivedPaymentCommand(
+          cmd as FailReceivedPaymentCmd
         );
       } else {
         throw new Error('Unexpected command');
@@ -580,7 +617,7 @@ export class PaymentIntentAggregate {
 
       const paymentIntent = PaymentIntent.fromObject(paymentIntentObj);
 
-      let payment: IPayment;
+      let payment: ISentPayment;
       if (paymentIntent.destination === 'LOCAL') {
         const exchangeRate = this._getIntraAseRate(
           walletAddress.assetCode,
@@ -623,7 +660,7 @@ export class PaymentIntentAggregate {
       }
 
       this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
-      this._appendToMap(this.newPaymentsMap, paymentIntent.id, paymentId);
+      this._appendToMap(this.newSentPaymentsMap, paymentIntent.id, paymentId);
 
       this._logger.debug(
         `handleCreatePaymentCommand — created paymentId: ${paymentId}`
@@ -825,7 +862,7 @@ export class PaymentIntentAggregate {
       }
 
       const sourceAmount = BigInt(cmd.payload.sourceAmount);
-      const receiveAmount = paymentIntent.calculateInboundQuoteAmount({
+      const receiveAmount = paymentIntent.convertPeerAmount({
         sourceAmount,
         peerAssetCode,
         peerAssetScale,
@@ -1273,6 +1310,211 @@ export class PaymentIntentAggregate {
     }
   }
 
+  private handleValidateReceivedPaymentCommand(
+    cmd: ValidateReceivedPaymentCmd
+  ) {
+    this._logger.debug(
+      `handleValidateReceivedPaymentCommand — receivedPaymentId: ${cmd.payload.id} paymentIntentId: ${cmd.payload.paymentIntentId} packetId: ${cmd.payload.packetId}`
+    );
+    const {
+      id: receivedPaymentId,
+      paymentIntentId,
+      packetId,
+      peerId,
+      peerAssetCode,
+      peerAssetScale
+    } = cmd.payload;
+
+    try {
+      const paymentIntentObj = this.paymentIntentMap.get(paymentIntentId);
+      if (!paymentIntentObj) {
+        throw new PaymentIntentNotFoundError(
+          `Payment intent ${paymentIntentId} not found`
+        );
+      }
+
+      const paymentIntent = PaymentIntent.fromObject(paymentIntentObj);
+
+      let fxRate: number | undefined;
+      if (peerAssetCode !== paymentIntent.assetCode) {
+        const key = fxKey(peerId, 'source', peerAssetCode);
+        const fxFetchError = this.fxRateFetchErrors.get(key);
+        if (fxFetchError) throw fxFetchError;
+
+        const rate = this.fxRateMap.get(key) ?? null;
+        if (rate == null) {
+          throw new RatesError(
+            `Could not get FX rate from PAL for peer ${peerId} source asset ${peerAssetCode}`
+          );
+        }
+        fxRate = rate;
+      }
+
+      const receivedPayment = paymentIntent.addReceivedPayment({
+        id: receivedPaymentId,
+        packetId,
+        peerId,
+        peerAssetCode,
+        peerAssetScale,
+        sourceAmount: BigInt(cmd.payload.sourceAmount),
+        fxRate
+      });
+
+      this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
+      this._appendToMap(
+        this.newReceivedPayments,
+        paymentIntent.id,
+        receivedPaymentId
+      );
+
+      return new ReceivedPaymentValidatedEvent(
+        {
+          paymentIntentId: paymentIntent.id,
+          receivedPaymentId: receivedPayment.id,
+          packetId,
+          peerId,
+          sourceAmount: String(receivedPayment.sourceAmount),
+          peerAssetCode,
+          peerAssetScale,
+          receiveAmount: String(receivedPayment.receiveAmount),
+          receiveAssetCode: paymentIntent.assetCode,
+          receiveAssetScale: paymentIntent.assetScale,
+          receiverWalletAddressId: paymentIntent.receiverWalletAddressId,
+          state: receivedPayment.state,
+          createdAt: receivedPayment.createdAt
+        },
+        cmd.requestId
+      );
+    } catch (err) {
+      this._logger.debug(
+        `handleValidateReceivedPaymentCommand — failed paymentIntentId: ${paymentIntentId} error: ${(err as Error).message}`
+      );
+      return new ReceivedPaymentValidationFailedEvent(
+        {
+          paymentIntentId,
+          receivedPaymentId,
+          packetId,
+          peerId,
+          errorName: (err as Error).constructor.name,
+          message: (err as Error).message
+        },
+        cmd.requestId
+      );
+    }
+  }
+
+  private handleAcceptReceivedPaymentCommand(cmd: AcceptReceivedPaymentCmd) {
+    this._logger.debug(
+      `handleAcceptReceivedPaymentCommand — receivedPaymentId: ${cmd.payload.id} paymentIntentId: ${cmd.payload.paymentIntentId}`
+    );
+    const {
+      id: receivedPaymentId,
+      paymentIntentId,
+      ledgerTransferId
+    } = cmd.payload;
+
+    try {
+      const paymentIntentObj = this.paymentIntentMap.get(paymentIntentId);
+      if (!paymentIntentObj) {
+        throw new PaymentIntentNotFoundError(
+          `Payment intent ${paymentIntentId} not found`
+        );
+      }
+
+      const paymentIntent = PaymentIntent.fromObject(paymentIntentObj);
+      const receivedPayment = paymentIntent.acceptReceivedPayment({
+        id: receivedPaymentId,
+        ledgerTransferId
+      });
+
+      this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
+      this._appendToMap(
+        this.acceptedReceivedPayments,
+        paymentIntent.id,
+        receivedPaymentId
+      );
+
+      return new ReceivedPaymentAcceptedEvent(
+        {
+          paymentIntentId: paymentIntent.id,
+          receivedPaymentId: receivedPayment.id,
+          packetId: receivedPayment.packetId,
+          peerId: receivedPayment.peerId,
+          ledgerTransferId,
+          state: receivedPayment.state
+        },
+        cmd.requestId
+      );
+    } catch (err) {
+      this._logger.debug(
+        `handleAcceptReceivedPaymentCommand — failed paymentIntentId: ${paymentIntentId} error: ${(err as Error).message}`
+      );
+      return new ReceivedPaymentFailedEvent(
+        {
+          paymentIntentId,
+          receivedPaymentId,
+          errorName: (err as Error).constructor.name,
+          message: (err as Error).message
+        },
+        cmd.requestId
+      );
+    }
+  }
+
+  private handleFailReceivedPaymentCommand(cmd: FailReceivedPaymentCmd) {
+    this._logger.debug(
+      `handleFailReceivedPaymentCommand — receivedPaymentId: ${cmd.payload.id} paymentIntentId: ${cmd.payload.paymentIntentId} reason: ${cmd.payload.reason}`
+    );
+    const { id: receivedPaymentId, paymentIntentId, reason } = cmd.payload;
+
+    try {
+      const paymentIntentObj = this.paymentIntentMap.get(paymentIntentId);
+      if (!paymentIntentObj) {
+        throw new PaymentIntentNotFoundError(
+          `Payment intent ${paymentIntentId} not found`
+        );
+      }
+
+      const paymentIntent = PaymentIntent.fromObject(paymentIntentObj);
+      const receivedPayment = paymentIntent.failReceivedPayment({
+        id: receivedPaymentId,
+        reason
+      });
+
+      this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
+      this._appendToMap(
+        this.failedReceivedPayments,
+        paymentIntent.id,
+        receivedPaymentId
+      );
+
+      return new ReceivedPaymentFailedEvent(
+        {
+          paymentIntentId: paymentIntent.id,
+          receivedPaymentId: receivedPayment.id,
+          packetId: receivedPayment.packetId,
+          peerId: receivedPayment.peerId,
+          errorName: 'ReceivedPaymentFailed',
+          message: reason ?? 'Received payment failed'
+        },
+        cmd.requestId
+      );
+    } catch (err) {
+      this._logger.debug(
+        `handleFailReceivedPaymentCommand — failed paymentIntentId: ${paymentIntentId} error: ${(err as Error).message}`
+      );
+      return new ReceivedPaymentFailedEvent(
+        {
+          paymentIntentId,
+          receivedPaymentId,
+          errorName: (err as Error).constructor.name,
+          message: (err as Error).message
+        },
+        cmd.requestId
+      );
+    }
+  }
+
   private async handleCancelPaymentCommand(cmd: CancelPaymentCmd) {
     this._logger.debug(
       `handleCancelPaymentCommand — paymentId: ${cmd.payload.id} paymentIntentId: ${cmd.payload.paymentIntentId}`
@@ -1445,11 +1687,11 @@ export class PaymentIntentAggregate {
     }
   }
 
-  private _collectFxLookupForCalculate(
-    cmd: CalculateRemoteQuoteCmd,
+  private _collectInboundFxLookup(
+    payload: { paymentIntentId: string; peerId: string; peerAssetCode: string },
     into: Map<string, IFxRateRequest>
   ): void {
-    const { paymentIntentId, peerId, peerAssetCode } = cmd.payload;
+    const { paymentIntentId, peerId, peerAssetCode } = payload;
     const intent = this.paymentIntentMap.get(paymentIntentId);
     if (!intent) return;
     if (peerAssetCode === intent.assetCode) return;
@@ -1548,7 +1790,7 @@ export class PaymentIntentAggregate {
       promises.push(this._repo.storeQuotes(updates));
     }
 
-    if (this.newPaymentsMap.size > 0) {
+    if (this.newSentPaymentsMap.size > 0) {
       const updates: {
         paymentIntent: IPaymentIntent;
         paymentIds: string[];
@@ -1556,7 +1798,7 @@ export class PaymentIntentAggregate {
       for (const [
         paymentIntentId,
         paymentIds
-      ] of this.newPaymentsMap.entries()) {
+      ] of this.newSentPaymentsMap.entries()) {
         const paymentIntent = this.paymentIntentMap.get(paymentIntentId);
         if (!paymentIntent) {
           this._logger.error(
@@ -1568,7 +1810,100 @@ export class PaymentIntentAggregate {
         updates.push({ paymentIntent, paymentIds });
       }
 
-      promises.push(this._repo.storePayments(updates));
+      promises.push(this._repo.storeSentPayments(updates));
+    }
+
+    if (this.newReceivedPayments.size > 0) {
+      const updates: {
+        paymentIntent: IPaymentIntent;
+        receivedPaymentIds: string[];
+      }[] = [];
+      for (const [
+        paymentIntentId,
+        receivedPaymentIds
+      ] of this.newReceivedPayments.entries()) {
+        const paymentIntent = this.paymentIntentMap.get(paymentIntentId);
+        if (!paymentIntent) {
+          this._logger.error(
+            `Payment intent ${paymentIntentId} missing from paymentIntentMap during flush (received payments)`
+          );
+          continue;
+        }
+
+        updates.push({ paymentIntent, receivedPaymentIds });
+      }
+
+      promises.push(this._repo.storeReceivedPayments(updates));
+    }
+
+    if (this.acceptedReceivedPayments.size > 0) {
+      const updates: {
+        receivedPayments: {
+          id: string;
+          state: ReceivedPaymentState;
+          ledgerTransferId: string;
+        }[];
+      }[] = [];
+
+      for (const [
+        paymentIntentId,
+        receivedPaymentIds
+      ] of this.acceptedReceivedPayments.entries()) {
+        const paymentIntent = this.paymentIntentMap.get(paymentIntentId);
+        if (!paymentIntent) {
+          this._logger.error(
+            `Payment intent ${paymentIntentId} missing from paymentIntentMap during flush (accepted received payments)`
+          );
+          continue;
+        }
+
+        updates.push({
+          receivedPayments: paymentIntent.receivedPayments
+            .filter((rp) => receivedPaymentIds.includes(rp.id))
+            .map((rp) => ({
+              id: rp.id,
+              state: rp.state,
+              ledgerTransferId: rp.ledgerTransferId ?? ''
+            }))
+        });
+      }
+
+      promises.push(this._repo.storeAcceptedReceivedPayments(updates));
+    }
+
+    if (this.failedReceivedPayments.size > 0) {
+      const updates: {
+        receivedPayments: {
+          id: string;
+          state: ReceivedPaymentState;
+          failReason?: string;
+        }[];
+      }[] = [];
+
+      for (const [
+        paymentIntentId,
+        receivedPaymentIds
+      ] of this.failedReceivedPayments.entries()) {
+        const paymentIntent = this.paymentIntentMap.get(paymentIntentId);
+        if (!paymentIntent) {
+          this._logger.error(
+            `Payment intent ${paymentIntentId} missing from paymentIntentMap during flush (failed received payments)`
+          );
+          continue;
+        }
+
+        updates.push({
+          receivedPayments: paymentIntent.receivedPayments
+            .filter((rp) => receivedPaymentIds.includes(rp.id))
+            .map((rp) => ({
+              id: rp.id,
+              state: rp.state,
+              failReason: rp.failReason
+            }))
+        });
+      }
+
+      promises.push(this._repo.storeFailedReceivedPayments(updates));
     }
 
     if (this.completedLocalPayments.size > 0) {
@@ -1578,7 +1913,11 @@ export class PaymentIntentAggregate {
           receivedAmount: bigint;
           state: PaymentIntentState;
         };
-        payments: { id: string; state: PaymentState; sentAmount: bigint }[];
+        sentPayments: {
+          id: string;
+          state: SentPaymentState;
+          sentAmount: bigint;
+        }[];
       }[] = [];
 
       for (const [
@@ -1599,7 +1938,7 @@ export class PaymentIntentAggregate {
             state: paymentIntent.state,
             receivedAmount: paymentIntent.receivedAmount
           },
-          payments: paymentIntent.payments
+          sentPayments: paymentIntent.sentPayments
             .filter((p) => paymentIds.includes(p.id))
             .map((p) => ({
               id: p.id,
@@ -1619,7 +1958,11 @@ export class PaymentIntentAggregate {
           receivedAmount: bigint;
           state: PaymentIntentState;
         };
-        payments: { id: string; state: PaymentState; sentAmount: bigint }[];
+        sentPayments: {
+          id: string;
+          state: SentPaymentState;
+          sentAmount: bigint;
+        }[];
       }[] = [];
 
       for (const [
@@ -1640,7 +1983,7 @@ export class PaymentIntentAggregate {
             state: paymentIntent.state,
             receivedAmount: paymentIntent.receivedAmount
           },
-          payments: paymentIntent.payments
+          sentPayments: paymentIntent.sentPayments
             .filter((p) => paymentIds.includes(p.id))
             .map((p) => ({
               id: p.id,
@@ -1655,7 +1998,7 @@ export class PaymentIntentAggregate {
 
     if (this.approvedRemotePayments.size > 0) {
       const updates: {
-        payments: { id: string; state: PaymentState }[];
+        sentPayments: { id: string; state: SentPaymentState }[];
       }[] = [];
 
       for (const [
@@ -1671,7 +2014,7 @@ export class PaymentIntentAggregate {
         }
 
         updates.push({
-          payments: paymentIntent.payments
+          sentPayments: paymentIntent.sentPayments
             .filter((p) => paymentIds.includes(p.id))
             .map((p) => ({ id: p.id, state: p.state }))
         });
@@ -1682,9 +2025,9 @@ export class PaymentIntentAggregate {
 
     if (this.sendingRemotePayments.size > 0) {
       const updates: {
-        payments: {
+        sentPayments: {
           id: string;
-          state: PaymentState;
+          state: SentPaymentState;
           ledgerTransferId: string;
         }[];
       }[] = [];
@@ -1702,7 +2045,7 @@ export class PaymentIntentAggregate {
         }
 
         updates.push({
-          payments: paymentIntent.payments
+          sentPayments: paymentIntent.sentPayments
             .filter((p) => paymentIds.includes(p.id))
             .map((p) => ({
               id: p.id,
@@ -1717,7 +2060,7 @@ export class PaymentIntentAggregate {
 
     if (this.confirmedRemotePayments.size > 0) {
       const updates: {
-        payments: { id: string; state: PaymentState }[];
+        sentPayments: { id: string; state: SentPaymentState }[];
       }[] = [];
 
       for (const [
@@ -1733,7 +2076,7 @@ export class PaymentIntentAggregate {
         }
 
         updates.push({
-          payments: paymentIntent.payments
+          sentPayments: paymentIntent.sentPayments
             .filter((p) => paymentIds.includes(p.id))
             .map((p) => ({ id: p.id, state: p.state }))
         });
@@ -1744,7 +2087,11 @@ export class PaymentIntentAggregate {
 
     if (this.rejectedRemotePayments.size > 0) {
       const updates: {
-        payments: { id: string; state: PaymentState; failReason?: string }[];
+        sentPayments: {
+          id: string;
+          state: SentPaymentState;
+          failReason?: string;
+        }[];
       }[] = [];
 
       for (const [
@@ -1760,7 +2107,7 @@ export class PaymentIntentAggregate {
         }
 
         updates.push({
-          payments: paymentIntent.payments
+          sentPayments: paymentIntent.sentPayments
             .filter((p) => paymentIds.includes(p.id))
             .map((p) => ({
               id: p.id,
@@ -1775,7 +2122,11 @@ export class PaymentIntentAggregate {
 
     if (this.failedRemotePayments.size > 0) {
       const updates: {
-        payments: { id: string; state: PaymentState; failReason?: string }[];
+        sentPayments: {
+          id: string;
+          state: SentPaymentState;
+          failReason?: string;
+        }[];
       }[] = [];
 
       for (const [
@@ -1791,7 +2142,7 @@ export class PaymentIntentAggregate {
         }
 
         updates.push({
-          payments: paymentIntent.payments
+          sentPayments: paymentIntent.sentPayments
             .filter((p) => paymentIds.includes(p.id))
             .map((p) => ({
               id: p.id,
@@ -1806,9 +2157,9 @@ export class PaymentIntentAggregate {
 
     if (this.cancelledPayments.size > 0) {
       const updates: {
-        payments: {
+        sentPayments: {
           id: string;
-          state: PaymentState;
+          state: SentPaymentState;
           cancelledAt: Date;
           cancelReason?: string;
         }[];
@@ -1827,7 +2178,7 @@ export class PaymentIntentAggregate {
         }
 
         updates.push({
-          payments: paymentIntent.payments
+          sentPayments: paymentIntent.sentPayments
             .filter((p) => paymentIds.includes(p.id))
             .map((p) => ({
               id: p.id,
@@ -1899,7 +2250,10 @@ export class PaymentIntentAggregate {
     } finally {
       this.paymentIntentMap.clear();
       this.walletAddressMap.clear(); // TODO: wallet addresses are OK to be cached
-      this.newPaymentsMap.clear();
+      this.newSentPaymentsMap.clear();
+      this.newReceivedPayments.clear();
+      this.acceptedReceivedPayments.clear();
+      this.failedReceivedPayments.clear();
       this.completedLocalPayments.clear();
       this.approvedRemotePayments.clear();
       this.sendingRemotePayments.clear();

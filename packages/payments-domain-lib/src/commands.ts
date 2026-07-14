@@ -69,6 +69,24 @@ export abstract class PaymentIntentCommand extends CommandMsg {
   ): cmd is CompleteRemotePaymentCmd {
     return cmd.msgName === CompleteRemotePaymentCmd.name;
   }
+
+  static isValidateReceivedPaymentCmd(
+    cmd: CommandMsg
+  ): cmd is ValidateReceivedPaymentCmd {
+    return cmd.msgName === ValidateReceivedPaymentCmd.name;
+  }
+
+  static isAcceptReceivedPaymentCmd(
+    cmd: CommandMsg
+  ): cmd is AcceptReceivedPaymentCmd {
+    return cmd.msgName === AcceptReceivedPaymentCmd.name;
+  }
+
+  static isFailReceivedPaymentCmd(
+    cmd: CommandMsg
+  ): cmd is FailReceivedPaymentCmd {
+    return cmd.msgName === FailReceivedPaymentCmd.name;
+  }
 }
 
 export type CreatePaymentIntentCmdPayload = {
@@ -284,6 +302,58 @@ export class CompleteRemotePaymentCmd extends PaymentIntentCommand {
   payload: CompleteRemotePaymentCmdPayload;
 
   constructor(payload: CompleteRemotePaymentCmdPayload, requestId: string) {
+    super(payload.paymentIntentId);
+    this.requestId = requestId;
+    this.payload = payload;
+  }
+}
+
+export type ValidateReceivedPaymentCmdPayload = {
+  id: string;
+  paymentIntentId: string;
+  packetId: string;
+  peerId: string;
+  sourceAmount: string;
+  peerAssetCode: string;
+  peerAssetScale: number;
+};
+
+export class ValidateReceivedPaymentCmd extends PaymentIntentCommand {
+  payload: ValidateReceivedPaymentCmdPayload;
+
+  constructor(payload: ValidateReceivedPaymentCmdPayload, requestId: string) {
+    super(payload.paymentIntentId);
+    this.requestId = requestId;
+    this.payload = payload;
+  }
+}
+
+export type AcceptReceivedPaymentCmdPayload = {
+  id: string;
+  paymentIntentId: string;
+  ledgerTransferId: string;
+};
+
+export class AcceptReceivedPaymentCmd extends PaymentIntentCommand {
+  payload: AcceptReceivedPaymentCmdPayload;
+
+  constructor(payload: AcceptReceivedPaymentCmdPayload, requestId: string) {
+    super(payload.paymentIntentId);
+    this.requestId = requestId;
+    this.payload = payload;
+  }
+}
+
+export type FailReceivedPaymentCmdPayload = {
+  id: string;
+  paymentIntentId: string;
+  reason?: string;
+};
+
+export class FailReceivedPaymentCmd extends PaymentIntentCommand {
+  payload: FailReceivedPaymentCmdPayload;
+
+  constructor(payload: FailReceivedPaymentCmdPayload, requestId: string) {
     super(payload.paymentIntentId);
     this.requestId = requestId;
     this.payload = payload;

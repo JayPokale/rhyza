@@ -352,7 +352,9 @@ export class PaymentsServiceServer {
         return;
       }
 
-      const payment = paymentIntent.payments.find((p) => p.id === paymentId);
+      const payment = paymentIntent.sentPayments.find(
+        (p) => p.id === paymentId
+      );
       if (!payment) {
         callback({
           code: grpc.status.NOT_FOUND,
