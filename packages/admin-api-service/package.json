@@ -5,18 +5,23 @@
   "scripts": {
     "start": "node dist/index.js",
     "dev": "node --import tsx src/index.ts",
-    "build": "tsc --build"
+    "prebuild": "pnpm run generate:types",
+    "build": "tsc --build",
+    "lint:openapi": "redocly lint openapi.yaml --lint-config error --format=stylish",
+    "generate:types": "openapi-typescript openapi.yaml -o src/types/generated/openapi.d.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "fastify": "~5.3.3",
+    "implementations-lib": "workspace:*",
     "pal-client-lib": "workspace:*",
-    "payments-client-lib": "workspace:*",
-    "implementations-lib": "workspace:*"
+    "payments-client-lib": "workspace:*"
   },
   "devDependencies": {
+    "@redocly/cli": "^2.31.2",
+    "openapi-typescript": "^7.6.1",
     "tsx": "^4.19.3"
   }
 }

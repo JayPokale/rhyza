@@ -4,6 +4,7 @@ import { randomUUID } from 'crypto';
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { PalClient, parseAddressToDomainAndPathName } from 'pal-client-lib';
 import { PaymentsClient } from 'payments-client-lib';
+import type { components } from '../types/generated/openapi.js';
 
 interface QuoteRouteOptions extends FastifyPluginOptions {
   palClient: PalClient;
@@ -17,14 +18,7 @@ export async function quoteRoutes(
   const { palClient, paymentsClient } = opts;
 
   server.post<{
-    Body: {
-      walletAddress: string;
-      id?: string;
-      paymentIntentId?: string;
-      paymentIntentUrl?: string;
-      debitAmount?: string;
-      receiveAmount?: string;
-    };
+    Body: components['schemas']['QuoteCreate'];
   }>('/quotes', async (request, reply) => {
     const {
       walletAddress,

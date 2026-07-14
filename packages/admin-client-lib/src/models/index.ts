@@ -82,6 +82,15 @@ export function createErrorResponseFromDiscriminatorValue(parseNode: ParseNode |
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {PaymentApprove}
+ */
+// @ts-ignore
+export function createPaymentApproveFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoPaymentApprove;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {PaymentCancel}
  */
 // @ts-ignore
@@ -222,7 +231,7 @@ export function deserializeIntoAssetCreateResponse(assetCreateResponse: Partial<
 // @ts-ignore
 export function deserializeIntoErrorResponse(errorResponse: Partial<ErrorResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
-        "error": n => { errorResponse.errorEscaped = n.getStringValue(); },
+        "error": n => { errorResponse.errorEscaped = n.getStringValue(); errorResponse.message = errorResponse.errorEscaped ?? ""; },
     }
 }
 /**
@@ -246,12 +255,24 @@ export function deserializeIntoPayment(payment: Partial<Payment> | undefined = {
 }
 /**
  * The deserialization information for the current model
+ * @param PaymentApprove The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoPaymentApprove(paymentApprove: Partial<PaymentApprove> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "intentId": n => { paymentApprove.intentId = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param PaymentCancel The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
 // @ts-ignore
 export function deserializeIntoPaymentCancel(paymentCancel: Partial<PaymentCancel> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
+        "intentId": n => { paymentCancel.intentId = n.getStringValue(); },
         "reason": n => { paymentCancel.reason = n.getStringValue(); },
     }
 }
@@ -436,7 +457,17 @@ export interface Payment extends AdditionalDataHolder, Parsable {
      */
     state?: string | null;
 }
+export interface PaymentApprove extends AdditionalDataHolder, Parsable {
+    /**
+     * Payment intent the payment is for.
+     */
+    intentId?: string | null;
+}
 export interface PaymentCancel extends AdditionalDataHolder, Parsable {
+    /**
+     * Payment intent the payment is for.
+     */
+    intentId?: string | null;
     /**
      * Reason why the payment was cancelled.
      */
@@ -695,12 +726,25 @@ export function serializePayment(writer: SerializationWriter, payment: Partial<P
 /**
  * Serializes information the current object
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param PaymentApprove The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializePaymentApprove(writer: SerializationWriter, paymentApprove: Partial<PaymentApprove> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!paymentApprove || isSerializingDerivedType) { return; }
+    writer.writeStringValue("intentId", paymentApprove.intentId);
+    writer.writeAdditionalData(paymentApprove.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param PaymentCancel The instance to serialize from.
  * @param writer Serialization writer to use to serialize this model
  */
 // @ts-ignore
 export function serializePaymentCancel(writer: SerializationWriter, paymentCancel: Partial<PaymentCancel> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!paymentCancel || isSerializingDerivedType) { return; }
+    writer.writeStringValue("intentId", paymentCancel.intentId);
     writer.writeStringValue("reason", paymentCancel.reason);
     writer.writeAdditionalData(paymentCancel.additionalData);
 }
