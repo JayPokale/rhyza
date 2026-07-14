@@ -220,6 +220,11 @@ paths:
                   id:
                     type: string
                     description: Unique identifier of the approved payment
+                  state:
+                    type: string
+                    enum:
+                      - COMPLETED
+                      - FAILED
   /payment-intents/{intentId}/payments/{id}/cancel:
     post:
       summary: Cancel Payment
@@ -292,69 +297,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-  /payment-intents/{intentId}/payments/{id}/approve:
-    post:
-      operationId: Payments_approvePayment
-      parameters:
-        - name: intentId
-          in: path
-          required: true
-          schema:
-            type: string
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: The request has succeeded.
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - id
-                properties:
-                  id:
-                    type: string
-                  state:
-                    type: string
-                    enum:
-                      - COMPLETED
-                      - FAILED
-  /payment-intents/{intentId}/payments/{id}/cancel:
-    post:
-      operationId: Payments_cancelPayment
-      parameters:
-        - name: intentId
-          in: path
-          required: true
-          schema:
-            type: string
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: The request has succeeded.
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - id
-                properties:
-                  id:
-                    type: string
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PaymentCancel'
 components:
   schemas:
     ErrorResponse:
