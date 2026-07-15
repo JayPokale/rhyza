@@ -55,9 +55,9 @@ export class IntegrationEventHandler {
     // if(msg.msgName === "PaymentIntentCreatedEvent") {
     if (evt.msgName === 'RemotePaymentApprovedEvent') {
       // create a CheckBalanceAndReserveTransferCmd
-    } else if (evt.msgName === 'PaymentCreatedEvent') {
+    } else if (evt.msgName === 'RemotePaymentConfirmedEvent') {
       // create a CommitTransferCmd
-    } else if (evt.msgName === 'PaymentCreateFailedEvent') {
+    } else if (evt.msgName === 'RemotePaymentRejectedEvent') {
       // create a RejectTransferCmd
     } else if (evt.msgName === 'RemoteQuoteRequestedEvent') {
       // from payments - to ILP

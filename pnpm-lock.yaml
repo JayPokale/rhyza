@@ -102,6 +102,9 @@ importers:
       fastify:
         specifier: ~5.3.3
         version: 5.3.3
+      ilp-client-lib:
+        specifier: workspace:*
+        version: link:../ilp-client-lib
       implementations-lib:
         specifier: workspace:*
         version: link:../implementations-lib
@@ -268,6 +271,25 @@ importers:
       '@types/google-protobuf':
         specifier: ~3.15.12
         version: 3.15.12
+      tsx:
+        specifier: ^4.19.3
+        version: 4.19.3
+
+  packages/ilp-client-lib:
+    dependencies:
+      '@grpc/grpc-js':
+        specifier: ~1.14.3
+        version: 1.14.3
+      ilp-public-types-lib:
+        specifier: workspace:*
+        version: link:../ilp-public-types-lib
+    devDependencies:
+      '@types/google-protobuf':
+        specifier: ~3.15.12
+        version: 3.15.12
+      tslib:
+        specifier: ~2.8.1
+        version: 2.8.1
       tsx:
         specifier: ^4.19.3
         version: 4.19.3

@@ -28,6 +28,8 @@ const RECEIVER_WALLET_ADDRESS = 'test.com/receiver';
 const SENDER_WALLET_ADDRESS = 'test.com/sender';
 const PEER_ID = '04978037-26b8-4b4d-854a-278ed7548959';
 const PEER_ILP_STATIC_ADDRESS = 'ilp.rafiki.0';
+const PEER_ILP_OUTGOING_ENDPOINT = 'http://peer-open-payments-svc:3002/ilp';
+const PEER_ILP_OUTGOING_AUTH_TOKEN = 'benchmark-peer-token';
 
 function request(url, data) {
   return http.post(url, JSON.stringify(data), {
@@ -74,7 +76,13 @@ export function setup() {
     name: 'Peer Rafiki',
     assetCode: 'USD',
     assetScale: 2,
-    ilpStaticAddress: PEER_ILP_STATIC_ADDRESS
+    ilpStaticAddress: PEER_ILP_STATIC_ADDRESS,
+    http: {
+      outgoing: {
+        endpoint: PEER_ILP_OUTGOING_ENDPOINT,
+        authToken: PEER_ILP_OUTGOING_AUTH_TOKEN
+      }
+    }
   });
   check(peerRes, {
     'peer created or exists': (r) => r.status === 201 || r.status === 409

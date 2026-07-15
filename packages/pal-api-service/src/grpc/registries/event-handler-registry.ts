@@ -23,9 +23,6 @@ export class EventHandlerRegistry {
       h.eventNames.includes(eventNames)
     );
     if (!found) {
-      this._logger.warn(
-        `No event handler found for event names: ${eventNames}`
-      );
       return null;
     }
 

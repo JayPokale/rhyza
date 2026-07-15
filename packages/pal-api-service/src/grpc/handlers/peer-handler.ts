@@ -1,4 +1,4 @@
-import { ILogger, IMessageProducer } from 'common-types-lib';
+import { ILogger, IMessageProducer, ITelemetryService } from 'common-types-lib';
 import { sendUnaryData, ServerUnaryCall } from '@grpc/grpc-js';
 import { Status } from '@grpc/grpc-js/build/src/constants';
 import { PendingResponseRegistry } from '../registries/pending-response-registry';
@@ -37,17 +37,20 @@ export class PeerGrpcHandler {
   private readonly _peerAggregate: PeerAggregate;
   private readonly _msgProducer: IMessageProducer;
   private readonly _responseRegistry: PendingResponseRegistry;
+  private readonly _telemetryService: ITelemetryService;
 
   constructor(
     peerAggregate: PeerAggregate,
     responseRegistry: PendingResponseRegistry,
     msgProducer: IMessageProducer,
-    logger: ILogger
+    logger: ILogger,
+    telemetryService: ITelemetryService
   ) {
     this._peerAggregate = peerAggregate;
     this._responseRegistry = responseRegistry;
     this._msgProducer = msgProducer;
     this._logger = logger;
+    this._telemetryService = telemetryService;
 
     this._logger.info('PeerGrpcHandler created');
   }

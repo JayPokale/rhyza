@@ -13,7 +13,48 @@ tags:
     x-displayName: Payments
   - name: quotes
     x-displayName: Quotes
+  - name: peers
+    x-displayName: Peers
 paths:
+  /peers:
+    post:
+      summary: Create Peer
+      description: >-
+        Create a new ILP peer. Creates the peer in both PAL (asset,
+        settlement, static ILP address) and ILP (connector transport config)
+        with the same peer id.
+      tags:
+        - peers
+      operationId: Peers_createPeer
+      parameters: []
+      responses:
+        '201':
+          description: The request has succeeded and a peer has been created as a result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PeerCreateResponse'
+        '409':
+          description: Peer already exists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: >-
+            Peer was created in PAL but ILP connector configuration failed;
+            the PAL peer has been deactivated. Retry the request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      requestBody:
+        description: Peer creation details
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PeerCreate'
   /assets:
     post:
       summary: Create Asset
@@ -330,6 +371,76 @@ components:
         code:
           type: string
           description: The unique code of the created asset.
+    PeerHttpOutgoing:
+      type: object
+      description: Connector settings for sending ILP packets to this peer.
+      required:
+        - endpoint
+        - authToken
+      properties:
+        endpoint:
+          type: string
+          description: The HTTP endpoint of the peer's ILP connector.
+        authToken:
+          type: string
+          description: The bearer token sent to the peer when dispatching packets.
+    PeerHttpIncoming:
+      type: object
+      description: Connector settings for authenticating ILP packets received from this peer.
+      properties:
+        authToken:
+          type: string
+          description: The bearer token this peer must present on incoming packets.
+    PeerHttp:
+      type: object
+      description: ILP connector transport configuration for a peer.
+      required:
+        - outgoing
+      properties:
+        outgoing:
+          $ref: '#/components/schemas/PeerHttpOutgoing'
+        incoming:
+          $ref: '#/components/schemas/PeerHttpIncoming'
+    PeerCreate:
+      type: object
+      description: Schema for creating a new peer.
+      required:
+        - id
+        - name
+        - assetCode
+        - assetScale
+        - ilpStaticAddress
+        - http
+      properties:
+        id:
+          type: string
+          description: The unique identifier for the peer, shared by PAL and ILP.
+        name:
+          type: string
+          description: A human-readable name for the peer.
+        assetCode:
+          type: string
+          description: The asset code used for settlement with this peer.
+        assetScale:
+          type: number
+          description: The asset scale used for settlement with this peer.
+        ilpStaticAddress:
+          type: string
+          description: The static ILP address used to resolve this peer for routing.
+        http:
+          $ref: '#/components/schemas/PeerHttp'
+        isActive:
+          type: boolean
+          description: Whether the ILP connector config for this peer is active. Active by default.
+    PeerCreateResponse:
+      type: object
+      description: Response schema after creating a peer.
+      required:
+        - id
+      properties:
+        id:
+          type: string
+          description: The unique identifier for the created peer.
     WalletAddressCreate:
       type: object
       description: Schema for creating a new wallet address.

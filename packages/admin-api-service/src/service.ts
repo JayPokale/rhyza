@@ -3,6 +3,7 @@
 import Fastify, { FastifyBaseLogger, FastifyInstance } from 'fastify';
 import { PalClient } from 'pal-client-lib';
 import { PaymentsClient } from 'payments-client-lib';
+import { IlpClient } from 'ilp-client-lib';
 import { assetRoutes } from './routes/assets.js';
 import { walletAddressRoutes } from './routes/wallet-addresses.js';
 import { peerRoutes } from './routes/peers.js';
@@ -21,6 +22,7 @@ const PORT = parseInt(process.env['PORT'] || '3001', 10);
 const HOST = process.env['HOST'] || '0.0.0.0';
 const PAL_GRPC_URL = process.env['PAL_GRPC_URL'] || 'localhost:50051';
 const PAYMENTS_GRPC_URL = process.env['PAYMENTS_GRPC_URL'] || 'localhost:50052';
+const ILP_GRPC_URL = process.env['ILP_GRPC_URL'] || 'localhost:50053';
 const OPEN_PAYMENTS_URL = process.env['OPEN_PAYMENTS_URL'];
 
 export class AdminApiService {
@@ -28,6 +30,7 @@ export class AdminApiService {
   private static server: FastifyInstance;
   private static palClient: PalClient;
   private static paymentsClient: PaymentsClient;
+  private static ilpClient: IlpClient;
 
   static async start(): Promise<void> {
     this.logger = new PinoLogger({
@@ -48,6 +51,10 @@ export class AdminApiService {
     await this.paymentsClient.init();
     console.log(`Connected to Payments service at ${PAYMENTS_GRPC_URL}`);
 
+    this.ilpClient = new IlpClient(ILP_GRPC_URL);
+    await this.ilpClient.init();
+    console.log(`Connected to ILP service at ${ILP_GRPC_URL}`);
+
     // TODO: Wire up OpenAPI spec for route validation.
     // e.g. fastify-openapi-glue to generate validation from the spec
     this.server = Fastify({
@@ -65,7 +72,8 @@ export class AdminApiService {
       palClient: this.palClient
     });
     this.server.register(peerRoutes, {
-      palClient: this.palClient
+      palClient: this.palClient,
+      ilpClient: this.ilpClient
     });
     this.server.register(paymentIntentRoutes, {
       palClient: this.palClient,
@@ -89,5 +97,6 @@ export class AdminApiService {
     await this.server?.close();
     await this.palClient?.disconnect();
     await this.paymentsClient?.disconnect();
+    await this.ilpClient?.disconnect();
   }
 }
