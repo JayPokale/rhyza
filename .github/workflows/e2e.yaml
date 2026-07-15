@@ -1,0 +1,32 @@
+name: E2E tests
+
+on:
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+
+      - uses: pnpm/action-setup@v4
+
+      - name: Install dependencies
+        run: |
+          pnpm install --frozen-lockfile
+
+      - name: Docker build
+        run: |
+          docker compose \
+            -f ./docker/docker-compose.yaml \
+            up -d --build
+
+      - name: Run E2E tests
+        run: |
+          pnpm e2e
