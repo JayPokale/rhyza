@@ -7,6 +7,14 @@ import {
   DomainEvent,
   MessageTypes
 } from 'common-types-lib';
+import {
+  ReceivedPaymentValidatedEvent,
+  ReceivedPaymentAcceptedEvent,
+  ReceivedPaymentFailedEvent,
+  RemotePaymentSendApprovedEvent,
+  RemotePaymentSendConfirmedEvent,
+  RemotePaymentSendRejectedEvent
+} from 'payments-public-types-lib';
 
 /**
  * External event handler for processing integration events from other bounded contexts
@@ -49,22 +57,19 @@ export class IntegrationEventHandler {
   }
 
   private async _handleEvent(evt: DomainEvent): Promise<void> {
-    // TODO use correct event class names from the payments public types lib
-    //  (right now they are in the payments domain lib)
-
     // if(msg.msgName === "PaymentIntentCreatedEvent") {
-    if (evt.msgName === 'RemotePaymentApprovedEvent') {
+    if (evt.msgName === RemotePaymentSendApprovedEvent.name) {
       // create a CheckBalanceAndReserveTransferCmd
-    } else if (evt.msgName === 'PaymentCreatedEvent') {
+    } else if (evt.msgName === RemotePaymentSendConfirmedEvent.name) {
       // create a CommitTransferCmd
-    } else if (evt.msgName === 'PaymentCreateFailedEvent') {
+    } else if (evt.msgName === RemotePaymentSendRejectedEvent.name) {
       // create a RejectTransferCmd
-    } else if (evt.msgName === 'RemoteQuoteRequestedEvent') {
-      // from payments - to ILP
-      /*
-       * 1. resolve peer and determine FX (fx for now is 1)
-       * 2. publish a PeerResolvedForRemoteQuoteEvent
-       * */
+    } else if (evt.msgName === ReceivedPaymentValidatedEvent.name) {
+      // ReserveTransferCmd (INCOMING).
+    } else if (evt.msgName === ReceivedPaymentAcceptedEvent.name) {
+      // CommitTransferCmd (INCOMING)
+    } else if (evt.msgName === ReceivedPaymentFailedEvent.name) {
+      // RejectTransferCmd (INCOMING)
     }
   }
 

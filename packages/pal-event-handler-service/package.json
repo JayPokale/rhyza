@@ -20,7 +20,8 @@
     "pal-public-types-lib": "workspace: *",
     "pal-domain-lib": "workspace: *",
     "pal-implementations-lib": "workspace: *",
-    "implementations-lib": "workspace: *"
+    "implementations-lib": "workspace: *",
+    "payments-public-types-lib": "workspace: *"
   },
   "devDependencies": {
     "@types/google-protobuf": "~3.15.12",

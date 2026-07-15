@@ -624,6 +624,9 @@ importers:
       pal-public-types-lib:
         specifier: 'workspace: *'
         version: link:../pal-public-types-lib
+      payments-public-types-lib:
+        specifier: 'workspace: *'
+        version: link:../payments-public-types-lib
       protobufjs:
         specifier: ~8.0.0
         version: 8.0.0
