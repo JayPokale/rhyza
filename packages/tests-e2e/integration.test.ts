@@ -5,8 +5,7 @@ import {
   DockerComposeEnvironment,
   StartedDockerComposeEnvironment
 } from 'testcontainers';
-import { createAdminClient } from 'admin-client-lib';
-import { AdminApiClient } from 'admin-client-lib/dist/adminApiClient';
+import { AdminApiClient, createAdminClient } from 'admin-client-lib';
 
 const ADMIN_API_URL = 'http://localhost:3001';
 const COMPOSE_FILE = 'docker-compose.yaml';
@@ -26,7 +25,7 @@ describe('E2E tests', () => {
 
   test('Local', async () => {
     const assetCode = 'USD';
-    const asset = await client.assets.post({
+    const asset = await client.assets.assetsCreateAsset({
       code: assetCode,
       scale: 2
     });
@@ -38,15 +37,16 @@ describe('E2E tests', () => {
     const receiverAddress = 'test.com/receiver';
     await createWalletAddress(assetCode, receiverAddress, 'test receiver');
 
-    const paymentIntent = await client.paymentIntents.post({
-      walletAddress: receiverAddress,
-      incomingAmount: 100
-    });
+    const paymentIntent =
+      await client.paymentIntents.paymentIntentsCreatePaymentIntent({
+        walletAddress: receiverAddress,
+        incomingAmount: 100
+      });
 
     assert.ok(paymentIntent?.id);
     const paymentIntentId = paymentIntent.id;
 
-    const quote = await client.quotes.post({
+    const quote = await client.quotes.quotesCreateQuote({
       paymentIntentId,
       walletAddress: senderAddress
     });
@@ -54,20 +54,30 @@ describe('E2E tests', () => {
     assert.ok(quote?.id);
     const quoteId = quote.id;
 
-    const payment = await client.payments.post({
+    const payment = await client.payments.paymentsCreatePayment({
       quoteId,
       walletAddress: senderAddress,
       paymentIntentId
     });
 
     assert.ok(payment?.id);
-    // const paymentId = payment.id;
+    const paymentId = payment.id;
 
-    // const approvedPayment = await client.payments.byId(paymentId).approve.post({
-    //   intentId: paymentIntentId
-    // });
+    const approvedPayment = await client.payments.paymentsApprovePayment(
+      paymentId,
+      {
+        intentId: paymentIntentId
+      }
+    );
 
-    // assert.equal(approvedPayment?.id, paymentId);
+    assert.equal(approvedPayment?.id, paymentId);
+
+    const paymentFound = await client.payments.paymentsGetPayment(
+      paymentIntentId,
+      paymentId
+    );
+    assert.equal(paymentFound?.id, paymentId);
+    assert.equal(paymentFound.state, 'COMPLETED');
   });
 
   const createWalletAddress = async (
@@ -75,11 +85,12 @@ describe('E2E tests', () => {
     address: string,
     publicName: string
   ) => {
-    const walletAddress = await client.walletAddresses.post({
-      assetCode,
-      address,
-      publicName
-    });
+    const walletAddress =
+      await client.walletAddresses.walletAddressesCreateWalletAddress({
+        assetCode,
+        address,
+        publicName
+      });
     assert.equal(walletAddress?.address, address);
   };
 

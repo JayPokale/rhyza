@@ -4,21 +4,13 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "pnpm generate && tsc --build",
-    "generate": "kiota generate -l typescript -d ../admin-api-service/openapi.yaml -c AdminApiClient -o ./src"
+    "generate": "npx @openapitools/openapi-generator-cli generate -i ../admin-api-service/openapi.yaml -g typescript-fetch -o ./src/generated --additional-properties=useSingleRequestParameter=false"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "dependencies": {
-    "@microsoft/kiota-abstractions": "1.0.0-preview.103",
-    "@microsoft/kiota-bundle": "1.0.0-preview.103",
-    "@microsoft/kiota-http-fetchlibrary": "1.0.0-preview.103",
-    "@microsoft/kiota-serialization-form": "1.0.0-preview.103",
-    "@microsoft/kiota-serialization-json": "1.0.0-preview.103",
-    "@microsoft/kiota-serialization-multipart": "1.0.0-preview.103",
-    "@microsoft/kiota-serialization-text": "1.0.0-preview.103"
-  },
   "devDependencies": {
+    "@openapitools/openapi-generator-cli": "^2.35.0",
     "tsx": "^4.19.3"
   }
 }

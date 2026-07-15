@@ -1,11 +1,30 @@
-import { AnonymousAuthenticationProvider } from "@microsoft/kiota-abstractions";
-import { createAdminApiClient } from "./adminApiClient";
-import { FetchRequestAdapter } from "@microsoft/kiota-http-fetchlibrary";
+import {
+  AssetsApi,
+  Configuration,
+  PaymentIntentsApi,
+  PaymentsApi,
+  QuotesApi,
+  WalletAddressesApi
+} from './generated';
 
-// TODO: add support for API key authentication
-export function createAdminClient(baseUrl: string) {
-    const authProvider = new AnonymousAuthenticationProvider();
-    const adapter = new FetchRequestAdapter(authProvider);
-    adapter.baseUrl = baseUrl;
-    return createAdminApiClient(adapter);
+export interface AdminApiClient {
+  assets: AssetsApi;
+  paymentIntents: PaymentIntentsApi;
+  payments: PaymentsApi;
+  quotes: QuotesApi;
+  walletAddresses: WalletAddressesApi;
+}
+
+export function createAdminClient(
+  baseUrl: string,
+  apiKey?: string
+): AdminApiClient {
+  const configuration = new Configuration({ basePath: baseUrl, apiKey });
+  return {
+    assets: new AssetsApi(configuration),
+    paymentIntents: new PaymentIntentsApi(configuration),
+    payments: new PaymentsApi(configuration),
+    quotes: new QuotesApi(configuration),
+    walletAddresses: new WalletAddressesApi(configuration)
+  };
 }
