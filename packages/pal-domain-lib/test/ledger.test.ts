@@ -2,7 +2,8 @@ import { before, test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {
   MockLedgerEventSourcingRepository,
-  MockMessageProducer
+  MockMessageProducer,
+  MockTelemetryService
 } from './mocks/';
 
 import {
@@ -58,7 +59,12 @@ const peerOneAccounts: IPalPeerAccounts = {
 before(() => {
   mockRepo = new MockLedgerEventSourcingRepository();
   mockProducer = new MockMessageProducer();
-  aggregate = new LedgerAggregate(mockRepo, mockProducer, new ConsoleLogger());
+  aggregate = new LedgerAggregate(
+    mockRepo,
+    mockProducer,
+    new ConsoleLogger(),
+    new MockTelemetryService()
+  );
 
   assert.ok(aggregate.verify());
 });
