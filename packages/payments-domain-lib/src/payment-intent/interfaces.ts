@@ -104,6 +104,7 @@ export interface IPaymentIntent {
   receivedPayments: IReceivedPayment[];
   destinationIlpAddress?: string;
   remoteUrl?: string;
+  peerId?: string;
 }
 
 export interface IWalletAddress {

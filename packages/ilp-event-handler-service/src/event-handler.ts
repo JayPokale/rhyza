@@ -6,11 +6,16 @@ import {
   IMessageConsumer,
   IMessageProducer
 } from 'common-types-lib';
-import { RespondToRemoteQuoteCmd, StartRemoteQuoteCmd } from 'ilp-domain-lib';
+import {
+  RespondToRemoteQuoteCmd,
+  StartRemoteQuoteCmd,
+  StartRemotePaymentCmd
+} from 'ilp-domain-lib';
 import {
   RemoteQuoteCalculatedEvent,
   RemoteQuoteCalculationFailedEvent,
-  RemoteQuoteRequestedEvent
+  RemoteQuoteRequestedEvent,
+  RemotePaymentPreparedEvent
 } from 'payments-public-types-lib';
 
 export class IlpEventHandler {
@@ -86,6 +91,27 @@ export class IlpEventHandler {
           peerId: payload.peerId,
           packetId: payload.packetId
         });
+      }
+      case RemotePaymentPreparedEvent.name: {
+        const payload =
+          message.payload as RemotePaymentPreparedEvent['payload'];
+        this._logger.debug(
+          `Starting remote payment ${payload.paymentId} to peer ${payload.peerId}`
+        );
+        return new StartRemotePaymentCmd(
+          {
+            peerId: payload.peerId,
+            paymentIntentId: payload.paymentIntentId,
+            paymentId: payload.paymentId,
+            destinationIlpAddress: payload.destinationIlpAddress,
+            amount: payload.debitAmount,
+            assetCode: payload.assetCode,
+            assetScale: payload.assetScale,
+            expiresAt: payload.expiresAt,
+            sharedSecret: payload.sharedSecret
+          },
+          payload.requestId
+        );
       }
       default:
         return undefined;

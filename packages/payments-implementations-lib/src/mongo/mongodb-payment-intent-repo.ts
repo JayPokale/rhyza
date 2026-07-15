@@ -161,6 +161,7 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
               incomingAmount: p.incomingAmount,
               receivedAmount: p.receivedAmount,
               destinationIlpAddress: p.destinationIlpAddress,
+              peerId: p.peerId,
               quotes: p.quotes
             };
           if (p.remoteUrl != null) doc.remoteUrl = p.remoteUrl;
@@ -201,6 +202,7 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
         receivedAmount: doc.receivedAmount,
         destinationIlpAddress: doc.destinationIlpAddress,
         remoteUrl: doc.remoteUrl,
+        peerId: doc.peerId,
         quotes: doc.quotes.map((quote) => ({
           id: quote.id,
           senderWalletAddress: quote.senderWalletAddress,
@@ -261,6 +263,7 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
         receivedAmount: doc.receivedAmount,
         destinationIlpAddress: doc.destinationIlpAddress,
         remoteUrl: doc.remoteUrl,
+        peerId: doc.peerId,
         quotes: doc.quotes.map((quote) => ({
           id: quote.id,
           senderWalletAddress: quote.senderWalletAddress,

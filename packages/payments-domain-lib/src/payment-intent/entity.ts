@@ -707,6 +707,7 @@ export class PaymentIntent implements IPaymentIntent {
   private _receivedPayments: ReceivedPayment[] = [];
   private _destinationIlpAddress: string | undefined;
   private _remoteUrl: string | undefined;
+  private _peerId: string | undefined;
 
   private constructor(
     id: string,
@@ -724,7 +725,8 @@ export class PaymentIntent implements IPaymentIntent {
     sentPayments: SentPayment[] = [],
     receivedPayments: ReceivedPayment[] = [],
     destinationIlpAddress?: string,
-    remoteUrl?: string
+    remoteUrl?: string,
+    peerId?: string
   ) {
     this._id = id;
     this._receiverWalletAddressId = receiverWalletAddressId;
@@ -744,6 +746,7 @@ export class PaymentIntent implements IPaymentIntent {
     this._expiresAt = expiresAt;
     this._destinationIlpAddress = destinationIlpAddress;
     this._remoteUrl = remoteUrl;
+    this._peerId = peerId;
   }
 
   static create(
@@ -822,7 +825,8 @@ export class PaymentIntent implements IPaymentIntent {
       obj.sentPayments.map((p) => SentPayment.fromObject(p)),
       obj.receivedPayments.map((rp) => ReceivedPayment.fromObject(rp)),
       obj.destinationIlpAddress,
-      obj.remoteUrl
+      obj.remoteUrl,
+      obj.peerId
     );
   }
 
@@ -843,7 +847,8 @@ export class PaymentIntent implements IPaymentIntent {
       sentPayments: this._sentPayments.map((p) => p.toObject()),
       receivedPayments: this._receivedPayments.map((rp) => rp.toObject()),
       destinationIlpAddress: this._destinationIlpAddress,
-      remoteUrl: this._remoteUrl
+      remoteUrl: this._remoteUrl,
+      peerId: this._peerId
     };
   }
 
@@ -978,6 +983,8 @@ export class PaymentIntent implements IPaymentIntent {
         'Pending remote quote must have debitAmount or receiveAmount'
       );
     }
+
+    this._peerId = peerId;
 
     const quote = Quote.createPending(
       id,
@@ -1611,5 +1618,9 @@ export class PaymentIntent implements IPaymentIntent {
 
   get remoteUrl(): string | undefined {
     return this._remoteUrl;
+  }
+
+  get peerId(): string | undefined {
+    return this._peerId;
   }
 }

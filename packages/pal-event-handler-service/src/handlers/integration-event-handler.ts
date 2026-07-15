@@ -92,11 +92,9 @@ export class IntegrationEventHandler {
   ): Promise<void> {
     const payload = evt.payload as RemotePaymentSendApprovedEvent['payload'];
 
-    const peer = await this._peerAggregate.getPeerByIlpAddress(
-      payload.destinationIlpAddress
-    );
+    const peer = await this._peerAggregate.getPeer(payload.peerId);
     if (!peer?.ledgerAccounts) {
-      const errorMessage = `No peer/ledger accounts for ILP address ${payload.destinationIlpAddress}`;
+      const errorMessage = `No peer/ledger accounts for peer ${payload.peerId}`;
       this._logger.warn(
         `RemotePaymentSendApprovedEvent (paymentId ${payload.paymentId}): ${errorMessage} — failing payment`
       );
@@ -104,7 +102,7 @@ export class IntegrationEventHandler {
         new LedgerCheckBalanceAndReserveOutgoingTransferFailedEvent(
           payload.assetCode,
           {
-            requestId: evt.requestId ?? '',
+            requestId: payload.requestId,
             paymentIntentId: payload.paymentIntentId,
             paymentId: payload.paymentId,
             errorMessage
@@ -115,7 +113,7 @@ export class IntegrationEventHandler {
     }
 
     const cmd = new CheckBalanceAndReserveTransferCmd(payload.assetCode, {
-      requestId: evt.requestId ?? '',
+      requestId: payload.requestId,
       transferId: payload.transferId ?? crypto.randomUUID(),
       payerClearingAccountId: peer.ledgerAccounts.aseClearingAccId,
       payerLiquidityAccountId: peer.ledgerAccounts.aseLiquidityAccId,
@@ -135,19 +133,17 @@ export class IntegrationEventHandler {
   ): Promise<void> {
     const payload = evt.payload as RemotePaymentSendConfirmedEvent['payload'];
 
-    const peer = await this._peerAggregate.getPeerByIlpAddress(
-      payload.destinationIlpAddress
-    );
+    const peer = await this._peerAggregate.getPeer(payload.peerId);
     if (!peer?.ledgerAccounts) {
       // Shouldn't happen — the peer resolved at reserve time. We can't commit
       // nor reject to unwind, which also needs the peer.
-      const errorMessage = `No peer/ledger accounts for ILP address ${payload.destinationIlpAddress}`;
+      const errorMessage = `No peer/ledger accounts for peer ${payload.peerId}`;
       this._logger.warn(
         `RemotePaymentSendConfirmedEvent (paymentId ${payload.paymentId}): ${errorMessage} — commit failed`
       );
       this._pendingMessages.push(
         new LedgerOutgoingTransferCommitFailedEvent(payload.assetCode, {
-          requestId: evt.requestId ?? '',
+          requestId: payload.requestId,
           transferId: payload.ledgerTransferId,
           isError: true,
           errorMessage,
@@ -160,7 +156,7 @@ export class IntegrationEventHandler {
 
     this._pendingMessages.push(
       new CommitTransferCmd(payload.assetCode, {
-        requestId: evt.requestId ?? '',
+        requestId: payload.requestId,
         transferId: payload.ledgerTransferId,
         payerClearingAccountId: peer.ledgerAccounts.aseClearingAccId,
         suspenseAccountId: peer.ledgerAccounts.suspenseAccId,
@@ -179,19 +175,17 @@ export class IntegrationEventHandler {
   ): Promise<void> {
     const payload = evt.payload as RemotePaymentSendRejectedEvent['payload'];
 
-    const peer = await this._peerAggregate.getPeerByIlpAddress(
-      payload.destinationIlpAddress
-    );
+    const peer = await this._peerAggregate.getPeer(payload.peerId);
     if (!peer?.ledgerAccounts) {
       // Shouldn't happen — the peer resolved at reserve time. We can't reject
       // to unwind, which also needs the peer.
-      const errorMessage = `No peer/ledger accounts for ILP address ${payload.destinationIlpAddress}`;
+      const errorMessage = `No peer/ledger accounts for peer ${payload.peerId}`;
       this._logger.warn(
         `RemotePaymentSendRejectedEvent (paymentId ${payload.paymentId}): ${errorMessage} — reject failed`
       );
       this._pendingMessages.push(
         new LedgerOutgoingTransferRejectFailedEvent(payload.assetCode, {
-          requestId: evt.requestId ?? '',
+          requestId: payload.requestId,
           transferId: payload.ledgerTransferId,
           isError: true,
           errorMessage,
@@ -204,7 +198,7 @@ export class IntegrationEventHandler {
 
     this._pendingMessages.push(
       new RejectTransferCmd(payload.assetCode, {
-        requestId: evt.requestId ?? '',
+        requestId: payload.requestId,
         transferId: payload.ledgerTransferId,
         payerClearingAccountId: peer.ledgerAccounts.aseClearingAccId,
         suspenseAccountId: peer.ledgerAccounts.suspenseAccId,

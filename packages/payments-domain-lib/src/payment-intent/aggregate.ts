@@ -244,6 +244,12 @@ export class PaymentIntentAggregate {
     await Promise.all([
       ...Array.from(ilpAddressesToFetch, async (ilpAddress) => {
         try {
+          // NOTE: resolving the peer off destinationIlpAddress may work for now,
+          // but it wont when STREAM is implemented. STREAM will make the address dynamic.
+          // The prefix will be static but the suffix will be variable. Rafiki v1 handles this
+          // by getting the longest matching prefix.  PAL — this
+          // needs PAL longest-prefix match (or a receiver-provided static
+          // address).
           const peer = await this._palService.getPeerByIlpAddress(ilpAddress);
           this.peerMap.set(ilpAddress, peer);
         } catch (err) {
@@ -995,6 +1001,8 @@ export class PaymentIntentAggregate {
           senderWalletAddress: payment.senderWalletAddress,
           senderWalletAddressId: payment.senderWalletAddressId,
           destinationIlpAddress: paymentIntent.destinationIlpAddress,
+          peerId: paymentIntent.peerId!,
+          requestId: cmd.requestId,
           debitAmount: String(payment.debitAmount),
           assetCode: payment.assetCode,
           assetScale: payment.assetScale
@@ -1069,11 +1077,15 @@ export class PaymentIntentAggregate {
           paymentId: payment.id,
           ledgerTransferId,
           destinationIlpAddress: paymentIntent.destinationIlpAddress,
+          peerId: paymentIntent.peerId!,
+          requestId: cmd.requestId,
           debitAmount: String(payment.debitAmount),
           receiveAmount: String(payment.receiveAmount),
           assetCode: payment.assetCode,
           assetScale: payment.assetScale,
-          sharedSecret: remoteDetails.sharedSecret
+          sharedSecret: remoteDetails.sharedSecret,
+          // TODO: packet expiry — picked 30s to match the ILP quote handler.
+          expiresAt: new Date(Date.now() + 30_000).toISOString()
         },
         cmd.requestId
       );
@@ -1183,6 +1195,8 @@ export class PaymentIntentAggregate {
           paymentId: payment.id,
           ledgerTransferId: payment.ledgerTransferId,
           destinationIlpAddress: paymentIntent.destinationIlpAddress,
+          peerId: paymentIntent.peerId!,
+          requestId: cmd.requestId,
           debitAmount: String(payment.debitAmount),
           assetCode: payment.assetCode,
           assetScale: payment.assetScale
@@ -1246,6 +1260,8 @@ export class PaymentIntentAggregate {
           ledgerTransferId: payment.ledgerTransferId,
           reason,
           destinationIlpAddress: paymentIntent.destinationIlpAddress,
+          peerId: paymentIntent.peerId!,
+          requestId: cmd.requestId,
           debitAmount: String(payment.debitAmount),
           assetCode: payment.assetCode,
           assetScale: payment.assetScale

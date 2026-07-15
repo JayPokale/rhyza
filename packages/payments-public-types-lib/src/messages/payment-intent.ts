@@ -438,6 +438,8 @@ export type RemotePaymentSendApprovedPayload = {
   senderWalletAddress: string;
   senderWalletAddressId: string;
   destinationIlpAddress: string;
+  peerId: string;
+  requestId: string;
   debitAmount: string;
   assetCode: string;
   assetScale: number;
@@ -459,11 +461,14 @@ export type RemotePaymentPreparedPayload = {
   paymentId: string;
   ledgerTransferId: string;
   destinationIlpAddress: string;
+  peerId: string;
+  requestId: string;
   debitAmount: string;
   receiveAmount: string;
   assetCode: string;
   assetScale: number;
   sharedSecret: string;
+  expiresAt: string;
 };
 
 export class RemotePaymentPreparedEvent extends PaymentIntentDomainEvent {
@@ -508,6 +513,8 @@ export type RemotePaymentSendConfirmedPayload = {
   paymentId: string;
   ledgerTransferId: string;
   destinationIlpAddress: string;
+  peerId: string;
+  requestId: string;
   debitAmount: string;
   assetCode: string;
   assetScale: number;
@@ -529,6 +536,8 @@ export type RemotePaymentSendRejectedPayload = {
   ledgerTransferId: string;
   reason?: string;
   destinationIlpAddress: string;
+  peerId: string;
+  requestId: string;
   debitAmount: string;
   assetCode: string;
   assetScale: number;
