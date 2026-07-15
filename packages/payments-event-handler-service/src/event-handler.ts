@@ -36,13 +36,15 @@ import {
   LedgerTransferResponseEventPayload,
   LedgerCheckBalanceAndReserveOutgoingTransferFailedEvent,
   LedgerOutgoingTransferCommitFailedEvent,
-  LedgerOutgoingTransferRejectFailedEvent
+  LedgerOutgoingTransferRejectFailedEvent,
+  LedgerIncomingReserveFailedEvent
 } from 'pal-public-types-lib';
 
 // TODO: ILP BC does not publish this event yet — assumed contract for the
 // inbound prepare packet. Replace with the real event type once ILP adds it.
 const ILP_PAYMENT_RECEIVED_EVENT_NAME = 'ILPPaymentReceivedEvent';
 type ILPPaymentReceivedPayload = {
+  requestId: string;
   packetId: string;
   peerId: string;
   paymentIntentId: string;
@@ -147,8 +149,7 @@ export class PaymentsEventHandler {
             peerAssetCode: payload.peerAssetCode,
             peerAssetScale: payload.peerAssetScale
           },
-          // TODO: requestId required - remove fallback when provided by ILP
-          message.requestId ?? ''
+          payload.requestId
         );
         await this._msgProducer.send(cmd);
         break;
@@ -189,6 +190,20 @@ export class PaymentsEventHandler {
             receivedPaymentId: payload.paymentId,
             paymentIntentId: payload.paymentIntentId,
             reason: payload.errorMessage ?? 'Ledger transfer failed'
+          },
+          payload.requestId
+        );
+        await this._msgProducer.send(cmd);
+        break;
+      }
+      case LedgerIncomingReserveFailedEvent.name: {
+        const payload =
+          message.payload as LedgerIncomingReserveFailedEvent['payload'];
+        const cmd = new FailReceivedPaymentCmd(
+          {
+            receivedPaymentId: payload.paymentId,
+            paymentIntentId: payload.paymentIntentId,
+            reason: payload.errorMessage
           },
           payload.requestId
         );

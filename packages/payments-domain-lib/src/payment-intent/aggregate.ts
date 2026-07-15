@@ -1417,6 +1417,7 @@ export class PaymentIntentAggregate {
           receivedPaymentId: receivedPayment.id,
           packetId,
           peerId,
+          requestId: cmd.requestId,
           sourceAmount: String(receivedPayment.sourceAmount),
           peerAssetCode,
           peerAssetScale,

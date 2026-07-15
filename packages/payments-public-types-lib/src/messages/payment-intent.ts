@@ -558,6 +558,7 @@ export type ReceivedPaymentValidatedPayload = {
   receivedPaymentId: string;
   packetId: string;
   peerId: string;
+  requestId: string;
   sourceAmount: string;
   peerAssetCode: string;
   peerAssetScale: number;

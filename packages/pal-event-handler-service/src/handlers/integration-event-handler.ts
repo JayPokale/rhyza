@@ -18,13 +18,15 @@ import {
 import {
   PeerAggregate,
   CheckBalanceAndReserveTransferCmd,
+  ReserveTransferCmd,
   CommitTransferCmd,
   RejectTransferCmd
 } from 'pal-domain-lib';
 import {
   LedgerCheckBalanceAndReserveOutgoingTransferFailedEvent,
   LedgerOutgoingTransferCommitFailedEvent,
-  LedgerOutgoingTransferRejectFailedEvent
+  LedgerOutgoingTransferRejectFailedEvent,
+  LedgerIncomingReserveFailedEvent
 } from 'pal-public-types-lib';
 
 /**
@@ -79,7 +81,7 @@ export class IntegrationEventHandler {
     } else if (evt.msgName === RemotePaymentSendRejectedEvent.name) {
       await this._handleRemotePaymentSendRejected(evt);
     } else if (evt.msgName === ReceivedPaymentValidatedEvent.name) {
-      // ReserveTransferCmd (INCOMING).
+      await this._handleReceivedPaymentValidated(evt);
     } else if (evt.msgName === ReceivedPaymentAcceptedEvent.name) {
       // CommitTransferCmd (INCOMING)
     } else if (evt.msgName === ReceivedPaymentFailedEvent.name) {
@@ -207,6 +209,45 @@ export class IntegrationEventHandler {
         transferDirection: 'OUTGOING',
         paymentIntentId: payload.paymentIntentId,
         paymentId: payload.paymentId
+      })
+    );
+  }
+
+  private async _handleReceivedPaymentValidated(
+    evt: DomainEvent
+  ): Promise<void> {
+    const payload = evt.payload as ReceivedPaymentValidatedEvent['payload'];
+
+    const peer = await this._peerAggregate.getPeer(payload.peerId);
+    if (!peer?.ledgerAccounts) {
+      const errorMessage = `No peer/ledger accounts for peer ${payload.peerId}`;
+      this._logger.warn(
+        `ReceivedPaymentValidatedEvent (receivedPaymentId ${payload.receivedPaymentId}): ${errorMessage} — failing received payment`
+      );
+      this._pendingMessages.push(
+        new LedgerIncomingReserveFailedEvent(payload.receiveAssetCode, {
+          requestId: payload.requestId,
+          paymentIntentId: payload.paymentIntentId,
+          paymentId: payload.receivedPaymentId,
+          errorMessage
+        })
+      );
+      return;
+    }
+
+    // INCOMING reserve: peer is the payer, no ASE-liquidity check (plain
+    // reserve, not check-balance). Transfer runs in the receiver's-asset ledger.
+    this._pendingMessages.push(
+      new ReserveTransferCmd(payload.receiveAssetCode, {
+        requestId: payload.requestId,
+        transferId: crypto.randomUUID(),
+        payerClearingAccountId: peer.ledgerAccounts.peerClearingAccId,
+        suspenseAccountId: peer.ledgerAccounts.suspenseAccId,
+        amount: payload.receiveAmount,
+        amountScale: payload.receiveAssetScale,
+        transferDirection: 'INCOMING',
+        paymentIntentId: payload.paymentIntentId,
+        paymentId: payload.receivedPaymentId
       })
     );
   }
