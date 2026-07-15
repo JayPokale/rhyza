@@ -121,6 +121,11 @@ export abstract class LedgerDomainEvent extends DomainEvent {
   ): evt is LedgerIncomingReserveFailedEvent {
     return evt.msgName === LedgerIncomingReserveFailedEvent.name;
   }
+  static isLedgerIncomingTransferCommitFailedEvent(
+    evt: DomainEvent
+  ): evt is LedgerIncomingTransferCommitFailedEvent {
+    return evt.msgName === LedgerIncomingTransferCommitFailedEvent.name;
+  }
 }
 
 /*
@@ -406,6 +411,18 @@ export class LedgerIncomingReserveFailedEvent extends LedgerDomainEvent {
   isErrorEvent = true;
 
   constructor(aggId: string, payload: LedgerIncomingReserveFailedEventPayload) {
+    super(aggId);
+    this.msgKey = aggId;
+    this.payload = payload;
+    this.requestId = payload.requestId;
+  }
+}
+
+export class LedgerIncomingTransferCommitFailedEvent extends LedgerDomainEvent {
+  payload: LedgerTransferResponseEventPayload;
+  isErrorEvent = true;
+
+  constructor(aggId: string, payload: LedgerTransferResponseEventPayload) {
     super(aggId);
     this.msgKey = aggId;
     this.payload = payload;

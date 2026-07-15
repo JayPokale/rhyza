@@ -37,7 +37,8 @@ import {
   LedgerCheckBalanceAndReserveOutgoingTransferFailedEvent,
   LedgerOutgoingTransferCommitFailedEvent,
   LedgerOutgoingTransferRejectFailedEvent,
-  LedgerIncomingReserveFailedEvent
+  LedgerIncomingReserveFailedEvent,
+  LedgerIncomingTransferCommitFailedEvent
 } from 'pal-public-types-lib';
 
 // TODO: ILP BC does not publish this event yet — assumed contract for the
@@ -204,6 +205,19 @@ export class PaymentsEventHandler {
             receivedPaymentId: payload.paymentId,
             paymentIntentId: payload.paymentIntentId,
             reason: payload.errorMessage
+          },
+          payload.requestId
+        );
+        await this._msgProducer.send(cmd);
+        break;
+      }
+      case LedgerIncomingTransferCommitFailedEvent.name: {
+        const payload = message.payload as LedgerTransferResponseEventPayload;
+        const cmd = new FailReceivedPaymentCmd(
+          {
+            receivedPaymentId: payload.paymentId,
+            paymentIntentId: payload.paymentIntentId,
+            reason: payload.errorMessage ?? 'Ledger commit failed'
           },
           payload.requestId
         );

@@ -608,6 +608,7 @@ export type ReceivedPaymentAcceptedPayload = {
   receivedPaymentId: string;
   packetId: string;
   peerId: string;
+  requestId: string;
   ledgerTransferId: string;
   receiveAmount: string;
   receiveAssetCode: string;

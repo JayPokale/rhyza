@@ -1482,6 +1482,7 @@ export class PaymentIntentAggregate {
           receivedPaymentId: receivedPayment.id,
           packetId: receivedPayment.packetId,
           peerId: receivedPayment.peerId,
+          requestId: cmd.requestId,
           ledgerTransferId,
           receiveAmount: String(receivedPayment.receiveAmount),
           receiveAssetCode: paymentIntent.assetCode,

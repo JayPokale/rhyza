@@ -26,7 +26,8 @@ import {
   LedgerCheckBalanceAndReserveOutgoingTransferFailedEvent,
   LedgerOutgoingTransferCommitFailedEvent,
   LedgerOutgoingTransferRejectFailedEvent,
-  LedgerIncomingReserveFailedEvent
+  LedgerIncomingReserveFailedEvent,
+  LedgerIncomingTransferCommitFailedEvent
 } from 'pal-public-types-lib';
 
 /**
@@ -83,7 +84,7 @@ export class IntegrationEventHandler {
     } else if (evt.msgName === ReceivedPaymentValidatedEvent.name) {
       await this._handleReceivedPaymentValidated(evt);
     } else if (evt.msgName === ReceivedPaymentAcceptedEvent.name) {
-      // CommitTransferCmd (INCOMING)
+      await this._handleReceivedPaymentAccepted(evt);
     } else if (evt.msgName === ReceivedPaymentFailedEvent.name) {
       // RejectTransferCmd (INCOMING)
     }
@@ -241,6 +242,46 @@ export class IntegrationEventHandler {
         transferId: crypto.randomUUID(),
         payerClearingAccountId: peer.ledgerAccounts.peerClearingAccId,
         suspenseAccountId: peer.ledgerAccounts.suspenseAccId,
+        amount: payload.receiveAmount,
+        amountScale: payload.receiveAssetScale,
+        transferDirection: 'INCOMING',
+        paymentIntentId: payload.paymentIntentId,
+        paymentId: payload.receivedPaymentId
+      })
+    );
+  }
+
+  private async _handleReceivedPaymentAccepted(
+    evt: DomainEvent
+  ): Promise<void> {
+    const payload = evt.payload as ReceivedPaymentAcceptedEvent['payload'];
+
+    const peer = await this._peerAggregate.getPeer(payload.peerId);
+    if (!peer?.ledgerAccounts) {
+      const errorMessage = `No peer/ledger accounts for peer ${payload.peerId}`;
+      this._logger.warn(
+        `ReceivedPaymentAcceptedEvent (receivedPaymentId ${payload.receivedPaymentId}): ${errorMessage} — commit failed`
+      );
+      this._pendingMessages.push(
+        new LedgerIncomingTransferCommitFailedEvent(payload.receiveAssetCode, {
+          requestId: payload.requestId,
+          transferId: payload.ledgerTransferId,
+          isError: true,
+          errorMessage,
+          paymentIntentId: payload.paymentIntentId,
+          paymentId: payload.receivedPaymentId
+        })
+      );
+      return;
+    }
+
+    this._pendingMessages.push(
+      new CommitTransferCmd(payload.receiveAssetCode, {
+        requestId: payload.requestId,
+        transferId: payload.ledgerTransferId,
+        payerClearingAccountId: peer.ledgerAccounts.peerClearingAccId,
+        suspenseAccountId: peer.ledgerAccounts.suspenseAccId,
+        payeeClearingAccountId: peer.ledgerAccounts.aseClearingAccId,
         amount: payload.receiveAmount,
         amountScale: payload.receiveAssetScale,
         transferDirection: 'INCOMING',
