@@ -8,6 +8,8 @@ import { PaymentIntentsRequestBuilderNavigationMetadata, PaymentIntentsRequestBu
 // @ts-ignore
 import { PaymentsRequestBuilderNavigationMetadata, PaymentsRequestBuilderRequestsMetadata, type PaymentsRequestBuilder } from './payments/index.js';
 // @ts-ignore
+import { PeersRequestBuilderRequestsMetadata, type PeersRequestBuilder } from './peers/index.js';
+// @ts-ignore
 import { QuotesRequestBuilderRequestsMetadata, type QuotesRequestBuilder } from './quotes/index.js';
 // @ts-ignore
 import { type WalletAddressesRequestBuilder, WalletAddressesRequestBuilderRequestsMetadata } from './walletAddresses/index.js';
@@ -38,6 +40,10 @@ export interface AdminApiClient extends BaseRequestBuilder<AdminApiClient> {
      * The payments property
      */
     get payments(): PaymentsRequestBuilder;
+    /**
+     * The peers property
+     */
+    get peers(): PeersRequestBuilder;
     /**
      * The quotes property
      */
@@ -96,6 +102,9 @@ export const AdminApiClientNavigationMetadata: Record<Exclude<keyof AdminApiClie
     payments: {
         requestsMetadata: PaymentsRequestBuilderRequestsMetadata,
         navigationMetadata: PaymentsRequestBuilderNavigationMetadata,
+    },
+    peers: {
+        requestsMetadata: PeersRequestBuilderRequestsMetadata,
     },
     quotes: {
         requestsMetadata: QuotesRequestBuilderRequestsMetadata,

@@ -154,6 +154,51 @@ export function createPaymentIntentFromDiscriminatorValue(parseNode: ParseNode |
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {PeerCreate}
+ */
+// @ts-ignore
+export function createPeerCreateFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoPeerCreate;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {PeerCreateResponse}
+ */
+// @ts-ignore
+export function createPeerCreateResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoPeerCreateResponse;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {PeerHttp}
+ */
+// @ts-ignore
+export function createPeerHttpFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoPeerHttp;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {PeerHttpIncoming}
+ */
+// @ts-ignore
+export function createPeerHttpIncomingFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoPeerHttpIncoming;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {PeerHttpOutgoing}
+ */
+// @ts-ignore
+export function createPeerHttpOutgoingFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoPeerHttpOutgoing;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {QuoteCreate}
  */
 // @ts-ignore
@@ -346,6 +391,69 @@ export function deserializeIntoPaymentIntentCreateResponse(paymentIntentCreateRe
     return {
         "id": n => { paymentIntentCreateResponse.id = n.getStringValue(); },
         "openPaymentsUrl": n => { paymentIntentCreateResponse.openPaymentsUrl = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param PeerCreate The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoPeerCreate(peerCreate: Partial<PeerCreate> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "assetCode": n => { peerCreate.assetCode = n.getStringValue(); },
+        "assetScale": n => { peerCreate.assetScale = n.getNumberValue(); },
+        "http": n => { peerCreate.http = n.getObjectValue<PeerHttp>(createPeerHttpFromDiscriminatorValue); },
+        "id": n => { peerCreate.id = n.getStringValue(); },
+        "ilpStaticAddress": n => { peerCreate.ilpStaticAddress = n.getStringValue(); },
+        "isActive": n => { peerCreate.isActive = n.getBooleanValue(); },
+        "name": n => { peerCreate.name = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param PeerCreateResponse The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoPeerCreateResponse(peerCreateResponse: Partial<PeerCreateResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "id": n => { peerCreateResponse.id = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param PeerHttp The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoPeerHttp(peerHttp: Partial<PeerHttp> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "incoming": n => { peerHttp.incoming = n.getObjectValue<PeerHttpIncoming>(createPeerHttpIncomingFromDiscriminatorValue); },
+        "outgoing": n => { peerHttp.outgoing = n.getObjectValue<PeerHttpOutgoing>(createPeerHttpOutgoingFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param PeerHttpIncoming The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoPeerHttpIncoming(peerHttpIncoming: Partial<PeerHttpIncoming> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "authToken": n => { peerHttpIncoming.authToken = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param PeerHttpOutgoing The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoPeerHttpOutgoing(peerHttpOutgoing: Partial<PeerHttpOutgoing> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "authToken": n => { peerHttpOutgoing.authToken = n.getStringValue(); },
+        "endpoint": n => { peerHttpOutgoing.endpoint = n.getStringValue(); },
     }
 }
 /**
@@ -587,6 +695,83 @@ export interface PaymentIntentCreateResponse extends AdditionalDataHolder, Parsa
     openPaymentsUrl?: string | null;
 }
 /**
+ * Schema for creating a new peer.
+ */
+export interface PeerCreate extends AdditionalDataHolder, Parsable {
+    /**
+     * The asset code used for settlement with this peer.
+     */
+    assetCode?: string | null;
+    /**
+     * The asset scale used for settlement with this peer.
+     */
+    assetScale?: number | null;
+    /**
+     * ILP connector transport configuration for a peer.
+     */
+    http?: PeerHttp | null;
+    /**
+     * The unique identifier for the peer, shared by PAL and ILP.
+     */
+    id?: string | null;
+    /**
+     * The static ILP address used to resolve this peer for routing.
+     */
+    ilpStaticAddress?: string | null;
+    /**
+     * Whether the ILP connector config for this peer is active. Active by default.
+     */
+    isActive?: boolean | null;
+    /**
+     * A human-readable name for the peer.
+     */
+    name?: string | null;
+}
+/**
+ * Response schema after creating a peer.
+ */
+export interface PeerCreateResponse extends AdditionalDataHolder, Parsable {
+    /**
+     * The unique identifier for the created peer.
+     */
+    id?: string | null;
+}
+/**
+ * ILP connector transport configuration for a peer.
+ */
+export interface PeerHttp extends AdditionalDataHolder, Parsable {
+    /**
+     * Connector settings for authenticating ILP packets received from this peer.
+     */
+    incoming?: PeerHttpIncoming | null;
+    /**
+     * Connector settings for sending ILP packets to this peer.
+     */
+    outgoing?: PeerHttpOutgoing | null;
+}
+/**
+ * Connector settings for authenticating ILP packets received from this peer.
+ */
+export interface PeerHttpIncoming extends AdditionalDataHolder, Parsable {
+    /**
+     * The bearer token this peer must present on incoming packets.
+     */
+    authToken?: string | null;
+}
+/**
+ * Connector settings for sending ILP packets to this peer.
+ */
+export interface PeerHttpOutgoing extends AdditionalDataHolder, Parsable {
+    /**
+     * The bearer token sent to the peer when dispatching packets.
+     */
+    authToken?: string | null;
+    /**
+     * The HTTP endpoint of the peer's ILP connector.
+     */
+    endpoint?: string | null;
+}
+/**
  * Represents a payment quote with estimated amounts and exchange rates.
  */
 export interface Quote extends AdditionalDataHolder, Parsable {
@@ -824,6 +1009,74 @@ export function serializePaymentIntentCreateResponse(writer: SerializationWriter
     writer.writeStringValue("id", paymentIntentCreateResponse.id);
     writer.writeStringValue("openPaymentsUrl", paymentIntentCreateResponse.openPaymentsUrl);
     writer.writeAdditionalData(paymentIntentCreateResponse.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param PeerCreate The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializePeerCreate(writer: SerializationWriter, peerCreate: Partial<PeerCreate> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!peerCreate || isSerializingDerivedType) { return; }
+    writer.writeStringValue("assetCode", peerCreate.assetCode);
+    writer.writeNumberValue("assetScale", peerCreate.assetScale);
+    writer.writeObjectValue<PeerHttp>("http", peerCreate.http, serializePeerHttp);
+    writer.writeStringValue("id", peerCreate.id);
+    writer.writeStringValue("ilpStaticAddress", peerCreate.ilpStaticAddress);
+    writer.writeBooleanValue("isActive", peerCreate.isActive);
+    writer.writeStringValue("name", peerCreate.name);
+    writer.writeAdditionalData(peerCreate.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param PeerCreateResponse The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializePeerCreateResponse(writer: SerializationWriter, peerCreateResponse: Partial<PeerCreateResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!peerCreateResponse || isSerializingDerivedType) { return; }
+    writer.writeStringValue("id", peerCreateResponse.id);
+    writer.writeAdditionalData(peerCreateResponse.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param PeerHttp The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializePeerHttp(writer: SerializationWriter, peerHttp: Partial<PeerHttp> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!peerHttp || isSerializingDerivedType) { return; }
+    writer.writeObjectValue<PeerHttpIncoming>("incoming", peerHttp.incoming, serializePeerHttpIncoming);
+    writer.writeObjectValue<PeerHttpOutgoing>("outgoing", peerHttp.outgoing, serializePeerHttpOutgoing);
+    writer.writeAdditionalData(peerHttp.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param PeerHttpIncoming The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializePeerHttpIncoming(writer: SerializationWriter, peerHttpIncoming: Partial<PeerHttpIncoming> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!peerHttpIncoming || isSerializingDerivedType) { return; }
+    writer.writeStringValue("authToken", peerHttpIncoming.authToken);
+    writer.writeAdditionalData(peerHttpIncoming.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param PeerHttpOutgoing The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializePeerHttpOutgoing(writer: SerializationWriter, peerHttpOutgoing: Partial<PeerHttpOutgoing> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!peerHttpOutgoing || isSerializingDerivedType) { return; }
+    writer.writeStringValue("authToken", peerHttpOutgoing.authToken);
+    writer.writeStringValue("endpoint", peerHttpOutgoing.endpoint);
+    writer.writeAdditionalData(peerHttpOutgoing.additionalData);
 }
 /**
  * Serializes information the current object
