@@ -10,14 +10,20 @@ import {
   IMessageProducerAcks
 } from 'common-types-lib';
 import {
+  CreatePeerCmd,
   DispatchPreparePacketCmd,
   ExpirePacketCmd,
   IlpPeerAggregate,
+  ILPPeerCreatedEvent,
+  ILPPeerCreationFailedEvent,
+  ILPPeerUpdatedEvent,
+  ILPPeerUpdateFailedEvent,
   IPeer,
   ProcessRejectPacketCmd,
   ILPQuoteReceivedEvent,
   ILPQuoteFailedEvent,
-  StartRemoteQuoteCmd
+  StartRemoteQuoteCmd,
+  UpdatePeerCmd
 } from 'ilp-domain-lib';
 import {
   InMemoryPeerRepository,
@@ -104,6 +110,136 @@ const dispatchedPacketId = (producer: MockProducer): string => {
   assert.ok(dispatch, 'expected a DispatchPreparePacketCmd to be produced');
   return dispatch.payload.packetId;
 };
+
+describe('IlpCommandHandler — peer creation/update', () => {
+  test('CreatePeerCmd for a new peer yields ILPPeerCreatedEvent and the peer becomes resolvable', async () => {
+    const { producer, consumer } = await startedHandler();
+
+    await consumer.deliver([
+      new CreatePeerCmd(
+        {
+          peerId: 'peer-new',
+          http: {
+            outgoing: {
+              endpoint: 'https://new-peer.example/ilp',
+              authToken: 't'
+            }
+          },
+          isActive: true
+        },
+        'req-create-1'
+      )
+    ]);
+
+    const event = producer.sent.find(
+      (m) => m.msgName === ILPPeerCreatedEvent.name
+    ) as ILPPeerCreatedEvent;
+    assert.ok(event, 'expected a ILPPeerCreatedEvent');
+    assert.equal(event.payload.peerId, 'peer-new');
+    assert.equal(event.requestId, 'req-create-1');
+
+    // The newly created peer is now resolvable by a subsequent command.
+    await consumer.deliver([
+      new StartRemoteQuoteCmd(
+        {
+          peerId: 'peer-new',
+          paymentIntentId: 'intent-2',
+          quoteId: 'quote-2',
+          destinationIlpAddress: 'g.peer.bob',
+          sourceAmount: '50',
+          sourceAssetCode: 'USD',
+          sourceAssetScale: 2
+        },
+        'req-2'
+      )
+    ]);
+    const dispatch = producer.sent.find(
+      (m) =>
+        m.msgName === DispatchPreparePacketCmd.name &&
+        (m as DispatchPreparePacketCmd).msgKey === 'peer-new'
+    );
+    assert.ok(dispatch, 'expected the new peer to be resolvable');
+  });
+
+  test('CreatePeerCmd for an existing peer yields ILPPeerCreationFailedEvent', async () => {
+    const { producer, consumer } = await startedHandler();
+
+    await consumer.deliver([
+      new CreatePeerCmd(
+        {
+          peerId: 'peer-1',
+          http: {
+            outgoing: { endpoint: 'https://peer.example/ilp', authToken: 't' }
+          }
+        },
+        'req-create-dup'
+      )
+    ]);
+
+    const event = producer.sent.find(
+      (m) => m.msgName === ILPPeerCreationFailedEvent.name
+    ) as ILPPeerCreationFailedEvent;
+    assert.ok(event, 'expected a ILPPeerCreationFailedEvent');
+    assert.equal(event.payload.errorName, 'DuplicatePeer');
+    assert.equal(event.isErrorEvent, true);
+    assert.equal(event.requestId, 'req-create-dup');
+  });
+
+  test('UpdatePeerCmd for an existing peer yields ILPPeerUpdatedEvent', async () => {
+    const { producer, consumer } = await startedHandler();
+
+    await consumer.deliver([
+      new UpdatePeerCmd(
+        {
+          peerId: 'peer-1',
+          http: {
+            outgoing: {
+              endpoint: 'https://peer.example/ilp-v2',
+              authToken: 't2'
+            }
+          },
+          isActive: false
+        },
+        'req-update-1'
+      )
+    ]);
+
+    const event = producer.sent.find(
+      (m) => m.msgName === ILPPeerUpdatedEvent.name
+    ) as ILPPeerUpdatedEvent;
+    assert.ok(event, 'expected a ILPPeerUpdatedEvent');
+    assert.equal(
+      event.payload.http.outgoing.endpoint,
+      'https://peer.example/ilp-v2'
+    );
+    assert.equal(event.payload.isActive, false);
+    assert.equal(event.requestId, 'req-update-1');
+  });
+
+  test('UpdatePeerCmd for an unknown peer yields ILPPeerUpdateFailedEvent', async () => {
+    const { producer, consumer } = await startedHandler();
+
+    await consumer.deliver([
+      new UpdatePeerCmd(
+        {
+          peerId: 'peer-does-not-exist',
+          http: {
+            outgoing: { endpoint: 'https://peer.example/ilp', authToken: 't' }
+          }
+        },
+        'req-update-unknown'
+      )
+    ]);
+
+    const event = producer.sent.find(
+      (m) => m.msgName === ILPPeerUpdateFailedEvent.name
+    ) as ILPPeerUpdateFailedEvent;
+    assert.ok(event, 'expected a ILPPeerUpdateFailedEvent');
+    assert.equal(event.payload.errorName, 'UnknownPeer');
+    assert.equal(event.isErrorEvent, true);
+    assert.equal(event.requestId, 'req-update-unknown');
+  });
+});
 
 describe('IlpCommandHandler — remote quote sending', () => {
   test('starting a remote quote dispatches a probe to the connector', async () => {

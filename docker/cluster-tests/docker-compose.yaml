@@ -159,5 +159,52 @@ services:
     ports:
       - 8080:8080
 
+  otel-collector:
+    image: otel/opentelemetry-collector:latest
+    container_name: otel-collector
+    command: '--config=/etc/otel-collector-config.yaml'
+    volumes:
+      - ../otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - '4317:4317'
+      - '4318:4318'
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yaml
+      - --web.enable-remote-write-receiver
+    volumes:
+      - ../prometheus.yaml:/etc/prometheus/prometheus.yaml
+    ports:
+      - '9090:9090'
+
+  tempo:
+    image: grafana/tempo:latest
+    container_name: tempo
+    command: '-config.file=/etc/tempo.yaml'
+    ports:
+      - '3200:3200'
+    volumes:
+      - ../tempo.yaml:/etc/tempo.yaml
+      - tempo-data:/var/tempo
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - '4501:3000'
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ../grafana/dashboards:/etc/grafana/dashboards
+      - ../grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - prometheus
+
 volumes:
   mongodb-data:
+  grafana-data:
+  tempo-data:

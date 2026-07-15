@@ -1,7 +1,90 @@
 import { DomainEvent, DomainEventTopics } from 'common-types-lib';
+import { PeerHttpConfig } from './interfaces';
 
 const BOUNDED_CONTEXT_NAME = 'ilp';
 const AGGREGATE_NAME = 'ilp-peer';
+
+export interface ILPPeerCreatedPayload {
+  peerId: string;
+  http: PeerHttpConfig;
+  isActive?: boolean;
+}
+
+export class ILPPeerCreatedEvent extends DomainEvent {
+  contextName: string = BOUNDED_CONTEXT_NAME;
+  aggregateName: string = AGGREGATE_NAME;
+  msgTopic: string = DomainEventTopics.IlpEvents;
+  payload: ILPPeerCreatedPayload;
+
+  constructor(payload: ILPPeerCreatedPayload, requestId?: string) {
+    super(payload.peerId);
+    this.msgKey = payload.peerId;
+    this.payload = payload;
+    this.requestId = requestId;
+  }
+}
+
+export interface ILPPeerCreationFailedPayload {
+  peerId: string;
+  errorName: string;
+  message: string;
+}
+
+export class ILPPeerCreationFailedEvent extends DomainEvent {
+  contextName: string = BOUNDED_CONTEXT_NAME;
+  aggregateName: string = AGGREGATE_NAME;
+  msgTopic: string = DomainEventTopics.IlpEvents;
+  isErrorEvent: boolean = true;
+  payload: ILPPeerCreationFailedPayload;
+
+  constructor(payload: ILPPeerCreationFailedPayload, requestId?: string) {
+    super(payload.peerId);
+    this.msgKey = payload.peerId;
+    this.payload = payload;
+    this.requestId = requestId;
+  }
+}
+
+export interface ILPPeerUpdatedPayload {
+  peerId: string;
+  http: PeerHttpConfig;
+  isActive?: boolean;
+}
+
+export class ILPPeerUpdatedEvent extends DomainEvent {
+  contextName: string = BOUNDED_CONTEXT_NAME;
+  aggregateName: string = AGGREGATE_NAME;
+  msgTopic: string = DomainEventTopics.IlpEvents;
+  payload: ILPPeerUpdatedPayload;
+
+  constructor(payload: ILPPeerUpdatedPayload, requestId?: string) {
+    super(payload.peerId);
+    this.msgKey = payload.peerId;
+    this.payload = payload;
+    this.requestId = requestId;
+  }
+}
+
+export interface ILPPeerUpdateFailedPayload {
+  peerId: string;
+  errorName: string;
+  message: string;
+}
+
+export class ILPPeerUpdateFailedEvent extends DomainEvent {
+  contextName: string = BOUNDED_CONTEXT_NAME;
+  aggregateName: string = AGGREGATE_NAME;
+  msgTopic: string = DomainEventTopics.IlpEvents;
+  isErrorEvent: boolean = true;
+  payload: ILPPeerUpdateFailedPayload;
+
+  constructor(payload: ILPPeerUpdateFailedPayload, requestId?: string) {
+    super(payload.peerId);
+    this.msgKey = payload.peerId;
+    this.payload = payload;
+    this.requestId = requestId;
+  }
+}
 
 export interface ILPQuoteReceivedPayload {
   peerId: string;

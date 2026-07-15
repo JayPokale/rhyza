@@ -1,7 +1,54 @@
 import { CommandMsg, CommandTopics } from 'common-types-lib';
+import { PeerHttpConfig } from './peer/interfaces';
 
 const BOUNDED_CONTEXT_NAME = 'ilp';
 const AGGREGATE_NAME = 'ilp-peer';
+
+// Published by the Admin API's ILP entry point. Always routed through this
+// command (never a direct aggregate call from the API-service process) so
+// ilp-command-handler-service remains the single writer of the peer
+// repository, regardless of how many API-service instances are running.
+export interface CreatePeerCmdPayload {
+  peerId: string;
+  http: PeerHttpConfig;
+  isActive?: boolean;
+}
+
+export class CreatePeerCmd extends CommandMsg {
+  contextName: string = BOUNDED_CONTEXT_NAME;
+  aggregateName: string = AGGREGATE_NAME;
+  msgKey: string;
+  msgTopic: string = CommandTopics.IlpCommands;
+  payload: CreatePeerCmdPayload;
+
+  constructor(payload: CreatePeerCmdPayload, requestId: string) {
+    super(payload.peerId);
+    this.requestId = requestId;
+    this.msgKey = payload.peerId;
+    this.payload = payload;
+  }
+}
+
+export interface UpdatePeerCmdPayload {
+  peerId: string;
+  http: PeerHttpConfig;
+  isActive?: boolean;
+}
+
+export class UpdatePeerCmd extends CommandMsg {
+  contextName: string = BOUNDED_CONTEXT_NAME;
+  aggregateName: string = AGGREGATE_NAME;
+  msgKey: string;
+  msgTopic: string = CommandTopics.IlpCommands;
+  payload: UpdatePeerCmdPayload;
+
+  constructor(payload: UpdatePeerCmdPayload, requestId: string) {
+    super(payload.peerId);
+    this.requestId = requestId;
+    this.msgKey = payload.peerId;
+    this.payload = payload;
+  }
+}
 
 export interface StartRemoteQuoteCmdPayload {
   peerId: string;

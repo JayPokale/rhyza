@@ -8,7 +8,10 @@ import {
   CommandMsg,
   ILogger,
   IMessageProducer,
-  MessageTypes
+  ITelemetryHistogram,
+  ITelemetryService,
+  MessageTypes,
+  TELEMETRY_PROPS_CALL_NAME_PROP
 } from 'common-types-lib';
 import {
   LedgerDomainEvent,
@@ -18,6 +21,7 @@ import {
 } from 'pal-public-types-lib';
 
 const INTERNAL_ASSET_SCALE = 20;
+const COMMANDS_HISTOGRAM_NAME = 'PalLedgerAggregate_Commands';
 
 export class LedgerAggregate {
   private readonly _logger: ILogger;
@@ -26,18 +30,26 @@ export class LedgerAggregate {
   private readonly _msgProducer: IMessageProducer;
   private readonly _uncommittedStateEvents: LedgerStateEvent[];
   private readonly _uncommittedDomainEvents: LedgerDomainEvent[];
+  private readonly _telemetryService: ITelemetryService;
+  private readonly _commandHisto: ITelemetryHistogram;
 
   constructor(
     esRepo: ILedgerEventSourcingRepository,
     msgProducer: IMessageProducer,
-    logger: ILogger
+    logger: ILogger,
+    telemetryService: ITelemetryService
   ) {
     this._esRepo = esRepo;
     this._msgProducer = msgProducer;
     this._logger = logger;
+    this._telemetryService = telemetryService;
     this._ledgers = new Map<string, Ledger>();
     this._uncommittedStateEvents = [];
     this._uncommittedDomainEvents = [];
+
+    this._commandHisto = this._telemetryService.getHistogram(
+      COMMANDS_HISTOGRAM_NAME
+    );
   }
 
   private async _processSingleCommand(command: LedgerCommand): Promise<void> {
@@ -116,7 +128,12 @@ export class LedgerAggregate {
         this._logger.warn('Invalid aggregateId in command');
         continue;
       }
+
+      const cmdTimerFn = this._commandHisto.startTimer({
+        [TELEMETRY_PROPS_CALL_NAME_PROP]: cmd.msgName
+      });
       await this._processSingleCommand(cmd as LedgerCommand);
+      cmdTimerFn();
     }
     const procMs = Date.now() - startTs;
 

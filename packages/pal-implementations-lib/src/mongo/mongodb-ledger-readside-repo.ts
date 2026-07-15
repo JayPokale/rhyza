@@ -1,10 +1,4 @@
-import {
-  Collection,
-  CollectionInfo,
-  Db,
-  InsertManyResult,
-  MongoClient
-} from 'mongodb';
+import { Collection, CollectionInfo, Db, MongoClient } from 'mongodb';
 import { ILedgerReadSideRepository } from 'pal-domain-lib';
 import {
   ILedgerDto,
@@ -210,22 +204,20 @@ export class MongoDbLedgerReadSideRepo implements ILedgerReadSideRepository {
   ): Promise<void> {
     this._checkInitialisedOrThrow();
 
-    // transactions cannot be modified, so we can just insert them all
-
-    let result: InsertManyResult;
     try {
-      const dtos = transactions.map((t) => t);
-      result = await this._transactionsCol.insertMany(dtos);
+      // Map your data to the bulkWrite structure
+      const operations = transactions.map((t) => ({
+        updateOne: {
+          filter: { id: t.id }, // Unique identifier
+          update: { $set: t },
+          upsert: true
+        }
+      }));
+      await this._transactionsCol.bulkWrite(operations, { ordered: false });
     } catch (e) {
       this._logger.error(e);
       throw new Error(
         `Unable to update ledger - error: ${(e as Error).message}`
-      );
-    }
-
-    if (result.insertedCount !== transactions.length) {
-      throw new Error(
-        `Failed to upsert ${transactions.length} ledger transactions - only ${result.insertedCount} inserted out of ${transactions.length} requested`
       );
     }
 

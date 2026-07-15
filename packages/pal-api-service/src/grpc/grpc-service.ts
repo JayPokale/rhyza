@@ -34,7 +34,11 @@ import {
   IMessage,
   IMessageConsumer,
   IMessageProducer,
-  MessageTypes
+  ITelemetryHistogram,
+  ITelemetryService,
+  MessageTypes,
+  TELEMETRY_PROPS_CALL_NAME_PROP,
+  TELEMETRY_PROPS_SUCCESS_PROP
 } from 'common-types-lib';
 
 import process from 'process';
@@ -61,11 +65,14 @@ const DEFAULT_GRPC_KEEPALIVE_TIMEOUT_MS =
     parseInt(process.env['DEFAULT_GRPC_KEEPALIVE_TIMEOUT_MS'])) ||
   5_000;
 
+const REQUESTS_HISTOGRAM_NAME = 'PalGrpcApi_Requests';
+
 export class PalGrpcServer {
   private readonly _instanceId: string;
   private readonly _logger: ILogger;
   private readonly _serverUrl: string;
   private readonly _server: grpc.Server;
+  private readonly _telemetryService: ITelemetryService;
   private readonly _assetAggregate: AssetAggregate;
   private readonly _walletAddressAggregate: WalletAddressAggregate;
   private readonly _peerAggregate: PeerAggregate;
@@ -89,6 +96,8 @@ export class PalGrpcServer {
   private readonly _eventHandlerRegistry: EventHandlerRegistry;
   private readonly _requestHandlerRegistry: RequestHandlerRegistry;
 
+  private readonly _requestsHistogram: ITelemetryHistogram;
+
   private _startedAt: number;
   private _terminating: boolean;
 
@@ -102,6 +111,7 @@ export class PalGrpcServer {
     producer: IMessageProducer,
     consumer: IMessageConsumer,
     ledgerReadSideRepo: ILedgerReadSideRepository,
+    telemetryService: ITelemetryService,
     logger: ILogger
   ) {
     this._serverUrl = serverUrl;
@@ -114,6 +124,7 @@ export class PalGrpcServer {
     this._msgConsumer = consumer;
     this._ledgerReadSideRepo = ledgerReadSideRepo;
     this._logger = logger;
+    this._telemetryService = telemetryService;
     this._responseTimeoutMs = DEFAULT_RESPONSE_TIMEOUT_MS;
 
     this._responseRegistry = new PendingResponseRegistry(
@@ -130,14 +141,16 @@ export class PalGrpcServer {
       this._assetAggregate,
       this._responseRegistry,
       this._msgProducer,
-      this._logger
+      this._logger,
+      this._telemetryService
     );
 
     this._peerGrpcHandler = new PeerGrpcHandler(
       this._peerAggregate,
       this._responseRegistry,
       this._msgProducer,
-      this._logger
+      this._logger,
+      this._telemetryService
     );
 
     this._fxGrpcHandler = new FxGrpcHandler(
@@ -145,18 +158,21 @@ export class PalGrpcServer {
       this._peerAggregate,
       this._assetAggregate,
       this._responseRegistry,
-      this._logger
+      this._logger,
+      this._telemetryService
     );
 
     this._walletAddressGrpcHandler = new WalletAddressGrpcHandler(
       this._walletAddressAggregate,
       this._assetAggregate,
-      this._logger
+      this._logger,
+      this._telemetryService
     );
 
     this._ledgerGrpcHandler = new LedgerGrpcHandler(
       this._ledgerReadSideRepo,
-      this._logger
+      this._logger,
+      this._telemetryService
     );
 
     this._registerRequestHandlers();
@@ -221,6 +237,10 @@ export class PalGrpcServer {
       getFxRate: this._handleUnary.bind(this),
       setFxRate: this._handleUnary.bind(this)
     });
+
+    this._requestsHistogram = this._telemetryService.getHistogram(
+      REQUESTS_HISTOGRAM_NAME
+    );
   }
 
   async start(): Promise<void> {
@@ -457,9 +477,17 @@ export class PalGrpcServer {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     callback: sendUnaryData<any>
   ): Promise<void> {
-    const handlerObject = this._requestHandlerRegistry.get(call.getPath());
+    const reqPath = call.getPath();
+    const callName = reqPath.split('/').pop() || reqPath;
+    const timerFn = this._requestsHistogram.startTimer({
+      [TELEMETRY_PROPS_CALL_NAME_PROP]: callName
+    });
+    const handlerObject = this._requestHandlerRegistry.get(reqPath);
+
+    const startTime = Date.now();
 
     if (!handlerObject) {
+      timerFn({ [TELEMETRY_PROPS_SUCCESS_PROP]: false });
       callback(
         new Error(`Invalid request type: ${call.request.constructor.name}`)
       );
@@ -469,6 +497,11 @@ export class PalGrpcServer {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const resp: UnaryResponse<any> = await handlerObject.func(call, callback);
+      // stop timer, after internal processing and before returning
+      timerFn({ [TELEMETRY_PROPS_SUCCESS_PROP]: true });
+      this._logger.debug(
+        `Grpc call ${callName} took ${Date.now() - startTime}ms`
+      );
       if (!handlerObject.async) {
         if (resp) {
           callback(resp.error || null, resp.resp || null);
@@ -477,6 +510,10 @@ export class PalGrpcServer {
         }
       }
     } catch (err) {
+      timerFn({ [TELEMETRY_PROPS_SUCCESS_PROP]: false });
+      this._logger.debug(
+        `Grpc call ${callName} FAILED and took ${Date.now() - startTime}ms`
+      );
       if (
         err instanceof PeerNotFoundError ||
         err instanceof AssetNotFoundError ||
