@@ -235,8 +235,6 @@ export class IntegrationEventHandler {
       return;
     }
 
-    // INCOMING reserve: peer is the payer, no ASE-liquidity check (plain
-    // reserve, not check-balance). Transfer runs in the receiver's-asset ledger.
     this._pendingMessages.push(
       new ReserveTransferCmd(payload.receiveAssetCode, {
         requestId: payload.requestId,
