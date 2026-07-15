@@ -1,6 +1,8 @@
 import { IMessage } from 'common-types-lib';
 import {
+  ActivatePeerCmd,
   CreatePeerCmd,
+  DeactivatePeerCmd,
   ExpirePacketCmd,
   ProcessFulfillPacketCmd,
   ProcessPreparePacketCmd,
@@ -138,6 +140,55 @@ export class IlpPeerAggregate {
     }
   }
 
+  // Activation state mirrors PAL (PAL is the source of truth)
+  private async setPeerActive(
+    peerId: string,
+    isActive: boolean,
+    requestId: string
+  ): Promise<IMessage[]> {
+    try {
+      const existing = await this.peerRepo.fetchById(peerId);
+      if (!existing) {
+        throw new UnknownPeer(`Peer ${peerId} not found`);
+      }
+
+      const peer = await this.updatePeer({
+        peerId: existing.peerId,
+        http: existing.http,
+        isActive
+      });
+      return [
+        new ILPPeerUpdatedEvent(
+          { peerId: peer.peerId, http: peer.http, isActive: peer.isActive },
+          requestId
+        )
+      ];
+    } catch (err) {
+      return [
+        new ILPPeerUpdateFailedEvent(
+          {
+            peerId,
+            errorName: (err as Error).constructor.name,
+            message: (err as Error).message
+          },
+          requestId
+        )
+      ];
+    }
+  }
+
+  private async handleActivatePeerCmd(
+    cmd: ActivatePeerCmd
+  ): Promise<IMessage[]> {
+    return this.setPeerActive(cmd.payload.peerId, true, cmd.requestId);
+  }
+
+  private async handleDeactivatePeerCmd(
+    cmd: DeactivatePeerCmd
+  ): Promise<IMessage[]> {
+    return this.setPeerActive(cmd.payload.peerId, false, cmd.requestId);
+  }
+
   async handleBatch(cmds: IMessage[]): Promise<{ events: IMessage[] }> {
     const events: IMessage[] = [];
 
@@ -155,6 +206,10 @@ export class IlpPeerAggregate {
         return this.handleCreatePeerCmd(cmd as CreatePeerCmd);
       case UpdatePeerCmd.name:
         return this.handleUpdatePeerCmd(cmd as UpdatePeerCmd);
+      case ActivatePeerCmd.name:
+        return this.handleActivatePeerCmd(cmd as ActivatePeerCmd);
+      case DeactivatePeerCmd.name:
+        return this.handleDeactivatePeerCmd(cmd as DeactivatePeerCmd);
       case StartRemoteQuoteCmd.name:
         return this.handleStartRemoteQuote(cmd as StartRemoteQuoteCmd);
       case StartRemotePaymentCmd.name:

@@ -50,6 +50,47 @@ export class UpdatePeerCmd extends CommandMsg {
   }
 }
 
+// Published by ilp-event-handler-service when it mirrors PAL's
+// PeerActivatedEvent/PeerDeactivatedEvent (PAL is the source of truth for
+// activation state).
+export interface ActivatePeerCmdPayload {
+  peerId: string;
+}
+
+export class ActivatePeerCmd extends CommandMsg {
+  contextName: string = BOUNDED_CONTEXT_NAME;
+  aggregateName: string = AGGREGATE_NAME;
+  msgKey: string;
+  msgTopic: string = CommandTopics.IlpCommands;
+  payload: ActivatePeerCmdPayload;
+
+  constructor(payload: ActivatePeerCmdPayload, requestId: string) {
+    super(payload.peerId);
+    this.requestId = requestId;
+    this.msgKey = payload.peerId;
+    this.payload = payload;
+  }
+}
+
+export interface DeactivatePeerCmdPayload {
+  peerId: string;
+}
+
+export class DeactivatePeerCmd extends CommandMsg {
+  contextName: string = BOUNDED_CONTEXT_NAME;
+  aggregateName: string = AGGREGATE_NAME;
+  msgKey: string;
+  msgTopic: string = CommandTopics.IlpCommands;
+  payload: DeactivatePeerCmdPayload;
+
+  constructor(payload: DeactivatePeerCmdPayload, requestId: string) {
+    super(payload.peerId);
+    this.requestId = requestId;
+    this.msgKey = payload.peerId;
+    this.payload = payload;
+  }
+}
+
 export interface StartRemoteQuoteCmdPayload {
   peerId: string;
   paymentIntentId: string;
