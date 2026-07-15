@@ -12,6 +12,8 @@
     "docker:stop": "docker compose --profile with-observability -f ./docker/docker-compose.yaml down",
     "docker:down": "docker compose --profile with-observability -f ./docker/docker-compose.yaml down --volumes",
     "docker:clean": "docker compose --profile with-observability -f ./docker/docker-compose.yaml down --volumes --rmi all",
+    "docker:peers": "docker compose --profile with-observability -f ./docker/docker-compose.yaml -f ./docker/docker-compose.node-b.yaml",
+    "docker:peers:up": "docker compose --profile with-observability -f ./docker/docker-compose.yaml -f ./docker/docker-compose.node-b.yaml down --volumes && docker compose --profile with-observability -f ./docker/docker-compose.yaml -f ./docker/docker-compose.node-b.yaml up --build -d",
     "build": "pnpm -r  build",
     "format": "prettier --write .",
     "test": "pnpm -r test",
