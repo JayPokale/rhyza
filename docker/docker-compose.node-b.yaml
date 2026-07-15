@@ -1,0 +1,381 @@
+# Node B — second, fully independent Rafiki instance for remote payments testing.
+#
+# Overlay for docker/docker-compose.yaml. Always run layered with the base file so the
+# shared `rafiki-v2` network (and shared observability) come from the base:
+#
+#   docker compose -f docker/docker-compose.yaml -f docker/docker-compose.node-b.yaml up -d --build
+#
+# Node B duplicates all app services (suffixed `-b`) plus its own dedicated infra
+# (kafka-b, mongodb-b, redis-b) — shared infra (otel/prometheus/tempo/grafana/nginx) is
+# NOT redeclared here.
+name: rafiki-v2
+services:
+  admin-api-service-b:
+    build:
+      context: ../
+      dockerfile: ./packages/admin-api-service/Dockerfile
+    restart: always
+    environment:
+      PAL_GRPC_URL: pal-api-service-b:50051
+      PAYMENTS_GRPC_URL: payments-api-service-b:50052
+      OPEN_PAYMENTS_URL: http://open-payments-resource-service-b:3002
+      MONGODB_URL: mongodb://root:mongoPass@mongodb-b:27017
+    ports:
+      - '4001:3001'
+    depends_on:
+      mongodb-b:
+        condition: service_healthy
+      pal-api-service-b:
+        condition: service_started
+      payments-api-service-b:
+        condition: service_started
+    networks:
+      - rafiki-v2
+
+  open-payments-resource-service-b:
+    build:
+      context: ../
+      dockerfile: ./packages/open-payments-resource-service/Dockerfile
+    restart: always
+    environment:
+      PAL_GRPC_URL: pal-api-service-b:50051
+      PAYMENTS_GRPC_URL: payments-api-service-b:50052
+      OPEN_PAYMENTS_RESOURCE_SERVER_URL: http://open-payments-resource-service-b:3002
+    ports:
+      - '4002:3002'
+    depends_on:
+      pal-api-service-b:
+        condition: service_started
+      payments-api-service-b:
+        condition: service_started
+    networks:
+      # Reached across nodes by its Docker service name (open-payments-resource-service-b);
+      # no alias needed. Node A fetches this when a quote references a Node B intent.
+      - rafiki-v2
+
+  pal-api-service-b:
+    build:
+      context: ../
+      dockerfile: ./packages/pal-api-service/Dockerfile
+    restart: always
+    environment:
+      MONGO_URL: mongodb://root:mongoPass@mongodb-b:27017/
+      KAFKA_URL: kafka-b:19092
+    ports:
+      - '4051:50051'
+    depends_on:
+      init-kafka-b:
+        condition: service_completed_successfully
+      mongodb-b:
+        condition: service_healthy
+      redis-b:
+        condition: service_healthy
+    networks:
+      - rafiki-v2
+  pal-ledger-command-handler-service-b:
+    build:
+      context: ../
+      dockerfile: ./packages/pal-ledger-command-handler-service/Dockerfile
+    restart: always
+    environment:
+      KAFKA_URL: kafka-b:19092
+      REDIS_URL: redis-b:6379
+    depends_on:
+      init-kafka-b:
+        condition: service_completed_successfully
+      kafka-b:
+        condition: service_healthy
+      redis-b:
+        condition: service_healthy
+    networks:
+      - rafiki-v2
+  pal-event-handler-service-b:
+    build:
+      context: ../
+      dockerfile: ./packages/pal-event-handler-service/Dockerfile
+    restart: always
+    environment:
+      MONGO_URL: mongodb://root:mongoPass@mongodb-b:27017/
+      KAFKA_URL: kafka-b:19092
+      REDIS_URL: redis-b:6379
+    depends_on:
+      init-kafka-b:
+        condition: service_completed_successfully
+      mongodb-b:
+        condition: service_healthy
+      redis-b:
+        condition: service_healthy
+    networks:
+      - rafiki-v2
+
+  payments-api-service-b:
+    build:
+      context: ../
+      dockerfile: ./packages/payments-api-service/Dockerfile
+    restart: always
+    environment:
+      KAFKA_URL: kafka-b:19092
+      MONGODB_URL: mongodb://root:mongoPass@mongodb-b:27017
+    ports:
+      - '4052:50052'
+    depends_on:
+      mongodb-b:
+        condition: service_healthy
+      init-kafka-b:
+        condition: service_completed_successfully
+    networks:
+      - rafiki-v2
+
+  payments-command-handler-service-b:
+    build:
+      context: ../
+      dockerfile: ./packages/payments-command-handler-service/Dockerfile
+    restart: always
+    environment:
+      KAFKA_URL: kafka-b:19092
+      MONGODB_URL: mongodb://root:mongoPass@mongodb-b:27017
+      PAL_GRPC_URL: pal-api-service-b:50051
+      UV_THREADPOOL_SIZE: 128
+      LOG_LEVEL: debug
+    depends_on:
+      mongodb-b:
+        condition: service_healthy
+      init-kafka-b:
+        condition: service_completed_successfully
+      pal-api-service-b:
+        condition: service_started
+    networks:
+      - rafiki-v2
+
+  payments-event-handler-service-b:
+    build:
+      context: ../
+      dockerfile: ./packages/payments-event-handler-service/Dockerfile
+    restart: always
+    environment:
+      KAFKA_URL: kafka-b:19092
+    depends_on:
+      init-kafka-b:
+        condition: service_completed_successfully
+    networks:
+      - rafiki-v2
+  notifications-command-handler-service-b:
+    build:
+      context: ../
+      dockerfile: ./packages/notifications-command-handler-service/Dockerfile
+    restart: always
+    environment:
+      KAFKA_URL: kafka-b:19092
+      MONGODB_URL: mongodb://root:mongoPass@mongodb-b:27017/
+      WEBHOOK_URL: http://ase-mock-service-b:3000/webhooks
+    ports:
+      - '5110:5100'
+    depends_on:
+      init-kafka-b:
+        condition: service_completed_successfully
+      mongodb-b:
+        condition: service_healthy
+    networks:
+      - rafiki-v2
+
+  notifications-event-handler-service-b:
+    build:
+      context: ../
+      dockerfile: ./packages/notifications-event-handler-service/Dockerfile
+    restart: always
+    environment:
+      KAFKA_URL: kafka-b:19092
+      UV_THREADPOOL_SIZE: 128
+    ports:
+      - '5111:5101'
+    depends_on:
+      mongodb-b:
+        condition: service_healthy
+      init-kafka-b:
+        condition: service_completed_successfully
+    networks:
+      - rafiki-v2
+
+  ilp-connector-service-b:
+    build:
+      context: ../
+      dockerfile: ./packages/ilp-connector-service/Dockerfile
+    restart: always
+    environment:
+      KAFKA_URL: kafka-b:19092
+    depends_on:
+      init-kafka-b:
+        condition: service_completed_successfully
+    networks:
+      - rafiki-v2
+  ase-mock-service-b:
+    build:
+      context: ../
+      dockerfile: ./packages/ase-mock-service/Dockerfile
+    restart: always
+    environment:
+      HOST: ase-mock-service-b
+      PORT: 3000
+      ADMIN_URL: http://admin-api-service-b:3001
+    ports:
+      - '4000:3000'
+    depends_on:
+      - admin-api-service-b
+    networks:
+      - rafiki-v2
+
+  ilp-command-handler-service-b:
+    build:
+      context: ../
+      dockerfile: ./packages/ilp-command-handler-service/Dockerfile
+    restart: always
+    environment:
+      KAFKA_URL: kafka-b:19092
+      MONGODB_URL: mongodb://root:mongoPass@mongodb-b:27017
+    depends_on:
+      init-kafka-b:
+        condition: service_completed_successfully
+      mongodb-b:
+        condition: service_healthy
+    networks:
+      - rafiki-v2
+
+  ilp-api-service-b:
+    build:
+      context: ../
+      dockerfile: ./packages/ilp-api-service/Dockerfile
+    restart: always
+    environment:
+      KAFKA_URL: kafka-b:19092
+      MONGODB_URL: mongodb://root:mongoPass@mongodb-b:27017
+    ports:
+      - '4053:50053'
+    depends_on:
+      init-kafka-b:
+        condition: service_completed_successfully
+      mongodb-b:
+        condition: service_healthy
+    networks:
+      - rafiki-v2
+
+  ilp-event-handler-service-b:
+    build:
+      context: ../
+      dockerfile: ./packages/ilp-event-handler-service/Dockerfile
+    restart: always
+    environment:
+      KAFKA_URL: kafka-b:19092
+    depends_on:
+      init-kafka-b:
+        condition: service_completed_successfully
+    networks:
+      - rafiki-v2
+
+  mongodb-b:
+    image: mongo
+    restart: unless-stopped
+    volumes:
+      - mongodb-b-data:/data/db
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=mongoPass
+    ports:
+      - 27018:27017
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    networks:
+      - rafiki-v2
+
+  kafka-b:
+    image: apache/kafka:4.0.0
+    restart: unless-stopped
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka-b:19092,EXTERNAL://kafka-b:9092
+      KAFKA_LISTENERS: INTERNAL://:19092,CONTROLLER://:19093,EXTERNAL://:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-b:19093
+      KAFKA_NUM_PARTITIONS: 1
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+    healthcheck:
+      test: nc -z localhost 19092 || exit -1
+      start_period: 30s
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    ports:
+      - '9093:9092'
+    networks:
+      - rafiki-v2
+
+  init-kafka-b:
+    image: apache/kafka:4.0.0
+    depends_on:
+      kafka-b:
+        condition: service_started
+    entrypoint: ['/bin/sh', '-c']
+    working_dir: /opt/kafka/bin/
+    command: |
+      "
+      # blocks until kafka-b is reachable
+      echo -e 'Existing kafka topics:'
+      ./kafka-topics.sh --bootstrap-server kafka-b:19092 --list
+      echo -e '\nCreating kafka topics:'
+      ./kafka-topics.sh --bootstrap-server kafka-b:19092 --create --if-not-exists --topic audits
+      ./kafka-topics.sh --bootstrap-server kafka-b:19092 --create --if-not-exists --topic logs
+      ./kafka-topics.sh --bootstrap-server kafka-b:19092 --create --if-not-exists --partitions 24 --topic payment-commands
+      ./kafka-topics.sh --bootstrap-server kafka-b:19092 --create --if-not-exists --partitions 24 --topic payment-domain-events
+      ./kafka-topics.sh --bootstrap-server kafka-b:19092 --create --if-not-exists --partitions 24 --topic asset-domain-events
+      ./kafka-topics.sh --bootstrap-server kafka-b:19092 --create --if-not-exists --partitions 24 --topic peer-domain-events
+      ./kafka-topics.sh --bootstrap-server kafka-b:19092 --create --if-not-exists --partitions 24 --topic ledger-commands
+      ./kafka-topics.sh --bootstrap-server kafka-b:19092 --create --if-not-exists --partitions 24 --topic ledger-domain-events
+      ./kafka-topics.sh --bootstrap-server kafka-b:19092 --create --if-not-exists --partitions 24 --topic ledger-snapshot-events
+      ./kafka-topics.sh --bootstrap-server kafka-b:19092 --create --if-not-exists --partitions 24 --topic ledger-state-events
+      ./kafka-topics.sh --bootstrap-server kafka-b:19092 --create --if-not-exists --partitions 24 --topic wallet-address-domain-events
+      ./kafka-topics.sh --bootstrap-server kafka-b:19092 --create --if-not-exists --partitions 24 --topic fxrate-domain-events
+      ./kafka-topics.sh --bootstrap-server kafka-b:19092 --create --if-not-exists --partitions 24 --topic ilp-domain-events
+      ./kafka-topics.sh --bootstrap-server kafka-b:19092 --create --if-not-exists --partitions 24 --topic ilp-commands
+      ./kafka-topics.sh --bootstrap-server kafka-b:19092 --create --if-not-exists --partitions 24 --topic ilp-connector-commands
+      ./kafka-topics.sh --bootstrap-server kafka-b:19092 --create --if-not-exists --partitions 24 --topic notification-commands
+      echo -e '\nSuccessfully created the following topics:'
+      ./kafka-topics.sh --bootstrap-server kafka-b:19092 --list
+      "
+    networks:
+      - rafiki-v2
+
+  redis-b:
+    image: redis:latest
+    ports:
+      - '6380:6379'
+    healthcheck:
+      test: redis-cli ping | grep -q PONG || exit 1
+      start_period: 10s
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    networks:
+      - rafiki-v2
+
+  redpanda-console-b:
+    depends_on:
+      - kafka-b
+    image: redpandadata/console:latest
+    restart: unless-stopped
+    environment:
+      - KAFKA_BROKERS=kafka-b:19092
+    ports:
+      - 8081:8080
+    networks:
+      - rafiki-v2
+
+volumes:
+  mongodb-b-data:
