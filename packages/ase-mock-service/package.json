@@ -12,7 +12,7 @@
   "dependencies": {
     "fastify": "~5.3.3",
     "notifications-domain-lib": "workspace:*",
-    "payments-domain-lib": "workspace:*"
+    "payments-public-types-lib": "workspace:*"
   },
   "devDependencies": {
     "tsx": "^4.19.3"

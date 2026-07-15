@@ -11,7 +11,7 @@ import {
   RemoteQuoteCalculatedEvent,
   RemoteQuoteCalculationFailedEvent,
   RemoteQuoteRequestedEvent
-} from 'payments-domain-lib';
+} from 'payments-public-types-lib';
 
 export class IlpEventHandler {
   constructor(

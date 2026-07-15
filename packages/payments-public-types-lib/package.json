@@ -17,7 +17,8 @@
   "dependencies": {
     "@grpc/grpc-js": "~1.14.3",
     "@grpc/proto-loader": "~0.8.0",
-    "google-protobuf": "~4.0.1"
+    "google-protobuf": "~4.0.1",
+    "common-types-lib": "workspace:*"
   },
   "devDependencies": {
     "tsx": "^4.19.3",

@@ -3,7 +3,7 @@ import {
   PaymentIntentState,
   SentPaymentState,
   ReceivedPaymentState
-} from './interfaces';
+} from '../types/payment-intent';
 
 export abstract class PaymentIntentDomainEvent extends DomainEvent {
   msgTopic: string = DomainEventTopics.PaymentEvents;
@@ -590,6 +590,9 @@ export type ReceivedPaymentAcceptedPayload = {
   packetId: string;
   peerId: string;
   ledgerTransferId: string;
+  receiveAmount: string;
+  receiveAssetCode: string;
+  receiveAssetScale: number;
   state: ReceivedPaymentState;
 };
 

@@ -9,7 +9,7 @@ import { ILPQuoteRequestReceivedEvent } from 'ilp-domain-lib';
 import {
   RemoteQuoteCalculatedEvent,
   RemoteQuoteCalculationFailedEvent
-} from 'payments-domain-lib';
+} from 'payments-public-types-lib';
 import { FixedRateQuoteCalculator, IQuoteCalculator } from './quote-calculator';
 
 // The ILP-side quote request carries no payment intent or asset info yet

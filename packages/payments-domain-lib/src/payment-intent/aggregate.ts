@@ -71,7 +71,7 @@ import {
   ReceivedPaymentAcceptedEvent,
   ReceivedPaymentFailedEvent,
   ReceivedPaymentFinalizedEvent
-} from './events';
+} from 'payments-public-types-lib';
 
 const fxKey = (
   peerId: string,
@@ -1448,6 +1448,9 @@ export class PaymentIntentAggregate {
           packetId: receivedPayment.packetId,
           peerId: receivedPayment.peerId,
           ledgerTransferId,
+          receiveAmount: String(receivedPayment.receiveAmount),
+          receiveAssetCode: paymentIntent.assetCode,
+          receiveAssetScale: paymentIntent.assetScale,
           state: receivedPayment.state
         },
         cmd.requestId

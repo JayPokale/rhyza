@@ -13,7 +13,7 @@
     "common-types-lib": "workspace:*",
     "implementations-lib": "workspace:*",
     "notifications-domain-lib": "workspace:*",
-    "payments-domain-lib": "workspace:*"
+    "payments-public-types-lib": "workspace:*"
   },
   "devDependencies": {
     "tsx": "^4.19.3"

@@ -28,7 +28,8 @@ import {
   HealthCheckRequest,
   HealthCheckResponse,
   HealthService,
-  PaymentsGrpcService
+  PaymentsGrpcService,
+  PaymentIntentDomainEvent
 } from 'payments-public-types-lib';
 import { IPaymentIntentRepository } from 'payments-domain-lib';
 import {
@@ -42,8 +43,7 @@ import {
   CreateQuoteCmd,
   CreatePaymentCmd,
   ApprovePaymentCmd,
-  CancelPaymentCmd,
-  PaymentIntentDomainEvent
+  CancelPaymentCmd
 } from 'payments-domain-lib';
 
 const PUBLIC_TYPES_LIB_PATH = require.resolve('payments-public-types-lib');

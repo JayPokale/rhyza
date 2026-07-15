@@ -11,7 +11,7 @@ import {
   PaymentIntentCreatedEvent,
   PaymentIntentCreateFailedEvent,
   PaymentIntentCompletedEvent
-} from '../../src/payment-intent/events';
+} from 'payments-public-types-lib';
 import {
   CompleteRemoteQuoteCmd,
   CreatePaymentCmd,
@@ -37,7 +37,7 @@ import {
 import {
   QuoteCreateFailedEvent,
   QuoteCompletedEvent
-} from '../../src/payment-intent/events';
+} from 'payments-public-types-lib';
 import { CreateQuoteCmd } from '../../src/commands';
 import {
   IPaymentIntent,
@@ -60,7 +60,7 @@ import {
   ReceivedPaymentAcceptedEvent,
   ReceivedPaymentFailedEvent,
   ReceivedPaymentFinalizedEvent
-} from '../../src/payment-intent/events';
+} from 'payments-public-types-lib';
 
 function makeApprovePaymentCmd(
   overrides: Partial<{
@@ -1188,6 +1188,9 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         assert.equal(payload.packetId, 'packet-1');
         assert.equal(payload.peerId, 'peer-1');
         assert.equal(payload.ledgerTransferId, 'transfer-1');
+        assert.equal(payload.receiveAmount, '100');
+        assert.equal(payload.receiveAssetCode, 'USD');
+        assert.equal(payload.receiveAssetScale, 2);
         assert.equal(payload.state, 'ACCEPTED');
       });
 

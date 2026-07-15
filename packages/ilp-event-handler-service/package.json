@@ -14,7 +14,7 @@
     "common-types-lib": "workspace:*",
     "ilp-domain-lib": "workspace:*",
     "implementations-lib": "workspace:*",
-    "payments-domain-lib": "workspace:*"
+    "payments-public-types-lib": "workspace:*"
   },
   "devDependencies": {
     "ilp-command-handler-service": "workspace:*",

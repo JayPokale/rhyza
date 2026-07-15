@@ -16,7 +16,7 @@ import {
 import {
   RemoteQuoteCalculatedEvent,
   RemoteQuoteCalculationFailedEvent
-} from 'payments-domain-lib';
+} from 'payments-public-types-lib';
 import { IlpEventHandler } from '../src/event-handler';
 import { FixedRateQuoteCalculator, PaymentsBcQuoteFixture } from './helpers';
 

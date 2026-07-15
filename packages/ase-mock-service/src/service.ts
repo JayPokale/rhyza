@@ -4,7 +4,7 @@ import Fastify, {
   FastifyRequest
 } from 'fastify';
 import { NotificationType } from 'notifications-domain-lib';
-import { PaymentCreatedPayload } from 'payments-domain-lib';
+import { PaymentCreatedPayload } from 'payments-public-types-lib';
 import { RATES } from './rates-data';
 
 const HOST = process.env['HOST'] || '0.0.0.0';

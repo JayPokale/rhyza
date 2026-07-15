@@ -27,6 +27,7 @@ COPY packages/common-types-lib/package.json ./packages/common-types-lib/package.
 COPY packages/implementations-lib/package.json ./packages/implementations-lib/package.json
 COPY packages/pal-public-types-lib/package.json ./packages/pal-public-types-lib/package.json
 COPY packages/pal-client-lib/package.json ./packages/pal-client-lib/package.json
+COPY packages/payments-public-types-lib/package.json ./packages/payments-public-types-lib/package.json
 COPY packages/payments-domain-lib/package.json ./packages/payments-domain-lib/package.json
 COPY packages/payments-implementations-lib/package.json ./packages/payments-implementations-lib/package.json
 COPY packages/payments-command-handler-service/package.json ./packages/payments-command-handler-service/package.json
@@ -39,6 +40,7 @@ RUN pnpm --filter common-types-lib build
 RUN pnpm --filter implementations-lib build
 RUN pnpm --filter pal-public-types-lib build
 RUN pnpm --filter pal-client-lib build
+RUN pnpm --filter payments-public-types-lib build
 RUN pnpm --filter payments-domain-lib build
 RUN pnpm --filter payments-implementations-lib build
 RUN pnpm --filter payments-command-handler-service build
@@ -52,6 +54,7 @@ COPY --from=prod-deps /workspace/node_modules ./node_modules
 COPY --from=prod-deps /workspace/packages/implementations-lib/node_modules ./packages/implementations-lib/node_modules
 COPY --from=prod-deps /workspace/packages/pal-public-types-lib/node_modules ./packages/pal-public-types-lib/node_modules
 COPY --from=prod-deps /workspace/packages/pal-client-lib/node_modules ./packages/pal-client-lib/node_modules
+COPY --from=prod-deps /workspace/packages/payments-public-types-lib/node_modules ./packages/payments-public-types-lib/node_modules
 COPY --from=prod-deps /workspace/packages/payments-domain-lib/node_modules ./packages/payments-domain-lib/node_modules
 COPY --from=prod-deps /workspace/packages/payments-implementations-lib/node_modules ./packages/payments-implementations-lib/node_modules
 COPY --from=prod-deps /workspace/packages/payments-command-handler-service/node_modules ./packages/payments-command-handler-service/node_modules
@@ -61,6 +64,7 @@ COPY --from=prod-deps /workspace/packages/common-types-lib/package.json ./packag
 COPY --from=prod-deps /workspace/packages/implementations-lib/package.json ./packages/implementations-lib/package.json
 COPY --from=prod-deps /workspace/packages/pal-public-types-lib/package.json ./packages/pal-public-types-lib/package.json
 COPY --from=prod-deps /workspace/packages/pal-client-lib/package.json ./packages/pal-client-lib/package.json
+COPY --from=prod-deps /workspace/packages/payments-public-types-lib/package.json ./packages/payments-public-types-lib/package.json
 COPY --from=prod-deps /workspace/packages/payments-domain-lib/package.json ./packages/payments-domain-lib/package.json
 COPY --from=prod-deps /workspace/packages/payments-implementations-lib/package.json ./packages/payments-implementations-lib/package.json
 COPY --from=prod-deps /workspace/packages/payments-command-handler-service/package.json ./packages/payments-command-handler-service/package.json
@@ -70,6 +74,7 @@ COPY --from=build /workspace/packages/common-types-lib/dist ./packages/common-ty
 COPY --from=build /workspace/packages/implementations-lib/dist ./packages/implementations-lib/dist
 COPY --from=build /workspace/packages/pal-public-types-lib/dist ./packages/pal-public-types-lib/dist
 COPY --from=build /workspace/packages/pal-client-lib/dist ./packages/pal-client-lib/dist
+COPY --from=build /workspace/packages/payments-public-types-lib/dist ./packages/payments-public-types-lib/dist
 COPY --from=build /workspace/packages/payments-domain-lib/dist ./packages/payments-domain-lib/dist
 COPY --from=build /workspace/packages/payments-implementations-lib/dist ./packages/payments-implementations-lib/dist
 COPY --from=build /workspace/packages/payments-command-handler-service/dist ./packages/payments-command-handler-service/dist
