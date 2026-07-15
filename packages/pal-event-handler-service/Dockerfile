@@ -52,6 +52,8 @@ COPY --from=prod-deps /workspace/packages/pal-domain-lib/node_modules ./packages
 COPY --from=prod-deps /workspace/packages/pal-implementations-lib/node_modules ./packages/pal-implementations-lib/node_modules
 COPY --from=prod-deps /workspace/packages/pal-event-handler-service/node_modules ./packages/pal-event-handler-service/node_modules
 
+# root workspace package.json (read at runtime via process.cwd() in service.ts)
+COPY --from=prod-deps /workspace/package.json ./package.json
 # package.json for each workspace dep
 COPY --from=prod-deps /workspace/packages/common-types-lib/package.json ./packages/common-types-lib/package.json
 COPY --from=prod-deps /workspace/packages/implementations-lib/package.json ./packages/implementations-lib/package.json
