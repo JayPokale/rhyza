@@ -98,10 +98,13 @@ export abstract class LedgerDomainEvent extends DomainEvent {
   ): evt is LedgerIncomingTransferRejectedEvent {
     return evt.msgName === LedgerIncomingTransferRejectedEvent.name;
   }
-  static isLedgerOutgoingTransferSetupFailedEvent(
+  static isLedgerCheckBalanceAndReserveOutgoingTransferFailedEvent(
     evt: DomainEvent
-  ): evt is LedgerOutgoingTransferSetupFailedEvent {
-    return evt.msgName === LedgerOutgoingTransferSetupFailedEvent.name;
+  ): evt is LedgerCheckBalanceAndReserveOutgoingTransferFailedEvent {
+    return (
+      evt.msgName ===
+      LedgerCheckBalanceAndReserveOutgoingTransferFailedEvent.name
+    );
   }
   static isLedgerOutgoingTransferCommitFailedEvent(
     evt: DomainEvent
@@ -340,20 +343,20 @@ export class LedgerOutgoingTransferRejectedEvent extends LedgerDomainEvent {
 }
 export class LedgerIncomingTransferRejectedEvent extends LedgerOutgoingTransferRejectedEvent {}
 
-export type LedgerOutgoingTransferSetupFailedEventPayload = {
+export type LedgerCheckBalanceAndReserveOutgoingTransferFailedEventPayload = {
   requestId: string;
   paymentIntentId: string;
   paymentId: string;
   errorMessage: string;
 };
 
-export class LedgerOutgoingTransferSetupFailedEvent extends LedgerDomainEvent {
-  payload: LedgerOutgoingTransferSetupFailedEventPayload;
+export class LedgerCheckBalanceAndReserveOutgoingTransferFailedEvent extends LedgerDomainEvent {
+  payload: LedgerCheckBalanceAndReserveOutgoingTransferFailedEventPayload;
   isErrorEvent = true;
 
   constructor(
     aggId: string,
-    payload: LedgerOutgoingTransferSetupFailedEventPayload
+    payload: LedgerCheckBalanceAndReserveOutgoingTransferFailedEventPayload
   ) {
     super(aggId);
     this.msgKey = aggId;

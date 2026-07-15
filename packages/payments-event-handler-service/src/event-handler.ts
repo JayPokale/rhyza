@@ -34,7 +34,7 @@ import {
   LedgerIncomingTransferRejectedEvent,
   LedgerIncomingTransferCommittedEvent,
   LedgerTransferResponseEventPayload,
-  LedgerOutgoingTransferSetupFailedEvent,
+  LedgerCheckBalanceAndReserveOutgoingTransferFailedEvent,
   LedgerOutgoingTransferCommitFailedEvent,
   LedgerOutgoingTransferRejectFailedEvent
 } from 'pal-public-types-lib';
@@ -221,9 +221,9 @@ export class PaymentsEventHandler {
         await this._msgProducer.send(cmd);
         break;
       }
-      case LedgerOutgoingTransferSetupFailedEvent.name: {
+      case LedgerCheckBalanceAndReserveOutgoingTransferFailedEvent.name: {
         const payload =
-          message.payload as LedgerOutgoingTransferSetupFailedEvent['payload'];
+          message.payload as LedgerCheckBalanceAndReserveOutgoingTransferFailedEvent['payload'];
         const cmd = new FailRemotePaymentCmd(
           {
             paymentIntentId: payload.paymentIntentId,

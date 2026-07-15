@@ -22,7 +22,7 @@ import {
   RejectTransferCmd
 } from 'pal-domain-lib';
 import {
-  LedgerOutgoingTransferSetupFailedEvent,
+  LedgerCheckBalanceAndReserveOutgoingTransferFailedEvent,
   LedgerOutgoingTransferCommitFailedEvent,
   LedgerOutgoingTransferRejectFailedEvent
 } from 'pal-public-types-lib';
@@ -101,12 +101,15 @@ export class IntegrationEventHandler {
         `RemotePaymentSendApprovedEvent (paymentId ${payload.paymentId}): ${errorMessage} — failing payment`
       );
       this._pendingMessages.push(
-        new LedgerOutgoingTransferSetupFailedEvent(payload.assetCode, {
-          requestId: evt.requestId ?? '',
-          paymentIntentId: payload.paymentIntentId,
-          paymentId: payload.paymentId,
-          errorMessage
-        })
+        new LedgerCheckBalanceAndReserveOutgoingTransferFailedEvent(
+          payload.assetCode,
+          {
+            requestId: evt.requestId ?? '',
+            paymentIntentId: payload.paymentIntentId,
+            paymentId: payload.paymentId,
+            errorMessage
+          }
+        )
       );
       return;
     }
