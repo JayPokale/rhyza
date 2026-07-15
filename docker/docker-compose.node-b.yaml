@@ -19,6 +19,7 @@ services:
       PAL_GRPC_URL: pal-api-service-b:50051
       PAYMENTS_GRPC_URL: payments-api-service-b:50052
       OPEN_PAYMENTS_URL: http://open-payments-resource-service-b:3002
+      ILP_GRPC_URL: ilp-api-service-b:50053
       MONGODB_URL: mongodb://root:mongoPass@mongodb-b:27017
     ports:
       - '4001:3001'
@@ -28,6 +29,8 @@ services:
       pal-api-service-b:
         condition: service_started
       payments-api-service-b:
+        condition: service_started
+      ilp-api-service-b:
         condition: service_started
     networks:
       - rafiki-v2

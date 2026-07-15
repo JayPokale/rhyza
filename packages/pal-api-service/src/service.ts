@@ -46,9 +46,10 @@ import {
   PinoLogger
 } from 'implementations-lib';
 import crypto from 'crypto';
+import { join } from 'path';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const packageJson = require('../package.json');
+const packageJson = require(join(process.cwd(), 'package.json'));
 
 const SVC_PORT = process.env['SVC_PORT']
   ? parseInt(process.env['SVC_PORT'])
