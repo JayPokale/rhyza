@@ -441,6 +441,7 @@ export type RemotePaymentSendApprovedPayload = {
   debitAmount: string;
   assetCode: string;
   assetScale: number;
+  transferId?: string;
 };
 
 export class RemotePaymentSendApprovedEvent extends PaymentIntentDomainEvent {

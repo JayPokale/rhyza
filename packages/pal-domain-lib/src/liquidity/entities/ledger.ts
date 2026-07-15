@@ -496,7 +496,9 @@ export class Ledger {
         new LedgerOutgoingTransferReservedEvent(this._id, {
           requestId: cmd.payload.requestId,
           transferId: cmd.payload.transferId,
-          isError: false
+          isError: false,
+          paymentIntentId: cmd.payload.paymentIntentId,
+          paymentId: cmd.payload.paymentId
         }),
         cmd.requestId
       );
@@ -505,7 +507,9 @@ export class Ledger {
         new LedgerIncomingTransferReservedEvent(this._id, {
           requestId: cmd.payload.requestId,
           transferId: cmd.payload.transferId,
-          isError: false
+          isError: false,
+          paymentIntentId: cmd.payload.paymentIntentId,
+          paymentId: cmd.payload.paymentId
         }),
         cmd.requestId
       );
@@ -557,7 +561,9 @@ export class Ledger {
           new LedgerOutgoingTransferInsufficientFundsErrorEvent(
             this._id,
             cmd.payload.requestId,
-            cmd.payload.transferId
+            cmd.payload.transferId,
+            cmd.payload.paymentIntentId,
+            cmd.payload.paymentId
           )
         );
       } else {
@@ -565,7 +571,9 @@ export class Ledger {
           new LedgerIncomingTransferInsufficientFundsErrorEvent(
             this._id,
             cmd.payload.requestId,
-            cmd.payload.transferId
+            cmd.payload.transferId,
+            cmd.payload.paymentIntentId,
+            cmd.payload.paymentId
           )
         );
       }
@@ -595,7 +603,9 @@ export class Ledger {
         new LedgerOutgoingTransferReservedEvent(this._id, {
           requestId: cmd.payload.requestId,
           transferId: cmd.payload.transferId,
-          isError: false
+          isError: false,
+          paymentIntentId: cmd.payload.paymentIntentId,
+          paymentId: cmd.payload.paymentId
         }),
         cmd.requestId
       );
@@ -604,7 +614,9 @@ export class Ledger {
         new LedgerIncomingTransferReservedEvent(this._id, {
           requestId: cmd.payload.requestId,
           transferId: cmd.payload.transferId,
-          isError: false
+          isError: false,
+          paymentIntentId: cmd.payload.paymentIntentId,
+          paymentId: cmd.payload.paymentId
         }),
         cmd.requestId
       );
@@ -669,7 +681,9 @@ export class Ledger {
         new LedgerOutgoingTransferCommittedEvent(this._id, {
           requestId: cmd.payload.requestId,
           transferId: cmd.payload.transferId,
-          isError: false
+          isError: false,
+          paymentIntentId: cmd.payload.paymentIntentId,
+          paymentId: cmd.payload.paymentId
         }),
         cmd.requestId
       );
@@ -678,7 +692,9 @@ export class Ledger {
         new LedgerIncomingTransferCommittedEvent(this._id, {
           requestId: cmd.payload.requestId,
           transferId: cmd.payload.transferId,
-          isError: false
+          isError: false,
+          paymentIntentId: cmd.payload.paymentIntentId,
+          paymentId: cmd.payload.paymentId
         }),
         cmd.requestId
       );
@@ -724,7 +740,9 @@ export class Ledger {
         new LedgerOutgoingTransferRejectedEvent(this._id, {
           requestId: cmd.payload.requestId,
           transferId: cmd.payload.transferId,
-          isError: false
+          isError: false,
+          paymentIntentId: cmd.payload.paymentIntentId,
+          paymentId: cmd.payload.paymentId
         }),
         cmd.requestId
       );
@@ -733,7 +751,9 @@ export class Ledger {
         new LedgerIncomingTransferRejectedEvent(this._id, {
           requestId: cmd.payload.requestId,
           transferId: cmd.payload.transferId,
-          isError: false
+          isError: false,
+          paymentIntentId: cmd.payload.paymentIntentId,
+          paymentId: cmd.payload.paymentId
         }),
         cmd.requestId
       );

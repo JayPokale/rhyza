@@ -98,6 +98,11 @@ export abstract class LedgerDomainEvent extends DomainEvent {
   ): evt is LedgerIncomingTransferRejectedEvent {
     return evt.msgName === LedgerIncomingTransferRejectedEvent.name;
   }
+  static isLedgerOutgoingTransferSetupFailedEvent(
+    evt: DomainEvent
+  ): evt is LedgerOutgoingTransferSetupFailedEvent {
+    return evt.msgName === LedgerOutgoingTransferSetupFailedEvent.name;
+  }
 }
 
 /*
@@ -257,6 +262,9 @@ export type LedgerTransferResponseEventPayload = {
   // for generic error handling (without dedicated error event)
   isError: boolean;
   errorMessage?: string;
+
+  paymentIntentId: string;
+  paymentId: string;
 };
 
 export class LedgerOutgoingTransferReservedEvent extends LedgerDomainEvent {
@@ -275,14 +283,22 @@ export class LedgerOutgoingTransferInsufficientFundsErrorEvent extends LedgerDom
   payload: LedgerTransferResponseEventPayload;
   isErrorEvent = true;
 
-  constructor(aggId: string, requestId: string, transactionId: string) {
+  constructor(
+    aggId: string,
+    requestId: string,
+    transactionId: string,
+    paymentIntentId: string,
+    paymentId: string
+  ) {
     super(aggId);
     this.msgKey = aggId;
     this.payload = {
       requestId: requestId,
       transferId: transactionId,
       isError: true,
-      errorMessage: 'Insufficient funds'
+      errorMessage: 'Insufficient funds',
+      paymentIntentId,
+      paymentId
     };
     this.requestId = requestId;
   }
@@ -313,3 +329,25 @@ export class LedgerOutgoingTransferRejectedEvent extends LedgerDomainEvent {
   }
 }
 export class LedgerIncomingTransferRejectedEvent extends LedgerOutgoingTransferRejectedEvent {}
+
+export type LedgerOutgoingTransferSetupFailedEventPayload = {
+  requestId: string;
+  paymentIntentId: string;
+  paymentId: string;
+  errorMessage: string;
+};
+
+export class LedgerOutgoingTransferSetupFailedEvent extends LedgerDomainEvent {
+  payload: LedgerOutgoingTransferSetupFailedEventPayload;
+  isErrorEvent = true;
+
+  constructor(
+    aggId: string,
+    payload: LedgerOutgoingTransferSetupFailedEventPayload
+  ) {
+    super(aggId);
+    this.msgKey = aggId;
+    this.payload = payload;
+    this.requestId = payload.requestId;
+  }
+}

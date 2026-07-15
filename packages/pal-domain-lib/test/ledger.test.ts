@@ -194,7 +194,9 @@ test('PAL Ledger Domain HighLevel API - Check Balance And Reserve Transfer cmd s
       payerClearingAccountId: peerOneAccounts.peerClearingAccId,
       payerLiquidityAccountId: peerOneAccounts.peerLiquidityAccId,
       suspenseAccountId: peerOneAccounts.suspenseAccId,
-      transferDirection: 'OUTGOING'
+      transferDirection: 'OUTGOING',
+      paymentIntentId: 'intent-1',
+      paymentId: 'payment-1'
     });
 
   await aggregate.processCommands(cmd);
@@ -277,7 +279,9 @@ test('PAL Ledger Domain HighLevel API - Outgoing - Check Balance And Reserve Tra
       payerClearingAccountId: peerOneAccounts.aseClearingAccId,
       payerLiquidityAccountId: peerOneAccounts.aseLiquidityAccId,
       suspenseAccountId: peerOneAccounts.suspenseAccId,
-      transferDirection: 'OUTGOING'
+      transferDirection: 'OUTGOING',
+      paymentIntentId: 'intent-1',
+      paymentId: 'payment-1'
     });
 
   await aggregate.processCommands(cmd);
@@ -334,7 +338,9 @@ test('PAL Ledger Domain HighLevel API - Outgoing - Commit Transfer', async () =>
     payerClearingAccountId: peerOneAccounts.aseClearingAccId,
     suspenseAccountId: peerOneAccounts.suspenseAccId,
     payeeClearingAccountId: peerOneAccounts.peerClearingAccId,
-    transferDirection: 'OUTGOING'
+    transferDirection: 'OUTGOING',
+    paymentIntentId: 'intent-1',
+    paymentId: 'payment-1'
   });
 
   await aggregate.processCommands(cmd);
@@ -399,7 +405,9 @@ test('PAL Ledger Domain HighLevel API - Outgoing - Check Balance And Reserve Tra
       payerClearingAccountId: peerOneAccounts.aseClearingAccId,
       payerLiquidityAccountId: peerOneAccounts.aseLiquidityAccId,
       suspenseAccountId: peerOneAccounts.suspenseAccId,
-      transferDirection: 'OUTGOING'
+      transferDirection: 'OUTGOING',
+      paymentIntentId: 'intent-1',
+      paymentId: 'payment-1'
     });
 
   await aggregate.processCommands(cmd);
@@ -456,7 +464,9 @@ test('PAL Ledger Domain HighLevel API - Outgoing - Reject Transfer', async () =>
     amountScale: 2,
     payerClearingAccountId: peerOneAccounts.aseClearingAccId,
     suspenseAccountId: peerOneAccounts.suspenseAccId,
-    transferDirection: 'OUTGOING'
+    transferDirection: 'OUTGOING',
+    paymentIntentId: 'intent-1',
+    paymentId: 'payment-1'
   });
 
   await aggregate.processCommands(cmd);
@@ -520,7 +530,9 @@ test('PAL Ledger Domain HighLevel API - Outgoing - Reserve Transfer', async () =
     amountScale: 2,
     payerClearingAccountId: peerOneAccounts.aseClearingAccId,
     suspenseAccountId: peerOneAccounts.suspenseAccId,
-    transferDirection: 'OUTGOING'
+    transferDirection: 'OUTGOING',
+    paymentIntentId: 'intent-1',
+    paymentId: 'payment-1'
   });
 
   await aggregate.processCommands(cmd);
@@ -577,7 +589,9 @@ test('PAL Ledger Domain HighLevel API - Incoming - Check Balance And Reserve Tra
       payerClearingAccountId: peerOneAccounts.peerClearingAccId,
       payerLiquidityAccountId: peerOneAccounts.peerLiquidityAccId,
       suspenseAccountId: peerOneAccounts.suspenseAccId,
-      transferDirection: 'INCOMING'
+      transferDirection: 'INCOMING',
+      paymentIntentId: 'intent-1',
+      paymentId: 'payment-1'
     });
 
   await aggregate.processCommands(cmd);
@@ -606,7 +620,9 @@ test('PAL Ledger Domain HighLevel API - Incoming - Check Balance And Reserve Tra
       payerClearingAccountId: peerOneAccounts.peerClearingAccId,
       payerLiquidityAccountId: peerOneAccounts.peerLiquidityAccId,
       suspenseAccountId: peerOneAccounts.suspenseAccId,
-      transferDirection: 'INCOMING'
+      transferDirection: 'INCOMING',
+      paymentIntentId: 'intent-1',
+      paymentId: 'payment-1'
     });
 
   await aggregate.processCommands(cmd);
@@ -635,7 +651,9 @@ test('PAL Ledger Domain HighLevel API - Incoming - Reject Transfer', async () =>
     amountScale: 2,
     payerClearingAccountId: peerOneAccounts.aseClearingAccId,
     suspenseAccountId: peerOneAccounts.suspenseAccId,
-    transferDirection: 'INCOMING'
+    transferDirection: 'INCOMING',
+    paymentIntentId: 'intent-1',
+    paymentId: 'payment-1'
   });
 
   await aggregate.processCommands(cmd);
@@ -663,7 +681,9 @@ test('PAL Ledger Domain HighLevel API - Incoming - Reserve Transfer', async () =
     amountScale: 2,
     payerClearingAccountId: peerOneAccounts.aseClearingAccId,
     suspenseAccountId: peerOneAccounts.suspenseAccId,
-    transferDirection: 'INCOMING'
+    transferDirection: 'INCOMING',
+    paymentIntentId: 'intent-1',
+    paymentId: 'payment-1'
   });
 
   await aggregate.processCommands(cmd);

@@ -32,29 +32,10 @@ import {
   LedgerIncomingTransferReservedEvent,
   LedgerIncomingTransferInsufficientFundsErrorEvent,
   LedgerIncomingTransferRejectedEvent,
-  LedgerIncomingTransferCommittedEvent
+  LedgerIncomingTransferCommittedEvent,
+  LedgerTransferResponseEventPayload,
+  LedgerOutgoingTransferSetupFailedEvent
 } from 'pal-public-types-lib';
-
-// TODO: use pal event directly. It needs to be updated with paymentintentId and paymentId
-type LedgerTransferPayloadWithPaymentIds = {
-  requestId: string;
-  transferId: string;
-  isError?: boolean;
-  errorMessage?: string;
-  paymentIntentId: string;
-  paymentId: string;
-};
-
-// TODO: use pal event directly. It needs to be updated with paymentIntentId
-// and receivedPaymentId
-type LedgerTransferPayloadWithReceivedPaymentIds = {
-  requestId: string;
-  transferId: string;
-  isError?: boolean;
-  errorMessage?: string;
-  paymentIntentId: string;
-  receivedPaymentId: string;
-};
 
 // TODO: ILP BC does not publish this event yet — assumed contract for the
 // inbound prepare packet. Replace with the real event type once ILP adds it.
@@ -174,11 +155,10 @@ export class PaymentsEventHandler {
         // TODO: auto-accepting. Design calls for marking pending-acceptance,
         // webhooking the ASE via Notifications, and the ASE accepting through
         // the admin API.
-        const payload =
-          message.payload as LedgerTransferPayloadWithReceivedPaymentIds;
+        const payload = message.payload as LedgerTransferResponseEventPayload;
         const cmd = new AcceptReceivedPaymentCmd(
           {
-            receivedPaymentId: payload.receivedPaymentId,
+            receivedPaymentId: payload.paymentId,
             paymentIntentId: payload.paymentIntentId,
             ledgerTransferId: payload.transferId
           },
@@ -188,11 +168,10 @@ export class PaymentsEventHandler {
         break;
       }
       case LedgerIncomingTransferCommittedEvent.name: {
-        const payload =
-          message.payload as LedgerTransferPayloadWithReceivedPaymentIds;
+        const payload = message.payload as LedgerTransferResponseEventPayload;
         const cmd = new FinalizeReceivedPaymentCmd(
           {
-            receivedPaymentId: payload.receivedPaymentId,
+            receivedPaymentId: payload.paymentId,
             paymentIntentId: payload.paymentIntentId
           },
           payload.requestId
@@ -202,11 +181,10 @@ export class PaymentsEventHandler {
       }
       case LedgerIncomingTransferInsufficientFundsErrorEvent.name:
       case LedgerIncomingTransferRejectedEvent.name: {
-        const payload =
-          message.payload as LedgerTransferPayloadWithReceivedPaymentIds;
+        const payload = message.payload as LedgerTransferResponseEventPayload;
         const cmd = new FailReceivedPaymentCmd(
           {
-            receivedPaymentId: payload.receivedPaymentId,
+            receivedPaymentId: payload.paymentId,
             paymentIntentId: payload.paymentIntentId,
             reason: payload.errorMessage ?? 'Ledger transfer failed'
           },
@@ -216,7 +194,7 @@ export class PaymentsEventHandler {
         break;
       }
       case LedgerOutgoingTransferReservedEvent.name: {
-        const payload = message.payload as LedgerTransferPayloadWithPaymentIds;
+        const payload = message.payload as LedgerTransferResponseEventPayload;
         const cmd = new PrepareRemotePaymentCmd(
           {
             paymentIntentId: payload.paymentIntentId,
@@ -229,12 +207,26 @@ export class PaymentsEventHandler {
         break;
       }
       case LedgerOutgoingTransferInsufficientFundsErrorEvent.name: {
-        const payload = message.payload as LedgerTransferPayloadWithPaymentIds;
+        const payload = message.payload as LedgerTransferResponseEventPayload;
         const cmd = new FailRemotePaymentCmd(
           {
             paymentIntentId: payload.paymentIntentId,
             paymentId: payload.paymentId,
             reason: payload.errorMessage ?? 'Insufficient funds'
+          },
+          payload.requestId
+        );
+        await this._msgProducer.send(cmd);
+        break;
+      }
+      case LedgerOutgoingTransferSetupFailedEvent.name: {
+        const payload =
+          message.payload as LedgerOutgoingTransferSetupFailedEvent['payload'];
+        const cmd = new FailRemotePaymentCmd(
+          {
+            paymentIntentId: payload.paymentIntentId,
+            paymentId: payload.paymentId,
+            reason: payload.errorMessage
           },
           payload.requestId
         );
@@ -267,7 +259,7 @@ export class PaymentsEventHandler {
         break;
       }
       case LedgerOutgoingTransferCommittedEvent.name: {
-        const payload = message.payload as LedgerTransferPayloadWithPaymentIds;
+        const payload = message.payload as LedgerTransferResponseEventPayload;
         const cmd = new CompleteRemotePaymentCmd(
           {
             paymentIntentId: payload.paymentIntentId,
@@ -279,7 +271,7 @@ export class PaymentsEventHandler {
         break;
       }
       case LedgerOutgoingTransferRejectedEvent.name: {
-        const payload = message.payload as LedgerTransferPayloadWithPaymentIds;
+        const payload = message.payload as LedgerTransferResponseEventPayload;
         const cmd = new FailRemotePaymentCmd(
           {
             paymentIntentId: payload.paymentIntentId,
