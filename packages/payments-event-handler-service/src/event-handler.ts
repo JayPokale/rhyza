@@ -34,7 +34,9 @@ import {
   LedgerIncomingTransferRejectedEvent,
   LedgerIncomingTransferCommittedEvent,
   LedgerTransferResponseEventPayload,
-  LedgerOutgoingTransferSetupFailedEvent
+  LedgerOutgoingTransferSetupFailedEvent,
+  LedgerOutgoingTransferCommitFailedEvent,
+  LedgerOutgoingTransferRejectFailedEvent
 } from 'pal-public-types-lib';
 
 // TODO: ILP BC does not publish this event yet — assumed contract for the
@@ -281,6 +283,11 @@ export class PaymentsEventHandler {
           payload.requestId
         );
         await this._msgProducer.send(cmd);
+        break;
+      }
+      case LedgerOutgoingTransferCommitFailedEvent.name:
+      case LedgerOutgoingTransferRejectFailedEvent.name: {
+        // TODO: placeholder — commit/reject failed mid-flight; needs reconciliation.
         break;
       }
       default:

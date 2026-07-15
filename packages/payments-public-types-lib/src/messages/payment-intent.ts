@@ -507,6 +507,10 @@ export type RemotePaymentSendConfirmedPayload = {
   paymentIntentId: string;
   paymentId: string;
   ledgerTransferId: string;
+  destinationIlpAddress: string;
+  debitAmount: string;
+  assetCode: string;
+  assetScale: number;
 };
 
 export class RemotePaymentSendConfirmedEvent extends PaymentIntentDomainEvent {
@@ -524,6 +528,10 @@ export type RemotePaymentSendRejectedPayload = {
   paymentId: string;
   ledgerTransferId: string;
   reason?: string;
+  destinationIlpAddress: string;
+  debitAmount: string;
+  assetCode: string;
+  assetScale: number;
 };
 
 export class RemotePaymentSendRejectedEvent extends PaymentIntentDomainEvent {

@@ -17,9 +17,15 @@ import {
 } from 'payments-public-types-lib';
 import {
   PeerAggregate,
-  CheckBalanceAndReserveTransferCmd
+  CheckBalanceAndReserveTransferCmd,
+  CommitTransferCmd,
+  RejectTransferCmd
 } from 'pal-domain-lib';
-import { LedgerOutgoingTransferSetupFailedEvent } from 'pal-public-types-lib';
+import {
+  LedgerOutgoingTransferSetupFailedEvent,
+  LedgerOutgoingTransferCommitFailedEvent,
+  LedgerOutgoingTransferRejectFailedEvent
+} from 'pal-public-types-lib';
 
 /**
  * External event handler for processing integration events from other bounded contexts
@@ -69,9 +75,9 @@ export class IntegrationEventHandler {
     if (evt.msgName === RemotePaymentSendApprovedEvent.name) {
       await this._handleRemotePaymentSendApproved(evt);
     } else if (evt.msgName === RemotePaymentSendConfirmedEvent.name) {
-      // create a CommitTransferCmd
+      await this._handleRemotePaymentSendConfirmed(evt);
     } else if (evt.msgName === RemotePaymentSendRejectedEvent.name) {
-      // create a RejectTransferCmd
+      await this._handleRemotePaymentSendRejected(evt);
     } else if (evt.msgName === ReceivedPaymentValidatedEvent.name) {
       // ReserveTransferCmd (INCOMING).
     } else if (evt.msgName === ReceivedPaymentAcceptedEvent.name) {
@@ -119,6 +125,93 @@ export class IntegrationEventHandler {
     });
 
     this._pendingMessages.push(cmd);
+  }
+
+  private async _handleRemotePaymentSendConfirmed(
+    evt: DomainEvent
+  ): Promise<void> {
+    const payload = evt.payload as RemotePaymentSendConfirmedEvent['payload'];
+
+    const peer = await this._peerAggregate.getPeerByIlpAddress(
+      payload.destinationIlpAddress
+    );
+    if (!peer?.ledgerAccounts) {
+      // Shouldn't happen — the peer resolved at reserve time. We can't commit
+      // nor reject to unwind, which also needs the peer.
+      const errorMessage = `No peer/ledger accounts for ILP address ${payload.destinationIlpAddress}`;
+      this._logger.warn(
+        `RemotePaymentSendConfirmedEvent (paymentId ${payload.paymentId}): ${errorMessage} — commit failed`
+      );
+      this._pendingMessages.push(
+        new LedgerOutgoingTransferCommitFailedEvent(payload.assetCode, {
+          requestId: evt.requestId ?? '',
+          transferId: payload.ledgerTransferId,
+          isError: true,
+          errorMessage,
+          paymentIntentId: payload.paymentIntentId,
+          paymentId: payload.paymentId
+        })
+      );
+      return;
+    }
+
+    this._pendingMessages.push(
+      new CommitTransferCmd(payload.assetCode, {
+        requestId: evt.requestId ?? '',
+        transferId: payload.ledgerTransferId,
+        payerClearingAccountId: peer.ledgerAccounts.aseClearingAccId,
+        suspenseAccountId: peer.ledgerAccounts.suspenseAccId,
+        payeeClearingAccountId: peer.ledgerAccounts.peerClearingAccId,
+        amount: payload.debitAmount,
+        amountScale: payload.assetScale,
+        transferDirection: 'OUTGOING',
+        paymentIntentId: payload.paymentIntentId,
+        paymentId: payload.paymentId
+      })
+    );
+  }
+
+  private async _handleRemotePaymentSendRejected(
+    evt: DomainEvent
+  ): Promise<void> {
+    const payload = evt.payload as RemotePaymentSendRejectedEvent['payload'];
+
+    const peer = await this._peerAggregate.getPeerByIlpAddress(
+      payload.destinationIlpAddress
+    );
+    if (!peer?.ledgerAccounts) {
+      // Shouldn't happen — the peer resolved at reserve time. We can't reject
+      // to unwind, which also needs the peer.
+      const errorMessage = `No peer/ledger accounts for ILP address ${payload.destinationIlpAddress}`;
+      this._logger.warn(
+        `RemotePaymentSendRejectedEvent (paymentId ${payload.paymentId}): ${errorMessage} — reject failed`
+      );
+      this._pendingMessages.push(
+        new LedgerOutgoingTransferRejectFailedEvent(payload.assetCode, {
+          requestId: evt.requestId ?? '',
+          transferId: payload.ledgerTransferId,
+          isError: true,
+          errorMessage,
+          paymentIntentId: payload.paymentIntentId,
+          paymentId: payload.paymentId
+        })
+      );
+      return;
+    }
+
+    this._pendingMessages.push(
+      new RejectTransferCmd(payload.assetCode, {
+        requestId: evt.requestId ?? '',
+        transferId: payload.ledgerTransferId,
+        payerClearingAccountId: peer.ledgerAccounts.aseClearingAccId,
+        suspenseAccountId: peer.ledgerAccounts.suspenseAccId,
+        amount: payload.debitAmount,
+        amountScale: payload.assetScale,
+        transferDirection: 'OUTGOING',
+        paymentIntentId: payload.paymentIntentId,
+        paymentId: payload.paymentId
+      })
+    );
   }
 
   async init(): Promise<void> {

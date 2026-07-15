@@ -1171,12 +1171,21 @@ export class PaymentIntentAggregate {
           `Payment ${paymentId} is missing ledgerTransferId at confirm time`
         );
       }
+      if (!paymentIntent.destinationIlpAddress) {
+        throw new MissingDestinationIlpAddressError(
+          `Payment intent ${paymentIntentId} is missing destinationIlpAddress`
+        );
+      }
 
       return new RemotePaymentSendConfirmedEvent(
         {
           paymentIntentId: paymentIntent.id,
           paymentId: payment.id,
-          ledgerTransferId: payment.ledgerTransferId
+          ledgerTransferId: payment.ledgerTransferId,
+          destinationIlpAddress: paymentIntent.destinationIlpAddress,
+          debitAmount: String(payment.debitAmount),
+          assetCode: payment.assetCode,
+          assetScale: payment.assetScale
         },
         cmd.requestId
       );
@@ -1224,13 +1233,22 @@ export class PaymentIntentAggregate {
           `Payment ${paymentId} is missing ledgerTransferId at reject time`
         );
       }
+      if (!paymentIntent.destinationIlpAddress) {
+        throw new MissingDestinationIlpAddressError(
+          `Payment intent ${paymentIntentId} is missing destinationIlpAddress`
+        );
+      }
 
       return new RemotePaymentSendRejectedEvent(
         {
           paymentIntentId: paymentIntent.id,
           paymentId: payment.id,
           ledgerTransferId: payment.ledgerTransferId,
-          reason
+          reason,
+          destinationIlpAddress: paymentIntent.destinationIlpAddress,
+          debitAmount: String(payment.debitAmount),
+          assetCode: payment.assetCode,
+          assetScale: payment.assetScale
         },
         cmd.requestId
       );
