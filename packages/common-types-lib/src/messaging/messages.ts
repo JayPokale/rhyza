@@ -45,6 +45,8 @@ export abstract class BaseMessage implements IMessage {
 
   payload: any;
 
+  tracingInfo?: any;
+
   abstract msgTopic: string;
   abstract msgType: MessageTypes;
 

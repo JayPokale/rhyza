@@ -27,6 +27,7 @@ export interface IPeer {
 
 export interface IPeerRepository {
   fetchById(peerId: string): Promise<IPeer | undefined>;
+  fetchAll(): Promise<IPeer[]>;
   store(peer: IPeer): Promise<void>;
   update(peer: IPeer): Promise<void>;
   fetchPacketById(packetId: string): Promise<IPacketCorrelation | undefined>;

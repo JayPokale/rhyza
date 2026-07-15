@@ -1,5 +1,6 @@
 import { IMessage } from 'common-types-lib';
 import {
+  CreatePeerCmd,
   ExpirePacketCmd,
   ProcessFulfillPacketCmd,
   ProcessPreparePacketCmd,
@@ -7,13 +8,18 @@ import {
   ProcessRejectPacketCmd,
   RespondToRemoteQuoteCmd,
   StartRemotePaymentCmd,
-  StartRemoteQuoteCmd
+  StartRemoteQuoteCmd,
+  UpdatePeerCmd
 } from '../commands';
 import { IPeeringClient, PacketCorrelation } from '../packet';
 import { PacketNotFound } from '../packet/errors';
 import { Peer } from './entity';
 import { DuplicatePeer, UnknownPeer } from './errors';
 import {
+  ILPPeerCreatedEvent,
+  ILPPeerCreationFailedEvent,
+  ILPPeerUpdatedEvent,
+  ILPPeerUpdateFailedEvent,
   ILPQuoteReceivedEvent,
   ILPQuoteFailedEvent,
   ILPPaymentConfirmedEvent,
@@ -74,6 +80,64 @@ export class IlpPeerAggregate {
     return this.peerRepo.fetchById(peerId);
   }
 
+  async listPeers(): Promise<IPeer[]> {
+    return this.peerRepo.fetchAll();
+  }
+
+  private async handleCreatePeerCmd(cmd: CreatePeerCmd): Promise<IMessage[]> {
+    try {
+      const peer = await this.createPeer({
+        peerId: cmd.payload.peerId,
+        http: cmd.payload.http,
+        isActive: cmd.payload.isActive
+      });
+      return [
+        new ILPPeerCreatedEvent(
+          { peerId: peer.peerId, http: peer.http, isActive: peer.isActive },
+          cmd.requestId
+        )
+      ];
+    } catch (err) {
+      return [
+        new ILPPeerCreationFailedEvent(
+          {
+            peerId: cmd.payload.peerId,
+            errorName: (err as Error).constructor.name,
+            message: (err as Error).message
+          },
+          cmd.requestId
+        )
+      ];
+    }
+  }
+
+  private async handleUpdatePeerCmd(cmd: UpdatePeerCmd): Promise<IMessage[]> {
+    try {
+      const peer = await this.updatePeer({
+        peerId: cmd.payload.peerId,
+        http: cmd.payload.http,
+        isActive: cmd.payload.isActive
+      });
+      return [
+        new ILPPeerUpdatedEvent(
+          { peerId: peer.peerId, http: peer.http, isActive: peer.isActive },
+          cmd.requestId
+        )
+      ];
+    } catch (err) {
+      return [
+        new ILPPeerUpdateFailedEvent(
+          {
+            peerId: cmd.payload.peerId,
+            errorName: (err as Error).constructor.name,
+            message: (err as Error).message
+          },
+          cmd.requestId
+        )
+      ];
+    }
+  }
+
   async handleBatch(cmds: IMessage[]): Promise<{ events: IMessage[] }> {
     const events: IMessage[] = [];
 
@@ -87,6 +151,10 @@ export class IlpPeerAggregate {
 
   private async handleCommand(cmd: IMessage): Promise<IMessage[]> {
     switch (cmd.msgName) {
+      case CreatePeerCmd.name:
+        return this.handleCreatePeerCmd(cmd as CreatePeerCmd);
+      case UpdatePeerCmd.name:
+        return this.handleUpdatePeerCmd(cmd as UpdatePeerCmd);
       case StartRemoteQuoteCmd.name:
         return this.handleStartRemoteQuote(cmd as StartRemoteQuoteCmd);
       case StartRemotePaymentCmd.name:

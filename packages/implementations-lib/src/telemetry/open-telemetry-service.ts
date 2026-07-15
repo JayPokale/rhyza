@@ -1,5 +1,12 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { ILogger, TelemetryService } from 'common-types-lib';
+import {
+  ILogger,
+  ITelemetryCounter,
+  ITelemetryGauge,
+  ITelemetryHistogram,
+  ITelemetryService,
+  ITelemetryServiceAttributes
+} from 'common-types-lib';
 import process from 'process';
 import { NodeTracerProvider } from '@opentelemetry/node';
 
@@ -26,22 +33,30 @@ import {
   Gauge,
   Histogram,
   MetricOptions,
+  Tracer,
   metrics
 } from '@opentelemetry/api';
 
 const OPEN_TELEMETRY_COLLECTOR_URL =
   process.env['OPEN_TELEMETRY_COLLECTOR_URL'] || 'http://127.0.0.1:4317';
 
-export class OpenTelemetryService implements TelemetryService {
-  private logger: ILogger;
-  private bcName: string;
-  private appName: string;
-  private appVersion: string;
-  private instanceId: string;
-  private counters: Map<string, Counter>;
+const OPEN_TELEMETRY_EXPORT_INTERVAL_MS = process.env[
+  'OPEN_TELEMETRY_EXPORT_INTERVAL_MS'
+]
+  ? parseInt(process.env['OPEN_TELEMETRY_EXPORT_INTERVAL_MS'])
+  : 15_000;
 
-  private histograms: Map<string, Histogram>;
-  private gauges: Map<string, Gauge>;
+export class OpenTelemetryService implements ITelemetryService {
+  private _logger: ILogger;
+  private _bcName: string;
+  private _appName: string;
+  private _appVersion: string;
+  private _instanceId: string;
+  private _counters: Map<string, Counter>;
+
+  private _histograms: Map<string, Histogram>;
+  private _gauges: Map<string, Gauge>;
+  //private _tracers: Map<string, Tracer>;
 
   fastifyOtelInstrumentation?: FastifyOtelInstrumentation;
   // private _provider: NodeTracerProvider;
@@ -56,17 +71,18 @@ export class OpenTelemetryService implements TelemetryService {
     logger: ILogger,
     collectorUrl?: string
   ) {
-    this.bcName = bcName;
-    this.appName = appName;
-    this.appVersion = appVersion;
-    this.instanceId = instanceId;
-    this.logger = logger;
-    this.counters = new Map();
-    this.histograms = new Map();
-    this.gauges = new Map();
+    this._bcName = bcName;
+    this._appName = appName;
+    this._appVersion = appVersion;
+    this._instanceId = instanceId;
+    this._logger = logger;
+    this._counters = new Map();
+    this._histograms = new Map();
+    this._gauges = new Map();
+    //this._tracers = new Map();
   }
 
-  static getInstance(): TelemetryService {
+  static getInstance(): ITelemetryService {
     if (this.instance) return this.instance;
 
     throw new Error(
@@ -111,7 +127,7 @@ export class OpenTelemetryService implements TelemetryService {
       exporter: new OTLPMetricExporter({
         url: collectorUrl
       }),
-      exportIntervalMillis: 1000
+      exportIntervalMillis: OPEN_TELEMETRY_EXPORT_INTERVAL_MS
     });
 
     const traceExporter = new OTLPTraceExporter({
@@ -150,32 +166,32 @@ export class OpenTelemetryService implements TelemetryService {
       ]
     });
 
-    this.instance.logger.info(
+    this.instance._logger.info(
       `OpenTelemetryClient Started with - collector url: "${collectorUrl}"`
     );
   }
 
-  private getOrCreateCounter(name: string, options?: MetricOptions): Counter {
-    if (!this.counters.has(name)) {
-      this.counters.set(
+  private _getOrCreateCounter(name: string, options?: MetricOptions): Counter {
+    if (!this._counters.has(name)) {
+      this._counters.set(
         name,
-        metrics.getMeter(this.appName).createCounter(name, options)
+        metrics.getMeter(this._appName).createCounter(name, options)
       );
     }
-    return this.counters.get(name)!;
+    return this._counters.get(name)!;
   }
 
-  private getOrCreateHistogram(
+  private _getOrCreateHistogram(
     name: string,
     options?: MetricOptions
   ): Histogram {
-    if (!this.histograms.has(name)) {
-      this.histograms.set(
+    if (!this._histograms.has(name)) {
+      this._histograms.set(
         name,
-        metrics.getMeter(this.appName).createHistogram(name, options)
+        metrics.getMeter(this._appName).createHistogram(name, options)
       );
     }
-    return this.histograms.get(name)!;
+    return this._histograms.get(name)!;
   }
 
   public incrementCounter(
@@ -183,15 +199,15 @@ export class OpenTelemetryService implements TelemetryService {
     amount: number,
     attributes: Attributes = {}
   ): void {
-    this.getOrCreateCounter(name).add(amount, attributes);
+    this._getOrCreateCounter(name).add(amount, attributes);
   }
 
-  private getOrCreateGauge(name: string, options?: MetricOptions): Gauge {
-    let gauge = this.gauges.get(name);
+  private _getOrCreateGauge(name: string, options?: MetricOptions): Gauge {
+    let gauge = this._gauges.get(name);
     if (gauge) return gauge;
 
-    gauge = metrics.getMeter(this.appName).createGauge(name, options);
-    this.gauges.set(name, gauge);
+    gauge = metrics.getMeter(this._appName).createGauge(name, options);
+    this._gauges.set(name, gauge);
 
     return gauge;
   }
@@ -201,7 +217,7 @@ export class OpenTelemetryService implements TelemetryService {
     value: number,
     attributes: Attributes = {}
   ): void {
-    this.getOrCreateGauge(name).record(value, attributes);
+    this._getOrCreateGauge(name).record(value, attributes);
   }
 
   public recordHistogram(
@@ -209,19 +225,130 @@ export class OpenTelemetryService implements TelemetryService {
     value: number,
     attributes?: Attributes
   ): void {
-    this.getOrCreateHistogram(name).record(value, attributes);
+    this._getOrCreateHistogram(name).record(value, attributes);
   }
 
   public startTimer(
     name: string,
     attributes: Attributes = {}
   ): (additionalAttributes?: Attributes) => void {
-    const start = Date.now();
+    const start = process.hrtime.bigint();
     return (additionalAttributes: Attributes = {}) => {
-      this.recordHistogram(name, Date.now() - start, {
+      const elapsedNs = Number(process.hrtime.bigint() - start);
+      this.recordHistogram(name, elapsedNs, {
         ...attributes,
         ...additionalAttributes
       });
     };
   }
+
+  // Methods to return instances of the metrics to be long-lived
+  // with attributes pre-filled on the get
+
+  public getHistogram(
+    name: string,
+    attributes?: ITelemetryServiceAttributes
+  ): ITelemetryHistogram {
+    const histo = this._getOrCreateHistogram(name);
+
+    return {
+      observe: (
+        value: number,
+        additionalAttributes?: ITelemetryServiceAttributes
+      ) => {
+        histo.record(value, { ...attributes, ...additionalAttributes });
+      },
+      startTimer: (
+        attributes?: ITelemetryServiceAttributes
+      ): ((additionalAttributes?: ITelemetryServiceAttributes) => void) => {
+        const start = process.hrtime.bigint();
+        return (additionalAttributes?: ITelemetryServiceAttributes) => {
+          const elapsedNs = Number(process.hrtime.bigint() - start);
+          this.recordHistogram(name, elapsedNs, {
+            ...attributes,
+            ...additionalAttributes
+          });
+        };
+      }
+    };
+  }
+
+  public getGauge(
+    name: string,
+    attributes?: ITelemetryServiceAttributes
+  ): ITelemetryGauge {
+    const gauge = this._getOrCreateGauge(name, attributes);
+    return {
+      set: (
+        value: number,
+        additionalAttributes?: ITelemetryServiceAttributes
+      ) => {
+        gauge.record(value, { ...attributes, ...additionalAttributes });
+      }
+    };
+  }
+
+  public getCounter(
+    name: string,
+    attributes?: ITelemetryServiceAttributes
+  ): ITelemetryCounter {
+    const counter = this._getOrCreateCounter(name, attributes);
+    return {
+      dec: (
+        amount?: number,
+        additionalAttributes?: ITelemetryServiceAttributes
+      ) => {
+        if (!amount) amount = -1;
+        if (amount > 0) amount = amount * -1;
+        counter.add(amount, { ...attributes, ...additionalAttributes });
+      },
+      inc: (
+        amount: number,
+        additionalAttributes?: ITelemetryServiceAttributes
+      ) => {
+        if (!amount) amount = 1;
+        counter.add(amount, { ...attributes, ...additionalAttributes });
+      }
+    };
+  }
+
+  /*
+  // tracing - WIP
+
+  private _getOrCreateTracer(name: string) {
+    let tracer = this._tracers.get(name);
+    if (tracer) return tracer;
+
+    tracer = trace.getTracer(name);
+    this._tracers.set(name, tracer);
+
+    return tracer;
+  }
+
+  public startActiveSpan(
+    name: string,
+    fn: (span: ITelemetrySpan) => void
+  ): void {
+    const tracer = this._getOrCreateTracer(name);
+
+    tracer.startActiveSpan(name, (span: Span) => {
+      const wrapperSpan: ITelemetrySpan = {
+        setAttribute: (key: string, value: string) => {
+          span.setAttribute(key, value);
+        },
+        recordException: (error: Error) => {
+          span.recordException(error);
+        },
+        setStatus: (status: { code: number; message: string }) => {
+          span.setStatus(status);
+        }
+      };
+
+      fn(wrapperSpan);
+
+      // automatically call end() when the span is done
+      span.end();
+    });
+  }
+  */
 }

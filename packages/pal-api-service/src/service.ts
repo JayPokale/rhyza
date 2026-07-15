@@ -31,6 +31,7 @@ import {
   IMessageConsumer,
   IMessageProducer,
   IRawMessageSerializerFactory,
+  ITelemetryService,
   SnapshotEventTopics,
   StateEventTopics
 } from 'common-types-lib';
@@ -41,9 +42,14 @@ import {
   KafkaProducerCompressionCodecs,
   KafkaProducerOptions,
   MessageSerializationFactory,
+  OpenTelemetryService,
   PinoLogger
 } from 'implementations-lib';
 import crypto from 'crypto';
+import { join } from 'path';
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const packageJson = require(join(process.cwd(), 'package.json'));
 
 const SVC_PORT = process.env['SVC_PORT']
   ? parseInt(process.env['SVC_PORT'])
@@ -51,7 +57,11 @@ const SVC_PORT = process.env['SVC_PORT']
 
 const BC_NAME = 'PAL';
 const APP_NAME = `${BC_NAME}_API_SVC`;
+const APP_VERSION = packageJson.version || '0.0.0';
 const INSTANCE_ID = `${APP_NAME}_${crypto.randomUUID()}`;
+
+const OPEN_TELEMETRY_COLLECTOR_URL =
+  process.env['OPEN_TELEMETRY_COLLECTOR_URL'] || 'http://127.0.0.1:4317';
 
 // Message Consumer/Publisher
 const KAFKA_URL =
@@ -117,7 +127,8 @@ export class PalApiService {
   private static _producer: IMessageProducer;
   private static _consumer: IMessageConsumer;
   private static _fxCacheExpiryService: FxCacheExpiryService;
-  private static grpcService: PalGrpcServer;
+  private static _grpcService: PalGrpcServer;
+  private static _telemetryService: ITelemetryService;
 
   static async start(
     logger?: ILogger,
@@ -128,7 +139,8 @@ export class PalApiService {
     peerRepo?: IPalPeerRepository,
     fxRepo?: IPalFxRepository,
     aseFxService?: IPalAseFxService,
-    ledgerReadSideRepo?: ILedgerReadSideRepository
+    ledgerReadSideRepo?: ILedgerReadSideRepository,
+    telemetryService?: ITelemetryService
   ): Promise<void> {
     if (!logger) {
       logger = new PinoLogger({
@@ -140,6 +152,19 @@ export class PalApiService {
     this._logger = logger;
 
     this._logger.info(`Starting ${this.constructor.name}...`);
+
+    if (!telemetryService) {
+      OpenTelemetryService.Start(
+        BC_NAME,
+        APP_NAME,
+        APP_VERSION,
+        INSTANCE_ID,
+        this._logger,
+        OPEN_TELEMETRY_COLLECTOR_URL
+      );
+      telemetryService = OpenTelemetryService.getInstance();
+    }
+    this._telemetryService = telemetryService;
 
     if (!msgSerializationFactory) {
       MessageSerializationFactory.instance()
@@ -246,7 +271,7 @@ export class PalApiService {
       this._logger
     );
 
-    this.grpcService = new PalGrpcServer(
+    this._grpcService = new PalGrpcServer(
       INSTANCE_ID,
       `0.0.0.0:${SVC_PORT}`,
       assetAggregate,
@@ -256,14 +281,15 @@ export class PalApiService {
       this._producer,
       this._consumer,
       this._ledgerReadSideRepo,
+      this._telemetryService,
       this._logger
     );
 
-    await this.grpcService.start();
+    await this._grpcService.start();
   }
 
   static async stop(): Promise<void> {
-    await this.grpcService.stop();
+    await this._grpcService.stop();
 
     if (this._producer) {
       await this._producer.disconnect();

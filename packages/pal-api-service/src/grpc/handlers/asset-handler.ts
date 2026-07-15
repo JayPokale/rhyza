@@ -1,4 +1,4 @@
-import { ILogger, IMessageProducer } from 'common-types-lib';
+import { ILogger, IMessageProducer, ITelemetryService } from 'common-types-lib';
 import { AssetAggregate } from 'pal-domain-lib';
 import { sendUnaryData, ServerUnaryCall } from '@grpc/grpc-js';
 import { Status } from '@grpc/grpc-js/build/src/constants';
@@ -25,17 +25,20 @@ export class AssetGrpcHandler {
   private readonly _assetAggregate: AssetAggregate;
   private readonly _msgProducer: IMessageProducer;
   private readonly _responseRegistry: PendingResponseRegistry;
+  private readonly _telemetryService: ITelemetryService;
 
   constructor(
     assetAggregate: AssetAggregate,
     responseRegistry: PendingResponseRegistry,
     msgProducer: IMessageProducer,
-    logger: ILogger
+    logger: ILogger,
+    telemetryService: ITelemetryService
   ) {
     this._assetAggregate = assetAggregate;
     this._responseRegistry = responseRegistry;
     this._msgProducer = msgProducer;
     this._logger = logger;
+    this._telemetryService = telemetryService;
 
     this._logger.info('AssetGrpcHandler created');
   }

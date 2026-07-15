@@ -6,7 +6,8 @@ import {
   KafkaBuilder,
   IKafkaBuilder,
   KafkaConsumerOptions,
-  KafkaLowLevelConsumerOptions
+  KafkaLowLevelConsumerOptions,
+  OpenTelemetryService
 } from 'implementations-lib';
 import {
   ILedgerEventSourcingRepository,
@@ -33,16 +34,25 @@ import {
   IMessageConsumer,
   IMessageProducer,
   IRawMessageSerializerFactory,
+  ITelemetryService,
   MessageTypes,
   SnapshotEventTopics,
   StateEventTopics
 } from 'common-types-lib';
+import { join } from 'path';
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const packageJson = require(join(process.cwd(), 'package.json'));
 
 const BC_NAME = 'PAL';
 const APP_NAME = `${BC_NAME}_LEDGER_CMD_HANDLER_SVC`;
+const APP_VERSION = packageJson.version || '0.0.0';
 const INSTANCE_ID = `${APP_NAME}_${crypto.randomUUID()}`;
 
 const REDIS_URL = process.env['REDIS_URL'] || 'redis://localhost:6379';
+
+const OPEN_TELEMETRY_COLLECTOR_URL =
+  process.env['OPEN_TELEMETRY_COLLECTOR_URL'] || 'http://127.0.0.1:4317';
 
 // these params are for non-productive environments, by default we don't create topics
 const CREATE_TOPICS =
@@ -79,8 +89,11 @@ const kafkaProducerCommonOptions: KafkaProducerOptions = {
 const kafkaConsumerCommonOptions: KafkaConsumerOptions = {
   consumerGroupId: 'ES_LEDGER_POC_COMMAND_SVC',
   batchTimeoutMs: 50,
-  batchSize: 50_000
+  batchSize: 100_000
 };
+
+const CMD_BATCHES_HISTOGRAM_NAME = 'PalLedgerCmdHandler_batches';
+const CMD_BATCH_SIZE_GAUGE_NAME = 'PalLedgerCmdHandler_batchSize';
 
 export class PalLedgerCommandHandlerService {
   private static _logger: ILogger;
@@ -90,6 +103,7 @@ export class PalLedgerCommandHandlerService {
   private static _producer: IMessageProducer;
   private static _consumer: IMessageConsumer;
   private static _kafkaBuilder: IKafkaBuilder;
+  private static _telemetryService: ITelemetryService;
 
   static async start(
     logger?: ILogger,
@@ -97,7 +111,8 @@ export class PalLedgerCommandHandlerService {
     kafkaBuilder?: IKafkaBuilder,
     esRepo?: ILedgerEventSourcingRepository,
     producer?: IMessageProducer,
-    consumer?: IMessageConsumer
+    consumer?: IMessageConsumer,
+    telemetryService?: ITelemetryService
   ): Promise<void> {
     if (!logger) {
       logger = new PinoLogger({
@@ -109,6 +124,19 @@ export class PalLedgerCommandHandlerService {
     this._logger = logger;
 
     this._logger.info(`Starting ${this.constructor.name}...`);
+
+    if (!telemetryService) {
+      OpenTelemetryService.Start(
+        BC_NAME,
+        APP_NAME,
+        APP_VERSION,
+        INSTANCE_ID,
+        this._logger,
+        OPEN_TELEMETRY_COLLECTOR_URL
+      );
+      telemetryService = OpenTelemetryService.getInstance();
+    }
+    this._telemetryService = telemetryService;
 
     if (!msgSerializationFactory) {
       MessageSerializationFactory.instance()
@@ -186,7 +214,8 @@ export class PalLedgerCommandHandlerService {
     this._ledgerAggregate = new LedgerAggregate(
       this._esRepo,
       this._producer,
-      this._logger
+      this._logger,
+      this._telemetryService
     );
 
     this._ledgerAggregate.printStats();
@@ -217,13 +246,24 @@ export class PalLedgerCommandHandlerService {
     }
     this._consumer = consumer;
 
+    const batchHistogram = this._telemetryService.getHistogram(
+      CMD_BATCHES_HISTOGRAM_NAME
+    );
+
     this._consumer.setTopics([CommandTopics.LedgerCommands]);
     this._consumer.setBatchCallbackFn(async (messages: IMessage[]) => {
       // filter out only commands (sort of redundant but good practice)
       const cmds = messages.filter((m) => m.msgType === MessageTypes.COMMAND);
       if (cmds.length === 0) return;
-      // TODO hook telemetry here
+
+      this._telemetryService.updateGauge(
+        CMD_BATCH_SIZE_GAUGE_NAME,
+        messages.length
+      );
+
+      const cmdTimerFn = batchHistogram.startTimer();
       await this._ledgerAggregate.processCommands(cmds as CommandMsg[]);
+      cmdTimerFn();
     });
 
     await this._consumer.connect();

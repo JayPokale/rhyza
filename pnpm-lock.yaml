@@ -102,6 +102,9 @@ importers:
       fastify:
         specifier: ~5.3.3
         version: 5.3.3
+      ilp-client-lib:
+        specifier: workspace:*
+        version: link:../ilp-client-lib
       implementations-lib:
         specifier: workspace:*
         version: link:../implementations-lib
@@ -266,6 +269,65 @@ importers:
         specifier: ^4.19.3
         version: 4.19.3
 
+  packages/ilp-api-service:
+    dependencies:
+      '@grpc/grpc-js':
+        specifier: ~1.14.3
+        version: 1.14.3
+      '@grpc/proto-loader':
+        specifier: ~0.8.0
+        version: 0.8.0
+      '@grpc/reflection':
+        specifier: ~1.0.4
+        version: 1.0.4(@grpc/grpc-js@1.14.3)
+      common-types-lib:
+        specifier: workspace:*
+        version: link:../common-types-lib
+      google-protobuf:
+        specifier: ~4.0.1
+        version: 4.0.2
+      ilp-domain-lib:
+        specifier: workspace:*
+        version: link:../ilp-domain-lib
+      ilp-implementations-lib:
+        specifier: workspace:*
+        version: link:../ilp-implementations-lib
+      ilp-public-types-lib:
+        specifier: workspace:*
+        version: link:../ilp-public-types-lib
+      implementations-lib:
+        specifier: workspace:*
+        version: link:../implementations-lib
+      protobufjs:
+        specifier: ~8.0.0
+        version: 8.0.0
+    devDependencies:
+      '@types/google-protobuf':
+        specifier: ~3.15.12
+        version: 3.15.12
+      tsx:
+        specifier: ^4.19.3
+        version: 4.19.3
+
+  packages/ilp-client-lib:
+    dependencies:
+      '@grpc/grpc-js':
+        specifier: ~1.14.3
+        version: 1.14.3
+      ilp-public-types-lib:
+        specifier: workspace:*
+        version: link:../ilp-public-types-lib
+    devDependencies:
+      '@types/google-protobuf':
+        specifier: ~3.15.12
+        version: 3.15.12
+      tslib:
+        specifier: ~2.8.1
+        version: 2.8.1
+      tsx:
+        specifier: ^4.19.3
+        version: 4.19.3
+
   packages/ilp-command-handler-service:
     dependencies:
       common-types-lib:
@@ -350,6 +412,9 @@ importers:
       ilp-domain-lib:
         specifier: workspace:*
         version: link:../ilp-domain-lib
+      mongodb:
+        specifier: ~7.1.0
+        version: 7.1.0
     devDependencies:
       tsx:
         specifier: ^4.19.3
