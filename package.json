@@ -16,7 +16,8 @@
     "docker:peers:up": "docker compose -f ./docker/docker-compose.yaml -f ./docker/docker-compose.node-b.yaml down --volumes && docker compose -f ./docker/docker-compose.yaml -f ./docker/docker-compose.node-b.yaml up --build -d",
     "build": "pnpm -r  build",
     "format": "prettier --write .",
-    "test": "pnpm -r test"
+    "test": "pnpm -r test",
+    "e2e": "pnpm -r tests-e2e"
   },
   "keywords": [],
   "author": "",
