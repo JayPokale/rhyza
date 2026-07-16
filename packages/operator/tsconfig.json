@@ -1,18 +1,27 @@
+//{
+//  "compilerOptions": {
+//    "target": "es2023",
+//    "module": "NodeNext",
+//    "lib": ["ES2023"],
+//    "outDir": "./dist",
+//    "rootDir": "./src",
+//    "strict": true,
+//    "esModuleInterop": true,
+//    "skipLibCheck": true,
+//    "forceConsistentCasingInFileNames": true,
+//    "resolveJsonModule": true
+//  },
+//  "include": ["src/**/*"],
+//  "exclude": ["node_modules", "dist"]
+//}
+
+
 {
+  "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "target": "es2023",
-    "module": "NodeNext",
-    "lib": ["ES2023"],
-    "outDir": "./dist",
     "rootDir": "./src",
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true
+    "outDir": "./dist"
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "references": []
 }
-
-

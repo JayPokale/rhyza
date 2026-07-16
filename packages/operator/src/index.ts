@@ -18,7 +18,7 @@
 
 import * as http from 'http';
 import * as k8s from '@kubernetes/client-node';
-import { RafikiInstance } from './types.js';
+import { RafikiInstance, RafikiInstanceSpec } from './types.js';
 import { reconcile, cleanup } from './controller.js';
 
 // ---------------------------------------------------------------------------
@@ -44,6 +44,49 @@ function startHealthServer(port: number): void {
     .listen(port, () => {
       console.log(`Health server listening on :${port}/healthz`);
     });
+}
+
+let isReconciling = false;
+let isDeleting = false;
+
+const BACKOFF_BASE_MS = 1_000;
+const BACKOFF_MAX_MS = 60_000;
+let backoffMs = BACKOFF_BASE_MS;
+
+async function reconcileWrapper(
+  kc: k8s.KubeConfig,
+  name: string,
+  namespace: string,
+  spec: RafikiInstanceSpec,
+  generation: number
+): Promise<void> {
+  // eslint-disable-next-line no-async-promise-executor
+  return new Promise(async (resolve, reject) => {
+    isReconciling = true;
+
+    reconcile(kc, name, namespace, spec, generation).then(()=>{
+      isReconciling = false;
+      return resolve();
+    }).catch((err) => {
+      // Add ±20% jitter to avoid thundering-herd if multiple operators restart
+      // at the same time (e.g. after a cluster-wide network partition).
+      const jitter = 1 + (Math.random() * 0.4 - 0.2);
+      const delay = Math.min(backoffMs * jitter, BACKOFF_MAX_MS);
+
+      console.error('[Informer] Error:', err.message);
+      console.log(
+        `[Informer] Restarting in ${Math.round(delay)}ms (backoff: ${backoffMs}ms)...`
+      );
+
+      if(isDeleting)
+        return resolve();
+
+      setTimeout(async () => {
+        backoffMs = Math.min(backoffMs * 2, BACKOFF_MAX_MS);
+        return reconcileWrapper(kc, name, namespace, spec, generation);
+      }, delay);
+    });
+  });
 }
 
 async function main() {
@@ -77,11 +120,11 @@ async function main() {
   // The list function tells the informer HOW to enumerate existing
   // RafikiInstance objects and HOW to watch for new ones.
   const listFn = () =>
-    customObjectsApi.listClusterCustomObject(
-      'rafiki.interledger.org',
-      'v1alpha1',
-      'rafikiinstances'
-    );
+    customObjectsApi.listClusterCustomObject({
+      group: 'rafiki.interledger.org',
+      version: 'v1alpha1',
+      plural: 'rafikiinstances'
+    });
 
   // -------------------------------------------------------------------------
   // Step 3: Create and start the Informer
@@ -99,11 +142,12 @@ async function main() {
 
   // ADDED: Fired when a new RafikiInstance is created
   informer.on('add', async (obj: RafikiInstance) => {
+    if (isReconciling)
+      return;
+
     const { name, namespace, generation } = obj.metadata;
     console.log(`[Informer] ADD event: ${namespace}/${name}`);
-    await reconcile(kc, name, namespace, obj.spec, generation ?? 0).catch(
-      console.error
-    );
+    await reconcileWrapper(kc, name, namespace, obj.spec, generation ?? 0);
   });
 
   // UPDATED: Fired when an existing RafikiInstance is modified (e.g. spec
@@ -112,21 +156,24 @@ async function main() {
   // reconciling when we've already observed this generation — otherwise
   // reconcile()'s own status update triggers another UPDATE event forever.
   informer.on('update', async (obj: RafikiInstance) => {
+    if (isReconciling)
+      return;
+
     const { name, namespace, generation } = obj.metadata;
     if (generation !== undefined && generation === obj.status?.observedGeneration) {
       return;
     }
     console.log(`[Informer] UPDATE event: ${namespace}/${name}`);
-    await reconcile(kc, name, namespace, obj.spec, generation ?? 0).catch(
-      console.error
-    );
+    await reconcileWrapper(kc, name, namespace, obj.spec, generation ?? 0);
   });
 
   // DELETED: Fired when a RafikiInstance is deleted. Cleans up child resources.
   informer.on('delete', async (obj: RafikiInstance) => {
+    isDeleting = true;
     const { name, namespace } = obj.metadata;
     console.log(`[Informer] DELETE event: ${namespace}/${name}`);
     await cleanup(kc, namespace).catch(console.error);
+    isDeleting = false;
   });
 
   // ERROR: Lost connection or list error. Retry after a delay.

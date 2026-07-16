@@ -57,14 +57,23 @@ export interface RafikiInstanceSpec {
 
   /**
    * Public hostname for the Open Payments resource server
-   * (e.g. "payments.integrator.com"). This is the ONLY service exposed
-   * outside the cluster. When set, the operator creates an Ingress routing
+   * (e.g. "payments.integrator.com"). When set, the operator creates an Ingress routing
    * this host to open-payments-resource-service, and injects it (bare, no
    * scheme) as OPEN_PAYMENTS_RESOURCE_SERVER_URL — the value the service
    * bakes into wallet address IDs, so it must match the Ingress host
    * exactly. Omit to keep the resource server ClusterIP-only (local dev).
    */
-  host?: string;
+  openPaymentsApiHost?: string;
+
+  /**
+   * Public hostname for the Admin API server
+   * (e.g. "admin-api.integrator.com"). When set, the operator creates an Ingress routing
+   * this host to open-payments-resource-service, and injects it (bare, no
+   * scheme) as OPEN_PAYMENTS_RESOURCE_SERVER_URL — the value the service
+   * bakes into wallet address IDs, so it must match the Ingress host
+   * exactly. Omit to keep the resource server ClusterIP-only (local dev).
+   */
+  adminApiHost?: string;
 
   /**
    * Name of an existing Secret (in this namespace) of type kubernetes.io/tls
@@ -83,10 +92,10 @@ export interface RafikiInstanceSpec {
   tlsIssuer?: string;
 
   /**
-   * IngressClassName to set on the generated Ingress (e.g. "nginx").
+   * GatewayClassName to set on the generated Gateway (e.g. "traefik").
    * Omit to use the cluster's default IngressClass.
    */
-  ingressClassName?: string;
+  gatewayClassName?: string;
 }
 
 export interface RafikiInstanceStatus {

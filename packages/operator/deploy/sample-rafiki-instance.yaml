@@ -43,14 +43,15 @@ spec:
 
   # Deploy the observability stack (Prometheus, Grafana, Tempo, OTEL, Redpanda Console).
   # Set to false to skip for a lighter-weight deployment.
-  observability: true
+  observability: false
 
   # --- Exposing open-payments-resource-service to the internet ---
   # Uncomment to create an Ingress. `host` is baked into wallet address IDs
   # returned by the resource server, so it must be the exact hostname your
   # DNS points at the ingress controller's load balancer.
   #
-  # host: 'payments.integrator.com'
+  #openPaymentsApiHost: 'payments.integrator.com'
+  #adminApiHost: 'payments.integrator.com'
   #
   # Bring your own cert (created/rotated outside the operator):
   # tlsSecretName: 'payments-integrator-com-tls'
@@ -59,4 +60,4 @@ spec:
   # cert-manager to already be installed in the cluster):
   # tlsIssuer: 'letsencrypt-prod'
   #
-  # ingressClassName: 'nginx'
+  # gatewayClassName: 'traefik'

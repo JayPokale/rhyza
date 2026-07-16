@@ -16,6 +16,7 @@
 
 import * as k8s from '@kubernetes/client-node';
 import { RafikiInstanceSpec } from '../types.js';
+import { makeDeployment } from '../helpers';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -23,7 +24,7 @@ import { RafikiInstanceSpec } from '../types.js';
 
 /** Image name for a Rafiki-v2 package, e.g. "ghcr.io/.../admin-api-service:latest" */
 function image(spec: RafikiInstanceSpec, packageName: string): string {
-  return `${spec.imageRegistry}/${packageName}:${spec.imageTag}`;
+  return `${spec.imageRegistry}-${packageName}:${spec.imageTag}`;
 }
 
 /**
@@ -65,6 +66,7 @@ function waitForKafkaInit(namespace: string): k8s.V1Container {
 }
 
 /** MongoDB URL from a Secret. */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function mongoUrl(spec: RafikiInstanceSpec): k8s.V1EnvVar {
   return {
     name: 'MONGODB_URL',
@@ -120,45 +122,6 @@ export interface AppManifests {
   service: k8s.V1Service | null;
 }
 
-/** Builds a standard Deployment object. */
-function makeDeployment(
-  name: string,
-  namespace: string,
-  replicas: number,
-  image: string,
-  env: k8s.V1EnvVar[],
-  ports: Array<{ containerPort: number }>,
-  initContainers?: k8s.V1Container[]
-): k8s.V1Deployment {
-  return {
-    apiVersion: 'apps/v1',
-    kind: 'Deployment',
-    metadata: { name, namespace, labels: { app: name } },
-    spec: {
-      replicas,
-      selector: { matchLabels: { app: name } },
-      template: {
-        metadata: { labels: { app: name } },
-        spec: {
-          initContainers: initContainers ?? [],
-          containers: [
-            {
-              name,
-              image,
-              // IfNotPresent works for both a locally-built dev image (never
-              // pushed to a registry, so it must come from the node's local
-              // cache) and a real registry image (pulled the first time it's
-              // needed, cached after that).
-              imagePullPolicy: 'IfNotPresent',
-              env,
-              ports: ports.map((p) => ({ containerPort: p.containerPort }))
-            }
-          ]
-        }
-      }
-    }
-  };
-}
 
 // ---------------------------------------------------------------------------
 // Application services
@@ -226,7 +189,7 @@ export function openPaymentsResourceService(
           // Falls back to the internal cluster DNS name when no public host
           // is configured (ClusterIP-only / local dev).
           name: 'OPEN_PAYMENTS_RESOURCE_SERVER_URL',
-          value: spec.host ?? 'open-payments-resource-service:3002'
+          value: spec.openPaymentsApiHost ?? 'open-payments-resource-service:3002'
         }
       ],
       [{ containerPort: 3002 }],

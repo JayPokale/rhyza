@@ -1,5 +1,5 @@
 {
-  "name": "@rafiki-v2/operator",
+  "name": "operator",
   "version": "0.1.0",
   "description": "Kubernetes operator for Rafiki-v2 services",
   "main": "dist/index.js",
@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@kubernetes/client-node": "^0.22.3"
+    "@kubernetes/client-node": "~1.4.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

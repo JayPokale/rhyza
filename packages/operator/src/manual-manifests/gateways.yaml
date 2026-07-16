@@ -1,0 +1,84 @@
+# To use these gateways, we have to install traefik
+#
+#  1. Add and update the Traefik Helm repository
+#  helm repo add traefik https://traefik.github.io/charts
+#  helm repo update
+#
+#  2. Install Traefik with the Gateway API provider enabled
+#  helm upgrade --install traefik traefik/traefik \
+#  --namespace traefik \
+#  --create-namespace \
+#  --set providers.kubernetesGateway.enabled=true \
+#  --set providers.kubernetesIngress.enabled=false \
+#  --set providers.kubernetesCRD.enabled=true
+#
+#  Requests are sent to the traefik service, which is exposed as a LoadBalancer,
+#  to get the ip of traefik service, run:
+#  kubectl get svc traefik -n traefik -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: rafiki-ext-gateway
+  namespace: rafiki
+spec:
+  gatewayClassName: traefik
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 8000
+
+#    tls:
+#      certificateRefs:
+#      - kind: Secret
+#        group: ""
+#        name: example-com-cert
+
+---
+# Example for this (see above for IP_OF_TRAEFIK_SERVICE):
+#  curl -H "host:admin-api.rafiki.cluster" -I http://IP_OF_TRAEFIK_SERVICE/
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: admin-api-service-routes
+  namespace: rafiki
+spec:
+  parentRefs:
+    - name: rafiki-ext-gateway
+  hostnames:
+    - "admin-api.rafiki.cluster"
+  rules:
+    - backendRefs:
+        - name: admin-api-service
+          port: 3001
+---
+# Example for this (see above for IP_OF_TRAEFIK_SERVICE):
+#  curl -H "host:open-payments-api.rafiki.cluster" -I http://IP_OF_TRAEFIK_SERVICE/
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: open-payments-api-service-routes
+  namespace: rafiki
+spec:
+  parentRefs:
+    - name: rafiki-ext-gateway
+  hostnames:
+    - "open-payments-api.rafiki.cluster"
+  rules:
+    - backendRefs:
+        - name: open-payments-resource-service
+          port: 3002
+#---
+#apiVersion: gateway.networking.k8s.io/v1
+#kind: GRPCRoute
+#metadata:
+#  name: pal-api-service-gw
+#spec:
+#  parentRefs:
+#    - name: traefik
+#      sectionName: http
+#      kind: Gateway
+#  rules:
+#  - backendRefs:
+#    - name: pal-api-service
+#      port: 50051

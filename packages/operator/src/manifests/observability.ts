@@ -1,3 +1,5 @@
+import * as k8s from '@kubernetes/client-node';
+
 // manifests/observability.ts
 //
 // Deployment manifests for the observability stack:
@@ -11,64 +13,9 @@
 // ConfigMaps (otel-collector-config.yaml, prometheus.yaml, tempo.yaml) must
 // be applied separately (or created from the docker/ config files).
 
-import * as k8s from '@kubernetes/client-node';
+import { clusterIpService, simpleDeployment } from '../helpers';
 
-function simpleDeployment(
-  name: string,
-  namespace: string,
-  image: string,
-  ports: number[],
-  env: k8s.V1EnvVar[] = [],
-  args: string[] = [],
-  volumeMounts: k8s.V1VolumeMount[] = [],
-  volumes: k8s.V1Volume[] = []
-): k8s.V1Deployment {
-  return {
-    apiVersion: 'apps/v1',
-    kind: 'Deployment',
-    metadata: { name, namespace, labels: { app: name } },
-    spec: {
-      replicas: 1,
-      selector: { matchLabels: { app: name } },
-      template: {
-        metadata: { labels: { app: name } },
-        spec: {
-          volumes,
-          containers: [
-            {
-              name,
-              image,
-              args: args.length > 0 ? args : undefined,
-              env: env.length > 0 ? env : undefined,
-              ports: ports.map((p) => ({ containerPort: p })),
-              volumeMounts: volumeMounts.length > 0 ? volumeMounts : undefined
-            }
-          ]
-        }
-      }
-    }
-  };
-}
 
-function clusterIpService(
-  name: string,
-  namespace: string,
-  ports: Array<{ port: number; targetPort: number; name?: string }>
-): k8s.V1Service {
-  return {
-    apiVersion: 'v1',
-    kind: 'Service',
-    metadata: { name, namespace, labels: { app: name } },
-    spec: {
-      type: 'ClusterIP',
-      selector: { app: name },
-      ports: ports.map((p) => ({
-        name: p.name ?? String(p.port),
-        port: p.port
-      }))
-    }
-  };
-}
 
 // ---------------------------------------------------------------------------
 // OpenTelemetry Collector

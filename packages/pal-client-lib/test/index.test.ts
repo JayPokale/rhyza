@@ -36,7 +36,7 @@ let createdAssetLedgerAccountId: string;
 let peerOneDto: IPalPeerDto;
 
 before(async () => {
-  client = new PalClient('0.0.0.0:50051');
+  client = new PalClient('pal-api-service.rafiki.svc.cluster.local:50051');
   await client.init();
 });
 

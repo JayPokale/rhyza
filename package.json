@@ -8,6 +8,7 @@
     "check:format": "prettier --check .",
     "docker": "docker compose -f ./docker/docker-compose.yaml",
     "docker:up": "docker compose -f ./docker/docker-compose.yaml down --volumes && docker compose -f ./docker/docker-compose.yaml up --build -d",
+    "docker:build-all": "./scripts/build_all_images.sh",
     "build": "pnpm -r  build",
     "format": "prettier --write .",
     "test": "pnpm -r test"

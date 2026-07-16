@@ -39,7 +39,7 @@ RUN pnpm --filter implementations-lib build
 RUN pnpm --filter pal-public-types-lib build
 RUN pnpm --filter pal-domain-lib build
 RUN pnpm --filter pal-implementations-lib build
-RUN pnpm --filter pal-api-service-lib build
+RUN pnpm --filter pal-api-service build
 
 FROM node:24-alpine AS runner
 WORKDIR /workspace

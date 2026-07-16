@@ -98,7 +98,7 @@ spec:
                   type: boolean
                   default: true
                   description: 'Whether to deploy the observability stack'
-                host:
+                openPaymentsApiHost:
                   type: string
                   description: >-
                     Public hostname for the Open Payments resource server
@@ -107,6 +107,12 @@ spec:
                     creates an Ingress and injects this value as
                     OPEN_PAYMENTS_RESOURCE_SERVER_URL. Omit to keep the
                     resource server ClusterIP-only.
+                adminApiHost:
+                  type: string
+                  description: >-
+                    Public hostname for the admin API server
+                    (e.g. admin-api.integrator.com).
+                    Omit to keep the resource server ClusterIP-only.
                 tlsSecretName:
                   type: string
                   description: >-
@@ -121,10 +127,10 @@ spec:
                     certificate from automatically, as an alternative to
                     tlsSecretName. Requires cert-manager to be installed;
                     the operator does not install or require it.
-                ingressClassName:
+                gatewayClassName:
                   type: string
                   description: >-
-                    IngressClassName for the generated Ingress. Omit to use
+                    GatewayClassName for the generated Gateway. Omit to use
                     the cluster default IngressClass.
             status:
               type: object

@@ -8,6 +8,7 @@
 
 import * as k8s from '@kubernetes/client-node';
 import { RafikiInstanceSpec } from '../types.js';
+/*
 
 function ingressRule(
   host: string,
@@ -57,3 +58,4 @@ export function openPaymentsIngress(
     }
   };
 }
+*/
