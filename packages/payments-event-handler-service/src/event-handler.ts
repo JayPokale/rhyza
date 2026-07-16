@@ -23,7 +23,8 @@ import {
   AcceptReceivedPaymentCmd,
   FailReceivedPaymentCmd,
   MarkReceivedPaymentFulfillableCmd,
-  FinalizeReceivedPaymentCmd
+  FinalizeReceivedPaymentCmd,
+  CalculateRemoteQuoteCmd
 } from 'payments-domain-lib';
 import {
   LedgerOutgoingTransferReservedEvent,
@@ -148,23 +149,19 @@ export class PaymentsEventHandler {
         break;
       }
       case ILPQuoteRequestReceivedEvent.name: {
-        // TODO: ILP's ILPQuoteRequestReceivedPayload does
-        // not currently carry paymentIntentId / sourceAmount / peerAssetCode /
-        // peerAssetScale / requestId.
-        // const payload =
-        //   message.payload as ILPQuoteRequestReceivedEvent['payload'];
-        // const cmd = new CalculateRemoteQuoteCmd(
-        //   {
-        //     packetId: payload.packetId,
-        //     peerId: payload.peerId,
-        //     paymentIntentId: payload.paymentIntentId,
-        //     sourceAmount: payload.incomingAmount,
-        //     peerAssetCode: payload.peerAssetCode,
-        //     peerAssetScale: payload.peerAssetScale
-        //   },
-        //   payload.requestId
-        // );
-        // await this._msgProducer.send(cmd);
+        // TODO: need paymentIntentId
+        const payload =
+          message.payload as ILPQuoteRequestReceivedEvent['payload'];
+        const cmd = new CalculateRemoteQuoteCmd(
+          {
+            packetId: payload.packetId,
+            peerId: payload.peerId,
+            paymentIntentId: payload.paymentIntentId,
+            sourceAmount: payload.incomingAmount
+          },
+          crypto.randomUUID()
+        );
+        await this._msgProducer.send(cmd);
         break;
       }
       case ILP_PAYMENT_RECEIVED_EVENT_NAME: {

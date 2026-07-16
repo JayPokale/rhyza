@@ -228,8 +228,6 @@ export type CalculateRemoteQuoteCmdPayload = {
   peerId: string;
   paymentIntentId: string;
   sourceAmount: string;
-  peerAssetCode: string;
-  peerAssetScale: number;
 };
 
 export class CalculateRemoteQuoteCmd extends PaymentIntentCommand {

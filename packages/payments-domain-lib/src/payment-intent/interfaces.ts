@@ -128,6 +128,7 @@ export interface IPeer {
 export interface IPalService {
   getWalletAddresses(ids: string[]): Promise<IWalletAddress[]>;
   getPeerByIlpAddress(ilpAddress: string): Promise<IPeer | null>;
+  getPeerById(peerId: string): Promise<IPeer | null>;
   getRates(request: IFxRateRequest): Promise<number | null>;
 }
 
