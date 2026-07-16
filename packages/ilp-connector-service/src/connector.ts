@@ -124,6 +124,9 @@ export class IlpConnector {
   private async _handleDispatchPrepare(
     payload: DispatchPreparePacketCmd['payload']
   ): Promise<void> {
+    this._logger.debug(
+      `Dispatch outbound prepare — packet ${payload.packetId} peer ${payload.peerId} amount ${payload.amount}`
+    );
     await this._correlationStore.storeOutboundCorrelation(payload.packetId, {
       peerId: payload.peerId,
       paymentIntentId: payload.paymentIntentId,
@@ -151,6 +154,10 @@ export class IlpConnector {
   }
 
   private async _handleWireResponse(response: WireResponse): Promise<void> {
+    this._logger.debug(
+      `Wire response — ${response.kind} packet ${response.packetId}` +
+        (response.kind === 'REJECT' ? ` rejectCode ${response.rejectCode}` : '')
+    );
     await this._correlationStore.cancelOutboundExpiry(response.packetId);
 
     const correlation = await this._correlationStore.takeOutboundCorrelation(
@@ -194,6 +201,9 @@ export class IlpConnector {
     prepare: WirePrepare,
     callbackUrl: string
   ): Promise<void> {
+    this._logger.debug(
+      `Inbound prepare — packet ${prepare.packetId} peer ${prepare.peerId} amount ${prepare.amount} dest ${prepare.destinationIlpAddress}`
+    );
     const replyHandle = await this._correlationStore.createInboundReplyHandle({
       peerId: prepare.peerId,
       packetId: prepare.packetId,

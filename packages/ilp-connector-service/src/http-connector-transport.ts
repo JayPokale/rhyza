@@ -125,6 +125,10 @@ export class HttpConnectorTransport implements IConnectorTransport {
       return;
     }
 
+    this._logger.debug(
+      `POST prepare → ${outgoing.endpoint} (peer ${prepare.peerId}, packet ${prepare.packetId})`
+    );
+
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this._acceptTimeoutMs);
 
@@ -146,6 +150,10 @@ export class HttpConnectorTransport implements IConnectorTransport {
         }),
         signal: controller.signal
       });
+
+      this._logger.debug(
+        `Prepare POST peer ${prepare.peerId} packet ${prepare.packetId} → HTTP ${res.status}`
+      );
 
       if (res.status === 202) {
         void this._outboundPrepareAcceptedHandler?.(prepare);
