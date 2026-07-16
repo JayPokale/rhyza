@@ -352,6 +352,9 @@ importers:
       common-types-lib:
         specifier: workspace:*
         version: link:../common-types-lib
+      ilp-protocol-stream:
+        specifier: 2.7.2-alpha.3
+        version: 2.7.2-alpha.3
     devDependencies:
       tsx:
         specifier: ^4.19.3

@@ -2,3 +2,4 @@
 
 export * from './credentials';
 export * from './decode';
+export * from './encode';

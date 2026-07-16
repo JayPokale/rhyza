@@ -31,7 +31,8 @@ import {
   ILPQuoteFailedEvent,
   StartRemotePaymentCmd,
   StartRemoteQuoteCmd,
-  UpdatePeerCmd
+  UpdatePeerCmd,
+  decodeInboundStreamPrepare
 } from 'ilp-domain-lib';
 import {
   InMemoryPeerRepository,
@@ -360,7 +361,46 @@ describe('IlpCommandHandler — remote payment sending', () => {
     assert.equal(dispatch.payload.amount, '100');
   });
 
-  test('StartRemotePaymentCmd passes sharedSecret on PaymentDispatch', async () => {
+  test('StartRemotePaymentCmd dispatches a STREAM-verifiable execution condition', async () => {
+    const { producer, consumer } = await startedHandler();
+    const sharedSecretBuf = Buffer.alloc(32, 9);
+    const sharedSecret = sharedSecretBuf.toString('base64url');
+
+    await consumer.deliver([
+      new StartRemotePaymentCmd(
+        {
+          peerId: 'peer-1',
+          paymentIntentId: 'intent-1',
+          paymentId: 'pay-1',
+          destinationIlpAddress: 'g.peer.bob',
+          amount: '100',
+          assetCode: 'USD',
+          assetScale: 2,
+          expiresAt: new Date(Date.now() + 30_000).toISOString(),
+          sharedSecret
+        },
+        'req-pay-1'
+      )
+    ]);
+
+    const dispatch = producer.sent.find(
+      (m) => m.msgName === DispatchPreparePacketCmd.name
+    ) as DispatchPreparePacketCmd;
+    assert.ok(dispatch);
+    assert.ok(dispatch.payload.data, 'expected STREAM packet data');
+
+    const decoded = decodeInboundStreamPrepare({
+      sharedSecret: sharedSecretBuf,
+      executionCondition: Buffer.from(
+        dispatch.payload.executionCondition,
+        'base64'
+      ),
+      data: Buffer.from(dispatch.payload.data!, 'base64')
+    });
+    assert.equal(decoded.fulfillable, true);
+  });
+
+  test('StartRemotePaymentCmd passes sharedSecret and STREAM fields on PaymentDispatch', async () => {
     const dispatches: PacketDispatch[] = [];
     const peeringClient: IPeeringClient = {
       async dispatch(input) {
@@ -409,6 +449,19 @@ describe('IlpCommandHandler — remote payment sending', () => {
     if (dispatches[0].type === 'PAYMENT') {
       assert.equal(dispatches[0].sharedSecret, sharedSecret);
       assert.equal(dispatches[0].paymentId, 'pay-1');
+      assert.ok(dispatches[0].executionCondition);
+      assert.ok(dispatches[0].data);
+      assert.equal(
+        decodeInboundStreamPrepare({
+          sharedSecret: Buffer.from(sharedSecret, 'base64url'),
+          executionCondition: Buffer.from(
+            dispatches[0].executionCondition,
+            'base64'
+          ),
+          data: Buffer.from(dispatches[0].data, 'base64')
+        }).fulfillable,
+        true
+      );
     }
   });
 });
@@ -533,5 +586,35 @@ describe('KafkaPeeringClient', () => {
       Buffer.from(cmd.payload.executionCondition, 'base64').length,
       32
     );
+    assert.equal(cmd.payload.data, undefined);
+  });
+
+  test('maps a PAYMENT dispatch using the provided STREAM condition and data', async () => {
+    const producer = new MockProducer();
+    const client = new KafkaPeeringClient(producer, new ConsoleLogger());
+    const executionCondition = Buffer.alloc(32, 1).toString('base64');
+    const data = Buffer.from('stream-ciphertext').toString('base64');
+
+    await client.dispatch({
+      type: 'PAYMENT',
+      peerId: 'peer-9',
+      packetId: 'pk-pay',
+      paymentIntentId: 'intent-9',
+      paymentId: 'pay-9',
+      destinationIlpAddress: 'g.peer.bob',
+      amount: '100',
+      assetCode: 'USD',
+      assetScale: 2,
+      expiresAt: new Date().toISOString(),
+      sharedSecret: Buffer.alloc(32, 2).toString('base64url'),
+      executionCondition,
+      data
+    });
+
+    assert.equal(producer.sent.length, 1);
+    const cmd = producer.sent[0] as DispatchPreparePacketCmd;
+    assert.equal(cmd.payload.executionCondition, executionCondition);
+    assert.equal(cmd.payload.data, data);
+    assert.equal(cmd.payload.amount, '100');
   });
 });

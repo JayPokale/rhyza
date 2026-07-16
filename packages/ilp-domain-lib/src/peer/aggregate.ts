@@ -22,6 +22,7 @@ import {
 import { PacketNotFound } from '../packet/errors';
 import {
   decodeInboundStreamPrepare,
+  encodeOutgoingStreamPrepare,
   ResolveStreamCredentials
 } from '../stream';
 import { Peer } from './entity';
@@ -305,6 +306,11 @@ export class IlpPeerAggregate {
     });
     await this.peerRepo.storePacket(correlation.toObject());
 
+    const encoded = encodeOutgoingStreamPrepare({
+      sharedSecret: Buffer.from(payload.sharedSecret, 'base64url'),
+      amount: payload.amount
+    });
+
     await this.peeringClient.dispatch({
       type: 'PAYMENT',
       peerId: peer.peerId,
@@ -316,7 +322,9 @@ export class IlpPeerAggregate {
       assetCode: payload.assetCode,
       assetScale: payload.assetScale,
       expiresAt: payload.expiresAt,
-      sharedSecret: payload.sharedSecret
+      sharedSecret: payload.sharedSecret,
+      executionCondition: encoded.executionCondition.toString('base64'),
+      data: encoded.data.toString('base64')
     });
 
     return [];

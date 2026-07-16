@@ -16,20 +16,20 @@ export class KafkaPeeringClient implements IPeeringClient {
   ) {}
 
   async dispatch(input: PacketDispatch): Promise<void> {
+    const isPayment = input.type === 'PAYMENT';
     const cmd = new DispatchPreparePacketCmd({
       peerId: input.peerId,
       packetId: input.packetId,
       paymentIntentId: input.paymentIntentId,
       destinationIlpAddress: input.destinationIlpAddress,
-      amount: input.type === 'QUOTE' ? input.sourceAmount : input.amount,
+      amount: isPayment ? input.amount : input.sourceAmount,
       expiresAt: input.expiresAt,
-      // A quote is an unfulfillable probe, so a random condition is correct (for now).
-      // TODO: once we have STREAM, the execution condition (and the
-      // packet `data`) for both quotes and payments will be produced by the
-      // aggregate and carried on the dispatch instead of added here.
-      executionCondition: Buffer.from(
-        crypto.getRandomValues(new Uint8Array(32))
-      ).toString('base64')
+      executionCondition: isPayment
+        ? input.executionCondition
+        : Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString(
+            'base64'
+          ),
+      data: isPayment ? input.data : undefined
     });
 
     this._logger.debug(
