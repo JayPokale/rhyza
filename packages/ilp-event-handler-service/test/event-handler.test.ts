@@ -10,6 +10,8 @@ import {
   IMessageProducerAcks
 } from 'common-types-lib';
 import {
+  ActivatePeerCmd,
+  DeactivatePeerCmd,
   ILPQuoteRequestReceivedEvent,
   RespondToRemoteQuoteCmd
 } from 'ilp-domain-lib';
@@ -17,6 +19,7 @@ import {
   RemoteQuoteCalculatedEvent,
   RemoteQuoteCalculationFailedEvent
 } from 'payments-public-types-lib';
+import { PeerActivatedEvent, PeerDeactivatedEvent } from 'pal-public-types-lib';
 import { IlpEventHandler } from '../src/event-handler';
 import { FixedRateQuoteCalculator, PaymentsBcQuoteFixture } from './helpers';
 
@@ -116,6 +119,47 @@ describe('IlpEventHandler', () => {
     assert.equal(producer.sent.length, 1);
     const cmd = producer.sent[0] as RespondToRemoteQuoteCmd;
     assert.equal(cmd.payload.destinationAmount, undefined);
+  });
+
+  test('maps a PAL PeerActivatedEvent to an ActivatePeerCmd', async () => {
+    const producer = new MockProducer();
+    const consumer = new MockConsumer();
+    const handler = new IlpEventHandler(
+      consumer,
+      producer,
+      new ConsoleLogger()
+    );
+    await handler.start();
+
+    await consumer.deliver([new PeerActivatedEvent({ peerId: 'peer-1' })]);
+
+    assert.equal(producer.sent.length, 1);
+    const cmd = producer.sent[0] as ActivatePeerCmd;
+    assert.equal(cmd.msgName, ActivatePeerCmd.name);
+    assert.equal(cmd.msgTopic, 'ilp-commands');
+    assert.equal(cmd.msgKey, 'peer-1');
+    assert.equal(cmd.payload.peerId, 'peer-1');
+    assert.ok(cmd.requestId, 'expected a requestId to be propagated');
+  });
+
+  test('maps a PAL PeerDeactivatedEvent to a DeactivatePeerCmd', async () => {
+    const producer = new MockProducer();
+    const consumer = new MockConsumer();
+    const handler = new IlpEventHandler(
+      consumer,
+      producer,
+      new ConsoleLogger()
+    );
+    await handler.start();
+
+    await consumer.deliver([new PeerDeactivatedEvent({ peerId: 'peer-1' })]);
+
+    assert.equal(producer.sent.length, 1);
+    const cmd = producer.sent[0] as DeactivatePeerCmd;
+    assert.equal(cmd.msgName, DeactivatePeerCmd.name);
+    assert.equal(cmd.msgTopic, 'ilp-commands');
+    assert.equal(cmd.msgKey, 'peer-1');
+    assert.equal(cmd.payload.peerId, 'peer-1');
   });
 
   test('ignores unrelated Payments BC events', async () => {

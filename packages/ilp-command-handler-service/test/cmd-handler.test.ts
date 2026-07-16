@@ -10,8 +10,11 @@ import {
   IMessageProducerAcks
 } from 'common-types-lib';
 import {
+  ActivatePeerCmd,
   CreatePeerCmd,
+  DeactivatePeerCmd,
   DispatchPreparePacketCmd,
+  DispatchRejectPacketCmd,
   ExpirePacketCmd,
   IlpPeerAggregate,
   ILPPeerCreatedEvent,
@@ -19,6 +22,7 @@ import {
   ILPPeerUpdatedEvent,
   ILPPeerUpdateFailedEvent,
   IPeer,
+  ProcessPreparePacketCmd,
   ProcessRejectPacketCmd,
   ILPQuoteReceivedEvent,
   ILPQuoteFailedEvent,
@@ -238,6 +242,80 @@ describe('IlpCommandHandler — peer creation/update', () => {
     assert.equal(event.payload.errorName, 'UnknownPeer');
     assert.equal(event.isErrorEvent, true);
     assert.equal(event.requestId, 'req-update-unknown');
+  });
+});
+
+describe('IlpCommandHandler — peer activation mirror', () => {
+  test('DeactivatePeerCmd for an existing peer flips isActive to false', async () => {
+    const { producer, consumer } = await startedHandler();
+
+    await consumer.deliver([
+      new DeactivatePeerCmd({ peerId: 'peer-1' }, 'req-deactivate-1')
+    ]);
+
+    const event = producer.sent.find(
+      (m) => m.msgName === ILPPeerUpdatedEvent.name
+    ) as ILPPeerUpdatedEvent;
+    assert.ok(event, 'expected a ILPPeerUpdatedEvent');
+    assert.equal(event.payload.peerId, 'peer-1');
+    assert.equal(event.payload.isActive, false);
+    assert.equal(event.requestId, 'req-deactivate-1');
+
+    // A deactivated peer's inbound prepares are rejected generically instead
+    // of being decoded/routed
+    await consumer.deliver([
+      new ProcessPreparePacketCmd({
+        peerId: 'peer-1',
+        packetId: 'packet-1',
+        destinationIlpAddress: 'g.us.alice',
+        amount: '100',
+        expiresAt: new Date(Date.now() + 30_000).toISOString(),
+        executionCondition: Buffer.alloc(32).toString('base64')
+      })
+    ]);
+    const dispatch = producer.sent.find(
+      (m) => m.msgName === DispatchRejectPacketCmd.name
+    ) as DispatchRejectPacketCmd | undefined;
+    assert.ok(dispatch, 'expected the inbound prepare to be rejected');
+    assert.equal(dispatch.payload.rejectCode, 'T00');
+  });
+
+  test('ActivatePeerCmd for an existing peer flips isActive to true', async () => {
+    const { producer, consumer } = await startedHandler();
+
+    await consumer.deliver([
+      new DeactivatePeerCmd({ peerId: 'peer-1' }, 'req-deactivate-2')
+    ]);
+    await consumer.deliver([
+      new ActivatePeerCmd({ peerId: 'peer-1' }, 'req-activate-1')
+    ]);
+
+    const events = producer.sent.filter(
+      (m) => m.msgName === ILPPeerUpdatedEvent.name
+    ) as ILPPeerUpdatedEvent[];
+    const activated = events.at(-1);
+    assert.ok(activated, 'expected a ILPPeerUpdatedEvent');
+    assert.equal(activated.payload.isActive, true);
+    assert.equal(activated.requestId, 'req-activate-1');
+  });
+
+  test('DeactivatePeerCmd for an unknown peer yields ILPPeerUpdateFailedEvent', async () => {
+    const { producer, consumer } = await startedHandler();
+
+    await consumer.deliver([
+      new DeactivatePeerCmd(
+        { peerId: 'peer-does-not-exist' },
+        'req-deactivate-unknown'
+      )
+    ]);
+
+    const event = producer.sent.find(
+      (m) => m.msgName === ILPPeerUpdateFailedEvent.name
+    ) as ILPPeerUpdateFailedEvent;
+    assert.ok(event, 'expected a ILPPeerUpdateFailedEvent');
+    assert.equal(event.payload.errorName, 'UnknownPeer');
+    assert.equal(event.isErrorEvent, true);
+    assert.equal(event.requestId, 'req-deactivate-unknown');
   });
 });
 

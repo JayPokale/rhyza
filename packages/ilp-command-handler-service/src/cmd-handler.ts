@@ -6,7 +6,9 @@ import {
   IMessageProducer
 } from 'common-types-lib';
 import {
+  ActivatePeerCmd,
   CreatePeerCmd,
+  DeactivatePeerCmd,
   ExpirePacketCmd,
   IlpPeerAggregate,
   ProcessFulfillPacketCmd,
@@ -21,6 +23,8 @@ import {
 const HANDLED_COMMANDS = new Set<string>([
   CreatePeerCmd.name,
   UpdatePeerCmd.name,
+  ActivatePeerCmd.name,
+  DeactivatePeerCmd.name,
   StartRemoteQuoteCmd.name,
   StartRemotePaymentCmd.name,
   ProcessPreparePacketCmd.name,
