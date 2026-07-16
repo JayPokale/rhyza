@@ -58,9 +58,7 @@ export interface IConnectorTransport {
 
   onInboundPrepare(handler: WireInboundPrepareHandler): void;
 
-  onOutboundPrepareAccepted?(
-    handler: WireOutboundPrepareAcceptedHandler
-  ): void;
+  onOutboundPrepareAccepted?(handler: WireOutboundPrepareAcceptedHandler): void;
 
   // Lifecycle hooks for transports that own a resource (e.g. an HTTP
   // listener). Optional since the in-memory loopback transport used in

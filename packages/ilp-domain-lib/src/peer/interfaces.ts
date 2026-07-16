@@ -39,8 +39,6 @@ export interface IPeerRepository {
   fetchInboundReplyHandle(
     packetId: string
   ): Promise<IInboundPacketReplyHandle | undefined>;
-  storeInboundReplyHandle(
-    handle: IInboundPacketReplyHandle
-  ): Promise<void>;
+  storeInboundReplyHandle(handle: IInboundPacketReplyHandle): Promise<void>;
   deleteInboundReplyHandle(packetId: string): Promise<void>;
 }

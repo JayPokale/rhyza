@@ -231,7 +231,9 @@ export class MongoDbPeerRepository implements IPeerRepository {
     this._checkInitialisedOrThrow();
 
     try {
-      const doc = await this._inboundReplyHandleCollection.findOne({ packetId });
+      const doc = await this._inboundReplyHandleCollection.findOne({
+        packetId
+      });
       return doc ?? undefined;
     } catch (e) {
       this._logger.error(e);

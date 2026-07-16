@@ -3,7 +3,11 @@
 import assert from 'node:assert';
 import { describe, test } from 'node:test';
 import { ConsoleLogger } from 'common-types-lib';
-import { DispatchPreparePacketCmd, ILPPeerCreatedEvent, ProcessRejectPacketCmd } from 'ilp-domain-lib';
+import {
+  DispatchPreparePacketCmd,
+  ILPPeerCreatedEvent,
+  ProcessRejectPacketCmd
+} from 'ilp-domain-lib';
 import { IMessage } from 'common-types-lib';
 import { InMemoryTransportCorrelationStore } from '../src/correlation/in-memory-store';
 import { ITransportCorrelationStore } from '../src/correlation/store';
@@ -150,11 +154,7 @@ describe('HttpConnectorTransport — self-loop over real HTTP (async/callback)',
       });
       transport.onInboundPrepare(async (p, callbackUrl) => {
         const replyHandle = await registerInboundHandle(store, p, callbackUrl);
-        await transport.sendFulfill(
-          fulfillPacket(p),
-          p.peerId,
-          replyHandle
-        );
+        await transport.sendFulfill(fulfillPacket(p), p.peerId, replyHandle);
       });
 
       await transport.sendPrepare(prepare());
@@ -204,11 +204,7 @@ describe('HttpConnectorTransport — self-loop over real HTTP (async/callback)',
         await new Promise((r) => setTimeout(r, 200));
         respondedAt = Date.now();
         const replyHandle = await registerInboundHandle(store, p, callbackUrl);
-        await transport.sendFulfill(
-          fulfillPacket(p),
-          p.peerId,
-          replyHandle
-        );
+        await transport.sendFulfill(fulfillPacket(p), p.peerId, replyHandle);
       });
 
       const before = Date.now();
@@ -321,7 +317,9 @@ describe('HttpConnectorTransport — self-loop over real HTTP (async/callback)',
       });
 
       await transport.sendPrepare(prepare({ packetId: 'packet-replica-b' }));
-      await waitFor(() => capturedPrepare !== undefined && replyHandle !== undefined);
+      await waitFor(
+        () => capturedPrepare !== undefined && replyHandle !== undefined
+      );
 
       await transport.sendFulfill(
         fulfillPacket(capturedPrepare!),
@@ -349,9 +347,7 @@ describe('HttpConnectorTransport — self-loop over real HTTP (async/callback)',
       async sendReject(): Promise<void> {}
       onResponse(): void {}
       onInboundPrepare(): void {}
-      onOutboundPrepareAccepted(
-        handler: (prepare: WirePrepare) => void
-      ): void {
+      onOutboundPrepareAccepted(handler: (prepare: WirePrepare) => void): void {
         this._onOutboundAccepted = handler;
       }
     }
@@ -393,8 +389,7 @@ describe('HttpConnectorTransport — self-loop over real HTTP (async/callback)',
       ]);
 
       await waitFor(
-        () =>
-          sent.some((m) => m.msgName === ProcessRejectPacketCmd.name),
+        () => sent.some((m) => m.msgName === ProcessRejectPacketCmd.name),
         3_000
       );
 

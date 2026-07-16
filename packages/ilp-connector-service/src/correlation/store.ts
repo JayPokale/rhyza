@@ -1,7 +1,4 @@
-import {
-  InboundReplyTarget,
-  OutboundPacketCorrelation
-} from './types';
+import { InboundReplyTarget, OutboundPacketCorrelation } from './types';
 
 export interface ITransportCorrelationStore {
   createInboundReplyHandle(target: InboundReplyTarget): Promise<string>;

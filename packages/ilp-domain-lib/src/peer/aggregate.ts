@@ -13,7 +13,11 @@ import {
   StartRemoteQuoteCmd,
   UpdatePeerCmd
 } from '../commands';
-import { IPeeringClient, IInboundPacketReplyHandle, PacketCorrelation } from '../packet';
+import {
+  IPeeringClient,
+  IInboundPacketReplyHandle,
+  PacketCorrelation
+} from '../packet';
 import { PacketNotFound } from '../packet/errors';
 import { Peer } from './entity';
 import { DuplicatePeer, UnknownPeer } from './errors';

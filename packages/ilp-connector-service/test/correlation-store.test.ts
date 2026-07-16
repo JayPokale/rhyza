@@ -18,7 +18,10 @@ describe('InMemoryTransportCorrelationStore', () => {
     assert.ok(resolved);
     assert.equal(resolved.delivery.kind, 'http');
     if (resolved.delivery.kind === 'http') {
-      assert.equal(resolved.delivery.callbackUrl, 'https://peer.example/callback');
+      assert.equal(
+        resolved.delivery.callbackUrl,
+        'https://peer.example/callback'
+      );
     }
 
     await store.deleteInboundReplyHandle(replyHandle);

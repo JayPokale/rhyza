@@ -75,9 +75,7 @@ class ManualTransport implements IConnectorTransport {
   onInboundPrepare(handler: WireInboundPrepareHandler): void {
     this._onInboundPrepare = handler;
   }
-  onOutboundPrepareAccepted(
-    handler: WireOutboundPrepareAcceptedHandler
-  ): void {
+  onOutboundPrepareAccepted(handler: WireOutboundPrepareAcceptedHandler): void {
     this._onOutboundPrepareAccepted = handler;
   }
   async triggerResponse(response: WireResponse): Promise<void> {
@@ -128,7 +126,10 @@ describe('IlpConnector', () => {
 
     assert.equal(transport.prepares.length, 1);
     assert.equal(transport.prepares[0].packetId, 'packet-1');
-    assert.equal(await correlationStore.hasOutboundCorrelation('packet-1'), true);
+    assert.equal(
+      await correlationStore.hasOutboundCorrelation('packet-1'),
+      true
+    );
     assert.equal(producer.sent.length, 0);
   });
 
@@ -149,7 +150,10 @@ describe('IlpConnector', () => {
     assert.equal(cmd.payload.rejectCode, 'F99');
     assert.equal(cmd.payload.destinationAmount, undefined);
     assert.equal(cmd.msgKey, 'intent-1');
-    assert.equal(await correlationStore.hasOutboundCorrelation('packet-1'), false);
+    assert.equal(
+      await correlationStore.hasOutboundCorrelation('packet-1'),
+      false
+    );
   });
 
   test('a quote reject with destinationAmount in data forwards it on ProcessRejectPacketCmd', async () => {
@@ -181,7 +185,10 @@ describe('IlpConnector', () => {
     assert.equal(cmd.msgName, ProcessFulfillPacketCmd.name);
     assert.equal(cmd.payload.paymentIntentId, 'intent-1');
     assert.equal(cmd.msgKey, 'intent-1');
-    assert.equal(await correlationStore.hasOutboundCorrelation('packet-1'), false);
+    assert.equal(
+      await correlationStore.hasOutboundCorrelation('packet-1'),
+      false
+    );
   });
 
   test('paymentIntentId is recovered from the correlation store, never from the response packet', async () => {

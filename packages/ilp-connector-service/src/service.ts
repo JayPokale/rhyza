@@ -31,7 +31,9 @@ const HTTP_PATH = process.env['ILP_CONNECTOR_HTTP_PATH'] || '/ilp';
 const PUBLIC_BASE_URL =
   process.env['ILP_CONNECTOR_PUBLIC_URL'] || `http://localhost:${HTTP_PORT}`;
 const REDIS_URL = process.env['REDIS_URL'];
-const OUTBOUND_EXPIRY_POLL_MS = process.env['ILP_CONNECTOR_OUTBOUND_EXPIRY_POLL_MS']
+const OUTBOUND_EXPIRY_POLL_MS = process.env[
+  'ILP_CONNECTOR_OUTBOUND_EXPIRY_POLL_MS'
+]
   ? Number.parseInt(process.env['ILP_CONNECTOR_OUTBOUND_EXPIRY_POLL_MS'], 10)
   : DEFAULT_OUTBOUND_EXPIRY_POLL_MS;
 

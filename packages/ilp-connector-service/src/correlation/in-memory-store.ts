@@ -1,7 +1,4 @@
-import {
-  InboundReplyTarget,
-  OutboundPacketCorrelation
-} from './types';
+import { InboundReplyTarget, OutboundPacketCorrelation } from './types';
 import { expiryScore } from './expiry';
 import { ITransportCorrelationStore } from './store';
 

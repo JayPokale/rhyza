@@ -106,9 +106,7 @@ export class HttpConnectorTransport implements IConnectorTransport {
     this._inboundPrepareHandler = handler;
   }
 
-  onOutboundPrepareAccepted(
-    handler: WireOutboundPrepareAcceptedHandler
-  ): void {
+  onOutboundPrepareAccepted(handler: WireOutboundPrepareAcceptedHandler): void {
     this._outboundPrepareAcceptedHandler = handler;
   }
 

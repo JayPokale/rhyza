@@ -110,8 +110,7 @@ export class IlpConnector {
   // store, then takeOutboundCorrelation. If a peer callback already took the
   // entry, this is a no-op.
   async processExpiredOutboundPackets(): Promise<void> {
-    const packetIds =
-      await this._correlationStore.claimExpiredOutbound(100);
+    const packetIds = await this._correlationStore.claimExpiredOutbound(100);
     for (const packetId of packetIds) {
       await this._handleWireResponse({
         kind: 'REJECT',
@@ -142,7 +141,9 @@ export class IlpConnector {
     });
   }
 
-  private async _onOutboundPrepareAccepted(prepare: WirePrepare): Promise<void> {
+  private async _onOutboundPrepareAccepted(
+    prepare: WirePrepare
+  ): Promise<void> {
     await this._correlationStore.scheduleOutboundExpiry(
       prepare.packetId,
       prepare.expiresAt

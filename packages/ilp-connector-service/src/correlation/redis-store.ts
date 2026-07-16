@@ -1,8 +1,5 @@
 import { Redis } from 'ioredis';
-import {
-  InboundReplyTarget,
-  OutboundPacketCorrelation
-} from './types';
+import { InboundReplyTarget, OutboundPacketCorrelation } from './types';
 import { expiryScore, ttlMs } from './expiry';
 import { ITransportCorrelationStore } from './store';
 
@@ -26,7 +23,9 @@ end
 return members
 `;
 
-export class RedisTransportCorrelationStore implements ITransportCorrelationStore {
+export class RedisTransportCorrelationStore
+  implements ITransportCorrelationStore
+{
   constructor(private readonly _redis: Redis) {}
 
   async createInboundReplyHandle(target: InboundReplyTarget): Promise<string> {
@@ -67,7 +66,9 @@ export class RedisTransportCorrelationStore implements ITransportCorrelationStor
   }
 
   async hasOutboundCorrelation(packetId: string): Promise<boolean> {
-    return (await this._redis.exists(`${OUTBOUND_KEY_PREFIX}${packetId}`)) === 1;
+    return (
+      (await this._redis.exists(`${OUTBOUND_KEY_PREFIX}${packetId}`)) === 1
+    );
   }
 
   async takeOutboundCorrelation(
