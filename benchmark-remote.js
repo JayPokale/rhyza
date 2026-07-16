@@ -3,14 +3,26 @@
 
 import http from 'k6/http';
 import { check } from 'k6';
-import { uuidv4 } from 'https://jslib.k6.io/k6-utils/1.4.0/index.js';
-import { sleep } from 'k6';
+
+// Two-node remote payment load test — mirrors the Bruno collection
+// "Remote Payment" (rafiki-v2, env "Rafiki v2 Local Peers").
+//
+//   Node A (sender)   admin           -> http://localhost:3001
+//   Node B (receiver) admin           -> http://localhost:4001
+//   Node B open-payments (verify only) -> http://localhost:4002
+//
+// Run on the host: these are the docker host-port mappings. The remote intent's
+// `openPaymentsUrl` is a docker-internal URL that Node A's backend fetches
+// internally — k6 only passes it through to the quote, it never fetches it.
+//
+// Bring both nodes up first: `pnpm docker:peers:up`.
 
 export const options = {
   scenarios: {
-    contacts: {
+    remotePayments: {
       executor: 'ramping-vus',
       startVUs: 0,
+      // Heavy by design; dial `target` down if the stack is resource-constrained.
       stages: [
         { duration: '15s', target: 500 },
         { duration: '15s', target: 500 },
@@ -20,123 +32,144 @@ export const options = {
   }
 };
 
-const ADMIN_API_URL = 'http://localhost:3001';
-// TODO: proper tests against peered rafikis
-// Will not use PEER_OPEN_PAYMENTS_URL hack but two independent rafiki instances
-const PEER_OPEN_PAYMENTS_URL = 'http://peer-open-payments-svc:3002';
-const RECEIVER_WALLET_ADDRESS = 'test.com/receiver';
+const ADMIN_A_URL = 'http://localhost:3001';
+const ADMIN_B_URL = 'http://localhost:4001';
 const SENDER_WALLET_ADDRESS = 'test.com/sender';
-const PEER_ID = '04978037-26b8-4b4d-854a-278ed7548959';
-const PEER_ILP_STATIC_ADDRESS = 'private.rafiki.a';
-// This "peer" is actually our own ilp-connector-service HTTP
-// listener. The same token is used both as what we send
-// outgoing and what we expect incoming, since we're both ends of the
-// connection for the purposes of this benchmark.
-const PEER_ILP_OUTGOING_ENDPOINT = 'http://ilp-connector-service:4000/ilp';
-const PEER_ILP_AUTH_TOKEN = 'benchmark-peer-token';
+const RECEIVER_WALLET_ADDRESS = 'test.com/receiver';
+const PEER_AUTH_TOKEN = 'local-peer-token';
+const PEER_A_TO_B = {
+  id: '04978037-26b8-4b4d-854a-278ed7548959',
+  ilpStaticAddress: 'private.rafiki.b',
+  endpoint: 'http://ilp-connector-service-b:4000/ilp'
+};
+const PEER_B_TO_A = {
+  id: '9f3c1e2a-4b5d-4c6e-8a7f-1b2c3d4e5f60',
+  ilpStaticAddress: 'private.rafiki.a',
+  endpoint: 'http://ilp-connector-service:4000/ilp'
+};
 
-function request(url, data) {
+const INCOMING_AMOUNT = 1000;
+const DEBIT_AMOUNT = '1000';
+const SENDER_LIQUIDITY = 100_000_000_000;
+
+function post(url, data) {
   return http.post(url, JSON.stringify(data), {
-    headers: {
-      'Content-Type': 'application/json'
-    }
+    headers: { 'Content-Type': 'application/json' }
   });
+}
+
+function createdOrExists(r) {
+  return r.status === 201 || r.status === 409;
+}
+
+function safeJson(res) {
+  try {
+    return JSON.parse(res.body);
+  } catch {
+    return undefined;
+  }
 }
 
 export function setup() {
-  const assetRes = request(`${ADMIN_API_URL}/assets`, {
-    code: 'USD',
-    scale: 2
+  // ---- Node A (sender) ----
+  check(post(`${ADMIN_A_URL}/assets`, { code: 'USD', scale: 2 }), {
+    'A: asset created or exists': createdOrExists
   });
-  // 409 already exists OK for reruns
-  check(assetRes, {
-    'asset created or exists': (r) => r.status === 201 || r.status === 409
-  });
-
-  const receiverRes = request(`${ADMIN_API_URL}/wallet-addresses`, {
-    address: RECEIVER_WALLET_ADDRESS,
-    publicName: 'Receiver',
-    assetCode: 'USD'
-  });
-  check(receiverRes, {
-    'receiver wallet created or exists': (r) =>
-      r.status === 201 || r.status === 409
-  });
-  const receiver = JSON.parse(receiverRes.body);
-
-  const senderRes = request(`${ADMIN_API_URL}/wallet-addresses`, {
-    address: SENDER_WALLET_ADDRESS,
-    publicName: 'Sender',
-    assetCode: 'USD'
-  });
-  check(senderRes, {
-    'sender wallet created or exists': (r) =>
-      r.status === 201 || r.status === 409
-  });
-  const sender = JSON.parse(senderRes.body);
-
-  const peerRes = request(`${ADMIN_API_URL}/peers`, {
-    id: PEER_ID,
-    name: 'Peer Rafiki',
-    assetCode: 'USD',
-    assetScale: 2,
-    ilpStaticAddress: PEER_ILP_STATIC_ADDRESS,
-    http: {
-      outgoing: {
-        endpoint: PEER_ILP_OUTGOING_ENDPOINT,
-        authToken: PEER_ILP_AUTH_TOKEN
-      },
-      incoming: {
-        authToken: PEER_ILP_AUTH_TOKEN
+  check(
+    post(`${ADMIN_A_URL}/wallet-addresses`, {
+      assetCode: 'USD',
+      address: SENDER_WALLET_ADDRESS,
+      publicName: 'Sender (Node A)'
+    }),
+    { 'A: sender wallet created or exists': createdOrExists }
+  );
+  check(
+    post(`${ADMIN_A_URL}/peers`, {
+      id: PEER_A_TO_B.id,
+      name: 'Node B',
+      assetCode: 'USD',
+      assetScale: 2,
+      ilpStaticAddress: PEER_A_TO_B.ilpStaticAddress,
+      http: {
+        outgoing: {
+          endpoint: PEER_A_TO_B.endpoint,
+          authToken: PEER_AUTH_TOKEN
+        },
+        incoming: { authToken: PEER_AUTH_TOKEN }
       }
+    }),
+    { 'A: peer-for-B created or exists': createdOrExists }
+  );
+  check(
+    post(`${ADMIN_A_URL}/liquidity/deposit`, {
+      assetCode: 'USD',
+      peerId: PEER_A_TO_B.id,
+      amount: SENDER_LIQUIDITY
+    }),
+    {
+      'A: sender liquidity funded': (r) => r.status === 200 || r.status === 202
     }
-  });
-  check(peerRes, {
-    'peer created or exists': (r) => r.status === 201 || r.status === 409
-  });
+  );
 
-  return {
-    receiverWalletAddress: receiver.address || RECEIVER_WALLET_ADDRESS,
-    senderWalletAddress: sender.address || SENDER_WALLET_ADDRESS
-  };
+  // ---- Node B (receiver) ----
+  check(post(`${ADMIN_B_URL}/assets`, { code: 'USD', scale: 2 }), {
+    'B: asset created or exists': createdOrExists
+  });
+  check(
+    post(`${ADMIN_B_URL}/wallet-addresses`, {
+      assetCode: 'USD',
+      address: RECEIVER_WALLET_ADDRESS,
+      publicName: 'Receiver (Node B)'
+    }),
+    { 'B: receiver wallet created or exists': createdOrExists }
+  );
+  check(
+    post(`${ADMIN_B_URL}/peers`, {
+      id: PEER_B_TO_A.id,
+      name: 'Node A',
+      assetCode: 'USD',
+      assetScale: 2,
+      ilpStaticAddress: PEER_B_TO_A.ilpStaticAddress,
+      http: {
+        outgoing: {
+          endpoint: PEER_B_TO_A.endpoint,
+          authToken: PEER_AUTH_TOKEN
+        },
+        incoming: { authToken: PEER_AUTH_TOKEN }
+      }
+    }),
+    { 'B: peer-for-A created or exists': createdOrExists }
+  );
 }
 
-export default function (data) {
-  const paymentIntentId = uuidv4();
-  const paymentIntentRes = request(`${ADMIN_API_URL}/payment-intents`, {
-    id: paymentIntentId,
-    walletAddress: data.receiverWalletAddress
+export default function () {
+  const intentRes = post(`${ADMIN_B_URL}/payment-intents`, {
+    walletAddress: RECEIVER_WALLET_ADDRESS,
+    incomingAmount: INCOMING_AMOUNT
   });
-
-  console.log(`payment intent response: ${paymentIntentRes.body}`);
-
-  check(paymentIntentRes, {
-    'payment intent created': (r) => r.status === 201,
-    'payment intent id matches': (r) =>
-      JSON.parse(r.body).id === paymentIntentId
+  const intentOk = check(intentRes, {
+    'intent created (B)': (r) => r.status === 201,
+    'openPaymentsUrl returned (B)': (r) =>
+      typeof safeJson(r)?.openPaymentsUrl === 'string'
   });
+  if (!intentOk) return;
+  const receiverIntentUrl = safeJson(intentRes).openPaymentsUrl;
 
-  // Normally this URL would come from the payment intent response.
-  // Here we construct it directly using the docker alias to simulate a remote Rafiki instance
-  const paymentIntentUrl = `${PEER_OPEN_PAYMENTS_URL}/incoming-payments/${paymentIntentId}`;
-  // const paymentIntentUrl = JSON.parse(
-  //   paymentIntentRes.body
-  // ).openPaymentsUrl;
-  // const openPaymentsUrlDefined = check(paymentIntentRes, {
-  //   'openPaymentsUrl is defined': (r) =>
-  //     JSON.parse(r.body).openPaymentsUrl !== undefined
-  // });
-  // if (!openPaymentsUrlDefined) return;
-
-  const quoteRes = request(`${ADMIN_API_URL}/quotes`, {
-    walletAddress: data.senderWalletAddress,
-    paymentIntentUrl,
-    debitAmount: '100'
+  const quoteRes = post(`${ADMIN_A_URL}/quotes`, {
+    walletAddress: SENDER_WALLET_ADDRESS,
+    paymentIntentUrl: receiverIntentUrl,
+    debitAmount: DEBIT_AMOUNT
   });
-
-  console.log(`quote response: ${quoteRes.body}`);
-
-  check(quoteRes, {
-    'quote created': (r) => r.status === 201
+  const quoteOk = check(quoteRes, {
+    'quote created (A)': (r) => r.status === 201
   });
+  if (!quoteOk) return;
+  const quote = safeJson(quoteRes);
+
+  const paymentRes = post(`${ADMIN_A_URL}/payments`, {
+    walletAddress: SENDER_WALLET_ADDRESS,
+    paymentIntentId: quote.paymentIntentId,
+    quoteId: quote.id
+  });
+  check(paymentRes, { 'payment created (A)': (r) => r.status === 201 });
 }
