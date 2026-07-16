@@ -93,4 +93,5 @@ export interface PaymentDispatch {
   assetCode: string;
   assetScale: number;
   expiresAt: string;
+  sharedSecret: string;
 }

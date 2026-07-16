@@ -315,7 +315,8 @@ export class IlpPeerAggregate {
       amount: payload.amount,
       assetCode: payload.assetCode,
       assetScale: payload.assetScale,
-      expiresAt: payload.expiresAt
+      expiresAt: payload.expiresAt,
+      sharedSecret: payload.sharedSecret
     });
 
     return [];
