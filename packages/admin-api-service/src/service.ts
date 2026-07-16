@@ -10,8 +10,14 @@ import { peerRoutes } from './routes/peers.js';
 import { paymentIntentRoutes } from './routes/payment-intents.js';
 import { quoteRoutes } from './routes/quotes.js';
 import { paymentRoutes } from './routes/payments.js';
+import { liquidityRoutes } from './routes/liquidity.js';
 import { ILogger } from '../../common-types-lib/src/index.js';
-import { PinoLogger } from 'implementations-lib';
+import {
+  PinoLogger,
+  KafkaBuilder,
+  KafkaProducer,
+  MessageSerializationFactory
+} from 'implementations-lib';
 import crypto from 'crypto';
 
 const BC_NAME = 'ADMIN';
@@ -24,6 +30,7 @@ const PAL_GRPC_URL = process.env['PAL_GRPC_URL'] || 'localhost:50051';
 const PAYMENTS_GRPC_URL = process.env['PAYMENTS_GRPC_URL'] || 'localhost:50052';
 const ILP_GRPC_URL = process.env['ILP_GRPC_URL'] || 'localhost:50053';
 const OPEN_PAYMENTS_URL = process.env['OPEN_PAYMENTS_URL'];
+const KAFKA_URL = process.env['KAFKA_URL'] || 'localhost:9092';
 
 export class AdminApiService {
   private static logger: ILogger;
@@ -31,6 +38,7 @@ export class AdminApiService {
   private static palClient: PalClient;
   private static paymentsClient: PaymentsClient;
   private static ilpClient: IlpClient;
+  private static msgProducer: KafkaProducer;
 
   static async start(): Promise<void> {
     this.logger = new PinoLogger({
@@ -54,6 +62,15 @@ export class AdminApiService {
     this.ilpClient = new IlpClient(ILP_GRPC_URL);
     await this.ilpClient.init();
     console.log(`Connected to ILP service at ${ILP_GRPC_URL}`);
+
+    const kafkaBuilder = new KafkaBuilder()
+      .withLogger(this.logger.child('kafka'))
+      .withBrokerList(KAFKA_URL)
+      .withClientId(INSTANCE_ID)
+      .withSerializerFactory(MessageSerializationFactory.instance());
+    this.msgProducer = kafkaBuilder.buildProducer({});
+    await this.msgProducer.connect();
+    console.log(`Connected Kafka producer to ${KAFKA_URL}`);
 
     // TODO: Wire up OpenAPI spec for route validation.
     // e.g. fastify-openapi-glue to generate validation from the spec
@@ -88,6 +105,10 @@ export class AdminApiService {
       palClient: this.palClient,
       paymentsClient: this.paymentsClient
     });
+    this.server.register(liquidityRoutes, {
+      palClient: this.palClient,
+      producer: this.msgProducer
+    });
 
     await this.server.listen({ port: PORT, host: HOST });
     console.log(`Admin API listening on ${HOST}:${PORT}`);
@@ -95,6 +116,7 @@ export class AdminApiService {
 
   static async stop(): Promise<void> {
     await this.server?.close();
+    await this.msgProducer?.disconnect();
     await this.palClient?.disconnect();
     await this.paymentsClient?.disconnect();
     await this.ilpClient?.disconnect();

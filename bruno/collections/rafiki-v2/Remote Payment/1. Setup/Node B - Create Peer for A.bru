@@ -1,7 +1,7 @@
 meta {
   name: Node B - Create Peer for A
   type: http
-  seq: 6
+  seq: 7
 }
 
 post {
@@ -34,4 +34,3 @@ tests {
     expect([201, 409]).to.include(res.getStatus());
   });
 }
-

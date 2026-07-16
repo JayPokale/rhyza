@@ -99,6 +99,9 @@ importers:
 
   packages/admin-api-service:
     dependencies:
+      common-types-lib:
+        specifier: workspace:*
+        version: link:../common-types-lib
       fastify:
         specifier: ~5.3.3
         version: 5.3.3
@@ -111,6 +114,9 @@ importers:
       pal-client-lib:
         specifier: workspace:*
         version: link:../pal-client-lib
+      pal-domain-lib:
+        specifier: workspace:*
+        version: link:../pal-domain-lib
       payments-client-lib:
         specifier: workspace:*
         version: link:../payments-client-lib

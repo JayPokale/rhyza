@@ -11,6 +11,7 @@ services:
       OPEN_PAYMENTS_URL: http://open-payments-resource-service:3002
       ILP_GRPC_URL: ilp-api-service:50053
       MONGODB_URL: mongodb://root:mongoPass@mongodb:27017
+      KAFKA_URL: kafka:19092
     ports:
       - '3001:3001'
     depends_on:
@@ -449,8 +450,6 @@ networks:
         - subnet: 10.5.1.0/24
 
 volumes:
-  tigerbeetle-data:
-  postgres-data:
   grafana-data:
   tempo-data:
   mongodb-data:

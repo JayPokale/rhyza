@@ -15,6 +15,8 @@ tags:
     x-displayName: Quotes
   - name: peers
     x-displayName: Peers
+  - name: liquidity
+    x-displayName: Liquidity
 paths:
   /peers:
     post:
@@ -334,6 +336,67 @@ paths:
                 $ref: '#/components/schemas/Payment'
         '404':
           description: Payment not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /liquidity/deposit:
+    post:
+      summary: Deposit Liquidity
+      description: >-
+        Deposit liquidity so the node can send payments. Debits the asset system
+        account and credits the peer's ASE liquidity account by producing a
+        ledger PostTransaction command. Fire-and-forget: returns 202 before the
+        ledger posts the transaction (see the sync TODO in the route).
+      tags:
+        - liquidity
+      operationId: Liquidity_deposit
+      parameters: []
+      requestBody:
+        description: Deposit details
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - assetCode
+                - peerId
+                - amount
+              properties:
+                assetCode:
+                  type: string
+                  description: Asset code (also the ledger id).
+                  example: USD
+                peerId:
+                  type: string
+                  description: Peer whose ASE liquidity account is credited.
+                amount:
+                  type: integer
+                  description: >-
+                    Amount in raw ledger units at the asset scale
+                    (100000 = 1000.00 at scale 2).
+                  example: 100000
+      responses:
+        '202':
+          description: >-
+            Deposit accepted and produced to the ledger (not yet confirmed).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    description: The ledger transaction id.
+        '400':
+          description: Missing required fields.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Asset or peer not found, or missing ledger accounts.
           content:
             application/json:
               schema:

@@ -156,7 +156,8 @@ export class PaymentsEventHandler {
           {
             packetId: payload.packetId,
             peerId: payload.peerId,
-            paymentIntentId: payload.paymentIntentId,
+            // paymentIntentId: payload.paymentIntentId,
+            paymentIntentId: payload.destinationIlpAddress.split('.').at(-1)!,
             sourceAmount: payload.incomingAmount
           },
           crypto.randomUUID()
