@@ -783,8 +783,13 @@ export class PaymentIntentAggregate {
       } = pendingQuote;
 
       if (!peerId || !peerAssetCode || !sourceAmount || !senderAssetCode) {
+        // Should never happen once persistence round-trips faithfully — a hit
+        // here means a pending remote quote was stored/read lossily.
+        this._logger.warn(
+          `handleCompleteRemoteQuoteCommand — pending quote ${quoteId} (paymentIntent ${paymentIntentId}) is missing required remote peer fields (peerId, peerAssetCode, sourceAmount, senderAssetCode)`
+        );
         throw new InvalidQuoteStateError(
-          `Pending quote ${quoteId} is missing required remote peer fields`
+          `Pending quote ${quoteId} is missing required remote peer fields (peerId, peerAssetCode, sourceAmount, senderAssetCode)`
         );
       }
 

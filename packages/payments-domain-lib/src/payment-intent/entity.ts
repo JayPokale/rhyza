@@ -182,7 +182,7 @@ class Quote implements IBaseQuote {
 
     if (!peerAssetCode || !sourceAmount || !senderAssetCode) {
       throw new InvalidQuoteStateError(
-        `Pending quote ${this._id} is missing required remote peer fields`
+        `Pending quote ${this._id} is missing required remote peer fields (peerAssetCode, sourceAmount, senderAssetCode)`
       );
     }
 

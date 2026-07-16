@@ -203,26 +203,7 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
         destinationIlpAddress: doc.destinationIlpAddress,
         remoteUrl: doc.remoteUrl,
         peerId: doc.peerId,
-        quotes: doc.quotes.map((quote) => ({
-          id: quote.id,
-          senderWalletAddress: quote.senderWalletAddress,
-          senderWalletAddressId: quote.senderWalletAddressId,
-          ...(quote.state === 'COMPLETED'
-            ? {
-                state: quote.state,
-                debitAmount: quote.debitAmount,
-                receiveAmount: quote.receiveAmount,
-                expiresAt: quote.expiresAt,
-                exchangeRate: quote.exchangeRate
-              }
-            : quote.state === 'FAILED'
-              ? {
-                  state: quote.state,
-                  errorName: quote.errorName,
-                  message: quote.message
-                }
-              : { state: quote.state })
-        }))
+        quotes: doc.quotes.map((quote) => ({ ...quote }))
       }));
     } catch (err) {
       this._logger.error(err);
@@ -264,26 +245,10 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
         destinationIlpAddress: doc.destinationIlpAddress,
         remoteUrl: doc.remoteUrl,
         peerId: doc.peerId,
-        quotes: doc.quotes.map((quote) => ({
-          id: quote.id,
-          senderWalletAddress: quote.senderWalletAddress,
-          senderWalletAddressId: quote.senderWalletAddressId,
-          ...(quote.state === 'COMPLETED'
-            ? {
-                state: quote.state,
-                debitAmount: quote.debitAmount,
-                receiveAmount: quote.receiveAmount,
-                expiresAt: quote.expiresAt,
-                exchangeRate: quote.exchangeRate
-              }
-            : quote.state === 'FAILED'
-              ? {
-                  state: quote.state,
-                  errorName: quote.errorName,
-                  message: quote.message
-                }
-              : { state: quote.state })
-        })),
+        // Faithfully round-trip whatever the entity persisted for each quote.
+        // Do NOT re-project by state — that silently drops fields (e.g. a
+        // pending remote quote's peer/source/sender fields).
+        quotes: doc.quotes.map((quote) => ({ ...quote })),
         sentPayments: paymentDocs
           .filter((p) => p.paymentIntentId === doc.id)
           .map((payment) => ({
