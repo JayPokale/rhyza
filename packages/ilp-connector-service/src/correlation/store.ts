@@ -17,8 +17,8 @@ export interface ITransportCorrelationStore {
   ): Promise<OutboundPacketCorrelation | undefined>;
 
   // Shared outbound expiry index (Redis ZSET otherwise in-memory in tests).
-  // Any replica can claim due packetIds. takeOutboundCorrelation still decides
-  // the winner if a late callback races the worker.
+  // Any replica can claim due packetIds. takeOutboundCorrelation must be
+  // atomic so only one of a late callback and the expiry worker wins.
   scheduleOutboundExpiry(packetId: string, expiresAt: string): Promise<void>;
   cancelOutboundExpiry(packetId: string): Promise<void>;
   claimExpiredOutbound(limit?: number): Promise<string[]>;

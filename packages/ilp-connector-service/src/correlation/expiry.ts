@@ -7,4 +7,17 @@ function ttlMs(expiresAt: string): number {
   return Math.max(expiryScore(expiresAt) - Date.now(), 1);
 }
 
-export { expiryScore, ttlMs };
+// Outbound keys must outlive the ZSET expiry trigger so the worker can still
+// takeOutboundCorrelation after claimExpiredOutbound fires at expiresAt.
+const OUTBOUND_CORRELATION_TTL_GRACE_MS = 60_000;
+
+function outboundCorrelationTtlMs(expiresAt: string): number {
+  return ttlMs(expiresAt) + OUTBOUND_CORRELATION_TTL_GRACE_MS;
+}
+
+export {
+  expiryScore,
+  ttlMs,
+  outboundCorrelationTtlMs,
+  OUTBOUND_CORRELATION_TTL_GRACE_MS
+};

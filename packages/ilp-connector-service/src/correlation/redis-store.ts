@@ -1,6 +1,6 @@
 import { Redis } from 'ioredis';
 import { InboundReplyTarget, OutboundPacketCorrelation } from './types';
-import { expiryScore, ttlMs } from './expiry';
+import { expiryScore, outboundCorrelationTtlMs, ttlMs } from './expiry';
 import { ITransportCorrelationStore } from './store';
 
 const INBOUND_KEY_PREFIX = 'ilp-connector:inbound-reply:';
@@ -61,7 +61,7 @@ export class RedisTransportCorrelationStore
       `${OUTBOUND_KEY_PREFIX}${packetId}`,
       JSON.stringify(correlation),
       'PX',
-      ttlMs(correlation.expiresAt)
+      outboundCorrelationTtlMs(correlation.expiresAt)
     );
   }
 
@@ -75,12 +75,10 @@ export class RedisTransportCorrelationStore
     packetId: string
   ): Promise<OutboundPacketCorrelation | undefined> {
     await this.cancelOutboundExpiry(packetId);
-    const key = `${OUTBOUND_KEY_PREFIX}${packetId}`;
-    const raw = await this._redis.get(key);
+    const raw = await this._redis.getdel(`${OUTBOUND_KEY_PREFIX}${packetId}`);
     if (!raw) {
       return undefined;
     }
-    await this._redis.del(key);
     return JSON.parse(raw) as OutboundPacketCorrelation;
   }
 
