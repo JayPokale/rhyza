@@ -19,7 +19,10 @@ body:json {
     "ilpStaticAddress": "g.rafiki",
     "http": {
       "outgoing": {
-        "endpoint": "http://open-payments-resource-service:3002/ilp",
+        "endpoint": "http://ilp-connector-service:4000/ilp",
+        "authToken": "local-peer-token"
+      },
+      "incoming": {
         "authToken": "local-peer-token"
       }
     }
