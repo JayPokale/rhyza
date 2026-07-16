@@ -20,6 +20,7 @@ import * as http from 'http';
 import * as k8s from '@kubernetes/client-node';
 import { RafikiInstance, RafikiInstanceSpec } from './types.js';
 import { reconcile, cleanup } from './controller.js';
+import { KubernetesHelpers } from './helpers';
 
 // ---------------------------------------------------------------------------
 // Health server
@@ -48,6 +49,8 @@ function startHealthServer(port: number): void {
 
 let isReconciling = false;
 let isDeleting = false;
+
+const NAMESPACE = 'rafiki';
 
 const BACKOFF_BASE_MS = 1_000;
 const BACKOFF_MAX_MS = 60_000;
@@ -109,18 +112,20 @@ async function main() {
     `Connected to cluster: ${kc.getCurrentCluster()?.name ?? 'unknown'}`
   );
 
+  console.log('Rafiki-v2 Setting up the helpers...');
+  await KubernetesHelpers.Setup(kc, NAMESPACE);
+
   // -------------------------------------------------------------------------
   // Step 2: Set up the custom API client for RafikiInstance
   //
   // RafikiInstance is not a built-in Kubernetes type, so we use the
   // CustomObjectsApi which works with any CRD.
   // -------------------------------------------------------------------------
-  const customObjectsApi = kc.makeApiClient(k8s.CustomObjectsApi);
 
   // The list function tells the informer HOW to enumerate existing
   // RafikiInstance objects and HOW to watch for new ones.
   const listFn = () =>
-    customObjectsApi.listClusterCustomObject({
+    KubernetesHelpers.getInstance().customObjectsApi.listClusterCustomObject({
       group: 'rafiki.interledger.org',
       version: 'v1alpha1',
       plural: 'rafikiinstances'

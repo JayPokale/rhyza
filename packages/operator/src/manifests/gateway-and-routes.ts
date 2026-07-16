@@ -8,7 +8,8 @@
 
 import * as k8s from '@kubernetes/client-node';
 import { RafikiInstanceSpec } from '../types.js';
-import { createCustomObject } from '../helpers';
+import { KubernetesHelpers } from '../helpers';
+
 
 const GATEWAY_NAME = 'rafiki-ext-gateway';
 
@@ -46,13 +47,12 @@ export async function createRafikiExternalGateway(
     `Creating Gateway "${gatewayManifest.metadata.name}" in namespace "${namespace}"...`
   );
 
-  const success = await createCustomObject(
-    kc,
-    customApi,
-    namespace,
-    spec,
-    gatewayManifest
-  );
+  const success =
+    await KubernetesHelpers.getInstance().createCustomObject(
+      namespace,
+      spec,
+      gatewayManifest
+    );
 
   if(success){
     console.log('Gateway created successfully!');
@@ -97,9 +97,7 @@ export async function createExternalRoutesGateway(
     `Creating HTTPRoute "${openPaymentsManifest.metadata.name}" in namespace "${namespace}"...`
   );
 
-  const success = await createCustomObject(
-    kc,
-    customApi,
+  const success = await KubernetesHelpers.getInstance().createCustomObject(
     namespace,
     spec,
     openPaymentsManifest

@@ -1,4 +1,5 @@
 import * as k8s from '@kubernetes/client-node';
+import { KubernetesHelpers } from '../helpers';
 
 // manifests/observability.ts
 //
@@ -13,8 +14,6 @@ import * as k8s from '@kubernetes/client-node';
 // ConfigMaps (otel-collector-config.yaml, prometheus.yaml, tempo.yaml) must
 // be applied separately (or created from the docker/ config files).
 
-import { clusterIpService, simpleDeployment } from '../helpers';
-
 
 
 // ---------------------------------------------------------------------------
@@ -22,7 +21,7 @@ import { clusterIpService, simpleDeployment } from '../helpers';
 // ---------------------------------------------------------------------------
 
 export function otelCollectorDeployment(namespace: string): k8s.V1Deployment {
-  return simpleDeployment(
+  return KubernetesHelpers.getInstance().getSimpleDeployment(
     'otel-collector',
     namespace,
     'otel/opentelemetry-collector:latest',
@@ -41,10 +40,14 @@ export function otelCollectorDeployment(namespace: string): k8s.V1Deployment {
 }
 
 export function otelCollectorService(namespace: string): k8s.V1Service {
-  return clusterIpService('otel-collector', namespace, [
-    { port: 4317, targetPort: 4317, name: 'grpc' },
-    { port: 4318, targetPort: 4318, name: 'http' }
-  ]);
+  return KubernetesHelpers.getInstance().clusterIpService(
+    'otel-collector',
+    namespace,
+    [
+      { port: 4317, targetPort: 4317, name: 'grpc' },
+      { port: 4318, targetPort: 4318, name: 'http' }
+    ]
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -52,7 +55,7 @@ export function otelCollectorService(namespace: string): k8s.V1Service {
 // ---------------------------------------------------------------------------
 
 export function prometheusDeployment(namespace: string): k8s.V1Deployment {
-  return simpleDeployment(
+  return KubernetesHelpers.getInstance().getSimpleDeployment(
     'prometheus',
     namespace,
     'prom/prometheus:latest',
@@ -74,9 +77,11 @@ export function prometheusDeployment(namespace: string): k8s.V1Deployment {
 }
 
 export function prometheusService(namespace: string): k8s.V1Service {
-  return clusterIpService('prometheus', namespace, [
-    { port: 9090, targetPort: 9090 }
-  ]);
+  return KubernetesHelpers.getInstance().clusterIpService(
+    'prometheus',
+    namespace,
+    [{ port: 9090, targetPort: 9090 }]
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -84,7 +89,7 @@ export function prometheusService(namespace: string): k8s.V1Service {
 // ---------------------------------------------------------------------------
 
 export function tempoDeployment(namespace: string): k8s.V1Deployment {
-  return simpleDeployment(
+  return KubernetesHelpers.getInstance().getSimpleDeployment(
     'tempo',
     namespace,
     'grafana/tempo:latest',
@@ -103,7 +108,7 @@ export function tempoDeployment(namespace: string): k8s.V1Deployment {
 }
 
 export function tempoService(namespace: string): k8s.V1Service {
-  return clusterIpService('tempo', namespace, [
+  return KubernetesHelpers.getInstance().clusterIpService('tempo', namespace, [
     { port: 3200, targetPort: 3200 }
   ]);
 }
@@ -113,7 +118,7 @@ export function tempoService(namespace: string): k8s.V1Service {
 // ---------------------------------------------------------------------------
 
 export function grafanaDeployment(namespace: string): k8s.V1Deployment {
-  return simpleDeployment(
+  return KubernetesHelpers.getInstance().getSimpleDeployment(
     'grafana',
     namespace,
     'grafana/grafana:latest',
@@ -126,9 +131,11 @@ export function grafanaDeployment(namespace: string): k8s.V1Deployment {
 }
 
 export function grafanaService(namespace: string): k8s.V1Service {
-  return clusterIpService('grafana', namespace, [
-    { port: 3000, targetPort: 3000 }
-  ]);
+  return KubernetesHelpers.getInstance().clusterIpService(
+    'grafana',
+    namespace,
+    [{ port: 3000, targetPort: 3000 }]
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -136,7 +143,7 @@ export function grafanaService(namespace: string): k8s.V1Service {
 // ---------------------------------------------------------------------------
 
 export function redpandaConsoleDeployment(namespace: string): k8s.V1Deployment {
-  return simpleDeployment(
+  return KubernetesHelpers.getInstance().getSimpleDeployment(
     'redpanda-console',
     namespace,
     'redpandadata/console:latest',
@@ -146,7 +153,9 @@ export function redpandaConsoleDeployment(namespace: string): k8s.V1Deployment {
 }
 
 export function redpandaConsoleService(namespace: string): k8s.V1Service {
-  return clusterIpService('redpanda-console', namespace, [
-    { port: 8080, targetPort: 8080 }
-  ]);
+  return KubernetesHelpers.getInstance().clusterIpService(
+    'redpanda-console',
+    namespace,
+    [{ port: 8080, targetPort: 8080 }]
+  );
 }

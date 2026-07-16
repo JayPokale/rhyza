@@ -10,7 +10,7 @@
 // running it multiple times has the same effect as running it once.
 
 import * as k8s from '@kubernetes/client-node';
-import { RafikiInstanceSpec, RafikiInstanceStatus } from './types.js';
+import { RafikiInstanceSpec } from './types.js';
 import {
   mongodbStatefulSet,
   mongodbService,
@@ -35,18 +35,16 @@ import {
   redpandaConsoleService
 } from './manifests/observability.js';
 import {
-  applyDeployment,
-  applyJob,
-  applyService,
-  applyStatefulSet,
-  ensureJobReaderRbac,
-  ensureNamespace,
-  updateStatus
+  KubernetesHelpers,
 } from './helpers';
 import {
   createExternalRoutesGateway,
   createRafikiExternalGateway
 } from './manifests/gateway-and-routes';
+import {
+  ObjectCoreV1Api,
+  ObjectCustomObjectsApi
+} from '@kubernetes/client-node/dist/gen/types/ObjectParamAPI';
 
 // ---------------------------------------------------------------------------
 // Main reconcile function
@@ -85,19 +83,16 @@ export async function reconcile(
     `\n--- Reconciling RafikiInstance "${name}" in namespace "${namespace}" ---`
   );
 
-  const coreApi = kc.makeApiClient(k8s.CoreV1Api);
-  const appsApi = kc.makeApiClient(k8s.AppsV1Api);
-  const batchApi = kc.makeApiClient(k8s.BatchV1Api);
-  const customApi = kc.makeApiClient(k8s.CustomObjectsApi);
-  const rbacApi = kc.makeApiClient(k8s.RbacAuthorizationV1Api);
+  const coreApi: ObjectCoreV1Api = KubernetesHelpers.getInstance().coreApi;
+  const customApi: ObjectCustomObjectsApi = KubernetesHelpers.getInstance().customObjectsApi;
   //const networkingApi = kc.makeApiClient(k8s.NetworkingV1Api);
 
   try {
     // -------------------------------------------------------------------------
-    // Step 1: Ensure namespace
+    // Step 1: Ensure namespace and RBAC
     // -------------------------------------------------------------------------
-    await ensureNamespace(coreApi, namespace);
-    await ensureJobReaderRbac(rbacApi, namespace);
+    await KubernetesHelpers.getInstance().ensureNamespace();
+    await KubernetesHelpers.getInstance().ensureJobReaderRbac();
 
     // -------------------------------------------------------------------------
     // Step 2: MongoDB password secret
@@ -122,19 +117,26 @@ export async function reconcile(
     // -------------------------------------------------------------------------
     console.log('\n[Phase 1] Applying infrastructure...');
 
-    await applyStatefulSet(
-      kc,
-      appsApi,
-      namespace,
+    await KubernetesHelpers.getInstance().applyStatefulSet(
       mongodbStatefulSet(namespace, spec)
     );
-    await applyService(kc, coreApi, namespace, mongodbService(namespace));
+    await KubernetesHelpers.getInstance().applyService(
+      mongodbService(namespace)
+    );
 
-    await applyStatefulSet(kc, appsApi, namespace, redisStatefulSet(namespace));
-    await applyService(kc, coreApi, namespace, redisService(namespace));
+    await KubernetesHelpers.getInstance().applyStatefulSet(
+      redisStatefulSet(namespace)
+    );
+    await KubernetesHelpers.getInstance().applyService(
+      redisService(namespace)
+    );
 
-    await applyStatefulSet(kc, appsApi, namespace, kafkaStatefulSet(namespace));
-    await applyService(kc, coreApi, namespace, kafkaService(namespace));
+    await KubernetesHelpers.getInstance().applyStatefulSet(
+      kafkaStatefulSet(namespace)
+    );
+    await KubernetesHelpers.getInstance().applyService(
+      kafkaService(namespace)
+    );
 
     // -------------------------------------------------------------------------
     // Step 4: Kafka init Job
@@ -146,7 +148,9 @@ export async function reconcile(
     //       condition: service_completed_successfully
     // -------------------------------------------------------------------------
     console.log('\n[Phase 2] Applying Kafka init job...');
-    await applyJob(kc, batchApi, namespace, kafkaInitJob(namespace));
+    await KubernetesHelpers.getInstance().applyJob(
+      kafkaInitJob(namespace)
+    );
 
     // -------------------------------------------------------------------------
     // Step 5: Application services
@@ -155,9 +159,13 @@ export async function reconcile(
 
     const appManifests = allAppServices(namespace, spec);
     for (const { deployment, service } of appManifests) {
-      await applyDeployment(kc, appsApi, namespace, deployment);
+      await KubernetesHelpers.getInstance().applyDeployment(
+        deployment
+      );
       if (service) {
-        await applyService(kc, coreApi, namespace, service);
+        await KubernetesHelpers.getInstance().applyService(
+          service
+        );
       }
     }
 
@@ -189,48 +197,29 @@ export async function reconcile(
     if (spec.observability !== false) {
       console.log('\n[Phase 4] Applying observability stack...');
 
-      await applyDeployment(
-        kc,
-        appsApi,
-        namespace,
+      await KubernetesHelpers.getInstance().applyDeployment(
         otelCollectorDeployment(namespace)
       );
-      await applyService(
-        kc,
-        coreApi,
-        namespace,
+      await KubernetesHelpers.getInstance().applyService(
         otelCollectorService(namespace)
       );
 
-      await applyDeployment(
-        kc,
-        appsApi,
-        namespace,
+      await KubernetesHelpers.getInstance().applyDeployment(
         prometheusDeployment(namespace)
       );
-      await applyService(kc, coreApi, namespace, prometheusService(namespace));
+      await KubernetesHelpers.getInstance().applyService(prometheusService(namespace));
 
-      await applyDeployment(kc, appsApi, namespace, tempoDeployment(namespace));
-      await applyService(kc, coreApi, namespace, tempoService(namespace));
+      await KubernetesHelpers.getInstance().applyDeployment(tempoDeployment(namespace));
+      await KubernetesHelpers.getInstance().applyService(tempoService(namespace));
 
-      await applyDeployment(
-        kc,
-        appsApi,
-        namespace,
+      await KubernetesHelpers.getInstance().applyDeployment(
         grafanaDeployment(namespace)
       );
-      await applyService(kc, coreApi, namespace, grafanaService(namespace));
+      await KubernetesHelpers.getInstance().applyService(grafanaService(namespace));
 
-      await applyDeployment(
-        kc,
-        appsApi,
-        namespace,
-        redpandaConsoleDeployment(namespace)
+      await KubernetesHelpers.getInstance().applyDeployment(redpandaConsoleDeployment(namespace)
       );
-      await applyService(
-        kc,
-        coreApi,
-        namespace,
+      await KubernetesHelpers.getInstance().applyService(
         redpandaConsoleService(namespace)
       );
     }
@@ -238,7 +227,7 @@ export async function reconcile(
     // -------------------------------------------------------------------------
     // Step 7: Update status — tell Kubernetes the reconcile succeeded
     // -------------------------------------------------------------------------
-    await updateStatus(kc, customApi, name, namespace, {
+    await KubernetesHelpers.getInstance().updateStatus(name, {
       phase: 'Running',
       message: 'All resources applied successfully',
       lastReconciled: new Date().toISOString(),
@@ -251,11 +240,13 @@ export async function reconcile(
 
     // Report the error back onto the CRD so users can see it with:
     //   kubectl get rafikiinstances
-    await updateStatus(kc, customApi, name, namespace, {
-      phase: 'Error',
-      message: String(err),
-      lastReconciled: new Date().toISOString()
-    });
+    await KubernetesHelpers.getInstance().updateStatus(name,
+      {
+        phase: 'Error',
+        message: String(err),
+        lastReconciled: new Date().toISOString()
+      }
+    );
 
     throw err;
   }

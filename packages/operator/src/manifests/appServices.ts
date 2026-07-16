@@ -16,7 +16,8 @@
 
 import * as k8s from '@kubernetes/client-node';
 import { RafikiInstanceSpec } from '../types.js';
-import { makeDeployment } from '../helpers';
+import { KubernetesHelpers } from '../helpers';
+
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -138,7 +139,7 @@ export function adminApiService(
 ): AppManifests {
   const name = 'admin-api-service';
   return {
-    deployment: makeDeployment(
+    deployment: KubernetesHelpers.getInstance().makeDeployment(
       name,
       namespace,
       spec.replicas ?? 1,
@@ -175,7 +176,7 @@ export function openPaymentsResourceService(
 ): AppManifests {
   const name = 'open-payments-resource-service';
   return {
-    deployment: makeDeployment(
+    deployment: KubernetesHelpers.getInstance().makeDeployment(
       name,
       namespace,
       spec.replicas ?? 1,
@@ -213,7 +214,7 @@ export function palApiService(
 ): AppManifests {
   const name = 'pal-api-service';
   return {
-    deployment: makeDeployment(
+    deployment: KubernetesHelpers.getInstance().makeDeployment(
       name,
       namespace,
       spec.replicas ?? 1,
@@ -247,7 +248,7 @@ export function palLedgerCommandHandlerService(
 ): AppManifests {
   const name = 'pal-ledger-command-handler-service';
   return {
-    deployment: makeDeployment(
+    deployment: KubernetesHelpers.getInstance().makeDeployment(
       name,
       namespace,
       spec.replicas ?? 1,
@@ -270,7 +271,7 @@ export function palEventHandlerService(
 ): AppManifests {
   const name = 'pal-event-handler-service';
   return {
-    deployment: makeDeployment(
+    deployment: KubernetesHelpers.getInstance().makeDeployment(
       name,
       namespace,
       spec.replicas ?? 1,
@@ -306,7 +307,7 @@ export function paymentsApiService(
 ): AppManifests {
   const name = 'payments-api-service';
   return {
-    deployment: makeDeployment(
+    deployment: KubernetesHelpers.getInstance().makeDeployment(
       name,
       namespace,
       spec.replicas ?? 1,
@@ -329,7 +330,7 @@ export function paymentsCommandHandlerService(
 ): AppManifests {
   const name = 'payments-command-handler-service';
   return {
-    deployment: makeDeployment(
+    deployment: KubernetesHelpers.getInstance().makeDeployment(
       name,
       namespace,
       spec.replicas ?? 1,
@@ -363,7 +364,7 @@ export function paymentsEventHandlerService(
 ): AppManifests {
   const name = 'payments-event-handler-service';
   return {
-    deployment: makeDeployment(
+    deployment: KubernetesHelpers.getInstance().makeDeployment(
       name,
       namespace,
       spec.replicas ?? 1,
@@ -387,7 +388,7 @@ export function notificationsCommandHandlerService(
 ): AppManifests {
   const name = 'notifications-command-handler-service';
   return {
-    deployment: makeDeployment(
+    deployment: KubernetesHelpers.getInstance().makeDeployment(
       name,
       namespace,
       spec.replicas ?? 1,
@@ -416,7 +417,7 @@ export function notificationsEventHandlerService(
 ): AppManifests {
   const name = 'notifications-event-handler-service';
   return {
-    deployment: makeDeployment(
+    deployment: KubernetesHelpers.getInstance().makeDeployment(
       name,
       namespace,
       spec.replicas ?? 1,
@@ -439,7 +440,7 @@ export function ilpConnectorService(
 ): AppManifests {
   const name = 'ilp-connector-service';
   return {
-    deployment: makeDeployment(
+    deployment: KubernetesHelpers.getInstance().makeDeployment(
       name,
       namespace,
       spec.replicas ?? 1,
@@ -463,7 +464,7 @@ export function aseMockService(
 ): AppManifests {
   const name = 'ase-mock-service';
   return {
-    deployment: makeDeployment(
+    deployment: KubernetesHelpers.getInstance().makeDeployment(
       name,
       namespace,
       1, // Always 1 — it's a dev mock
