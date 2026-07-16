@@ -1330,6 +1330,30 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         assert.equal(stored.state, 'FAILED');
       });
 
+      it('fails a FULFILLABLE received payment', async () => {
+        const { intent, receivedPaymentId } =
+          makeIntentWithReceivedPayment('FULFILLABLE');
+        await repo.storeMany([intent]);
+
+        const cmd = new FailReceivedPaymentCmd(
+          {
+            receivedPaymentId,
+            paymentIntentId: intent.id,
+            reason: 'ILP fulfillment failed'
+          },
+          crypto.randomUUID()
+        );
+        await aggregate.handleBatch([cmd]);
+        await aggregate.flush();
+
+        const stored = repo
+          .getAll()
+          .flatMap((p) => p.receivedPayments)
+          .find((rp) => rp.id === receivedPaymentId);
+        assert(stored);
+        assert.equal(stored.state, 'FAILED');
+      });
+
       it('cannot fail a FINALIZED received payment', async () => {
         const { intent, receivedPaymentId } =
           makeIntentWithReceivedPayment('FINALIZED');

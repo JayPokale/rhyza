@@ -69,6 +69,20 @@ type ILPPaymentFulfillmentSentPayload = {
   fulfilledAt: string;
 };
 
+// TODO: ILP BC does not publish this event yet — assumed contract for when ILP
+// could not return the fulfillment (packet expired, peer dropped, etc.).
+const ILP_PAYMENT_FULFILLMENT_FAILED_EVENT_NAME =
+  'ILPPaymentFulfillmentFailedEvent';
+type ILPPaymentFulfillmentFailedPayload = {
+  requestId: string;
+  paymentIntentId: string;
+  receivedPaymentId: string;
+  packetId: string;
+  peerId: string;
+  reason?: string;
+  failedAt: string;
+};
+
 export class PaymentsEventHandler {
   private _msgConsumer: IMessageConsumer;
   private _msgProducer: IMessageProducer;
@@ -204,6 +218,19 @@ export class PaymentsEventHandler {
           {
             receivedPaymentId: payload.receivedPaymentId,
             paymentIntentId: payload.paymentIntentId
+          },
+          payload.requestId
+        );
+        await this._msgProducer.send(cmd);
+        break;
+      }
+      case ILP_PAYMENT_FULFILLMENT_FAILED_EVENT_NAME: {
+        const payload = message.payload as ILPPaymentFulfillmentFailedPayload;
+        const cmd = new FailReceivedPaymentCmd(
+          {
+            receivedPaymentId: payload.receivedPaymentId,
+            paymentIntentId: payload.paymentIntentId,
+            reason: payload.reason ?? 'ILP fulfillment failed'
           },
           payload.requestId
         );

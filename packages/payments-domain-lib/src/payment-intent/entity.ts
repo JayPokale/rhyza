@@ -652,7 +652,11 @@ class ReceivedPayment {
   }
 
   fail(reason?: string): void {
-    if (this._state !== 'VALIDATED' && this._state !== 'ACCEPTED') {
+    if (
+      this._state !== 'VALIDATED' &&
+      this._state !== 'ACCEPTED' &&
+      this._state !== 'FULFILLABLE'
+    ) {
       throw new PaymentInvalidStateError(
         `Received payment ${this._id} cannot fail from state ${this._state}`
       );
