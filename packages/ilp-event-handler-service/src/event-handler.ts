@@ -9,6 +9,7 @@ import {
 import {
   ActivatePeerCmd,
   DeactivatePeerCmd,
+  FulfillInboundPaymentCmd,
   RespondToRemoteQuoteCmd,
   StartRemotePaymentCmd,
   StartRemoteQuoteCmd
@@ -17,7 +18,8 @@ import {
   RemoteQuoteCalculatedEvent,
   RemoteQuoteCalculationFailedEvent,
   RemoteQuoteRequestedEvent,
-  RemotePaymentPreparedEvent
+  RemotePaymentPreparedEvent,
+  ReceivedPaymentFulfillableEvent
 } from 'payments-public-types-lib';
 import { PeerActivatedEvent, PeerDeactivatedEvent } from 'pal-public-types-lib';
 
@@ -118,6 +120,20 @@ export class IlpEventHandler {
           },
           payload.requestId
         );
+      }
+      case ReceivedPaymentFulfillableEvent.name: {
+        const payload =
+          message.payload as ReceivedPaymentFulfillableEvent['payload'];
+        this._logger.debug(
+          `Received payment fulfillable for packet ${payload.packetId}; dispatching fulfillment`
+        );
+        return new FulfillInboundPaymentCmd({
+          peerId: payload.peerId,
+          packetId: payload.packetId,
+          paymentIntentId: payload.paymentIntentId,
+          receivedPaymentId: payload.receivedPaymentId,
+          requestId: payload.requestId
+        });
       }
       case PeerActivatedEvent.name: {
         const payload = message.payload as PeerActivatedEvent['payload'];

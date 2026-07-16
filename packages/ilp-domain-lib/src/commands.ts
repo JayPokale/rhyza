@@ -163,6 +163,30 @@ export class RespondToRemoteQuoteCmd extends CommandMsg {
   }
 }
 
+export interface FulfillInboundPaymentCmdPayload {
+  peerId: string;
+  packetId: string;
+  paymentIntentId: string;
+  receivedPaymentId: string;
+  requestId: string;
+}
+
+// Payments BC: received payment is fulfillable - dispatch stored STREAM fulfillment.
+export class FulfillInboundPaymentCmd extends CommandMsg {
+  contextName: string = BOUNDED_CONTEXT_NAME;
+  aggregateName: string = AGGREGATE_NAME;
+  msgKey: string;
+  msgTopic: string = CommandTopics.IlpCommands;
+  payload: FulfillInboundPaymentCmdPayload;
+
+  constructor(payload: FulfillInboundPaymentCmdPayload) {
+    super(payload.peerId);
+    this.msgKey = payload.packetId;
+    this.payload = payload;
+    this.requestId = payload.requestId;
+  }
+}
+
 export interface ProcessPreparePacketCmdPayload {
   peerId: string;
   packetId: string;

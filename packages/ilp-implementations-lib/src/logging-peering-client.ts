@@ -1,5 +1,10 @@
 import { ILogger } from 'common-types-lib';
-import { IPeeringClient, PacketDispatch, RejectDispatch } from 'ilp-domain-lib';
+import {
+  FulfillDispatch,
+  IPeeringClient,
+  PacketDispatch,
+  RejectDispatch
+} from 'ilp-domain-lib';
 
 // An IPeeringClient that only logs. Useful for local runs and tests
 // where no connector is attached.
@@ -19,6 +24,13 @@ export class LoggingPeeringClient implements IPeeringClient {
       `[LoggingPeeringClient] would dispatch reject ${input.rejectCode} ` +
         `packet=${input.packetId} peer=${input.peerId} ` +
         `destinationAmount=${input.destinationAmount ?? 'none'}`
+    );
+  }
+
+  async dispatchFulfill(input: FulfillDispatch): Promise<void> {
+    this._logger.info(
+      `[LoggingPeeringClient] would dispatch fulfill ` +
+        `packet=${input.packetId} peer=${input.peerId}`
     );
   }
 }

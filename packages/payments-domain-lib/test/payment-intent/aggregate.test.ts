@@ -903,14 +903,22 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           packetId: string;
           peerId: string;
           sourceAmount: string;
+          peerAssetCode: string;
+          peerAssetScale: number;
         }> = {}
       ): ValidateReceivedPaymentCmd {
+        const peerId = overrides.peerId ?? 'peer-1';
+        mockPalService.setPeerById({
+          peerId,
+          assetCode: overrides.peerAssetCode ?? 'USD',
+          assetScale: overrides.peerAssetScale ?? 2
+        });
         return new ValidateReceivedPaymentCmd(
           {
             id: overrides.id ?? crypto.randomUUID(),
             paymentIntentId: overrides.paymentIntentId ?? crypto.randomUUID(),
             packetId: overrides.packetId ?? crypto.randomUUID(),
-            peerId: overrides.peerId ?? 'peer-1',
+            peerId,
             sourceAmount: overrides.sourceAmount ?? '100'
           },
           crypto.randomUUID()

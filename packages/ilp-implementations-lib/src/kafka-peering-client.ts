@@ -1,7 +1,9 @@
 import { ILogger, ConsoleLogger, IMessageProducer } from 'common-types-lib';
 import {
+  DispatchFulfillPacketCmd,
   DispatchPreparePacketCmd,
   DispatchRejectPacketCmd,
+  FulfillDispatch,
   IPeeringClient,
   PacketDispatch,
   RejectDispatch
@@ -55,6 +57,21 @@ export class KafkaPeeringClient implements IPeeringClient {
 
     this._logger.debug(
       `Dispatching reject (${input.rejectCode}) for packet ${input.packetId} to peer ${input.peerId}`
+    );
+    await this._producer.send(cmd);
+  }
+
+  async dispatchFulfill(input: FulfillDispatch): Promise<void> {
+    const cmd = new DispatchFulfillPacketCmd({
+      peerId: input.peerId,
+      packetId: input.packetId,
+      replyHandle: input.replyHandle,
+      fulfillment: input.fulfillment,
+      data: input.data
+    });
+
+    this._logger.debug(
+      `Dispatching fulfill for packet ${input.packetId} to peer ${input.peerId}`
     );
     await this._producer.send(cmd);
   }
