@@ -27,7 +27,7 @@ const PEER_OPEN_PAYMENTS_URL = 'http://peer-open-payments-svc:3002';
 const RECEIVER_WALLET_ADDRESS = 'test.com/receiver';
 const SENDER_WALLET_ADDRESS = 'test.com/sender';
 const PEER_ID = '04978037-26b8-4b4d-854a-278ed7548959';
-const PEER_ILP_STATIC_ADDRESS = 'g.rafiki';
+const PEER_ILP_STATIC_ADDRESS = 'private.rafiki.a';
 // This "peer" is actually our own ilp-connector-service HTTP
 // listener. The same token is used both as what we send
 // outgoing and what we expect incoming, since we're both ends of the

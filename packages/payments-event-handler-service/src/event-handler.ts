@@ -149,15 +149,13 @@ export class PaymentsEventHandler {
         break;
       }
       case ILPQuoteRequestReceivedEvent.name: {
-        // TODO: need paymentIntentId
         const payload =
           message.payload as ILPQuoteRequestReceivedEvent['payload'];
         const cmd = new CalculateRemoteQuoteCmd(
           {
             packetId: payload.packetId,
             peerId: payload.peerId,
-            // paymentIntentId: payload.paymentIntentId,
-            paymentIntentId: payload.destinationIlpAddress.split('.').at(-1)!,
+            paymentIntentId: payload.paymentIntentId,
             sourceAmount: payload.incomingAmount
           },
           crypto.randomUUID()

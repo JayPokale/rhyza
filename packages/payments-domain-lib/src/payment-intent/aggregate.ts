@@ -273,9 +273,8 @@ export class PaymentIntentAggregate {
     await Promise.all([
       ...Array.from(ilpAddressesToFetch, async (ilpAddress) => {
         try {
-          // TODO: re-evaluate this approach (popping last) after desintation address
-          // formation unstubbed. See destinationIlpAddress stub in remote-payment-intent-adapter.ts
-          // destinationIlpAddress is assumed to be <static>.<static>.<dynamic> (number of static sections variable)
+          // STREAM destinations are <serverAddress>.<connectionToken>; peer ILP
+          // address is the serverAddress prefix (everything but the last segment).
           const staticAddress = ilpAddress.split('.').slice(0, -1).join('.');
           const peer =
             await this._palService.getPeerByIlpAddress(staticAddress);
