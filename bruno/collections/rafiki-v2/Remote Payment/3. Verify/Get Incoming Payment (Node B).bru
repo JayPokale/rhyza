@@ -11,8 +11,6 @@ get {
 }
 
 docs {
-  Reads the incoming payment on **Node B** via its Open Payments server, exposed
-  on host port `4002`. Check `receivedAmount` against `incomingAmount` and the
-  `completed` flag to verify the payment intent finished - the Admin API has no
-  Get Payment endpoint yet, so this is the verification step.
+  Check `receivedAmount` vs `incomingAmount` and `completed` to verify the
+  payment landed on Node B.
 }

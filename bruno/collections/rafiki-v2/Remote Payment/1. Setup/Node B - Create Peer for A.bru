@@ -32,13 +32,3 @@ tests {
   });
 }
 
-docs {
-  Reverse peer on **Node B** representing **Node A**, needed for the
-  receive/settlement leg (Node B fulfilling Node A's ILP packets). That leg is
-  not implemented yet - there is no `/ilp` ingress, and no receive-side "accept"
-  path (no webhook event, no Admin endpoint). Included so the two-node topology
-  is symmetric and ready; not exercised by the sender-side Flow.
-
-  `ilpStaticAddress` is `g.rafiki` - both nodes currently advertise the same
-  stubbed prefix (`STUB_DESTINATION_ILP_PREFIX`).
-}

@@ -35,16 +35,3 @@ tests {
     expect(res.getBody()?.openPaymentsUrl).to.be.a("string");
   });
 }
-
-docs {
-  Creates the incoming payment (payment intent) on **Node B**.
-
-  The response `openPaymentsUrl` is a **Docker-internal** URL
-  (`http://open-payments-resource-service-b:3002/incoming-payments/{id}`).
-  Bruno never fetches it directly - it is stored as `receiverIntentUrl` and
-  handed to Node A's quote, which fetches it server-side over the shared
-  `rafiki-v2` network.
-
-  Requires `OPEN_PAYMENTS_URL` to be set on Node B's admin service (it is, in
-  `docker-compose.node-b.yaml`); otherwise `openPaymentsUrl` is omitted.
-}

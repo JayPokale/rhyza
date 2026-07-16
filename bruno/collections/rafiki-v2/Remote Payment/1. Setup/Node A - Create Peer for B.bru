@@ -38,27 +38,3 @@ tests {
     expect([201, 409]).to.include(res.getStatus());
   });
 }
-
-docs {
-  Creates the peer on **Node A** that represents **Node B**. During a remote
-  quote, Node A resolves this peer by the incoming payment's destination ILP
-  address, then dispatches ILP packets to its `http.outgoing.endpoint`.
-
-  About the two ILP values:
-
-  - `ilpStaticAddress` (`g.rafiki`) - this must match the stubbed prefix the
-    payments BC uses; it is NOT arbitrary. Node B's remote incoming payment
-    resolves to a destination ILP address of `g.rafiki.<incomingPaymentId>`
-    (see `remote-payment-intent-adapter.ts`), and Node A strips the last
-    segment and looks the peer up in PAL by the `g.rafiki` prefix
-    (`payment-intent/aggregate.ts`). Any other value fails the remote quote
-    with "No peer found for ILP address ...".
-  - `http.outgoing.endpoint` (`.../ilp`) - still a placeholder: the ILP HTTP
-    ingress route is not implemented on any service yet, and the connector
-    loops back, so packets are not actually delivered here. It uses the
-    Docker-internal service name so Node A would reach Node B over the shared
-    `rafiki-v2` network once a real transport exists.
-
-  `id` is hardcoded so re-running Setup returns 409 (idempotent) rather than
-  creating a duplicate peer.
-}
