@@ -133,6 +133,9 @@ importers:
       tsx:
         specifier: ^4.19.3
         version: 4.19.3
+      yaml:
+        specifier: ^2.9.0
+        version: 2.9.0
 
   packages/ase-mock-service:
     dependencies:
