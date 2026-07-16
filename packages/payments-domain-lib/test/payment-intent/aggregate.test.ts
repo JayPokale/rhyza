@@ -720,14 +720,20 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           peerAssetScale: number;
         }> = {}
       ): CalculateRemoteQuoteCmd {
+        const peerId = overrides.peerId ?? 'peer-1';
+        // Peer asset is resolved from PAL (getPeerById), not carried on the
+        // command — route the override to the mock PAL service.
+        mockPalService.setPeerById({
+          peerId,
+          assetCode: overrides.peerAssetCode ?? 'USD',
+          assetScale: overrides.peerAssetScale ?? 2
+        });
         return new CalculateRemoteQuoteCmd(
           {
             packetId: overrides.packetId ?? crypto.randomUUID(),
-            peerId: overrides.peerId ?? 'peer-1',
+            peerId,
             paymentIntentId: overrides.paymentIntentId ?? crypto.randomUUID(),
-            sourceAmount: overrides.sourceAmount ?? '100',
-            peerAssetCode: overrides.peerAssetCode ?? 'USD',
-            peerAssetScale: overrides.peerAssetScale ?? 2
+            sourceAmount: overrides.sourceAmount ?? '100'
           },
           crypto.randomUUID()
         );
