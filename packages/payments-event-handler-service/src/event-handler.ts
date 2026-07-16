@@ -52,8 +52,6 @@ type ILPPaymentReceivedPayload = {
   peerId: string;
   paymentIntentId: string;
   sourceAmount: string;
-  peerAssetCode: string;
-  peerAssetScale: number;
 };
 
 // TODO: ILP BC does not publish this event yet — assumed contract for the
@@ -171,9 +169,7 @@ export class PaymentsEventHandler {
             paymentIntentId: payload.paymentIntentId,
             packetId: payload.packetId,
             peerId: payload.peerId,
-            sourceAmount: payload.sourceAmount,
-            peerAssetCode: payload.peerAssetCode,
-            peerAssetScale: payload.peerAssetScale
+            sourceAmount: payload.sourceAmount
           },
           payload.requestId
         );

@@ -324,8 +324,6 @@ export type ValidateReceivedPaymentCmdPayload = {
   packetId: string;
   peerId: string;
   sourceAmount: string;
-  peerAssetCode: string;
-  peerAssetScale: number;
 };
 
 export class ValidateReceivedPaymentCmd extends PaymentIntentCommand {

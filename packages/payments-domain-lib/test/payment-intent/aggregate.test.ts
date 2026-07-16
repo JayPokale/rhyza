@@ -903,8 +903,6 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           packetId: string;
           peerId: string;
           sourceAmount: string;
-          peerAssetCode: string;
-          peerAssetScale: number;
         }> = {}
       ): ValidateReceivedPaymentCmd {
         return new ValidateReceivedPaymentCmd(
@@ -913,9 +911,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
             paymentIntentId: overrides.paymentIntentId ?? crypto.randomUUID(),
             packetId: overrides.packetId ?? crypto.randomUUID(),
             peerId: overrides.peerId ?? 'peer-1',
-            sourceAmount: overrides.sourceAmount ?? '100',
-            peerAssetCode: overrides.peerAssetCode ?? 'USD',
-            peerAssetScale: overrides.peerAssetScale ?? 2
+            sourceAmount: overrides.sourceAmount ?? '100'
           },
           crypto.randomUUID()
         );
@@ -951,11 +947,14 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         const intent = makeLocalIntent({ assetCode: 'XRP', assetScale: 4 });
         await repo.storeMany([intent]);
         mockPalService.getRates = async () => 2;
+        mockPalService.setPeerById({
+          peerId: 'peer-1',
+          assetCode: 'EUR',
+          assetScale: 2
+        });
 
         const cmd = makeValidateReceivedPaymentCmd({
           paymentIntentId: intent.id,
-          peerAssetCode: 'EUR',
-          peerAssetScale: 2,
           sourceAmount: '100'
         });
         const { events } = await aggregate.handleBatch([cmd]);
@@ -1120,9 +1119,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         mockPalService.getRates = async () => null;
 
         const cmd = makeValidateReceivedPaymentCmd({
-          paymentIntentId: intent.id,
-          peerAssetCode: 'USD',
-          peerAssetScale: 2
+          paymentIntentId: intent.id
         });
         const { events } = await aggregate.handleBatch([cmd]);
 
@@ -1133,6 +1130,25 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         const payload = (events[0] as ReceivedPaymentValidationFailedEvent)
           .payload;
         assert.equal(payload.errorName, 'RatesError');
+      });
+
+      it('fails with PeerNotFoundError when PAL has no peer for peerId', async () => {
+        const intent = makeLocalIntent({ assetCode: 'USD', assetScale: 2 });
+        await repo.storeMany([intent]);
+        mockPalService.getPeerById = async () => null;
+
+        const cmd = makeValidateReceivedPaymentCmd({
+          paymentIntentId: intent.id
+        });
+        const { events } = await aggregate.handleBatch([cmd]);
+
+        assert.equal(
+          events[0].msgName,
+          ReceivedPaymentValidationFailedEvent.name
+        );
+        const payload = (events[0] as ReceivedPaymentValidationFailedEvent)
+          .payload;
+        assert.equal(payload.errorName, 'PeerNotFoundError');
       });
     });
 
