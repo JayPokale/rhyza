@@ -19,6 +19,10 @@ import {
   PacketCorrelation
 } from '../packet';
 import { PacketNotFound } from '../packet/errors';
+import {
+  decodeInboundStreamPrepare,
+  ResolveStreamCredentials
+} from '../stream';
 import { Peer } from './entity';
 import { DuplicatePeer, UnknownPeer } from './errors';
 import {
@@ -45,7 +49,8 @@ const REJECT_CODE_INTERNAL = 'T00';
 export class IlpPeerAggregate {
   constructor(
     private readonly peerRepo: IPeerRepository,
-    private readonly peeringClient: IPeeringClient
+    private readonly peeringClient: IPeeringClient,
+    private readonly resolveStreamCredentials: ResolveStreamCredentials
   ) {}
 
   async createPeer(input: IPeer): Promise<IPeer> {
@@ -313,17 +318,43 @@ export class IlpPeerAggregate {
   ): Promise<IMessage[]> {
     const payload = cmd.payload;
 
-    // Without STREAM decode, "decode" means checking the fields the connector
-    // handed us are usable as a quoting probe.
-    // TODO: Replace when STREAM decode is implemented
-    if (!this.isDecodableProbe(payload)) {
+    const peer = await this.peerRepo.fetchById(payload.peerId);
+    if (!peer || peer.isActive === false) {
       await this.rejectInbound(payload);
       return [];
     }
 
-    const peer = await this.peerRepo.fetchById(payload.peerId);
-    if (!peer || peer.isActive === false) {
+    const resolved = await this.resolveStreamCredentials(
+      payload.destinationIlpAddress
+    );
+    if (!resolved) {
       await this.rejectInbound(payload);
+      return [];
+    }
+
+    const stream = decodeInboundStreamPrepare({
+      sharedSecret: resolved.sharedSecret,
+      executionCondition: Buffer.from(payload.executionCondition, 'base64'),
+      data: Buffer.from(payload.data ?? '', 'base64')
+    });
+
+    if (stream.fulfillable && stream.fulfillment) {
+      const correlation = PacketCorrelation.createPayment({
+        packetId: payload.packetId,
+        peerId: peer.peerId,
+        paymentIntentId: resolved.paymentIntentId,
+        expiresAt: new Date(payload.expiresAt),
+        // Inbound payment id is allocated locally until Payments BC owns it.
+        paymentId: crypto.randomUUID(),
+        requestId: cmd.requestId,
+        fulfillment: stream.fulfillment.toString('base64')
+      });
+      await this.peerRepo.storePacket(correlation.toObject());
+      await this.peerRepo.storeInboundReplyHandle({
+        packetId: payload.packetId,
+        peerId: payload.peerId,
+        replyHandle: payload.replyHandle
+      });
       return [];
     }
 
@@ -337,7 +368,7 @@ export class IlpPeerAggregate {
       new ILPQuoteRequestReceivedEvent({
         peerId: peer.peerId,
         packetId: payload.packetId,
-        destinationIlpAddress: payload.destinationIlpAddress,
+        paymentIntentId: resolved.paymentIntentId,
         incomingAmount: payload.amount,
         expiresAt: payload.expiresAt
       })
@@ -369,15 +400,6 @@ export class IlpPeerAggregate {
     });
     await this.peerRepo.deleteInboundReplyHandle(payload.packetId);
     return [];
-  }
-
-  private isDecodableProbe(payload: ProcessPreparePacketCmdPayload): boolean {
-    return (
-      typeof payload.destinationIlpAddress === 'string' &&
-      payload.destinationIlpAddress.length > 0 &&
-      typeof payload.amount === 'string' &&
-      /^\d+$/.test(payload.amount)
-    );
   }
 
   private async rejectInbound(

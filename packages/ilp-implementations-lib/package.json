@@ -10,6 +10,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@interledger/stream-receiver": "0.3.3-alpha.4",
     "common-types-lib": "workspace:*",
     "ilp-domain-lib": "workspace:*",
     "mongodb": "~7.1.0"

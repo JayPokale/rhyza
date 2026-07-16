@@ -134,7 +134,7 @@ export class ILPQuoteFailedEvent extends DomainEvent {
 export interface ILPQuoteRequestReceivedPayload {
   peerId: string;
   packetId: string;
-  destinationIlpAddress: string;
+  paymentIntentId: string;
   incomingAmount: string;
   expiresAt: string;
 }

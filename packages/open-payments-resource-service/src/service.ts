@@ -3,6 +3,10 @@
 import Fastify, { FastifyBaseLogger, FastifyInstance } from 'fastify';
 import { PalClient } from 'pal-client-lib';
 import { PaymentsClient } from 'payments-client-lib';
+import {
+  createStreamServer,
+  parseStreamServerSecret
+} from 'ilp-client-lib';
 import { walletAddressRoutes } from './routes/wallet-addresses.js';
 import { incomingPaymentRoutes } from './routes/incoming-payments.js';
 
@@ -14,7 +18,6 @@ import { FastifyOpenApiValidator } from './validator.js';
 import crypto from 'crypto';
 import { ILogger } from '../../common-types-lib/dist/logger.js';
 import { PinoLogger } from 'implementations-lib';
-import { StubIlpClient } from './stubs/ilp-client.js';
 
 const BC_NAME = 'OPEN_PAYMENTS';
 const APP_NAME = `${BC_NAME}_API_SVC`;
@@ -26,6 +29,11 @@ const PAL_GRPC_URL = process.env['PAL_GRPC_URL'] || 'localhost:50051';
 const PAYMENTS_GRPC_URL = process.env['PAYMENTS_GRPC_URL'] || 'localhost:50052';
 const OPEN_PAYMENTS_RESOURCE_SERVER_URL =
   process.env['OPEN_PAYMENTS_RESOURCE_SERVER_URL'] || 'localhost:3002';
+
+const STREAM_SERVER_SECRET_RAW =
+  process.env['STREAM_SERVER_SECRET'] ||
+  Buffer.from('rafiki-v2-dev-stream-secret-0001').toString('base64url');
+const ILP_ADDRESS = process.env['ILP_ADDRESS'] || 'private.rafiki';
 
 export class OpenPaymentsResourceServer {
   private static logger: ILogger;
@@ -81,7 +89,10 @@ export class OpenPaymentsResourceServer {
     this.server.register(incomingPaymentRoutes, {
       palClient: this.palClient,
       paymentsClient: this.paymentsClient,
-      ilpClient: new StubIlpClient()
+      streamServer: createStreamServer({
+        serverSecret: parseStreamServerSecret(STREAM_SERVER_SECRET_RAW),
+        serverAddress: ILP_ADDRESS
+      })
     });
 
     this.server.register(quoteRoutes, {

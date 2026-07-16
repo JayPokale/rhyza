@@ -35,6 +35,8 @@ services:
       PAL_GRPC_URL: pal-api-service:50051
       PAYMENTS_GRPC_URL: payments-api-service:50052
       OPEN_PAYMENTS_RESOURCE_SERVER_URL: http://open-payments-resource-service:3002
+      STREAM_SERVER_SECRET: cmFmaWtpLXYyLWRldi1zdHJlYW0tc2VjcmV0LTAwMDE
+      ILP_ADDRESS: private.rafiki.a
     ports:
       - '3002:3002'
     depends_on:
@@ -237,6 +239,8 @@ services:
     environment:
       KAFKA_URL: kafka:19092
       MONGODB_URL: mongodb://root:mongoPass@mongodb:27017
+      STREAM_SERVER_SECRET: cmFmaWtpLXYyLWRldi1zdHJlYW0tc2VjcmV0LTAwMDE
+      ILP_ADDRESS: private.rafiki.a
     depends_on:
       init-kafka:
         condition: service_completed_successfully

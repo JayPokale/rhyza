@@ -12,6 +12,7 @@ import {
   IMessageProducerAcks
 } from 'common-types-lib';
 import {
+  createFakeResolveStreamCredentials,
   IlpPeerAggregate,
   IPeer,
   ILPQuoteRequestReceivedEvent
@@ -141,10 +142,13 @@ const PEER: IPeer = {
 
 const TEST_CALLBACK_URL = 'https://peer.example/callback';
 
-const probe = (overrides: Partial<WirePrepare> = {}): WirePrepare => ({
+const probe = (
+  destinationIlpAddress: string,
+  overrides: Partial<WirePrepare> = {}
+): WirePrepare => ({
   peerId: 'peer-1',
   packetId: 'packet-in-1',
-  destinationIlpAddress: 'g.us.alice',
+  destinationIlpAddress,
   amount: '100',
   expiresAt: new Date(Date.now() + 30_000).toISOString(),
   executionCondition: Buffer.alloc(32).toString('base64'),
@@ -175,10 +179,14 @@ async function wireSystem(calculator?: IQuoteCalculator) {
   await connectorConsumer.connect();
   await connectorConsumer.startAndWaitForRebalance();
 
+  const fake = createFakeResolveStreamCredentials();
+  const credentials = fake.issueCredentials('intent-1');
+
   const repo = new InMemoryPeerRepository([PEER]);
   const aggregate = new IlpPeerAggregate(
     repo,
-    new KafkaPeeringClient(producer, logger)
+    new KafkaPeeringClient(producer, logger),
+    fake.resolveStreamCredentials
   );
   const cmdHandler = new IlpCommandHandler(
     bus.consumer(),
@@ -199,7 +207,7 @@ async function wireSystem(calculator?: IQuoteCalculator) {
   );
   await paymentsBcFixture.start();
 
-  return { bus, transport };
+  return { bus, transport, destinationIlpAddress: credentials.ilpAddress };
 }
 
 const lastReject = (
@@ -227,11 +235,14 @@ const requestReceivedEvents = (bus: InMemoryBus) =>
 
 describe('ILP receiving quote flow over Kafka topics', () => {
   test('inbound probe -> request received -> Payments BC quote -> reject', async () => {
-    const { bus, transport } = await wireSystem(
+    const { bus, transport, destinationIlpAddress } = await wireSystem(
       new FixedRateQuoteCalculator(95n, 100n)
     );
 
-    await transport.simulateInboundPrepare(probe(), TEST_CALLBACK_URL);
+    await transport.simulateInboundPrepare(
+      probe(destinationIlpAddress),
+      TEST_CALLBACK_URL
+    );
 
     // The aggregate decoded the probe and published the request received event.
     assert.equal(requestReceivedEvents(bus).length, 1);
@@ -253,10 +264,10 @@ describe('ILP receiving quote flow over Kafka topics', () => {
   });
 
   test('an unresolved peer is answered with a generic reject and no event', async () => {
-    const { bus, transport } = await wireSystem();
+    const { bus, transport, destinationIlpAddress } = await wireSystem();
 
     await transport.simulateInboundPrepare(
-      probe({ peerId: 'peer-unknown' }),
+      probe(destinationIlpAddress, { peerId: 'peer-unknown' }),
       TEST_CALLBACK_URL
     );
 
@@ -266,11 +277,11 @@ describe('ILP receiving quote flow over Kafka topics', () => {
     assert.equal(reject.response.data, undefined);
   });
 
-  test('an undecodable probe is answered with a generic reject', async () => {
-    const { bus, transport } = await wireSystem();
+  test('an invalid amount is answered with a generic reject', async () => {
+    const { bus, transport, destinationIlpAddress } = await wireSystem();
 
     await transport.simulateInboundPrepare(
-      probe({ amount: '' }),
+      probe(destinationIlpAddress, { amount: '' }),
       TEST_CALLBACK_URL
     );
 

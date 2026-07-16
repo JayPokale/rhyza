@@ -286,6 +286,9 @@ importers:
       '@grpc/grpc-js':
         specifier: ~1.14.3
         version: 1.14.3
+      '@interledger/stream-receiver':
+        specifier: 0.3.3-alpha.4
+        version: 0.3.3-alpha.4
       ilp-public-types-lib:
         specifier: workspace:*
         version: link:../ilp-public-types-lib
@@ -343,6 +346,9 @@ importers:
 
   packages/ilp-domain-lib:
     dependencies:
+      '@interledger/stream-receiver':
+        specifier: 0.3.3-alpha.4
+        version: 0.3.3-alpha.4
       common-types-lib:
         specifier: workspace:*
         version: link:../common-types-lib
@@ -384,6 +390,9 @@ importers:
 
   packages/ilp-implementations-lib:
     dependencies:
+      '@interledger/stream-receiver':
+        specifier: 0.3.3-alpha.4
+        version: 0.3.3-alpha.4
       common-types-lib:
         specifier: workspace:*
         version: link:../common-types-lib
@@ -580,6 +589,9 @@ importers:
       fastify:
         specifier: ~5.3.3
         version: 5.3.3
+      ilp-client-lib:
+        specifier: workspace:*
+        version: link:../ilp-client-lib
       implementations-lib:
         specifier: workspace:*
         version: link:../implementations-lib
@@ -1698,6 +1710,9 @@ packages:
   '@interledger/docs-design-system@0.13.0':
     resolution: {integrity: sha512-92OO5JoQBbdkC44l/Q5TyHK1/N06Bpav2nkhMuRdwSUTN82reIivDcF+shJ/AoeMkf3jWm6owjizPcKMLhiX3A==}
 
+  '@interledger/stream-receiver@0.3.3-alpha.4':
+    resolution: {integrity: sha512-wg/agXfAaSe8AorvIKCA5nMQ8HT8JjODzX4WVfoqOjZ5w0wcwEzuy95YZF/sTPLP5ttDR+NN0MTer/CTZ0p1Jw==}
+
   '@ioredis/commands@1.5.1':
     resolution: {integrity: sha512-JH8ZL/ywcJyR9MmJ5BNqZllXNZQqQbnVZOqpPQqE1vHiFgAw4NHbvE0FOduNU8IX9babitBT46571OnPTT0Zcw==}
 
@@ -2409,6 +2424,9 @@ packages:
 
   '@types/katex@0.16.8':
     resolution: {integrity: sha512-trgaNyfU+Xh2Tc+ABIb44a5AYUpicB3uwirOioeOkNPPbmgRNtcWyDeeFRzjPZENO9Vq8gvVqfhaaXWLlevVwg==}
+
+  '@types/long@4.0.2':
+    resolution: {integrity: sha512-MqTGEo5bj5t157U6fA/BiDynNkn0YknVdh48CMPkTSpFTVmvao5UQmm7uEF6xBEo7qIMAlY/JSleYaE6VOdpaA==}
 
   '@types/mathjax@0.0.40':
     resolution: {integrity: sha512-rHusx08LCg92WJxrsM3SPjvLTSvK5C+gealtSuhKbEOcUZfWlwigaFoPLf6Dfxhg4oryN5qP9Sj7zOQ4HYXINw==}
@@ -3598,6 +3616,18 @@ packages:
     resolution: {integrity: sha512-Hs59xBNfUIunMFgWAbGX5cq6893IbWg4KnrjbYwX3tx0ztorVgTDA6B2sxf8ejHJ4wz8BqGUMYlnzNBer5NvGg==}
     engines: {node: '>= 4'}
 
+  ilp-logger@1.4.5-alpha.2:
+    resolution: {integrity: sha512-WtbscdjUUPVseRkDpRlfb/YUpsq4zfoOz6PlJSkx+aqJot1P5N+YGd4YKW1g9wm6O8muo5e/xBotyJqCQs0g+Q==}
+
+  ilp-packet@3.1.4-alpha.2:
+    resolution: {integrity: sha512-0a75sI7o/1NG9qgJlObg9M264pnezcPEse1+UQV8gkgQAuKesj5b6qyPw7WbkvjIDXAtIQ61Qg48wRpkaddbQw==}
+
+  ilp-protocol-ildcp@2.2.4-alpha.2:
+    resolution: {integrity: sha512-pMBHAXwTnOA1E9TzJAXxbVxrCpqqcYEPJ5w+9kj/gTr3Lmu8M5U/h0W7bGx/pgfGQ2jHXKdO8IJurojDjfoURA==}
+
+  ilp-protocol-stream@2.7.2-alpha.3:
+    resolution: {integrity: sha512-4HQFVL9Wfmv6nLB5tSp68LZYcd4KRg9kBMVVVHDiqRfqYVQoyPI7EcOAIh7cA01MVzmMrqhbDzIPu6T2SQV4TA==}
+
   import-fresh@3.3.1:
     resolution: {integrity: sha512-TR3KfrTZTYLPB6jUjfx6MF9WcWrHL9su5TObK4ZkYgBdWKPOFoSoQIdEuTuR82pmtxH2spWG9h6etwfr1pLBqQ==}
     engines: {node: '>=6'}
@@ -3780,6 +3810,9 @@ packages:
 
   lodash.merge@4.6.2:
     resolution: {integrity: sha512-0KpjqXRVvrYyCsX1swR/XTK0va6VQkQM6MNo7PqW77ByjAhoARA8EfrP1N4+KlKj8YS0ZUCtRT/YUuhyYDujIQ==}
+
+  long@4.0.0:
+    resolution: {integrity: sha512-XsP+KhQif4bjX1kbuSiySJFNAehNxgLb6hPRGJ9QsUr8ajHkuXGdrHmFUTUUXhDwVX2R5bY4JNZEwbUiMhV+MA==}
 
   long@5.3.0:
     resolution: {integrity: sha512-5vvY5yF1zF/kXk+L94FRiTDa1Znom46UjPCH6/XbSvS8zBKMFBHTJk8KDMqJ+2J6QezQFi7k1k8v21ClJYHPaw==}
@@ -4140,6 +4173,9 @@ packages:
   obug@2.1.3:
     resolution: {integrity: sha512-9miFgM2OFba7hB+pRgvtV84pYTBaoTHohvmIgiRt6dRIzbwEOIaNaP+dIlGs2fNFoB0SeISs0Jz5WFVRid6Xyg==}
     engines: {node: '>=12.20.0'}
+
+  oer-utils@5.1.3-alpha.2:
+    resolution: {integrity: sha512-BX/8xcb+TXGTRtu97a/ZvcrWSyMd8wt8GSQMD7MvKxPEFqN4lX9w+Pk/Wm4HxwfHQQO9EhTYryR5hosTgWxP+A==}
 
   ofetch@1.5.1:
     resolution: {integrity: sha512-2W4oUZlVaqAPAil6FUg/difl6YhqhUR7x2eZY4bQCko22UXg3hptq9KLQdqFClV+Wu85UX7hNtdGTngi/1BxcA==}
@@ -4729,6 +4765,10 @@ packages:
     resolution: {integrity: sha512-qpCAvRl9stuOHveKsn7HncJRvv501qIacKzQlO/+Lwxc9+0q2wLyv4Dfvt80/DPn2pqOBsJdDiogXGR9+OvwRw==}
     engines: {node: '>=8'}
 
+  supports-color@9.4.0:
+    resolution: {integrity: sha512-VL+lNrEoIXww1coLPOmiEmK/0sGigko5COxI09KzHc2VJXJsQ37UaQ+8quuxjDeA7+KnLGTWRyOXSLLR2Wb4jw==}
+    engines: {node: '>=12'}
+
   supports-hyperlinks@4.5.0:
     resolution: {integrity: sha512-ZW2OvfeCXrNTbLakPUzjQG922EeGCOteFSVoek5DKStTh898wf7zgtuFlzQN8HfZCxC3Eh02yJVrRW51hADf+w==}
     engines: {node: '>=20'}
@@ -4981,6 +5021,11 @@ packages:
 
   uuid@14.0.0:
     resolution: {integrity: sha512-Qo+uWgilfSmAhXCMav1uYFynlQO7fMFiMVZsQqZRMIXp0O7rR7qjkj+cPvBHLgBqi960QCoo/PH2/6ZtVqKvrg==}
+    hasBin: true
+
+  uuid@8.3.2:
+    resolution: {integrity: sha512-+NYs2QeMWy+GWFOEm9xnn6HCDp0l7QBD7ml8zLUmJ+93Q5NF0NocErnwkTkXVFNiX3/fpC6afS8Dhb/gz7R7eg==}
+    deprecated: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
     hasBin: true
 
   vfile-location@5.0.3:
@@ -5511,7 +5556,7 @@ snapshots:
   '@eslint/config-array@0.23.5':
     dependencies:
       '@eslint/object-schema': 3.0.5
-      debug: 4.4.3(supports-color@10.2.2)
+      debug: 4.4.3
       minimatch: 10.2.5
     transitivePeerDependencies:
       - supports-color
@@ -5773,6 +5818,18 @@ snapshots:
     dependencies:
       mermaid: 11.15.0
 
+  '@interledger/stream-receiver@0.3.3-alpha.4':
+    dependencies:
+      '@types/long': 4.0.2
+      ilp-logger: 1.4.5-alpha.2
+      ilp-packet: 3.1.4-alpha.2
+      ilp-protocol-ildcp: 2.2.4-alpha.2
+      ilp-protocol-stream: 2.7.2-alpha.3
+      long: 4.0.0
+      oer-utils: 5.1.3-alpha.2
+    transitivePeerDependencies:
+      - supports-color
+
   '@ioredis/commands@1.5.1': {}
 
   '@isaacs/balanced-match@4.0.1': {}
@@ -5793,7 +5850,7 @@ snapshots:
     dependencies:
       consola: 3.4.2
       detect-libc: 2.1.2
-      https-proxy-agent: 7.0.6(supports-color@10.2.2)
+      https-proxy-agent: 7.0.6
       node-fetch: 2.7.0
       nopt: 8.1.0
       semver: 7.7.4
@@ -6547,6 +6604,8 @@ snapshots:
 
   '@types/katex@0.16.8': {}
 
+  '@types/long@4.0.2': {}
+
   '@types/mathjax@0.0.40': {}
 
   '@types/mdast@4.0.4':
@@ -6642,7 +6701,7 @@ snapshots:
       '@typescript-eslint/types': 8.54.0
       '@typescript-eslint/typescript-estree': 8.54.0(typescript@5.9.3)
       '@typescript-eslint/visitor-keys': 8.54.0
-      debug: 4.4.3(supports-color@10.2.2)
+      debug: 4.4.3
       eslint: 9.39.2
       typescript: 5.9.3
     transitivePeerDependencies:
@@ -6654,7 +6713,7 @@ snapshots:
       '@typescript-eslint/types': 8.61.1
       '@typescript-eslint/typescript-estree': 8.61.1(typescript@5.9.3)
       '@typescript-eslint/visitor-keys': 8.61.1
-      debug: 4.4.3(supports-color@10.2.2)
+      debug: 4.4.3
       eslint: 10.5.0
       typescript: 5.9.3
     transitivePeerDependencies:
@@ -6664,7 +6723,7 @@ snapshots:
     dependencies:
       '@typescript-eslint/tsconfig-utils': 8.54.0(typescript@5.9.3)
       '@typescript-eslint/types': 8.54.0
-      debug: 4.4.3(supports-color@10.2.2)
+      debug: 4.4.3
       typescript: 5.9.3
     transitivePeerDependencies:
       - supports-color
@@ -6673,7 +6732,7 @@ snapshots:
     dependencies:
       '@typescript-eslint/tsconfig-utils': 8.61.1(typescript@5.9.3)
       '@typescript-eslint/types': 8.61.1
-      debug: 4.4.3(supports-color@10.2.2)
+      debug: 4.4.3
       typescript: 5.9.3
     transitivePeerDependencies:
       - supports-color
@@ -6701,7 +6760,7 @@ snapshots:
       '@typescript-eslint/types': 8.54.0
       '@typescript-eslint/typescript-estree': 8.54.0(typescript@5.9.3)
       '@typescript-eslint/utils': 8.54.0(eslint@9.39.2)(typescript@5.9.3)
-      debug: 4.4.3(supports-color@10.2.2)
+      debug: 4.4.3
       eslint: 9.39.2
       ts-api-utils: 2.4.0(typescript@5.9.3)
       typescript: 5.9.3
@@ -6713,7 +6772,7 @@ snapshots:
       '@typescript-eslint/types': 8.61.1
       '@typescript-eslint/typescript-estree': 8.61.1(typescript@5.9.3)
       '@typescript-eslint/utils': 8.61.1(eslint@10.5.0)(typescript@5.9.3)
-      debug: 4.4.3(supports-color@10.2.2)
+      debug: 4.4.3
       eslint: 10.5.0
       ts-api-utils: 2.5.0(typescript@5.9.3)
       typescript: 5.9.3
@@ -6730,7 +6789,7 @@ snapshots:
       '@typescript-eslint/tsconfig-utils': 8.54.0(typescript@5.9.3)
       '@typescript-eslint/types': 8.54.0
       '@typescript-eslint/visitor-keys': 8.54.0
-      debug: 4.4.3(supports-color@10.2.2)
+      debug: 4.4.3
       minimatch: 9.0.5
       semver: 7.7.4
       tinyglobby: 0.2.15
@@ -6745,7 +6804,7 @@ snapshots:
       '@typescript-eslint/tsconfig-utils': 8.61.1(typescript@5.9.3)
       '@typescript-eslint/types': 8.61.1
       '@typescript-eslint/visitor-keys': 8.61.1
-      debug: 4.4.3(supports-color@10.2.2)
+      debug: 4.4.3
       minimatch: 10.2.5
       semver: 7.7.4
       tinyglobby: 0.2.15
@@ -6881,7 +6940,7 @@ snapshots:
       '@typescript-eslint/scope-manager': 8.54.0
       '@typescript-eslint/types': 8.54.0
       astrojs-compiler-sync: 1.1.1(@astrojs/compiler@3.0.1)
-      debug: 4.4.3(supports-color@10.2.2)
+      debug: 4.4.3
       entities: 7.0.1
       eslint-scope: 8.4.0
       eslint-visitor-keys: 4.2.1
@@ -7354,11 +7413,21 @@ snapshots:
     dependencies:
       ms: 2.1.3
 
+  debug@4.4.3:
+    dependencies:
+      ms: 2.1.3
+
   debug@4.4.3(supports-color@10.2.2):
     dependencies:
       ms: 2.1.3
     optionalDependencies:
       supports-color: 10.2.2
+
+  debug@4.4.3(supports-color@9.4.0):
+    dependencies:
+      ms: 2.1.3
+    optionalDependencies:
+      supports-color: 9.4.0
 
   decode-named-character-reference@1.3.0:
     dependencies:
@@ -7564,7 +7633,7 @@ snapshots:
       '@types/estree': 1.0.8
       ajv: 6.15.0
       cross-spawn: 7.0.6
-      debug: 4.4.3(supports-color@10.2.2)
+      debug: 4.4.3
       escape-string-regexp: 4.0.0
       eslint-scope: 9.1.2
       eslint-visitor-keys: 5.0.1
@@ -8096,6 +8165,13 @@ snapshots:
 
   http-cache-semantics@4.2.0: {}
 
+  https-proxy-agent@7.0.6:
+    dependencies:
+      agent-base: 7.1.4
+      debug: 4.4.3
+    transitivePeerDependencies:
+      - supports-color
+
   https-proxy-agent@7.0.6(supports-color@10.2.2):
     dependencies:
       agent-base: 7.1.4
@@ -8114,6 +8190,35 @@ snapshots:
   ignore@5.3.2: {}
 
   ignore@7.0.5: {}
+
+  ilp-logger@1.4.5-alpha.2:
+    dependencies:
+      '@types/debug': 4.1.13
+      debug: 4.4.3(supports-color@9.4.0)
+      supports-color: 9.4.0
+
+  ilp-packet@3.1.4-alpha.2:
+    dependencies:
+      oer-utils: 5.1.3-alpha.2
+
+  ilp-protocol-ildcp@2.2.4-alpha.2:
+    dependencies:
+      debug: 4.4.3
+      ilp-packet: 3.1.4-alpha.2
+      oer-utils: 5.1.3-alpha.2
+    transitivePeerDependencies:
+      - supports-color
+
+  ilp-protocol-stream@2.7.2-alpha.3:
+    dependencies:
+      ilp-logger: 1.4.5-alpha.2
+      ilp-packet: 3.1.4-alpha.2
+      ilp-protocol-ildcp: 2.2.4-alpha.2
+      long: 4.0.0
+      oer-utils: 5.1.3-alpha.2
+      uuid: 8.3.2
+    transitivePeerDependencies:
+      - supports-color
 
   import-fresh@3.3.1:
     dependencies:
@@ -8150,7 +8255,7 @@ snapshots:
     dependencies:
       '@ioredis/commands': 1.5.1
       cluster-key-slot: 1.1.2
-      debug: 4.4.3(supports-color@10.2.2)
+      debug: 4.4.3
       denque: 2.1.0
       lodash.defaults: 4.2.0
       lodash.isarguments: 3.1.0
@@ -8271,6 +8376,8 @@ snapshots:
   lodash.isarguments@3.1.0: {}
 
   lodash.merge@4.6.2: {}
+
+  long@4.0.0: {}
 
   long@5.3.0: {}
 
@@ -8795,7 +8902,7 @@ snapshots:
   micromark@4.0.2:
     dependencies:
       '@types/debug': 4.1.13
-      debug: 4.4.3(supports-color@10.2.2)
+      debug: 4.4.3
       decode-named-character-reference: 1.3.0
       devlop: 1.1.0
       micromark-core-commonmark: 2.0.3
@@ -8905,6 +9012,11 @@ snapshots:
   obuf@1.1.2: {}
 
   obug@2.1.3: {}
+
+  oer-utils@5.1.3-alpha.2:
+    dependencies:
+      '@types/long': 4.0.2
+      long: 4.0.0
 
   ofetch@1.5.1:
     dependencies:
@@ -9418,7 +9530,7 @@ snapshots:
 
   require-in-the-middle@8.0.1:
     dependencies:
-      debug: 4.4.3(supports-color@10.2.2)
+      debug: 4.4.3
       module-details-from-path: 1.0.3
     transitivePeerDependencies:
       - supports-color
@@ -9683,6 +9795,8 @@ snapshots:
     dependencies:
       has-flag: 4.0.0
 
+  supports-color@9.4.0: {}
+
   supports-hyperlinks@4.5.0:
     dependencies:
       has-flag: 5.0.1
@@ -9900,6 +10014,8 @@ snapshots:
   util-deprecate@1.0.2: {}
 
   uuid@14.0.0: {}
+
+  uuid@8.3.2: {}
 
   vfile-location@5.0.3:
     dependencies:

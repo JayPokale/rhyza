@@ -16,6 +16,7 @@ import {
   DispatchPreparePacketCmd,
   DispatchRejectPacketCmd,
   ExpirePacketCmd,
+  createFakeResolveStreamCredentials,
   IlpPeerAggregate,
   ILPPeerCreatedEvent,
   ILPPeerCreationFailedEvent,
@@ -96,7 +97,11 @@ async function startedHandler() {
   const consumer = new MockConsumer();
   const repo = new InMemoryPeerRepository([PEER]);
   const peeringClient = new KafkaPeeringClient(producer, new ConsoleLogger());
-  const aggregate = new IlpPeerAggregate(repo, peeringClient);
+  const aggregate = new IlpPeerAggregate(
+    repo,
+    peeringClient,
+    createFakeResolveStreamCredentials().resolveStreamCredentials
+  );
   const handler = new IlpCommandHandler(
     consumer,
     producer,
@@ -270,6 +275,7 @@ describe('IlpCommandHandler — peer activation mirror', () => {
         destinationIlpAddress: 'g.us.alice',
         amount: '100',
         expiresAt: new Date(Date.now() + 30_000).toISOString(),
+        replyHandle: 'reply-handle-1',
         executionCondition: Buffer.alloc(32).toString('base64')
       })
     ]);

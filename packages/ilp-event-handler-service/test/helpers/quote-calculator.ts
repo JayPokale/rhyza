@@ -1,7 +1,7 @@
 export interface QuoteCalculationRequest {
   peerId: string;
   packetId: string;
-  destinationIlpAddress: string;
+  paymentIntentId: string;
   incomingAmount: string;
 }
 

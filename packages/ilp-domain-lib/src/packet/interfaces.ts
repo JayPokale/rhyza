@@ -24,6 +24,10 @@ interface PaymentPacketCorrelation extends BasePacketCorrelation {
   kind: 'PAYMENT';
   paymentId: string;
   requestId: string;
+  // Optional because this type covers both directions. Inbound fulfillable
+  // packets store the base64 STREAM fulfillment here for a later fulfill
+  // reply. Outgoing prepares leave it unset.
+  fulfillment?: string;
 }
 
 export type IPacketCorrelation =

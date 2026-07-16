@@ -61,7 +61,7 @@ const request = () =>
   new ILPQuoteRequestReceivedEvent({
     peerId: 'peer-1',
     packetId: 'packet-in-1',
-    destinationIlpAddress: 'g.us.alice',
+    paymentIntentId: 'intent-1',
     incomingAmount: '100',
     expiresAt: new Date().toISOString()
   });
@@ -232,7 +232,7 @@ describe('PaymentsBcQuoteFixture', () => {
       new ILPQuoteRequestReceivedEvent({
         peerId: 'peer-1',
         packetId: 'packet-in-1',
-        destinationIlpAddress: 'g.us.alice',
+        paymentIntentId: 'intent-1',
         incomingAmount: 'not-a-number',
         expiresAt: new Date().toISOString()
       })

@@ -14,6 +14,7 @@ import {
 import {
   DispatchPreparePacketCmd,
   ExpirePacketCmd,
+  createFakeResolveStreamCredentials,
   IlpPeerAggregate,
   IPeer,
   ProcessRejectPacketCmd,
@@ -195,7 +196,8 @@ async function wireSystem(autoReject: boolean) {
   const repo = new InMemoryPeerRepository([PEER]);
   const aggregate = new IlpPeerAggregate(
     repo,
-    new KafkaPeeringClient(producer, logger)
+    new KafkaPeeringClient(producer, logger),
+    createFakeResolveStreamCredentials().resolveStreamCredentials
   );
   const handler = new IlpCommandHandler(
     bus.consumer(),
