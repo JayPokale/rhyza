@@ -222,9 +222,7 @@ export class PaymentIntentAggregate {
       if (cmd.msgName === CalculateRemoteQuoteCmd.name) {
         peerIdsToFetch.add((cmd as CalculateRemoteQuoteCmd).payload.peerId);
       } else if (cmd.msgName === ValidateReceivedPaymentCmd.name) {
-        peerIdsToFetch.add(
-          (cmd as ValidateReceivedPaymentCmd).payload.peerId
-        );
+        peerIdsToFetch.add((cmd as ValidateReceivedPaymentCmd).payload.peerId);
       }
     }
     await Promise.all(
@@ -1415,8 +1413,12 @@ export class PaymentIntentAggregate {
     this._logger.debug(
       `handleValidateReceivedPaymentCommand — receivedPaymentId: ${cmd.payload.id} paymentIntentId: ${cmd.payload.paymentIntentId} packetId: ${cmd.payload.packetId}`
     );
-    const { id: receivedPaymentId, paymentIntentId, packetId, peerId } =
-      cmd.payload;
+    const {
+      id: receivedPaymentId,
+      paymentIntentId,
+      packetId,
+      peerId
+    } = cmd.payload;
 
     try {
       const paymentIntentObj = this.paymentIntentMap.get(paymentIntentId);
