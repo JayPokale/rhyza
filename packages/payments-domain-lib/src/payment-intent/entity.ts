@@ -642,6 +642,15 @@ class ReceivedPayment {
     this._ledgerTransferId = ledgerTransferId;
   }
 
+  markFulfillable(): void {
+    if (this._state !== 'ACCEPTED') {
+      throw new PaymentInvalidStateError(
+        `Received payment ${this._id} cannot be marked fulfillable from state ${this._state}`
+      );
+    }
+    this._state = 'FULFILLABLE';
+  }
+
   fail(reason?: string): void {
     if (this._state !== 'VALIDATED' && this._state !== 'ACCEPTED') {
       throw new PaymentInvalidStateError(
@@ -655,7 +664,7 @@ class ReceivedPayment {
   }
 
   finalize(): { receiveAmount: bigint } {
-    if (this._state !== 'ACCEPTED') {
+    if (this._state !== 'FULFILLABLE') {
       throw new PaymentInvalidStateError(
         `Received payment ${this._id} cannot be finalized from state ${this._state}`
       );
@@ -1510,6 +1519,20 @@ export class PaymentIntent implements IPaymentIntent {
     }
 
     receivedPayment.fail(reason);
+    return receivedPayment.toObject();
+  }
+
+  markReceivedPaymentFulfillable(args: { id: string }): IReceivedPayment {
+    const { id } = args;
+
+    const receivedPayment = this._receivedPayments.find((rp) => rp.id === id);
+    if (!receivedPayment) {
+      throw new PaymentNotFoundError(
+        `Received payment ${id} not found for ${this.id} payment intent`
+      );
+    }
+
+    receivedPayment.markFulfillable();
     return receivedPayment.toObject();
   }
 

@@ -27,6 +27,7 @@ import {
   ValidateReceivedPaymentCmd,
   AcceptReceivedPaymentCmd,
   FailReceivedPaymentCmd,
+  MarkReceivedPaymentFulfillableCmd,
   FinalizeReceivedPaymentCmd
 } from '../../src/commands';
 import {
@@ -59,6 +60,7 @@ import {
   ReceivedPaymentValidationFailedEvent,
   ReceivedPaymentAcceptedEvent,
   ReceivedPaymentFailedEvent,
+  ReceivedPaymentFulfillableEvent,
   ReceivedPaymentFinalizedEvent
 } from 'payments-public-types-lib';
 
@@ -1349,6 +1351,94 @@ describe('PaymentIntentAggregate.handleBatch', () => {
       });
     });
 
+    describe('handleMarkReceivedPaymentFulfillableCommand', () => {
+      function makeIntentWithReceivedPayment(
+        state: IPaymentIntent['receivedPayments'][number]['state'] = 'ACCEPTED'
+      ): { intent: IPaymentIntent; receivedPaymentId: string } {
+        const intentId = crypto.randomUUID();
+        const receivedPaymentId = crypto.randomUUID();
+        const intent: IPaymentIntent = {
+          id: intentId,
+          receivedAmount: 0n,
+          receiverWalletAddress: 'domain.com/alice',
+          receiverWalletAddressId: 'wallet-1',
+          assetCode: 'USD',
+          assetScale: 2,
+          state: 'CREATED',
+          destination: 'LOCAL',
+          createdAt: new Date(),
+          expiresAt: new Date(Date.now() + 60_000),
+          incomingAmount: null,
+          quotes: [],
+          sentPayments: [],
+          receivedPayments: [
+            {
+              id: receivedPaymentId,
+              state,
+              paymentIntentId: intentId,
+              packetId: 'packet-1',
+              peerId: 'peer-1',
+              peerAssetCode: 'USD',
+              peerAssetScale: 2,
+              sourceAmount: 100n,
+              receiveAmount: 100n,
+              createdAt: new Date(),
+              ledgerTransferId: 'transfer-1'
+            }
+          ]
+        };
+        return { intent, receivedPaymentId };
+      }
+
+      it('marks an ACCEPTED received payment FULFILLABLE and emits ReceivedPaymentFulfillableEvent', async () => {
+        const { intent, receivedPaymentId } = makeIntentWithReceivedPayment();
+        await repo.storeMany([intent]);
+
+        const { events } = await aggregate.handleBatch([
+          new MarkReceivedPaymentFulfillableCmd(
+            { receivedPaymentId, paymentIntentId: intent.id },
+            crypto.randomUUID()
+          )
+        ]);
+        await aggregate.flush();
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, ReceivedPaymentFulfillableEvent.name);
+        const payload = (events[0] as ReceivedPaymentFulfillableEvent).payload;
+        assert.equal(payload.paymentIntentId, intent.id);
+        assert.equal(payload.receivedPaymentId, receivedPaymentId);
+        assert.equal(payload.packetId, 'packet-1');
+        assert.equal(payload.peerId, 'peer-1');
+        assert.equal(payload.receiveAmount, '100');
+        assert.equal(payload.receiveAssetCode, 'USD');
+        assert.equal(payload.receiveAssetScale, 2);
+        assert.equal(payload.state, 'FULFILLABLE');
+
+        const stored = repo.getAll().find((p) => p.id === intent.id);
+        assert(stored);
+        assert.equal(stored.receivedPayments[0].state, 'FULFILLABLE');
+        // receivedAmount is only credited at finalize, not here
+        assert.equal(stored.receivedAmount, 0n);
+      });
+
+      it('cannot mark a VALIDATED received payment fulfillable', async () => {
+        const { intent, receivedPaymentId } =
+          makeIntentWithReceivedPayment('VALIDATED');
+        await repo.storeMany([intent]);
+
+        const { events } = await aggregate.handleBatch([
+          new MarkReceivedPaymentFulfillableCmd(
+            { receivedPaymentId, paymentIntentId: intent.id },
+            crypto.randomUUID()
+          )
+        ]);
+
+        assert.equal(events[0].msgName, ReceivedPaymentFailedEvent.name);
+        const payload = (events[0] as ReceivedPaymentFailedEvent).payload;
+        assert.equal(payload.errorName, 'PaymentInvalidStateError');
+      });
+    });
+
     describe('handleFinalizeReceivedPaymentCommand', () => {
       function makeIntentWithReceivedPayment(overrides?: {
         receivedPaymentState?: IPaymentIntent['receivedPayments'][number]['state'];
@@ -1374,7 +1464,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           receivedPayments: [
             {
               id: receivedPaymentId,
-              state: overrides?.receivedPaymentState ?? 'ACCEPTED',
+              state: overrides?.receivedPaymentState ?? 'FULFILLABLE',
               paymentIntentId: intentId,
               packetId: 'packet-1',
               peerId: 'peer-1',
@@ -1457,7 +1547,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         const intentId = crypto.randomUUID();
         const rp = (id: string) => ({
           id,
-          state: 'ACCEPTED' as const,
+          state: 'FULFILLABLE' as const,
           paymentIntentId: intentId,
           packetId: crypto.randomUUID(),
           peerId: 'peer-1',

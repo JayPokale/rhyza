@@ -93,6 +93,12 @@ export abstract class PaymentIntentCommand extends CommandMsg {
   ): cmd is FinalizeReceivedPaymentCmd {
     return cmd.msgName === FinalizeReceivedPaymentCmd.name;
   }
+
+  static isMarkReceivedPaymentFulfillableCmd(
+    cmd: CommandMsg
+  ): cmd is MarkReceivedPaymentFulfillableCmd {
+    return cmd.msgName === MarkReceivedPaymentFulfillableCmd.name;
+  }
 }
 
 export type CreatePaymentIntentCmdPayload = {
@@ -360,6 +366,24 @@ export class FailReceivedPaymentCmd extends PaymentIntentCommand {
   payload: FailReceivedPaymentCmdPayload;
 
   constructor(payload: FailReceivedPaymentCmdPayload, requestId: string) {
+    super(payload.paymentIntentId);
+    this.requestId = requestId;
+    this.payload = payload;
+  }
+}
+
+export type MarkReceivedPaymentFulfillableCmdPayload = {
+  receivedPaymentId: string;
+  paymentIntentId: string;
+};
+
+export class MarkReceivedPaymentFulfillableCmd extends PaymentIntentCommand {
+  payload: MarkReceivedPaymentFulfillableCmdPayload;
+
+  constructor(
+    payload: MarkReceivedPaymentFulfillableCmdPayload,
+    requestId: string
+  ) {
     super(payload.paymentIntentId);
     this.requestId = requestId;
     this.payload = payload;

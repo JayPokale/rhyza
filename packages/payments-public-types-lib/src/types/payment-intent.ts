@@ -19,6 +19,7 @@ export type SentPaymentState = keyof typeof SentPaymentState;
 export const ReceivedPaymentState = {
   VALIDATED: 'VALIDATED',
   ACCEPTED: 'ACCEPTED',
+  FULFILLABLE: 'FULFILLABLE',
   FINALIZED: 'FINALIZED',
   FAILED: 'FAILED'
 } as const;

@@ -544,6 +544,38 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
     }
   }
 
+  async storeFulfillableReceivedPayments(
+    receivedPaymentUpdates: {
+      receivedPayments: { id: string; state: ReceivedPaymentState }[];
+    }[]
+  ): Promise<void> {
+    this._checkInitialisedOrThrow();
+
+    if (receivedPaymentUpdates.length === 0) return;
+
+    try {
+      const receivedPaymentWrites = receivedPaymentUpdates.flatMap((update) =>
+        update.receivedPayments.map((receivedPayment) => ({
+          updateOne: {
+            filter: { id: receivedPayment.id },
+            update: {
+              $set: {
+                state: receivedPayment.state
+              }
+            }
+          }
+        }))
+      );
+
+      await this._receivedPaymentCollection.bulkWrite(receivedPaymentWrites);
+    } catch (e) {
+      this._logger.error(e);
+      throw new Error(
+        `Unable to store fulfillable received payments - error: ${(e as Error).message}`
+      );
+    }
+  }
+
   async storeFinalizedReceivedPayments(
     receivedPaymentUpdates: {
       paymentIntent: {

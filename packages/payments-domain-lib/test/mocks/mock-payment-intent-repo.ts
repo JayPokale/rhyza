@@ -125,6 +125,24 @@ export class MockPaymentIntentRepo implements IPaymentIntentRepository {
     }
   }
 
+  async storeFulfillableReceivedPayments(
+    receivedPaymentUpdates: {
+      receivedPayments: { id: string; state: ReceivedPaymentState }[];
+    }[]
+  ): Promise<void> {
+    for (const update of receivedPaymentUpdates) {
+      for (const receivedPayment of update.receivedPayments) {
+        const found = this.getAll()
+          .flatMap((intent) => intent.receivedPayments)
+          .find((rp) => rp.id === receivedPayment.id);
+        if (!found) {
+          throw new Error('Could not find received payment in store');
+        }
+        found.state = receivedPayment.state;
+      }
+    }
+  }
+
   async storeFinalizedReceivedPayments(
     receivedPaymentUpdates: {
       paymentIntent: {

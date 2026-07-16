@@ -140,6 +140,12 @@ export abstract class PaymentIntentDomainEvent extends DomainEvent {
     return evt.msgName === ReceivedPaymentFailedEvent.name;
   }
 
+  static isReceivedPaymentFulfillableEvent(
+    evt: DomainEvent
+  ): evt is ReceivedPaymentFulfillableEvent {
+    return evt.msgName === ReceivedPaymentFulfillableEvent.name;
+  }
+
   static isReceivedPaymentFinalizedEvent(
     evt: DomainEvent
   ): evt is ReceivedPaymentFinalizedEvent {
@@ -640,6 +646,28 @@ export class ReceivedPaymentFailedEvent extends PaymentIntentDomainEvent {
   isErrorEvent = true;
 
   constructor(payload: ReceivedPaymentFailedPayload, requestId?: string) {
+    super(payload.paymentIntentId);
+    this.payload = payload;
+    this.requestId = requestId;
+  }
+}
+
+export type ReceivedPaymentFulfillablePayload = {
+  paymentIntentId: string;
+  receivedPaymentId: string;
+  packetId: string;
+  peerId: string;
+  requestId: string;
+  receiveAmount: string;
+  receiveAssetCode: string;
+  receiveAssetScale: number;
+  state: ReceivedPaymentState;
+};
+
+export class ReceivedPaymentFulfillableEvent extends PaymentIntentDomainEvent {
+  payload: ReceivedPaymentFulfillablePayload;
+
+  constructor(payload: ReceivedPaymentFulfillablePayload, requestId?: string) {
     super(payload.paymentIntentId);
     this.payload = payload;
     this.requestId = requestId;

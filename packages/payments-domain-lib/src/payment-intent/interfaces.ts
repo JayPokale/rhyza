@@ -203,6 +203,11 @@ export interface IPaymentIntentRepository {
       }[];
     }[]
   ): Promise<void>;
+  storeFulfillableReceivedPayments(
+    receivedPaymentUpdates: {
+      receivedPayments: { id: string; state: ReceivedPaymentState }[];
+    }[]
+  ): Promise<void>;
   storeFinalizedReceivedPayments(
     receivedPaymentUpdates: {
       paymentIntent: {

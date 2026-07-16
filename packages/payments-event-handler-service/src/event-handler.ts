@@ -22,7 +22,7 @@ import {
   ValidateReceivedPaymentCmd,
   AcceptReceivedPaymentCmd,
   FailReceivedPaymentCmd,
-  FinalizeReceivedPaymentCmd
+  MarkReceivedPaymentFulfillableCmd
 } from 'payments-domain-lib';
 import {
   LedgerOutgoingTransferReservedEvent,
@@ -173,7 +173,7 @@ export class PaymentsEventHandler {
       }
       case LedgerIncomingTransferCommittedEvent.name: {
         const payload = message.payload as LedgerTransferResponseEventPayload;
-        const cmd = new FinalizeReceivedPaymentCmd(
+        const cmd = new MarkReceivedPaymentFulfillableCmd(
           {
             receivedPaymentId: payload.paymentId,
             paymentIntentId: payload.paymentIntentId

@@ -33,6 +33,7 @@ import {
   ValidateReceivedPaymentCmd,
   AcceptReceivedPaymentCmd,
   FailReceivedPaymentCmd,
+  MarkReceivedPaymentFulfillableCmd,
   FinalizeReceivedPaymentCmd
 } from '../commands';
 import {
@@ -67,6 +68,7 @@ import {
   RemotePaymentSendConfirmedEvent,
   RemotePaymentSendRejectedEvent,
   ReceivedPaymentValidatedEvent,
+  ReceivedPaymentFulfillableEvent,
   ReceivedPaymentValidationFailedEvent,
   ReceivedPaymentAcceptedEvent,
   ReceivedPaymentFailedEvent,
@@ -97,6 +99,7 @@ export class PaymentIntentAggregate {
   private newReceivedPayments = new Map<string, string[]>(); // paymentIntentId, receivedPaymentIds
   private acceptedReceivedPayments = new Map<string, string[]>(); // paymentIntentId, receivedPaymentIds
   private failedReceivedPayments = new Map<string, string[]>(); // paymentIntentId, receivedPaymentIds
+  private fulfillableReceivedPayments = new Map<string, string[]>(); // paymentIntentId, receivedPaymentIds
   private finalizedReceivedPayments = new Map<string, string[]>(); // paymentIntentId, receivedPaymentIds
   private finalizedRemoteQuotes = new Map<string, string[]>(); // paymentIntentId, quoteIds
   private paymentIntentMap = new Map<string, IPaymentIntent>();
@@ -177,6 +180,9 @@ export class PaymentIntentAggregate {
         paymentIntentIdsSet.add(payload.paymentIntentId);
       } else if (cmd.msgName === FailReceivedPaymentCmd.name) {
         const payload = (cmd as FailReceivedPaymentCmd).payload;
+        paymentIntentIdsSet.add(payload.paymentIntentId);
+      } else if (cmd.msgName === MarkReceivedPaymentFulfillableCmd.name) {
+        const payload = (cmd as MarkReceivedPaymentFulfillableCmd).payload;
         paymentIntentIdsSet.add(payload.paymentIntentId);
       } else if (cmd.msgName === FinalizeReceivedPaymentCmd.name) {
         const payload = (cmd as FinalizeReceivedPaymentCmd).payload;
@@ -323,6 +329,10 @@ export class PaymentIntentAggregate {
       } else if (cmd.msgName === FailReceivedPaymentCmd.name) {
         event = this.handleFailReceivedPaymentCommand(
           cmd as FailReceivedPaymentCmd
+        );
+      } else if (cmd.msgName === MarkReceivedPaymentFulfillableCmd.name) {
+        event = this.handleMarkReceivedPaymentFulfillableCommand(
+          cmd as MarkReceivedPaymentFulfillableCmd
         );
       } else if (cmd.msgName === FinalizeReceivedPaymentCmd.name) {
         event = this.handleFinalizeReceivedPaymentCommand(
@@ -1561,6 +1571,64 @@ export class PaymentIntentAggregate {
     }
   }
 
+  private handleMarkReceivedPaymentFulfillableCommand(
+    cmd: MarkReceivedPaymentFulfillableCmd
+  ) {
+    this._logger.debug(
+      `handleMarkReceivedPaymentFulfillableCommand — receivedPaymentId: ${cmd.payload.receivedPaymentId} paymentIntentId: ${cmd.payload.paymentIntentId}`
+    );
+    const { receivedPaymentId, paymentIntentId } = cmd.payload;
+
+    try {
+      const paymentIntentObj = this.paymentIntentMap.get(paymentIntentId);
+      if (!paymentIntentObj) {
+        throw new PaymentIntentNotFoundError(
+          `Payment intent ${paymentIntentId} not found`
+        );
+      }
+
+      const paymentIntent = PaymentIntent.fromObject(paymentIntentObj);
+      const receivedPayment = paymentIntent.markReceivedPaymentFulfillable({
+        id: receivedPaymentId
+      });
+
+      this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
+      this._appendToMap(
+        this.fulfillableReceivedPayments,
+        paymentIntent.id,
+        receivedPaymentId
+      );
+
+      return new ReceivedPaymentFulfillableEvent(
+        {
+          paymentIntentId: paymentIntent.id,
+          receivedPaymentId: receivedPayment.id,
+          packetId: receivedPayment.packetId,
+          peerId: receivedPayment.peerId,
+          requestId: cmd.requestId,
+          receiveAmount: String(receivedPayment.receiveAmount),
+          receiveAssetCode: paymentIntent.assetCode,
+          receiveAssetScale: paymentIntent.assetScale,
+          state: receivedPayment.state
+        },
+        cmd.requestId
+      );
+    } catch (err) {
+      this._logger.debug(
+        `handleMarkReceivedPaymentFulfillableCommand — failed paymentIntentId: ${paymentIntentId} error: ${(err as Error).message}`
+      );
+      return new ReceivedPaymentFailedEvent(
+        {
+          paymentIntentId,
+          receivedPaymentId,
+          errorName: (err as Error).constructor.name,
+          message: (err as Error).message
+        },
+        cmd.requestId
+      );
+    }
+  }
+
   private handleFinalizeReceivedPaymentCommand(
     cmd: FinalizeReceivedPaymentCmd
   ) {
@@ -2030,6 +2098,33 @@ export class PaymentIntentAggregate {
       promises.push(this._repo.storeFailedReceivedPayments(updates));
     }
 
+    if (this.fulfillableReceivedPayments.size > 0) {
+      const updates: {
+        receivedPayments: { id: string; state: ReceivedPaymentState }[];
+      }[] = [];
+
+      for (const [
+        paymentIntentId,
+        receivedPaymentIds
+      ] of this.fulfillableReceivedPayments.entries()) {
+        const paymentIntent = this.paymentIntentMap.get(paymentIntentId);
+        if (!paymentIntent) {
+          this._logger.error(
+            `Payment intent ${paymentIntentId} missing from paymentIntentMap during flush (fulfillable received payments)`
+          );
+          continue;
+        }
+
+        updates.push({
+          receivedPayments: paymentIntent.receivedPayments
+            .filter((rp) => receivedPaymentIds.includes(rp.id))
+            .map((rp) => ({ id: rp.id, state: rp.state }))
+        });
+      }
+
+      promises.push(this._repo.storeFulfillableReceivedPayments(updates));
+    }
+
     if (this.finalizedReceivedPayments.size > 0) {
       const updates: {
         paymentIntent: {
@@ -2415,6 +2510,7 @@ export class PaymentIntentAggregate {
       this.newReceivedPayments.clear();
       this.acceptedReceivedPayments.clear();
       this.failedReceivedPayments.clear();
+      this.fulfillableReceivedPayments.clear();
       this.finalizedReceivedPayments.clear();
       this.completedLocalPayments.clear();
       this.approvedRemotePayments.clear();
