@@ -46,7 +46,7 @@ export async function paymentRoutes(
   });
 
   server.get<{
-    Params: operations['Payments_getPayment']['parameters']['path'];
+    Params: operations['getPayment']['parameters']['path'];
   }>('/payments/:id/payment-intents/:intentId', async (request, reply) => {
     const { intentId, id } = request.params;
 
@@ -74,7 +74,7 @@ export async function paymentRoutes(
   });
 
   server.post<{
-    Params: operations['Payments_approvePayment']['parameters']['path'];
+    Params: operations['approvePayment']['parameters']['path'];
     Body: components['schemas']['PaymentApprove'];
   }>('/payments/:id/approve', async (request, reply) => {
     const { id } = request.params;
@@ -90,7 +90,7 @@ export async function paymentRoutes(
   });
 
   server.post<{
-    Params: operations['Payments_cancelPayment']['parameters']['path'];
+    Params: operations['cancelPayment']['parameters']['path'];
     Body: components['schemas']['PaymentCancel'];
   }>('/payments/:id/cancel', async (request, reply) => {
     const { id } = request.params;

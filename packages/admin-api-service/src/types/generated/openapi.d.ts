@@ -4,6 +4,26 @@
  */
 
 export interface paths {
+    "/peers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Peer
+         * @description Create a new ILP peer. Creates the peer in both PAL (asset, settlement, static ILP address) and ILP (connector transport config) with the same peer id.
+         */
+        post: operations["createPeer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/assets": {
         parameters: {
             query?: never;
@@ -17,7 +37,7 @@ export interface paths {
          * Create Asset
          * @description Create a new asset.
          */
-        post: operations["Assets_createAsset"];
+        post: operations["createAsset"];
         delete?: never;
         options?: never;
         head?: never;
@@ -37,7 +57,7 @@ export interface paths {
          * Create Wallet Address
          * @description Create a new wallet address.
          */
-        post: operations["WalletAddresses_createWalletAddress"];
+        post: operations["createWalletAddress"];
         delete?: never;
         options?: never;
         head?: never;
@@ -57,7 +77,7 @@ export interface paths {
          * Create Payment Intent
          * @description Create a new payment intent for a receiver's account.
          */
-        post: operations["PaymentIntents_createPaymentIntent"];
+        post: operations["createPaymentIntent"];
         delete?: never;
         options?: never;
         head?: never;
@@ -75,7 +95,7 @@ export interface paths {
          * Get Payment Intent
          * @description Retrieve details of a specific payment intent by its unique identifier.
          */
-        get: operations["PaymentIntents_getPaymentIntent"];
+        get: operations["getPaymentIntent"];
         put?: never;
         post?: never;
         delete?: never;
@@ -97,7 +117,7 @@ export interface paths {
          * Create Quote
          * @description Create a quote for a payment intent.
          */
-        post: operations["Quotes_createQuote"];
+        post: operations["createQuote"];
         delete?: never;
         options?: never;
         head?: never;
@@ -117,7 +137,7 @@ export interface paths {
          * Create Payment
          * @description Create a payment for a sender's account.
          */
-        post: operations["Payments_createPayment"];
+        post: operations["createPayment"];
         delete?: never;
         options?: never;
         head?: never;
@@ -137,7 +157,7 @@ export interface paths {
          * Approve Payment
          * @description Approve a payment, allowing it to proceed.
          */
-        post: operations["Payments_approvePayment"];
+        post: operations["approvePayment"];
         delete?: never;
         options?: never;
         head?: never;
@@ -157,7 +177,7 @@ export interface paths {
          * Cancel Payment
          * @description Cancel a pending payment
          */
-        post: operations["Payments_cancelPayment"];
+        post: operations["cancelPayment"];
         delete?: never;
         options?: never;
         head?: never;
@@ -175,7 +195,7 @@ export interface paths {
          * Get Payment
          * @description Retrieve details of a specific payment by its ID within a payment intent.
          */
-        get: operations["Payments_getPayment"];
+        get: operations["getPayment"];
         put?: never;
         post?: never;
         delete?: never;
@@ -204,6 +224,44 @@ export interface components {
         AssetCreateResponse: {
             /** @description The unique code of the created asset. */
             code: string;
+        };
+        /** @description Connector settings for sending ILP packets to this peer. */
+        PeerHttpOutgoing: {
+            /** @description The HTTP endpoint of the peer's ILP connector. */
+            endpoint: string;
+            /** @description The bearer token sent to the peer when dispatching packets. */
+            authToken: string;
+        };
+        /** @description Connector settings for authenticating ILP packets received from this peer. */
+        PeerHttpIncoming: {
+            /** @description The bearer token this peer must present on incoming packets. */
+            authToken?: string;
+        };
+        /** @description ILP connector transport configuration for a peer. */
+        PeerHttp: {
+            outgoing: components["schemas"]["PeerHttpOutgoing"];
+            incoming?: components["schemas"]["PeerHttpIncoming"];
+        };
+        /** @description Schema for creating a new peer. */
+        PeerCreate: {
+            /** @description The unique identifier for the peer, shared by PAL and ILP. */
+            id: string;
+            /** @description A human-readable name for the peer. */
+            name: string;
+            /** @description The asset code used for settlement with this peer. */
+            assetCode: string;
+            /** @description The asset scale used for settlement with this peer. */
+            assetScale: number;
+            /** @description The static ILP address used to resolve this peer for routing. */
+            ilpStaticAddress: string;
+            http: components["schemas"]["PeerHttp"];
+            /** @description Whether the ILP connector config for this peer is active. Active by default. */
+            isActive?: boolean;
+        };
+        /** @description Response schema after creating a peer. */
+        PeerCreateResponse: {
+            /** @description The unique identifier for the created peer. */
+            id: string;
         };
         /** @description Schema for creating a new wallet address. */
         WalletAddressCreate: {
@@ -372,7 +430,50 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    Assets_createAsset: {
+    createPeer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Peer creation details */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PeerCreate"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded and a peer has been created as a result. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PeerCreateResponse"];
+                };
+            };
+            /** @description Peer already exists. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Peer was created in PAL but ILP connector configuration failed; the PAL peer has been deactivated. Retry the request. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    createAsset: {
         parameters: {
             query?: never;
             header?: never;
@@ -406,7 +507,7 @@ export interface operations {
             };
         };
     };
-    WalletAddresses_createWalletAddress: {
+    createWalletAddress: {
         parameters: {
             query?: never;
             header?: never;
@@ -440,7 +541,7 @@ export interface operations {
             };
         };
     };
-    PaymentIntents_createPaymentIntent: {
+    createPaymentIntent: {
         parameters: {
             query?: never;
             header?: never;
@@ -474,7 +575,7 @@ export interface operations {
             };
         };
     };
-    PaymentIntents_getPaymentIntent: {
+    getPaymentIntent: {
         parameters: {
             query?: never;
             header?: never;
@@ -506,7 +607,7 @@ export interface operations {
             };
         };
     };
-    Quotes_createQuote: {
+    createQuote: {
         parameters: {
             query?: never;
             header?: never;
@@ -549,7 +650,7 @@ export interface operations {
             };
         };
     };
-    Payments_createPayment: {
+    createPayment: {
         parameters: {
             query?: never;
             header?: never;
@@ -583,7 +684,7 @@ export interface operations {
             };
         };
     };
-    Payments_approvePayment: {
+    approvePayment: {
         parameters: {
             query?: never;
             header?: never;
@@ -608,12 +709,14 @@ export interface operations {
                     "application/json": {
                         /** @description Unique identifier of the approved payment */
                         id: string;
+                        /** @enum {string} */
+                        state?: "COMPLETED" | "FAILED";
                     };
                 };
             };
         };
     };
-    Payments_cancelPayment: {
+    cancelPayment: {
         parameters: {
             query?: never;
             header?: never;
@@ -643,7 +746,7 @@ export interface operations {
             };
         };
     };
-    Payments_getPayment: {
+    getPayment: {
         parameters: {
             query?: never;
             header?: never;

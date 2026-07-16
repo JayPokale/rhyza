@@ -34,7 +34,7 @@ paths:
         with the same peer id.
       tags:
         - peers
-      operationId: Peers_createPeer
+      operationId: createPeer
       parameters: []
       responses:
         '201':
@@ -70,7 +70,7 @@ paths:
       description: Create a new asset.
       tags:
         - assets
-      operationId: Assets_createAsset
+      operationId: createAsset
       parameters: []
       responses:
         '201':
@@ -98,7 +98,7 @@ paths:
       description: Create a new wallet address.
       tags:
         - wallet-addresses
-      operationId: WalletAddresses_createWalletAddress
+      operationId: createWalletAddress
       parameters: []
       responses:
         '201':
@@ -126,7 +126,7 @@ paths:
       description: Create a new payment intent for a receiver's account.
       tags:
         - payment-intents
-      operationId: PaymentIntents_createPaymentIntent
+      operationId: createPaymentIntent
       parameters: []
       responses:
         '201':
@@ -154,7 +154,7 @@ paths:
       description: Retrieve details of a specific payment intent by its unique identifier.
       tags:
         - payment-intents
-      operationId: PaymentIntents_getPaymentIntent
+      operationId: getPaymentIntent
       parameters:
         - name: id
           in: path
@@ -181,7 +181,7 @@ paths:
       description: Create a quote for a payment intent.
       tags:
         - quotes
-      operationId: Quotes_createQuote
+      operationId: createQuote
       parameters: []
       responses:
         '201':
@@ -215,7 +215,7 @@ paths:
       description: Create a payment for a sender's account.
       tags:
         - payments
-      operationId: Payments_createPayment
+      operationId: createPayment
       parameters: []
       responses:
         '201':
@@ -243,7 +243,7 @@ paths:
       description: Approve a payment, allowing it to proceed.
       tags:
         - payments
-      operationId: Payments_approvePayment
+      operationId: approvePayment
       parameters:
         - name: id
           in: path
@@ -282,7 +282,7 @@ paths:
       description: Cancel a pending payment
       tags:
         - payments
-      operationId: Payments_cancelPayment
+      operationId: cancelPayment
       parameters:
         - name: id
           in: path
@@ -316,7 +316,7 @@ paths:
       description: Retrieve details of a specific payment by its ID within a payment intent.
       tags:
         - payments
-      operationId: Payments_getPayment
+      operationId: getPayment
       parameters:
         - name: intentId
           in: path

@@ -25,11 +25,11 @@ describe('E2E tests', () => {
 
   test('Local', async () => {
     const assetCode = 'USD';
-    const asset = await client.assets.assetsCreateAsset({
+    const asset = await client.assets.createAsset({
       code: assetCode,
       scale: 2
     });
-    assert.equal(asset?.code, assetCode);
+    assert.equal(asset.code, assetCode);
 
     const senderAddress = 'test.com/sender';
     await createWalletAddress(assetCode, senderAddress, 'test sender');
@@ -37,46 +37,42 @@ describe('E2E tests', () => {
     const receiverAddress = 'test.com/receiver';
     await createWalletAddress(assetCode, receiverAddress, 'test receiver');
 
-    const paymentIntent =
-      await client.paymentIntents.paymentIntentsCreatePaymentIntent({
-        walletAddress: receiverAddress,
-        incomingAmount: 100
-      });
+    const paymentIntent = await client.paymentIntents.createPaymentIntent({
+      walletAddress: receiverAddress,
+      incomingAmount: 100
+    });
 
-    assert.ok(paymentIntent?.id);
+    assert.ok(paymentIntent.id);
     const paymentIntentId = paymentIntent.id;
 
-    const quote = await client.quotes.quotesCreateQuote({
+    const quote = await client.quotes.createQuote({
       paymentIntentId,
       walletAddress: senderAddress
     });
 
-    assert.ok(quote?.id);
+    assert.ok(quote.id);
     const quoteId = quote.id;
 
-    const payment = await client.payments.paymentsCreatePayment({
+    const payment = await client.payments.createPayment({
       quoteId,
       walletAddress: senderAddress,
       paymentIntentId
     });
 
-    assert.ok(payment?.id);
+    assert.ok(payment.id);
     const paymentId = payment.id;
 
-    const approvedPayment = await client.payments.paymentsApprovePayment(
-      paymentId,
-      {
-        intentId: paymentIntentId
-      }
-    );
+    const approvedPayment = await client.payments.approvePayment(paymentId, {
+      intentId: paymentIntentId
+    });
 
-    assert.equal(approvedPayment?.id, paymentId);
+    assert.equal(approvedPayment.id, paymentId);
 
-    const paymentFound = await client.payments.paymentsGetPayment(
+    const paymentFound = await client.payments.getPayment(
       paymentIntentId,
       paymentId
     );
-    assert.equal(paymentFound?.id, paymentId);
+    assert.equal(paymentFound.id, paymentId);
     assert.equal(paymentFound.state, 'COMPLETED');
   });
 
@@ -85,13 +81,12 @@ describe('E2E tests', () => {
     address: string,
     publicName: string
   ) => {
-    const walletAddress =
-      await client.walletAddresses.walletAddressesCreateWalletAddress({
-        assetCode,
-        address,
-        publicName
-      });
-    assert.equal(walletAddress?.address, address);
+    const walletAddress = await client.walletAddresses.createWalletAddress({
+      assetCode,
+      address,
+      publicName
+    });
+    assert.equal(walletAddress.address, address);
   };
 
   // test('Remote', async () => {});

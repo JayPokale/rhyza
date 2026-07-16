@@ -59,7 +59,7 @@ export async function paymentIntentRoutes(
   });
 
   server.get<{
-    Params: operations['PaymentIntents_getPaymentIntent']['parameters']['path'];
+    Params: operations['getPaymentIntent']['parameters']['path'];
   }>('/payment-intents/:id', async (request, reply) => {
     const { id } = request.params;
 
