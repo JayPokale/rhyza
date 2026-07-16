@@ -79,10 +79,7 @@ function fulfillablePrepareData(sharedSecret: Buffer): {
   fulfillment: Buffer;
 } {
   const encryptionKey = hmacSha256(sharedSecret, ENCRYPTION_KEY_STRING);
-  const dataBuf = encryptStreamData(
-    encryptionKey,
-    Buffer.from('stream-money')
-  );
+  const dataBuf = encryptStreamData(encryptionKey, Buffer.from('stream-money'));
   const fulfillmentKey = hmacSha256(
     sharedSecret,
     FULFILLMENT_GENERATION_STRING
@@ -338,8 +335,7 @@ describe('IlpCommandHandler — remote quote receiving', () => {
   });
 
   test('STREAM verification failure with resolved destination stays on quote path', async () => {
-    const { producer, consumer, credentials, fake } =
-      await startedHandler();
+    const { producer, consumer, credentials, fake } = await startedHandler();
     const resolved = await fake.resolveStreamCredentials(
       credentials.ilpAddress
     );

@@ -3,10 +3,7 @@
 import Fastify, { FastifyBaseLogger, FastifyInstance } from 'fastify';
 import { PalClient } from 'pal-client-lib';
 import { PaymentsClient } from 'payments-client-lib';
-import {
-  createStreamServer,
-  parseStreamServerSecret
-} from 'ilp-client-lib';
+import { createStreamServer, parseStreamServerSecret } from 'ilp-client-lib';
 import { walletAddressRoutes } from './routes/wallet-addresses.js';
 import { incomingPaymentRoutes } from './routes/incoming-payments.js';
 

@@ -27,7 +27,6 @@ export interface StreamDecodeResult {
   plaintext?: Buffer;
 }
 
-
 export function decodeInboundStreamPrepare(
   input: StreamDecodeInput
 ): StreamDecodeResult {

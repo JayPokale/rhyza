@@ -5,10 +5,7 @@ import { PalClient, parseAddressToDomainAndPathName } from 'pal-client-lib';
 import { PaymentsClient } from 'payments-client-lib';
 import { OpenPaymentsResourceServerRouteError } from '../errors.js';
 import { components } from '../types/generated/resource-server-types.js';
-import {
-  createStreamServer,
-  generateStreamCredentials
-} from 'ilp-client-lib';
+import { createStreamServer, generateStreamCredentials } from 'ilp-client-lib';
 import { randomUUID } from 'crypto';
 
 type StreamServer = ReturnType<typeof createStreamServer>;

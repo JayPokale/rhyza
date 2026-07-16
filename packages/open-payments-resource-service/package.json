@@ -23,7 +23,6 @@
     "payments-client-lib": "workspace:*",
     "implementations-lib": "workspace:*"
   },
-
   "devDependencies": {
     "openapi-typescript": "^7.6.1",
     "tsx": "^4.19.3"
