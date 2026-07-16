@@ -22,6 +22,7 @@ import {
   CompleteRemotePaymentCmd,
   ValidateReceivedPaymentCmd,
   AcceptReceivedPaymentCmd,
+  MarkReceivedPaymentFulfillableCmd,
   FailReceivedPaymentCmd,
   FinalizeReceivedPaymentCmd
 } from 'payments-domain-lib';
@@ -105,6 +106,9 @@ export class PaymentsCommandHandler {
           commandMessages.push(msg);
           break;
         case AcceptReceivedPaymentCmd.name:
+          commandMessages.push(msg);
+          break;
+        case MarkReceivedPaymentFulfillableCmd.name:
           commandMessages.push(msg);
           break;
         case FailReceivedPaymentCmd.name:
