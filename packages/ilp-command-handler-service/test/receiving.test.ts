@@ -22,6 +22,11 @@ import {
   ProcessPreparePacketCmd,
   ILPPaymentFailedEvent,
   ILPQuoteRequestReceivedEvent,
+  ILPPaymentReceivedEvent,
+  ILPPaymentFulfillmentSentEvent,
+  ILPPaymentFulfillmentFailedEvent,
+  FulfillInboundPaymentCmd,
+  DispatchFulfillPacketCmd,
   RespondToRemoteQuoteCmd
 } from 'ilp-domain-lib';
 import {
@@ -195,24 +200,23 @@ describe('IlpCommandHandler — remote quote receiving', () => {
     assert.equal(decoded.destinationAmount, '95');
   });
 
-  //TODO
-  // test('an invalid amount yields a generic reject and no event', async () => {
-  //   const { producer, consumer, credentials } = await startedHandler();
-  //   await consumer.deliver([
-  //     inboundProbe(credentials.ilpAddress, { amount: '' })
-  //   ]);
+  test('an invalid amount yields a generic reject and no event', async () => {
+    const { producer, consumer, credentials } = await startedHandler();
+    await consumer.deliver([
+      inboundProbe(credentials.ilpAddress, { amount: '' })
+    ]);
 
-  //   const reject = rejectFor(producer);
-  //   assert.ok(reject, 'expected a generic reject');
-  //   assert.equal(reject.payload.rejectCode, 'T00');
-  //   assert.equal(reject.payload.data, undefined, 'must not leak detail');
-  //   assert.equal(
-  //     producer.sent.filter(
-  //       (m) => m.msgName === ILPQuoteRequestReceivedEvent.name
-  //     ).length,
-  //     0
-  //   );
-  // });
+    const reject = rejectFor(producer);
+    assert.ok(reject, 'expected a generic reject');
+    assert.equal(reject.payload.rejectCode, 'T00');
+    assert.equal(reject.payload.data, undefined, 'must not leak detail');
+    assert.equal(
+      producer.sent.filter(
+        (m) => m.msgName === ILPQuoteRequestReceivedEvent.name
+      ).length,
+      0
+    );
+  });
 
   test('an unresolved destination yields a generic reject', async () => {
     const { producer, consumer } = await startedHandler(
@@ -297,7 +301,7 @@ describe('IlpCommandHandler — remote quote receiving', () => {
     );
   });
 
-  test('a verified STREAM payment stores PAYMENT correlation and emits no quote event', async () => {
+  test('a verified STREAM payment stores PAYMENT correlation and emits ILPPaymentReceivedEvent', async () => {
     const { producer, consumer, repo, credentials, fake } =
       await startedHandler();
     const resolved = await fake.resolveStreamCredentials(
@@ -328,11 +332,21 @@ describe('IlpCommandHandler — remote quote receiving', () => {
       0
     );
 
+    const received = producer.sent.find(
+      (m) => m.msgName === ILPPaymentReceivedEvent.name
+    ) as ILPPaymentReceivedEvent;
+    assert.ok(received);
+    assert.equal(received.payload.packetId, 'packet-pay-1');
+    assert.equal(received.payload.paymentIntentId, PAYMENT_INTENT_ID);
+    assert.equal(received.payload.sourceAmount, '100');
+    assert.equal(received.payload.peerId, 'peer-1');
+
     const stored = await repo.fetchPacketById('packet-pay-1');
     assert.ok(stored);
     assert.equal(stored!.kind, 'PAYMENT');
     assert.equal(stored!.paymentIntentId, PAYMENT_INTENT_ID);
     assert.equal(stored!.fulfillment, fulfillment.toString('base64'));
+    assert.equal(stored!.paymentId, received.payload.paymentId);
   });
 
   test('STREAM verification failure with resolved destination stays on quote path', async () => {
@@ -364,6 +378,84 @@ describe('IlpCommandHandler — remote quote receiving', () => {
     assert.equal(event.payload.paymentIntentId, PAYMENT_INTENT_ID);
     assert.equal(
       producer.sent.filter((m) => m.msgName === DispatchRejectPacketCmd.name)
+        .length,
+      0
+    );
+  });
+
+  test('fulfillable inbound payment dispatches stored fulfillment and emits sent event', async () => {
+    const { producer, consumer, credentials, fake } = await startedHandler();
+    const resolved = await fake.resolveStreamCredentials(
+      credentials.ilpAddress
+    );
+    assert.ok(resolved);
+    const { data, executionCondition, fulfillment } = fulfillablePrepareData(
+      resolved!.sharedSecret
+    );
+
+    await consumer.deliver([
+      inboundProbe(credentials.ilpAddress, {
+        packetId: 'packet-pay-2',
+        data,
+        executionCondition
+      })
+    ]);
+
+    const received = producer.sent.find(
+      (m) => m.msgName === ILPPaymentReceivedEvent.name
+    ) as ILPPaymentReceivedEvent;
+    assert.ok(received);
+    producer.sent.length = 0;
+
+    await consumer.deliver([
+      new FulfillInboundPaymentCmd({
+        peerId: 'peer-1',
+        packetId: 'packet-pay-2',
+        paymentIntentId: PAYMENT_INTENT_ID,
+        receivedPaymentId: 'rp-1',
+        requestId: received.payload.requestId
+      })
+    ]);
+
+    const fulfillCmd = producer.sent.find(
+      (m) => m.msgName === DispatchFulfillPacketCmd.name
+    ) as DispatchFulfillPacketCmd;
+    assert.ok(fulfillCmd);
+    assert.equal(fulfillCmd.payload.packetId, 'packet-pay-2');
+    assert.equal(fulfillCmd.payload.replyHandle, TEST_REPLY_HANDLE);
+    assert.equal(
+      fulfillCmd.payload.fulfillment,
+      fulfillment.toString('base64')
+    );
+
+    const sent = producer.sent.find(
+      (m) => m.msgName === ILPPaymentFulfillmentSentEvent.name
+    ) as ILPPaymentFulfillmentSentEvent;
+    assert.ok(sent);
+    assert.equal(sent.payload.receivedPaymentId, 'rp-1');
+    assert.equal(sent.payload.packetId, 'packet-pay-2');
+  });
+
+  test('fulfill inbound payment fails when packet correlation is missing', async () => {
+    const { producer, consumer } = await startedHandler();
+
+    await consumer.deliver([
+      new FulfillInboundPaymentCmd({
+        peerId: 'peer-1',
+        packetId: 'missing-packet',
+        paymentIntentId: PAYMENT_INTENT_ID,
+        receivedPaymentId: 'rp-missing',
+        requestId: crypto.randomUUID()
+      })
+    ]);
+
+    const failed = producer.sent.find(
+      (m) => m.msgName === ILPPaymentFulfillmentFailedEvent.name
+    ) as ILPPaymentFulfillmentFailedEvent;
+    assert.ok(failed);
+    assert.equal(failed.payload.reason, 'packet_not_found');
+    assert.equal(
+      producer.sent.filter((m) => m.msgName === DispatchFulfillPacketCmd.name)
         .length,
       0
     );

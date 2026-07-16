@@ -221,6 +221,8 @@ export class PaymentIntentAggregate {
     for (const cmd of cmds) {
       if (cmd.msgName === CalculateRemoteQuoteCmd.name) {
         peerIdsToFetch.add((cmd as CalculateRemoteQuoteCmd).payload.peerId);
+      } else if (cmd.msgName === ValidateReceivedPaymentCmd.name) {
+        peerIdsToFetch.add((cmd as ValidateReceivedPaymentCmd).payload.peerId);
       }
     }
     await Promise.all(
@@ -266,7 +268,11 @@ export class PaymentIntentAggregate {
         );
       } else if (cmd.msgName === ValidateReceivedPaymentCmd.name) {
         const payload = (cmd as ValidateReceivedPaymentCmd).payload;
-        this._collectInboundFxLookup(payload, payload.peerAssetCode, fxToFetch);
+        this._collectInboundFxLookup(
+          payload,
+          this.peersById.get(payload.peerId)?.assetCode,
+          fxToFetch
+        );
       }
     }
 
@@ -1408,9 +1414,7 @@ export class PaymentIntentAggregate {
       id: receivedPaymentId,
       paymentIntentId,
       packetId,
-      peerId,
-      peerAssetCode,
-      peerAssetScale
+      peerId
     } = cmd.payload;
 
     try {
@@ -1422,6 +1426,15 @@ export class PaymentIntentAggregate {
       }
 
       const paymentIntent = PaymentIntent.fromObject(paymentIntentObj);
+
+      // Peer asset was prefetched from PAL by peerId (not carried on the command).
+      const peerFetchError = this.peerByIdFetchErrors.get(peerId);
+      if (peerFetchError) throw peerFetchError;
+      const peer = this.peersById.get(peerId);
+      if (!peer) {
+        throw new PeerNotFoundError(`No peer found for peer id ${peerId}`);
+      }
+      const { assetCode: peerAssetCode, assetScale: peerAssetScale } = peer;
 
       let fxRate: number | undefined;
       if (peerAssetCode !== paymentIntent.assetCode) {

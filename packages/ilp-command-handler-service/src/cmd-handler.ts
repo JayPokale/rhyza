@@ -17,7 +17,8 @@ import {
   RespondToRemoteQuoteCmd,
   StartRemotePaymentCmd,
   StartRemoteQuoteCmd,
-  UpdatePeerCmd
+  UpdatePeerCmd,
+  FulfillInboundPaymentCmd
 } from 'ilp-domain-lib';
 
 const HANDLED_COMMANDS = new Set<string>([
@@ -29,6 +30,7 @@ const HANDLED_COMMANDS = new Set<string>([
   StartRemotePaymentCmd.name,
   ProcessPreparePacketCmd.name,
   RespondToRemoteQuoteCmd.name,
+  FulfillInboundPaymentCmd.name,
   ProcessFulfillPacketCmd.name,
   ProcessRejectPacketCmd.name,
   ExpirePacketCmd.name

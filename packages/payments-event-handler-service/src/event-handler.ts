@@ -5,13 +5,6 @@ import {
   IMessageProducer
 } from 'common-types-lib';
 import {
-  ILPPaymentConfirmedEvent,
-  ILPPaymentFailedEvent,
-  ILPQuoteFailedEvent,
-  ILPQuoteReceivedEvent,
-  ILPQuoteRequestReceivedEvent
-} from 'ilp-domain-lib';
-import {
   CompleteRemoteQuoteCmd,
   FailRemoteQuoteCmd,
   PrepareRemotePaymentCmd,
@@ -26,6 +19,16 @@ import {
   FinalizeReceivedPaymentCmd,
   CalculateRemoteQuoteCmd
 } from 'payments-domain-lib';
+import {
+  ILPPaymentConfirmedEvent,
+  ILPPaymentFailedEvent,
+  ILPPaymentFulfillmentFailedEvent,
+  ILPPaymentFulfillmentSentEvent,
+  ILPPaymentReceivedEvent,
+  ILPQuoteFailedEvent,
+  ILPQuoteReceivedEvent,
+  ILPQuoteRequestReceivedEvent
+} from 'ilp-domain-lib';
 import {
   LedgerOutgoingTransferReservedEvent,
   LedgerOutgoingTransferInsufficientFundsErrorEvent,
@@ -42,47 +45,6 @@ import {
   LedgerIncomingReserveFailedEvent,
   LedgerIncomingTransferCommitFailedEvent
 } from 'pal-public-types-lib';
-
-// TODO: ILP BC does not publish this event yet — assumed contract for the
-// inbound prepare packet. Replace with the real event type once ILP adds it.
-const ILP_PAYMENT_RECEIVED_EVENT_NAME = 'ILPPaymentReceivedEvent';
-type ILPPaymentReceivedPayload = {
-  requestId: string;
-  packetId: string;
-  peerId: string;
-  paymentIntentId: string;
-  sourceAmount: string;
-  peerAssetCode: string;
-  peerAssetScale: number;
-};
-
-// TODO: ILP BC does not publish this event yet — assumed contract for the
-// fulfillment ILP returns to the peer for an inbound (received) payment.
-// Payments consumes it to finalize the received payment.
-const ILP_PAYMENT_FULFILLMENT_SENT_EVENT_NAME =
-  'ILPPaymentFulfillmentSentEvent';
-type ILPPaymentFulfillmentSentPayload = {
-  requestId: string;
-  paymentIntentId: string;
-  receivedPaymentId: string;
-  packetId: string;
-  peerId: string;
-  fulfilledAt: string;
-};
-
-// TODO: ILP BC does not publish this event yet — assumed contract for when ILP
-// could not return the fulfillment (packet expired, peer dropped, etc.).
-const ILP_PAYMENT_FULFILLMENT_FAILED_EVENT_NAME =
-  'ILPPaymentFulfillmentFailedEvent';
-type ILPPaymentFulfillmentFailedPayload = {
-  requestId: string;
-  paymentIntentId: string;
-  receivedPaymentId: string;
-  packetId: string;
-  peerId: string;
-  reason?: string;
-  failedAt: string;
-};
 
 export class PaymentsEventHandler {
   private _msgConsumer: IMessageConsumer;
@@ -163,17 +125,15 @@ export class PaymentsEventHandler {
         await this._msgProducer.send(cmd);
         break;
       }
-      case ILP_PAYMENT_RECEIVED_EVENT_NAME: {
-        const payload = message.payload as ILPPaymentReceivedPayload;
+      case ILPPaymentReceivedEvent.name: {
+        const payload = message.payload as ILPPaymentReceivedEvent['payload'];
         const cmd = new ValidateReceivedPaymentCmd(
           {
             id: crypto.randomUUID(),
             paymentIntentId: payload.paymentIntentId,
             packetId: payload.packetId,
             peerId: payload.peerId,
-            sourceAmount: payload.sourceAmount,
-            peerAssetCode: payload.peerAssetCode,
-            peerAssetScale: payload.peerAssetScale
+            sourceAmount: payload.sourceAmount
           },
           payload.requestId
         );
@@ -208,8 +168,9 @@ export class PaymentsEventHandler {
         await this._msgProducer.send(cmd);
         break;
       }
-      case ILP_PAYMENT_FULFILLMENT_SENT_EVENT_NAME: {
-        const payload = message.payload as ILPPaymentFulfillmentSentPayload;
+      case ILPPaymentFulfillmentSentEvent.name: {
+        const payload =
+          message.payload as ILPPaymentFulfillmentSentEvent['payload'];
         const cmd = new FinalizeReceivedPaymentCmd(
           {
             receivedPaymentId: payload.receivedPaymentId,
@@ -220,8 +181,9 @@ export class PaymentsEventHandler {
         await this._msgProducer.send(cmd);
         break;
       }
-      case ILP_PAYMENT_FULFILLMENT_FAILED_EVENT_NAME: {
-        const payload = message.payload as ILPPaymentFulfillmentFailedPayload;
+      case ILPPaymentFulfillmentFailedEvent.name: {
+        const payload =
+          message.payload as ILPPaymentFulfillmentFailedEvent['payload'];
         const cmd = new FailReceivedPaymentCmd(
           {
             receivedPaymentId: payload.receivedPaymentId,

@@ -4,6 +4,7 @@ import {
   CreatePeerCmd,
   DeactivatePeerCmd,
   ExpirePacketCmd,
+  FulfillInboundPaymentCmd,
   ProcessFulfillPacketCmd,
   ProcessPreparePacketCmd,
   ProcessPreparePacketCmdPayload,
@@ -34,7 +35,10 @@ import {
   ILPQuoteFailedEvent,
   ILPPaymentConfirmedEvent,
   ILPPaymentFailedEvent,
-  ILPQuoteRequestReceivedEvent
+  ILPQuoteRequestReceivedEvent,
+  ILPPaymentReceivedEvent,
+  ILPPaymentFulfillmentSentEvent,
+  ILPPaymentFulfillmentFailedEvent
 } from './events';
 import { IPeer, IPeerRepository } from './interfaces';
 
@@ -227,6 +231,10 @@ export class IlpPeerAggregate {
         return this.handleProcessPreparePacket(cmd as ProcessPreparePacketCmd);
       case RespondToRemoteQuoteCmd.name:
         return this.handleRespondToRemoteQuote(cmd as RespondToRemoteQuoteCmd);
+      case FulfillInboundPaymentCmd.name:
+        return this.handleFulfillInboundPayment(
+          cmd as FulfillInboundPaymentCmd
+        );
       case ProcessFulfillPacketCmd.name:
         return this.handleProcessFulfillPacket(cmd as ProcessFulfillPacketCmd);
       case ProcessRejectPacketCmd.name:
@@ -332,6 +340,11 @@ export class IlpPeerAggregate {
       return [];
     }
 
+    if (!/^\d+$/.test(payload.amount)) {
+      await this.rejectInbound(payload);
+      return [];
+    }
+
     const stream = decodeInboundStreamPrepare({
       sharedSecret: resolved.sharedSecret,
       executionCondition: Buffer.from(payload.executionCondition, 'base64'),
@@ -339,14 +352,16 @@ export class IlpPeerAggregate {
     });
 
     if (stream.fulfillable && stream.fulfillment) {
+      const paymentId = crypto.randomUUID();
+      const requestId = cmd.requestId ?? crypto.randomUUID();
       const correlation = PacketCorrelation.createPayment({
         packetId: payload.packetId,
         peerId: peer.peerId,
         paymentIntentId: resolved.paymentIntentId,
         expiresAt: new Date(payload.expiresAt),
         // Inbound payment id is allocated locally until Payments BC owns it.
-        paymentId: crypto.randomUUID(),
-        requestId: cmd.requestId,
+        paymentId,
+        requestId,
         fulfillment: stream.fulfillment.toString('base64')
       });
       await this.peerRepo.storePacket(correlation.toObject());
@@ -355,7 +370,16 @@ export class IlpPeerAggregate {
         peerId: payload.peerId,
         replyHandle: payload.replyHandle
       });
-      return [];
+      return [
+        new ILPPaymentReceivedEvent({
+          peerId: peer.peerId,
+          packetId: payload.packetId,
+          paymentIntentId: resolved.paymentIntentId,
+          paymentId,
+          sourceAmount: payload.amount,
+          requestId
+        })
+      ];
     }
 
     await this.peerRepo.storeInboundReplyHandle({
@@ -400,6 +424,82 @@ export class IlpPeerAggregate {
     });
     await this.peerRepo.deleteInboundReplyHandle(payload.packetId);
     return [];
+  }
+
+  private async handleFulfillInboundPayment(
+    cmd: FulfillInboundPaymentCmd
+  ): Promise<IMessage[]> {
+    const payload = cmd.payload;
+    const failedAt = new Date().toISOString();
+    const fail = (reason: string, paymentId: string) => [
+      new ILPPaymentFulfillmentFailedEvent({
+        peerId: payload.peerId,
+        packetId: payload.packetId,
+        paymentIntentId: payload.paymentIntentId,
+        paymentId,
+        receivedPaymentId: payload.receivedPaymentId,
+        failedAt,
+        reason,
+        requestId: payload.requestId
+      })
+    ];
+
+    const stored = await this.peerRepo.fetchPacketById(payload.packetId);
+    if (!stored || stored.kind !== 'PAYMENT') {
+      return fail('packet_not_found', payload.receivedPaymentId);
+    }
+
+    if (stored.state !== 'PENDING') {
+      return fail(`packet_${stored.state.toLowerCase()}`, stored.paymentId);
+    }
+
+    if (stored.expiresAt.getTime() <= Date.now()) {
+      const expired = PacketCorrelation.fromObject(stored).expire().toObject();
+      await this.peerRepo.updatePacket(expired);
+      await this.peerRepo.deleteInboundReplyHandle(payload.packetId);
+      return fail('packet_expired', stored.paymentId);
+    }
+
+    if (!stored.fulfillment) {
+      return fail('fulfillment_missing', stored.paymentId);
+    }
+
+    const replyHandle = await this.peerRepo.fetchInboundReplyHandle(
+      payload.packetId
+    );
+    if (!replyHandle) {
+      return fail('reply_handle_missing', stored.paymentId);
+    }
+
+    try {
+      await this.peeringClient.dispatchFulfill({
+        peerId: payload.peerId,
+        packetId: payload.packetId,
+        replyHandle: replyHandle.replyHandle,
+        fulfillment: stored.fulfillment
+      });
+    } catch (err) {
+      return fail(
+        err instanceof Error ? err.message : 'dispatch_failed',
+        stored.paymentId
+      );
+    }
+
+    const fulfilled = PacketCorrelation.fromObject(stored).fulfill().toObject();
+    await this.peerRepo.updatePacket(fulfilled);
+    await this.peerRepo.deleteInboundReplyHandle(payload.packetId);
+
+    return [
+      new ILPPaymentFulfillmentSentEvent({
+        peerId: payload.peerId,
+        packetId: payload.packetId,
+        paymentIntentId: payload.paymentIntentId,
+        paymentId: stored.paymentId,
+        receivedPaymentId: payload.receivedPaymentId,
+        fulfilledAt: new Date().toISOString(),
+        requestId: payload.requestId
+      })
+    ];
   }
 
   private async rejectInbound(
