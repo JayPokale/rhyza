@@ -21,12 +21,13 @@ import {
   KafkaPeeringClient
 } from 'ilp-implementations-lib';
 import { IlpConnector } from 'ilp-connector-service/dist/src/connector.js';
+import { InMemoryTransportCorrelationStore } from 'ilp-connector-service/dist/src/correlation/in-memory-store.js';
 import type {
   IConnectorTransport,
-  WireFulfillOutbound,
+  WireFulfill,
   WireInboundPrepareHandler,
   WirePrepare,
-  WireRejectOutbound
+  WireReject
 } from 'ilp-connector-service/dist/src/transport.js';
 import { IlpCommandHandler } from 'ilp-command-handler-service/dist/cmd-handler.js';
 import { IlpEventHandler } from '../src/event-handler';
@@ -95,23 +96,40 @@ class InMemoryBus {
 
 // Transport double that lets the test inject an inbound prepare (a peer
 // initiating a quoting probe) and captures the reject the connector sends back.
+type SentWireReply = {
+  peerId: string;
+  replyHandle: string;
+  response: WireFulfill | WireReject;
+};
+
 class ReceivingTransport implements IConnectorTransport {
   private _onInboundPrepare?: WireInboundPrepareHandler;
-  readonly sentResponses: Array<WireFulfillOutbound | WireRejectOutbound> = [];
+  readonly sentResponses: SentWireReply[] = [];
 
   async sendPrepare(): Promise<void> {}
-  async sendFulfill(fulfill: WireFulfillOutbound): Promise<void> {
-    this.sentResponses.push(fulfill);
+  async sendFulfill(
+    fulfill: WireFulfill,
+    peerId: string,
+    replyHandle: string
+  ): Promise<void> {
+    this.sentResponses.push({ peerId, replyHandle, response: fulfill });
   }
-  async sendReject(reject: WireRejectOutbound): Promise<void> {
-    this.sentResponses.push(reject);
+  async sendReject(
+    reject: WireReject,
+    peerId: string,
+    replyHandle: string
+  ): Promise<void> {
+    this.sentResponses.push({ peerId, replyHandle, response: reject });
   }
   onResponse(): void {}
   onInboundPrepare(handler: WireInboundPrepareHandler): void {
     this._onInboundPrepare = handler;
   }
-  async simulateInboundPrepare(prepare: WirePrepare): Promise<void> {
-    await this._onInboundPrepare?.(prepare);
+  async simulateInboundPrepare(
+    prepare: WirePrepare,
+    callbackUrl: string
+  ): Promise<void> {
+    await this._onInboundPrepare?.(prepare, callbackUrl);
   }
 }
 
@@ -120,6 +138,8 @@ const PEER: IPeer = {
   http: { outgoing: { endpoint: 'https://peer.example/ilp', authToken: 't' } },
   isActive: true
 };
+
+const TEST_CALLBACK_URL = 'https://peer.example/callback';
 
 const probe = (overrides: Partial<WirePrepare> = {}): WirePrepare => ({
   peerId: 'peer-1',
@@ -139,7 +159,13 @@ async function wireSystem(calculator?: IQuoteCalculator) {
   const producer = bus.producer();
 
   const transport = new ReceivingTransport();
-  const connector = new IlpConnector(producer, transport, logger);
+  const correlationStore = new InMemoryTransportCorrelationStore();
+  const connector = new IlpConnector(
+    producer,
+    transport,
+    correlationStore,
+    logger
+  );
   connector.init();
   const connectorConsumer = bus.consumer();
   connectorConsumer.setTopics([CommandTopics.IlpConnectorCommands]);
@@ -176,13 +202,20 @@ async function wireSystem(calculator?: IQuoteCalculator) {
   return { bus, transport };
 }
 
-const lastReject = (transport: ReceivingTransport): WireRejectOutbound => {
+const lastReject = (
+  transport: ReceivingTransport
+): { peerId: string; response: WireReject } => {
   assert.equal(
     transport.sentResponses.length,
     1,
     'expected exactly one reject'
   );
-  return transport.sentResponses[0] as WireRejectOutbound;
+  const sent = transport.sentResponses[0];
+  assert.equal(sent.response.kind, 'REJECT');
+  return {
+    peerId: sent.peerId,
+    response: sent.response as WireReject
+  };
 };
 
 const requestReceivedEvents = (bus: InMemoryBus) =>
@@ -198,7 +231,7 @@ describe('ILP receiving quote flow over Kafka topics', () => {
       new FixedRateQuoteCalculator(95n, 100n)
     );
 
-    await transport.simulateInboundPrepare(probe());
+    await transport.simulateInboundPrepare(probe(), TEST_CALLBACK_URL);
 
     // The aggregate decoded the probe and published the request received event.
     assert.equal(requestReceivedEvents(bus).length, 1);
@@ -207,11 +240,14 @@ describe('ILP receiving quote flow over Kafka topics', () => {
     // destination amount (F99 = quote response).
     const reject = lastReject(transport);
     assert.equal(reject.peerId, 'peer-1');
-    assert.equal(reject.packetId, 'packet-in-1');
-    assert.equal(reject.rejectCode, 'F99');
-    assert.ok(reject.data, 'expected the destination amount on the reject');
+    assert.equal(reject.response.packetId, 'packet-in-1');
+    assert.equal(reject.response.rejectCode, 'F99');
+    assert.ok(
+      reject.response.data,
+      'expected the destination amount on the reject'
+    );
     const decoded = JSON.parse(
-      Buffer.from(reject.data as string, 'base64').toString()
+      Buffer.from(reject.response.data as string, 'base64').toString()
     );
     assert.equal(decoded.destinationAmount, '95');
   });
@@ -219,21 +255,27 @@ describe('ILP receiving quote flow over Kafka topics', () => {
   test('an unresolved peer is answered with a generic reject and no event', async () => {
     const { bus, transport } = await wireSystem();
 
-    await transport.simulateInboundPrepare(probe({ peerId: 'peer-unknown' }));
+    await transport.simulateInboundPrepare(
+      probe({ peerId: 'peer-unknown' }),
+      TEST_CALLBACK_URL
+    );
 
     assert.equal(requestReceivedEvents(bus).length, 0);
     const reject = lastReject(transport);
-    assert.equal(reject.rejectCode, 'T00');
-    assert.equal(reject.data, undefined);
+    assert.equal(reject.response.rejectCode, 'T00');
+    assert.equal(reject.response.data, undefined);
   });
 
   test('an undecodable probe is answered with a generic reject', async () => {
     const { bus, transport } = await wireSystem();
 
-    await transport.simulateInboundPrepare(probe({ amount: '' }));
+    await transport.simulateInboundPrepare(
+      probe({ amount: '' }),
+      TEST_CALLBACK_URL
+    );
 
     assert.equal(requestReceivedEvents(bus).length, 0);
     const reject = lastReject(transport);
-    assert.equal(reject.rejectCode, 'T00');
+    assert.equal(reject.response.rejectCode, 'T00');
   });
 });

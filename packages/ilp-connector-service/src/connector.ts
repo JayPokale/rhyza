@@ -13,15 +13,14 @@ import {
   ProcessPreparePacketCmd,
   ProcessRejectPacketCmd
 } from 'ilp-domain-lib';
-import { InFlightCorrelations } from './in-flight-map';
+import { ITransportCorrelationStore } from './correlation/store';
 import { IConnectorTransport, WirePrepare, WireResponse } from './transport';
 
 export class IlpConnector {
-  private readonly _inFlight = new InFlightCorrelations();
-
   constructor(
     private readonly _producer: IMessageProducer,
     private readonly _transport: IConnectorTransport,
+    private readonly _correlationStore: ITransportCorrelationStore,
     private readonly _logger: ILogger = new ConsoleLogger()
   ) {}
 
@@ -29,42 +28,60 @@ export class IlpConnector {
     this._transport.onResponse((response) =>
       this._handleWireResponse(response)
     );
-    this._transport.onInboundPrepare((prepare) =>
-      this._handleInboundPrepare(prepare)
+    this._transport.onInboundPrepare((prepare, callbackUrl) =>
+      this._handleInboundPrepare(prepare, callbackUrl)
+    );
+    this._transport.onOutboundPrepareAccepted?.((prepare) =>
+      this._onOutboundPrepareAccepted(prepare)
     );
   }
 
   async handleConnectorCommands(messages: IMessage[]): Promise<void> {
     const unhandled: string[] = [];
+    const dispatches: Promise<void>[] = [];
 
     for (const msg of messages) {
       if (msg.msgType !== MessageTypes.COMMAND) continue;
 
       switch (msg.msgName) {
         case DispatchPreparePacketCmd.name:
-          await this._handleDispatchPrepare(
-            (msg as DispatchPreparePacketCmd).payload
+          dispatches.push(
+            this._handleDispatchPrepare(
+              (msg as DispatchPreparePacketCmd).payload
+            )
           );
           break;
         case DispatchFulfillPacketCmd.name: {
           const payload = (msg as DispatchFulfillPacketCmd).payload;
-          await this._transport.sendFulfill({
-            peerId: payload.peerId,
-            packetId: payload.packetId,
-            fulfillment: payload.fulfillment,
-            data: payload.data
-          });
+          dispatches.push(
+            this._transport.sendFulfill(
+              {
+                kind: 'FULFILL',
+                packetId: payload.packetId,
+                fulfillment: payload.fulfillment,
+                data: payload.data
+              },
+              payload.peerId,
+              payload.replyHandle
+            )
+          );
           break;
         }
         case DispatchRejectPacketCmd.name: {
           const payload = (msg as DispatchRejectPacketCmd).payload;
-          await this._transport.sendReject({
-            peerId: payload.peerId,
-            packetId: payload.packetId,
-            rejectCode: payload.rejectCode,
-            rejectMessage: payload.rejectMessage,
-            data: payload.data
-          });
+          dispatches.push(
+            this._transport.sendReject(
+              {
+                kind: 'REJECT',
+                packetId: payload.packetId,
+                rejectCode: payload.rejectCode,
+                rejectMessage: payload.rejectMessage,
+                data: payload.data
+              },
+              payload.peerId,
+              payload.replyHandle
+            )
+          );
           break;
         }
         default:
@@ -78,20 +95,40 @@ export class IlpConnector {
         `Unhandled connector command(s): ${[...new Set(unhandled)].join(', ')}`
       );
     }
+
+    const results = await Promise.allSettled(dispatches);
+    for (const result of results) {
+      if (result.status === 'rejected') {
+        this._logger.warn(
+          `Connector command dispatch failed: ${result.reason}`
+        );
+      }
+    }
   }
 
-  get inFlightCount(): number {
-    return this._inFlight.size;
+  // Called by OutboundExpiryWorker. Claims due packetIds from the shared
+  // store, then takeOutboundCorrelation. If a peer callback already took the
+  // entry, this is a no-op.
+  async processExpiredOutboundPackets(): Promise<void> {
+    const packetIds =
+      await this._correlationStore.claimExpiredOutbound(100);
+    for (const packetId of packetIds) {
+      await this._handleWireResponse({
+        kind: 'REJECT',
+        packetId,
+        rejectCode: 'T01',
+        rejectMessage: 'no fulfill/reject callback received before expiry'
+      });
+    }
   }
 
   private async _handleDispatchPrepare(
     payload: DispatchPreparePacketCmd['payload']
   ): Promise<void> {
-    // Record the correlation before the packet leaves so a fast response can
-    // never arrive before we can match it.
-    this._inFlight.add(payload.packetId, {
+    await this._correlationStore.storeOutboundCorrelation(payload.packetId, {
       peerId: payload.peerId,
-      paymentIntentId: payload.paymentIntentId
+      paymentIntentId: payload.paymentIntentId,
+      expiresAt: payload.expiresAt
     });
 
     await this._transport.sendPrepare({
@@ -105,8 +142,19 @@ export class IlpConnector {
     });
   }
 
+  private async _onOutboundPrepareAccepted(prepare: WirePrepare): Promise<void> {
+    await this._correlationStore.scheduleOutboundExpiry(
+      prepare.packetId,
+      prepare.expiresAt
+    );
+  }
+
   private async _handleWireResponse(response: WireResponse): Promise<void> {
-    const correlation = this._inFlight.take(response.packetId);
+    await this._correlationStore.cancelOutboundExpiry(response.packetId);
+
+    const correlation = await this._correlationStore.takeOutboundCorrelation(
+      response.packetId
+    );
     if (!correlation) {
       this._logger.warn(
         `Dropping wire response for unknown packetId ${response.packetId}`
@@ -135,12 +183,23 @@ export class IlpConnector {
         ...common,
         rejectCode: response.rejectCode,
         rejectMessage: response.rejectMessage ?? '',
-        rejectedAt: new Date().toISOString()
+        rejectedAt: new Date().toISOString(),
+        destinationAmount: destinationAmountFromWireData(response.data)
       })
     );
   }
 
-  private async _handleInboundPrepare(prepare: WirePrepare): Promise<void> {
+  private async _handleInboundPrepare(
+    prepare: WirePrepare,
+    callbackUrl: string
+  ): Promise<void> {
+    const replyHandle = await this._correlationStore.createInboundReplyHandle({
+      peerId: prepare.peerId,
+      packetId: prepare.packetId,
+      expiresAt: prepare.expiresAt,
+      delivery: { kind: 'http', callbackUrl }
+    });
+
     await this._producer.send(
       new ProcessPreparePacketCmd({
         peerId: prepare.peerId,
@@ -148,9 +207,32 @@ export class IlpConnector {
         destinationIlpAddress: prepare.destinationIlpAddress,
         amount: prepare.amount,
         expiresAt: prepare.expiresAt,
+        replyHandle,
         executionCondition: prepare.executionCondition,
         data: prepare.data
       })
     );
+  }
+}
+
+// Pulls destinationAmount out of reject `data` so ProcessRejectPacketCmd
+// can finish a quote. Until STREAM decode is added, KafkaPeeringClient
+// packs that amount as base64 JSON in `data` instead of STREAM reply frames.
+// Missing or junk data just means "no amount" and the aggregate fails the quote.
+function destinationAmountFromWireData(
+  data: string | undefined
+): string | undefined {
+  if (!data) {
+    return undefined;
+  }
+  try {
+    const parsed = JSON.parse(Buffer.from(data, 'base64').toString()) as {
+      destinationAmount?: unknown;
+    };
+    return typeof parsed.destinationAmount === 'string'
+      ? parsed.destinationAmount
+      : undefined;
+  } catch {
+    return undefined;
   }
 }

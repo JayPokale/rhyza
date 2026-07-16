@@ -1,10 +1,12 @@
 import { Collection, CollectionInfo, Db, MongoClient } from 'mongodb';
 import { ILogger } from 'common-types-lib';
 import { IPacketCorrelation, IPeer, IPeerRepository } from 'ilp-domain-lib';
+import type { IInboundPacketReplyHandle } from 'ilp-domain-lib';
 
 const DB_NAME = 'ilp';
 const PEERS_COLLECTION_NAME = 'peers';
 const PACKETS_COLLECTION_NAME = 'packetCorrelations';
+const INBOUND_REPLY_HANDLES_COLLECTION_NAME = 'inboundPacketReplyHandles';
 const TIMEOUT_MS = 5_000;
 
 // Single-writer store for ILP peer configuration and packet correlations.
@@ -18,6 +20,7 @@ export class MongoDbPeerRepository implements IPeerRepository {
   private _client!: MongoClient;
   private _peerCollection!: Collection<IPeer>;
   private _packetCollection!: Collection<IPacketCorrelation>;
+  private _inboundReplyHandleCollection!: Collection<IInboundPacketReplyHandle>;
 
   constructor(connectionString: string, logger: ILogger) {
     this._connectionString = connectionString;
@@ -25,7 +28,12 @@ export class MongoDbPeerRepository implements IPeerRepository {
   }
 
   private _checkInitialisedOrThrow(): boolean {
-    if (!this._client || !this._peerCollection || !this._packetCollection) {
+    if (
+      !this._client ||
+      !this._peerCollection ||
+      !this._packetCollection ||
+      !this._inboundReplyHandleCollection
+    ) {
       throw new Error('MongoClient not initialised');
     }
     return true;
@@ -69,6 +77,26 @@ export class MongoDbPeerRepository implements IPeerRepository {
           PACKETS_COLLECTION_NAME
         );
         await this._packetCollection.createIndex(
+          { packetId: 1 },
+          { unique: true }
+        );
+      }
+
+      const inboundReplyHandlesCollectionExists = collections.some(
+        (collection) =>
+          collection.name === INBOUND_REPLY_HANDLES_COLLECTION_NAME
+      );
+      if (inboundReplyHandlesCollectionExists) {
+        this._inboundReplyHandleCollection =
+          db.collection<IInboundPacketReplyHandle>(
+            INBOUND_REPLY_HANDLES_COLLECTION_NAME
+          );
+      } else {
+        this._inboundReplyHandleCollection =
+          await db.createCollection<IInboundPacketReplyHandle>(
+            INBOUND_REPLY_HANDLES_COLLECTION_NAME
+          );
+        await this._inboundReplyHandleCollection.createIndex(
           { packetId: 1 },
           { unique: true }
         );
@@ -193,6 +221,50 @@ export class MongoDbPeerRepository implements IPeerRepository {
       this._logger.error(e);
       throw new Error(
         `Unable to update packet ${packet.packetId} - error: ${(e as Error).message}`
+      );
+    }
+  }
+
+  async fetchInboundReplyHandle(
+    packetId: string
+  ): Promise<IInboundPacketReplyHandle | undefined> {
+    this._checkInitialisedOrThrow();
+
+    try {
+      const doc = await this._inboundReplyHandleCollection.findOne({ packetId });
+      return doc ?? undefined;
+    } catch (e) {
+      this._logger.error(e);
+      throw new Error(
+        `Unable to fetch inbound reply handle for packet ${packetId} - error: ${(e as Error).message}`
+      );
+    }
+  }
+
+  async storeInboundReplyHandle(
+    handle: IInboundPacketReplyHandle
+  ): Promise<void> {
+    this._checkInitialisedOrThrow();
+
+    try {
+      await this._inboundReplyHandleCollection.insertOne({ ...handle });
+    } catch (e) {
+      this._logger.error(e);
+      throw new Error(
+        `Unable to store inbound reply handle for packet ${handle.packetId} - error: ${(e as Error).message}`
+      );
+    }
+  }
+
+  async deleteInboundReplyHandle(packetId: string): Promise<void> {
+    this._checkInitialisedOrThrow();
+
+    try {
+      await this._inboundReplyHandleCollection.deleteOne({ packetId });
+    } catch (e) {
+      this._logger.error(e);
+      throw new Error(
+        `Unable to delete inbound reply handle for packet ${packetId} - error: ${(e as Error).message}`
       );
     }
   }

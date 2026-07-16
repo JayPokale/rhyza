@@ -40,6 +40,7 @@ export class KafkaPeeringClient implements IPeeringClient {
     const cmd = new DispatchRejectPacketCmd({
       peerId: input.peerId,
       packetId: input.packetId,
+      replyHandle: input.replyHandle,
       rejectCode: input.rejectCode,
       rejectMessage: input.rejectMessage,
       triggeredBy: input.triggeredBy,

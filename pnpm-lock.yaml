@@ -327,6 +327,9 @@ importers:
       implementations-lib:
         specifier: workspace:*
         version: link:../implementations-lib
+      ioredis:
+        specifier: ~5.10.1
+        version: 5.10.1
     devDependencies:
       tsx:
         specifier: ^4.19.3

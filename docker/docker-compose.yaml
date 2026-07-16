@@ -200,9 +200,16 @@ services:
     restart: always
     environment:
       KAFKA_URL: kafka:19092
+      REDIS_URL: redis:6379
+      ILP_CONNECTOR_HTTP_PORT: 4000
+      ILP_CONNECTOR_PUBLIC_URL: http://ilp-connector-service:4000
+    ports:
+      - '4000:4000'
     depends_on:
       init-kafka:
         condition: service_completed_successfully
+      redis:
+        condition: service_healthy
     networks:
       - rafiki-v2
   ase-mock-service:

@@ -27,36 +27,44 @@ export interface WireReject {
 
 export type WireResponse = WireFulfill | WireReject;
 
-export interface WireFulfillOutbound {
-  peerId: string;
-  packetId: string;
-  fulfillment: string;
-  data?: string;
-}
-
-export interface WireRejectOutbound {
-  peerId: string;
-  packetId: string;
-  rejectCode: string;
-  rejectMessage?: string;
-  data?: string;
-}
-
 export type WireResponseHandler = (
   response: WireResponse
 ) => void | Promise<void>;
 
 export type WireInboundPrepareHandler = (
+  prepare: WirePrepare,
+  callbackUrl: string
+) => void | Promise<void>;
+
+export type WireOutboundPrepareAcceptedHandler = (
   prepare: WirePrepare
 ) => void | Promise<void>;
 
 export interface IConnectorTransport {
   sendPrepare(prepare: WirePrepare): Promise<void>;
 
-  sendFulfill(fulfill: WireFulfillOutbound): Promise<void>;
-  sendReject(reject: WireRejectOutbound): Promise<void>;
+  sendFulfill(
+    fulfill: WireFulfill,
+    peerId: string,
+    replyHandle: string
+  ): Promise<void>;
+  sendReject(
+    reject: WireReject,
+    peerId: string,
+    replyHandle: string
+  ): Promise<void>;
 
   onResponse(handler: WireResponseHandler): void;
 
   onInboundPrepare(handler: WireInboundPrepareHandler): void;
+
+  onOutboundPrepareAccepted?(
+    handler: WireOutboundPrepareAcceptedHandler
+  ): void;
+
+  // Lifecycle hooks for transports that own a resource (e.g. an HTTP
+  // listener). Optional since the in-memory loopback transport used in
+  // tests needs neither.
+  start?(): Promise<void>;
+  stop?(): Promise<void>;
 }

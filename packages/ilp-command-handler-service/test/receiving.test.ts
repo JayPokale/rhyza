@@ -64,6 +64,8 @@ const PEER: IPeer = {
   isActive: true
 };
 
+const TEST_REPLY_HANDLE = 'reply-handle-inbound-1';
+
 const inboundProbe = (overrides: Record<string, unknown> = {}) =>
   new ProcessPreparePacketCmd({
     peerId: 'peer-1',
@@ -71,6 +73,7 @@ const inboundProbe = (overrides: Record<string, unknown> = {}) =>
     destinationIlpAddress: 'g.us.alice',
     amount: '100',
     expiresAt: new Date(Date.now() + 30_000).toISOString(),
+    replyHandle: TEST_REPLY_HANDLE,
     executionCondition: Buffer.alloc(32).toString('base64'),
     ...overrides
   });
@@ -121,6 +124,7 @@ describe('IlpCommandHandler — remote quote receiving', () => {
 
   test('a calculated quote produces a reject carrying the amount', async () => {
     const { producer, consumer } = await startedHandler();
+    await consumer.deliver([inboundProbe()]);
     await consumer.deliver([
       new RespondToRemoteQuoteCmd({
         peerId: 'peer-1',
@@ -135,6 +139,7 @@ describe('IlpCommandHandler — remote quote receiving', () => {
     assert.equal(reject.msgKey, 'peer-1');
     assert.equal(reject.payload.peerId, 'peer-1');
     assert.equal(reject.payload.packetId, 'packet-in-1');
+    assert.equal(reject.payload.replyHandle, TEST_REPLY_HANDLE);
     assert.equal(reject.payload.rejectCode, 'F99');
     assert.ok(reject.payload.data, 'expected the destination amount in data');
     const decoded = JSON.parse(
@@ -188,6 +193,7 @@ describe('IlpCommandHandler — remote quote receiving', () => {
 
   test('a missing calculated quote yields a generic reject', async () => {
     const { producer, consumer } = await startedHandler();
+    await consumer.deliver([inboundProbe()]);
     await consumer.deliver([
       new RespondToRemoteQuoteCmd({
         peerId: 'peer-1',

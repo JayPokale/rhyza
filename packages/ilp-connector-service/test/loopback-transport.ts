@@ -1,8 +1,8 @@
 import {
   IConnectorTransport,
-  WireFulfillOutbound,
+  WireFulfill,
   WirePrepare,
-  WireRejectOutbound,
+  WireReject,
   WireResponse,
   WireResponseHandler,
   WireInboundPrepareHandler
@@ -19,6 +19,12 @@ const defaultResponder = (prepare: WirePrepare): WireResponse => ({
   rejectMessage: 'loopback: no upstream peer connected'
 });
 
+export type SentWireReply = {
+  peerId: string;
+  replyHandle: string;
+  response: WireFulfill | WireReject;
+};
+
 // Loops every outbound prepare straight back into a response so the full
 // Dispatch -> wire -> Process round trip can be exercised end-to-end in tests.
 // Real transports implement the same port and deliver the response asynchronously
@@ -29,7 +35,7 @@ export class LoopbackConnectorTransport implements IConnectorTransport {
   private readonly _responder: (prepare: WirePrepare) => WireResponse;
 
   // Exposed for assertions/inspection in tests and local debugging
-  readonly sentResponses: Array<WireFulfillOutbound | WireRejectOutbound> = [];
+  readonly sentResponses: SentWireReply[] = [];
 
   constructor(options: LoopbackTransportOptions = {}) {
     this._responder = options.responder ?? defaultResponder;
@@ -42,12 +48,20 @@ export class LoopbackConnectorTransport implements IConnectorTransport {
     }
   }
 
-  async sendFulfill(fulfill: WireFulfillOutbound): Promise<void> {
-    this.sentResponses.push(fulfill);
+  async sendFulfill(
+    fulfill: WireFulfill,
+    peerId: string,
+    replyHandle: string
+  ): Promise<void> {
+    this.sentResponses.push({ peerId, replyHandle, response: fulfill });
   }
 
-  async sendReject(reject: WireRejectOutbound): Promise<void> {
-    this.sentResponses.push(reject);
+  async sendReject(
+    reject: WireReject,
+    peerId: string,
+    replyHandle: string
+  ): Promise<void> {
+    this.sentResponses.push({ peerId, replyHandle, response: reject });
   }
 
   onResponse(handler: WireResponseHandler): void {
@@ -59,9 +73,12 @@ export class LoopbackConnectorTransport implements IConnectorTransport {
   }
 
   // Test helper: simulate a peer initiating an inbound prepare.
-  async simulateInboundPrepare(prepare: WirePrepare): Promise<void> {
+  async simulateInboundPrepare(
+    prepare: WirePrepare,
+    callbackUrl: string
+  ): Promise<void> {
     if (this._inboundPrepareHandler) {
-      await this._inboundPrepareHandler(prepare);
+      await this._inboundPrepareHandler(prepare, callbackUrl);
     }
   }
 }

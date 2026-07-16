@@ -15,17 +15,20 @@ import {
   ProcessPreparePacketCmd,
   ProcessRejectPacketCmd
 } from 'ilp-domain-lib';
+import { InMemoryTransportCorrelationStore } from '../src/correlation/in-memory-store';
 import { IlpConnector } from '../src/connector';
 import { LoopbackConnectorTransport } from './loopback-transport';
 import {
   IConnectorTransport,
-  WireFulfillOutbound,
+  WireFulfill,
   WireInboundPrepareHandler,
+  WireOutboundPrepareAcceptedHandler,
   WirePrepare,
-  WireRejectOutbound,
+  WireReject,
   WireResponse,
   WireResponseHandler
 } from '../src/transport';
+import type { SentWireReply } from './loopback-transport';
 
 class MockProducer implements IMessageProducer {
   readonly sent: IMessage[] = [];
@@ -41,22 +44,30 @@ class MockProducer implements IMessageProducer {
   async destroy(): Promise<void> {}
 }
 
-// A transport that records what it was asked to send and only delivers
-// responses / inbound prepares when the test explicitly triggers them.
 class ManualTransport implements IConnectorTransport {
   readonly prepares: WirePrepare[] = [];
-  readonly sentResponses: Array<WireFulfillOutbound | WireRejectOutbound> = [];
+  readonly sentResponses: SentWireReply[] = [];
   private _onResponse?: WireResponseHandler;
   private _onInboundPrepare?: WireInboundPrepareHandler;
+  private _onOutboundPrepareAccepted?: WireOutboundPrepareAcceptedHandler;
 
   async sendPrepare(prepare: WirePrepare): Promise<void> {
     this.prepares.push(prepare);
+    await this._onOutboundPrepareAccepted?.(prepare);
   }
-  async sendFulfill(fulfill: WireFulfillOutbound): Promise<void> {
-    this.sentResponses.push(fulfill);
+  async sendFulfill(
+    fulfill: WireFulfill,
+    peerId: string,
+    replyHandle: string
+  ): Promise<void> {
+    this.sentResponses.push({ peerId, replyHandle, response: fulfill });
   }
-  async sendReject(reject: WireRejectOutbound): Promise<void> {
-    this.sentResponses.push(reject);
+  async sendReject(
+    reject: WireReject,
+    peerId: string,
+    replyHandle: string
+  ): Promise<void> {
+    this.sentResponses.push({ peerId, replyHandle, response: reject });
   }
   onResponse(handler: WireResponseHandler): void {
     this._onResponse = handler;
@@ -64,13 +75,25 @@ class ManualTransport implements IConnectorTransport {
   onInboundPrepare(handler: WireInboundPrepareHandler): void {
     this._onInboundPrepare = handler;
   }
+  onOutboundPrepareAccepted(
+    handler: WireOutboundPrepareAcceptedHandler
+  ): void {
+    this._onOutboundPrepareAccepted = handler;
+  }
   async triggerResponse(response: WireResponse): Promise<void> {
     await this._onResponse?.(response);
   }
-  async triggerInboundPrepare(prepare: WirePrepare): Promise<void> {
-    await this._onInboundPrepare?.(prepare);
+  async triggerInboundPrepare(
+    prepare: WirePrepare,
+    callbackUrl: string
+  ): Promise<void> {
+    await this._onInboundPrepare?.(prepare, callbackUrl);
   }
 }
+
+const TEST_CALLBACK_URL = 'https://peer.example/callback';
+const TEST_EXPIRES_AT = new Date(Date.now() + 30_000).toISOString();
+const TEST_REPLY_HANDLE = 'reply-handle-1';
 
 const dispatchPrepare = (
   overrides: Partial<DispatchPreparePacketCmd['payload']> = {}
@@ -89,23 +112,23 @@ const dispatchPrepare = (
 describe('IlpConnector', () => {
   let producer: MockProducer;
   let transport: ManualTransport;
+  let correlationStore: InMemoryTransportCorrelationStore;
   let connector: IlpConnector;
 
   beforeEach(() => {
     producer = new MockProducer();
     transport = new ManualTransport();
-    connector = new IlpConnector(producer, transport);
+    correlationStore = new InMemoryTransportCorrelationStore();
+    connector = new IlpConnector(producer, transport, correlationStore);
     connector.init();
   });
 
-  test('dispatching a prepare sends it on the wire and retains the correlation in-flight', async () => {
+  test('dispatching a prepare stores outbound correlation and schedules expiry', async () => {
     await connector.handleConnectorCommands([dispatchPrepare()]);
 
     assert.equal(transport.prepares.length, 1);
     assert.equal(transport.prepares[0].packetId, 'packet-1');
-    assert.equal(transport.prepares[0].destinationIlpAddress, 'g.peer.bob');
-    // Held in-flight until a terminal response arrives; nothing produced yet.
-    assert.equal(connector.inFlightCount, 1);
+    assert.equal(await correlationStore.hasOutboundCorrelation('packet-1'), true);
     assert.equal(producer.sent.length, 0);
   });
 
@@ -124,10 +147,25 @@ describe('IlpConnector', () => {
     assert.equal(cmd.payload.paymentIntentId, 'intent-1');
     assert.equal(cmd.payload.packetId, 'packet-1');
     assert.equal(cmd.payload.rejectCode, 'F99');
-    // Partitioned by paymentIntentId per the connector contract.
+    assert.equal(cmd.payload.destinationAmount, undefined);
     assert.equal(cmd.msgKey, 'intent-1');
-    // Correlation consumed exactly once.
-    assert.equal(connector.inFlightCount, 0);
+    assert.equal(await correlationStore.hasOutboundCorrelation('packet-1'), false);
+  });
+
+  test('a quote reject with destinationAmount in data forwards it on ProcessRejectPacketCmd', async () => {
+    await connector.handleConnectorCommands([dispatchPrepare()]);
+    await transport.triggerResponse({
+      kind: 'REJECT',
+      packetId: 'packet-1',
+      rejectCode: 'F99',
+      rejectMessage: 'quote response',
+      data: Buffer.from(JSON.stringify({ destinationAmount: '95' })).toString(
+        'base64'
+      )
+    });
+
+    const cmd = producer.sent[0] as ProcessRejectPacketCmd;
+    assert.equal(cmd.payload.destinationAmount, '95');
   });
 
   test('a peer fulfill produces a ProcessFulfillPacketCmd keyed by paymentIntentId', async () => {
@@ -142,13 +180,11 @@ describe('IlpConnector', () => {
     const cmd = producer.sent[0] as ProcessFulfillPacketCmd;
     assert.equal(cmd.msgName, ProcessFulfillPacketCmd.name);
     assert.equal(cmd.payload.paymentIntentId, 'intent-1');
-    assert.equal(cmd.payload.packetId, 'packet-1');
     assert.equal(cmd.msgKey, 'intent-1');
-    assert.equal(connector.inFlightCount, 0);
+    assert.equal(await correlationStore.hasOutboundCorrelation('packet-1'), false);
   });
 
-  test('paymentIntentId is recovered from the in-flight map, never from the response packet', async () => {
-    // The wire response intentionally carries no paymentIntentId - only packetId.
+  test('paymentIntentId is recovered from the correlation store, never from the response packet', async () => {
     await connector.handleConnectorCommands([
       dispatchPrepare({ packetId: 'p-xyz', paymentIntentId: 'intent-xyz' })
     ]);
@@ -162,21 +198,25 @@ describe('IlpConnector', () => {
     assert.equal(cmd.payload.paymentIntentId, 'intent-xyz');
   });
 
-  test('an inbound prepare is published as a ProcessPreparePacketCmd keyed by packetId', async () => {
-    await transport.triggerInboundPrepare({
-      peerId: 'peer-9',
-      packetId: 'inbound-1',
-      destinationIlpAddress: 'g.us.alice',
-      amount: '250',
-      expiresAt: new Date(Date.now() + 30_000).toISOString(),
-      executionCondition: Buffer.alloc(32).toString('base64')
-    });
+  test('an inbound prepare is published as a ProcessPreparePacketCmd with an opaque replyHandle', async () => {
+    await transport.triggerInboundPrepare(
+      {
+        peerId: 'peer-9',
+        packetId: 'inbound-1',
+        destinationIlpAddress: 'g.us.alice',
+        amount: '250',
+        expiresAt: TEST_EXPIRES_AT,
+        executionCondition: Buffer.alloc(32).toString('base64')
+      },
+      TEST_CALLBACK_URL
+    );
 
     assert.equal(producer.sent.length, 1);
     const cmd = producer.sent[0] as ProcessPreparePacketCmd;
     assert.equal(cmd.msgName, ProcessPreparePacketCmd.name);
     assert.equal(cmd.payload.packetId, 'inbound-1');
-    // Inbound is partitioned by packetId (no paymentIntentId is known yet).
+    assert.ok(cmd.payload.replyHandle);
+    assert.notEqual(cmd.payload.replyHandle, TEST_CALLBACK_URL);
     assert.equal(cmd.msgKey, 'inbound-1');
   });
 
@@ -189,44 +229,120 @@ describe('IlpConnector', () => {
     assert.equal(producer.sent.length, 0);
   });
 
-  test('dispatch fulfill/reject commands are forwarded to the transport (inbound response path)', async () => {
+  test('a batch of dispatches runs concurrently, not one at a time', async () => {
+    const delays: Record<string, number> = {
+      'packet-slow-1': 150,
+      'packet-slow-2': 150
+    };
+    class SlowTransport extends ManualTransport {
+      async sendPrepare(prepare: WirePrepare): Promise<void> {
+        await new Promise((r) => setTimeout(r, delays[prepare.packetId] ?? 0));
+        await super.sendPrepare(prepare);
+      }
+    }
+    const slowTransport = new SlowTransport();
+    const slowConnector = new IlpConnector(
+      producer,
+      slowTransport,
+      correlationStore
+    );
+    slowConnector.init();
+
+    const before = Date.now();
+    await slowConnector.handleConnectorCommands([
+      dispatchPrepare({ packetId: 'packet-slow-1' }),
+      dispatchPrepare({ packetId: 'packet-slow-2' })
+    ]);
+    const elapsed = Date.now() - before;
+
+    assert.equal(slowTransport.prepares.length, 2);
+    assert.ok(
+      elapsed < 250,
+      `expected concurrent dispatch (~150ms), took ${elapsed}ms - looks sequential`
+    );
+  });
+
+  test('one dispatch throwing does not stop the others in the same batch from running', async () => {
+    class FlakyTransport extends ManualTransport {
+      async sendPrepare(prepare: WirePrepare): Promise<void> {
+        if (prepare.packetId === 'packet-throws') {
+          throw new Error('simulated transport failure');
+        }
+        await super.sendPrepare(prepare);
+      }
+    }
+    const flakyTransport = new FlakyTransport();
+    const flakyConnector = new IlpConnector(
+      producer,
+      flakyTransport,
+      correlationStore
+    );
+    flakyConnector.init();
+
+    await flakyConnector.handleConnectorCommands([
+      dispatchPrepare({ packetId: 'packet-throws' }),
+      dispatchPrepare({ packetId: 'packet-fine' })
+    ]);
+
+    assert.ok(
+      flakyTransport.prepares.some((p) => p.packetId === 'packet-fine'),
+      'expected the non-throwing dispatch to still go out'
+    );
+  });
+
+  test('dispatch fulfill/reject commands are forwarded to the transport with replyHandle', async () => {
     await connector.handleConnectorCommands([
       new DispatchFulfillPacketCmd({
         peerId: 'peer-1',
         packetId: 'inbound-1',
+        replyHandle: TEST_REPLY_HANDLE,
         fulfillment: Buffer.alloc(32).toString('base64')
       }),
       new DispatchRejectPacketCmd({
         peerId: 'peer-1',
         packetId: 'inbound-2',
+        replyHandle: 'reply-handle-2',
         rejectCode: 'F06'
       })
     ]);
 
     assert.equal(transport.sentResponses.length, 2);
-    assert.equal(transport.sentResponses[0].packetId, 'inbound-1');
-    assert.equal(transport.sentResponses[1].packetId, 'inbound-2');
-    // Neither is an outbound prepare, so nothing is held in-flight.
-    assert.equal(connector.inFlightCount, 0);
+    assert.equal(transport.sentResponses[0].replyHandle, TEST_REPLY_HANDLE);
+    assert.equal(transport.sentResponses[1].replyHandle, 'reply-handle-2');
+  });
+
+  test('processExpiredOutboundPackets publishes T01 when no callback arrives', async () => {
+    await connector.handleConnectorCommands([
+      dispatchPrepare({
+        packetId: 'packet-expired',
+        expiresAt: new Date(Date.now() - 1).toISOString()
+      })
+    ]);
+
+    await connector.processExpiredOutboundPackets();
+
+    assert.equal(producer.sent.length, 1);
+    const cmd = producer.sent[0] as ProcessRejectPacketCmd;
+    assert.equal(cmd.payload.rejectCode, 'T01');
+    assert.equal(cmd.payload.packetId, 'packet-expired');
   });
 });
 
 describe('IlpConnector over the loopback transport (full round trip)', () => {
   test('Dispatch prepare -> loopback wire -> Process reject, end to end', async () => {
     const producer = new MockProducer();
+    const store = new InMemoryTransportCorrelationStore();
     const transport = new LoopbackConnectorTransport();
-    const connector = new IlpConnector(producer, transport);
+    const connector = new IlpConnector(producer, transport, store);
     connector.init();
 
     await connector.handleConnectorCommands([dispatchPrepare()]);
 
-    // The loopback answers the probe with a reject (the expected quote outcome).
     assert.equal(producer.sent.length, 1);
     const cmd = producer.sent[0] as ProcessRejectPacketCmd;
     assert.equal(cmd.msgName, ProcessRejectPacketCmd.name);
     assert.equal(cmd.payload.paymentIntentId, 'intent-1');
-    assert.equal(cmd.msgKey, 'intent-1');
-    assert.equal(connector.inFlightCount, 0);
+    assert.equal(await store.hasOutboundCorrelation('packet-1'), false);
   });
 
   test('loopback can be configured to fulfill, exercising the payment path', async () => {
@@ -238,7 +354,11 @@ describe('IlpConnector over the loopback transport (full round trip)', () => {
         fulfillment: Buffer.alloc(32).toString('base64')
       })
     });
-    const connector = new IlpConnector(producer, transport);
+    const connector = new IlpConnector(
+      producer,
+      transport,
+      new InMemoryTransportCorrelationStore()
+    );
     connector.init();
 
     await connector.handleConnectorCommands([dispatchPrepare()]);

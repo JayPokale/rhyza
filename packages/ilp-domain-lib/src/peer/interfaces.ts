@@ -1,4 +1,7 @@
-import type { IPacketCorrelation } from '../packet/interfaces';
+import type {
+  IInboundPacketReplyHandle,
+  IPacketCorrelation
+} from '../packet/interfaces';
 
 // ILP peer connector configuration
 // The ILP BC only owns the connector configuration needed to exchange packets
@@ -33,4 +36,11 @@ export interface IPeerRepository {
   fetchPacketById(packetId: string): Promise<IPacketCorrelation | undefined>;
   storePacket(packet: IPacketCorrelation): Promise<void>;
   updatePacket(packet: IPacketCorrelation): Promise<void>;
+  fetchInboundReplyHandle(
+    packetId: string
+  ): Promise<IInboundPacketReplyHandle | undefined>;
+  storeInboundReplyHandle(
+    handle: IInboundPacketReplyHandle
+  ): Promise<void>;
+  deleteInboundReplyHandle(packetId: string): Promise<void>;
 }

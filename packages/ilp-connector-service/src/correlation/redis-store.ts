@@ -1,0 +1,114 @@
+import { Redis } from 'ioredis';
+import {
+  InboundReplyTarget,
+  OutboundPacketCorrelation
+} from './types';
+import { expiryScore, ttlMs } from './expiry';
+import { ITransportCorrelationStore } from './store';
+
+const INBOUND_KEY_PREFIX = 'ilp-connector:inbound-reply:';
+const OUTBOUND_KEY_PREFIX = 'ilp-connector:outbound:';
+const OUTBOUND_EXPIRY_ZSET = 'ilp-connector:outbound-expiry';
+
+const CLAIM_EXPIRED_SCRIPT = `
+local members = redis.call(
+  'ZRANGEBYSCORE',
+  KEYS[1],
+  '-inf',
+  ARGV[1],
+  'LIMIT',
+  0,
+  tonumber(ARGV[2])
+)
+for _, member in ipairs(members) do
+  redis.call('ZREM', KEYS[1], member)
+end
+return members
+`;
+
+export class RedisTransportCorrelationStore implements ITransportCorrelationStore {
+  constructor(private readonly _redis: Redis) {}
+
+  async createInboundReplyHandle(target: InboundReplyTarget): Promise<string> {
+    const replyHandle = crypto.randomUUID();
+    await this._redis.set(
+      `${INBOUND_KEY_PREFIX}${replyHandle}`,
+      JSON.stringify(target),
+      'PX',
+      ttlMs(target.expiresAt)
+    );
+    return replyHandle;
+  }
+
+  async resolveInboundReplyHandle(
+    replyHandle: string
+  ): Promise<InboundReplyTarget | undefined> {
+    const raw = await this._redis.get(`${INBOUND_KEY_PREFIX}${replyHandle}`);
+    if (!raw) {
+      return undefined;
+    }
+    return JSON.parse(raw) as InboundReplyTarget;
+  }
+
+  async deleteInboundReplyHandle(replyHandle: string): Promise<void> {
+    await this._redis.del(`${INBOUND_KEY_PREFIX}${replyHandle}`);
+  }
+
+  async storeOutboundCorrelation(
+    packetId: string,
+    correlation: OutboundPacketCorrelation
+  ): Promise<void> {
+    await this._redis.set(
+      `${OUTBOUND_KEY_PREFIX}${packetId}`,
+      JSON.stringify(correlation),
+      'PX',
+      ttlMs(correlation.expiresAt)
+    );
+  }
+
+  async hasOutboundCorrelation(packetId: string): Promise<boolean> {
+    return (await this._redis.exists(`${OUTBOUND_KEY_PREFIX}${packetId}`)) === 1;
+  }
+
+  async takeOutboundCorrelation(
+    packetId: string
+  ): Promise<OutboundPacketCorrelation | undefined> {
+    await this.cancelOutboundExpiry(packetId);
+    const key = `${OUTBOUND_KEY_PREFIX}${packetId}`;
+    const raw = await this._redis.get(key);
+    if (!raw) {
+      return undefined;
+    }
+    await this._redis.del(key);
+    return JSON.parse(raw) as OutboundPacketCorrelation;
+  }
+
+  async scheduleOutboundExpiry(
+    packetId: string,
+    expiresAt: string
+  ): Promise<void> {
+    await this._redis.zadd(
+      OUTBOUND_EXPIRY_ZSET,
+      expiryScore(expiresAt),
+      packetId
+    );
+  }
+
+  async cancelOutboundExpiry(packetId: string): Promise<void> {
+    await this._redis.zrem(OUTBOUND_EXPIRY_ZSET, packetId);
+  }
+
+  async claimExpiredOutbound(limit = 100): Promise<string[]> {
+    const result = await this._redis.eval(
+      CLAIM_EXPIRED_SCRIPT,
+      1,
+      OUTBOUND_EXPIRY_ZSET,
+      Date.now(),
+      limit
+    );
+    if (!Array.isArray(result)) {
+      return [];
+    }
+    return result.map(String);
+  }
+}

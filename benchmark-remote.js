@@ -28,8 +28,12 @@ const RECEIVER_WALLET_ADDRESS = 'test.com/receiver';
 const SENDER_WALLET_ADDRESS = 'test.com/sender';
 const PEER_ID = '04978037-26b8-4b4d-854a-278ed7548959';
 const PEER_ILP_STATIC_ADDRESS = 'g.rafiki';
-const PEER_ILP_OUTGOING_ENDPOINT = 'http://peer-open-payments-svc:3002/ilp';
-const PEER_ILP_OUTGOING_AUTH_TOKEN = 'benchmark-peer-token';
+// This "peer" is actually our own ilp-connector-service HTTP
+// listener. The same token is used both as what we send
+// outgoing and what we expect incoming, since we're both ends of the
+// connection for the purposes of this benchmark.
+const PEER_ILP_OUTGOING_ENDPOINT = 'http://ilp-connector-service:4000/ilp';
+const PEER_ILP_AUTH_TOKEN = 'benchmark-peer-token';
 
 function request(url, data) {
   return http.post(url, JSON.stringify(data), {
@@ -80,7 +84,10 @@ export function setup() {
     http: {
       outgoing: {
         endpoint: PEER_ILP_OUTGOING_ENDPOINT,
-        authToken: PEER_ILP_OUTGOING_AUTH_TOKEN
+        authToken: PEER_ILP_AUTH_TOKEN
+      },
+      incoming: {
+        authToken: PEER_ILP_AUTH_TOKEN
       }
     }
   });
