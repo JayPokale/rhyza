@@ -22,7 +22,8 @@ import {
   ValidateReceivedPaymentCmd,
   AcceptReceivedPaymentCmd,
   FailReceivedPaymentCmd,
-  MarkReceivedPaymentFulfillableCmd
+  MarkReceivedPaymentFulfillableCmd,
+  FinalizeReceivedPaymentCmd
 } from 'payments-domain-lib';
 import {
   LedgerOutgoingTransferReservedEvent,
@@ -52,6 +53,20 @@ type ILPPaymentReceivedPayload = {
   sourceAmount: string;
   peerAssetCode: string;
   peerAssetScale: number;
+};
+
+// TODO: ILP BC does not publish this event yet — assumed contract for the
+// fulfillment ILP returns to the peer for an inbound (received) payment.
+// Payments consumes it to finalize the received payment.
+const ILP_PAYMENT_FULFILLMENT_SENT_EVENT_NAME =
+  'ILPPaymentFulfillmentSentEvent';
+type ILPPaymentFulfillmentSentPayload = {
+  requestId: string;
+  paymentIntentId: string;
+  receivedPaymentId: string;
+  packetId: string;
+  peerId: string;
+  fulfilledAt: string;
 };
 
 export class PaymentsEventHandler {
@@ -176,6 +191,18 @@ export class PaymentsEventHandler {
         const cmd = new MarkReceivedPaymentFulfillableCmd(
           {
             receivedPaymentId: payload.paymentId,
+            paymentIntentId: payload.paymentIntentId
+          },
+          payload.requestId
+        );
+        await this._msgProducer.send(cmd);
+        break;
+      }
+      case ILP_PAYMENT_FULFILLMENT_SENT_EVENT_NAME: {
+        const payload = message.payload as ILPPaymentFulfillmentSentPayload;
+        const cmd = new FinalizeReceivedPaymentCmd(
+          {
+            receivedPaymentId: payload.receivedPaymentId,
             paymentIntentId: payload.paymentIntentId
           },
           payload.requestId
