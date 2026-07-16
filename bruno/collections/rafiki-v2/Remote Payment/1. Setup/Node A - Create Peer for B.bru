@@ -1,0 +1,40 @@
+meta {
+  name: Node A - Create Peer for B
+  type: http
+  seq: 3
+}
+
+post {
+  url: http://{{adminA}}/peers
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "id": "04978037-26b8-4b4d-854a-278ed7548959",
+    "name": "Node B",
+    "assetCode": "USD",
+    "assetScale": 2,
+    "ilpStaticAddress": "g.rafiki",
+    "http": {
+      "outgoing": {
+        "endpoint": "http://open-payments-resource-service-b:3002/ilp",
+        "authToken": "local-peer-token"
+      }
+    }
+  }
+}
+
+script:post-response {
+  const body = res.getBody();
+  if (body?.id) {
+    bru.setVar("peerId", body.id);
+  }
+}
+
+tests {
+  test("created or already exists", function () {
+    expect([201, 409]).to.include(res.getStatus());
+  });
+}

@@ -27,6 +27,7 @@ COPY packages/common-types-lib/package.json ./packages/common-types-lib/package.
 COPY packages/implementations-lib/package.json ./packages/implementations-lib/package.json
 COPY packages/ilp-domain-lib/package.json ./packages/ilp-domain-lib/package.json
 COPY packages/payments-public-types-lib/package.json ./packages/payments-public-types-lib/package.json
+COPY packages/pal-public-types-lib/package.json ./packages/pal-public-types-lib/package.json
 COPY packages/ilp-event-handler-service/package.json ./packages/ilp-event-handler-service/package.json
 
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store BUILD_LIBRDKAFKA=0 pnpm install --recursive --prefer-offline --frozen-lockfile --prod
@@ -38,6 +39,7 @@ RUN pnpm --filter common-types-lib build
 RUN pnpm --filter implementations-lib build
 RUN pnpm --filter ilp-domain-lib build
 RUN pnpm --filter payments-public-types-lib build
+RUN pnpm --filter pal-public-types-lib build
 RUN pnpm --filter ilp-event-handler-service build
 
 FROM node:24-alpine AS runner
@@ -49,6 +51,7 @@ COPY --from=prod-deps /workspace/node_modules ./node_modules
 COPY --from=prod-deps /workspace/packages/implementations-lib/node_modules ./packages/implementations-lib/node_modules
 COPY --from=prod-deps /workspace/packages/ilp-domain-lib/node_modules ./packages/ilp-domain-lib/node_modules
 COPY --from=prod-deps /workspace/packages/payments-public-types-lib/node_modules ./packages/payments-public-types-lib/node_modules
+COPY --from=prod-deps /workspace/packages/pal-public-types-lib/node_modules ./packages/pal-public-types-lib/node_modules
 COPY --from=prod-deps /workspace/packages/ilp-event-handler-service/node_modules ./packages/ilp-event-handler-service/node_modules
 
 # package.json for each workspace dep
@@ -56,6 +59,7 @@ COPY --from=prod-deps /workspace/packages/common-types-lib/package.json ./packag
 COPY --from=prod-deps /workspace/packages/implementations-lib/package.json ./packages/implementations-lib/package.json
 COPY --from=prod-deps /workspace/packages/ilp-domain-lib/package.json ./packages/ilp-domain-lib/package.json
 COPY --from=prod-deps /workspace/packages/payments-public-types-lib/package.json ./packages/payments-public-types-lib/package.json
+COPY --from=prod-deps /workspace/packages/pal-public-types-lib/package.json ./packages/pal-public-types-lib/package.json
 COPY --from=prod-deps /workspace/packages/ilp-event-handler-service/package.json ./packages/ilp-event-handler-service/package.json
 
 # built dist from each workspace dep
@@ -63,6 +67,7 @@ COPY --from=build /workspace/packages/common-types-lib/dist ./packages/common-ty
 COPY --from=build /workspace/packages/implementations-lib/dist ./packages/implementations-lib/dist
 COPY --from=build /workspace/packages/ilp-domain-lib/dist ./packages/ilp-domain-lib/dist
 COPY --from=build /workspace/packages/payments-public-types-lib/dist ./packages/payments-public-types-lib/dist
+COPY --from=build /workspace/packages/pal-public-types-lib/dist ./packages/pal-public-types-lib/dist
 COPY --from=build /workspace/packages/ilp-event-handler-service/dist ./packages/ilp-event-handler-service/dist
 
 CMD ["node", "packages/ilp-event-handler-service/dist/index.js"]

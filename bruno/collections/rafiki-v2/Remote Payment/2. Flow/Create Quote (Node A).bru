@@ -1,0 +1,29 @@
+meta {
+  name: Create Quote (Node A)
+  type: http
+  seq: 2
+}
+
+post {
+  url: http://{{adminA}}/quotes
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "walletAddress": "test.com/sender",
+    "paymentIntentUrl": "{{receiverIntentUrl}}",
+    "debitAmount": "100"
+  }
+}
+
+script:post-response {
+  const body = res.getBody();
+  if (body?.id) {
+    bru.setVar("quoteId", body.id);
+  }
+  if (body?.paymentIntentId) {
+    bru.setVar("quotePaymentIntentId", body.paymentIntentId);
+  }
+}
