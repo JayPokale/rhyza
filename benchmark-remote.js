@@ -27,7 +27,7 @@ const PEER_OPEN_PAYMENTS_URL = 'http://peer-open-payments-svc:3002';
 const RECEIVER_WALLET_ADDRESS = 'test.com/receiver';
 const SENDER_WALLET_ADDRESS = 'test.com/sender';
 const PEER_ID = '04978037-26b8-4b4d-854a-278ed7548959';
-const PEER_ILP_STATIC_ADDRESS = 'ilp.rafiki.0';
+const PEER_ILP_STATIC_ADDRESS = 'g.rafiki';
 const PEER_ILP_OUTGOING_ENDPOINT = 'http://peer-open-payments-svc:3002/ilp';
 const PEER_ILP_OUTGOING_AUTH_TOKEN = 'benchmark-peer-token';
 

@@ -250,13 +250,12 @@ export class PaymentIntentAggregate {
     await Promise.all([
       ...Array.from(ilpAddressesToFetch, async (ilpAddress) => {
         try {
-          // NOTE: resolving the peer off destinationIlpAddress may work for now,
-          // but it wont when STREAM is implemented. STREAM will make the address dynamic.
-          // The prefix will be static but the suffix will be variable. Rafiki v1 handles this
-          // by getting the longest matching prefix.  PAL — this
-          // needs PAL longest-prefix match (or a receiver-provided static
-          // address).
-          const peer = await this._palService.getPeerByIlpAddress(ilpAddress);
+          // TODO: re-evaluate this approach (popping last) after desintation address
+          // formation unstubbed. See destinationIlpAddress stub in remote-payment-intent-adapter.ts
+          // destinationIlpAddress is assumed to be <static>.<static>.<dynamic> (number of static sections variable)
+          const staticAddress = ilpAddress.split('.').slice(0, -1).join('.');
+          const peer =
+            await this._palService.getPeerByIlpAddress(staticAddress);
           this.peerMap.set(ilpAddress, peer);
         } catch (err) {
           this.peerFetchErrors.set(ilpAddress, err as Error);

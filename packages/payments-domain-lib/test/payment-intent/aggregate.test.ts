@@ -3092,8 +3092,8 @@ describe('PaymentIntentAggregate.handleBatch', () => {
       });
 
       it('peer fetch error isolates to dependent command only', async () => {
-        const intentA = makeRemoteIntentWithIlp('g.peer.fails');
-        const intentB = makeRemoteIntentWithIlp('g.peer.ok');
+        const intentA = makeRemoteIntentWithIlp('g.peer.fails.p1');
+        const intentB = makeRemoteIntentWithIlp('g.peer.ok.p2');
         await repo.storeMany([intentA, intentB]);
 
         mockPalService.getPeerByIlpAddress = async (ilp) => {

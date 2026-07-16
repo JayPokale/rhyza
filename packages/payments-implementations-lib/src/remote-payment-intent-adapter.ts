@@ -5,8 +5,7 @@ import {
   IRemotePaymentIntentDetails
 } from 'payments-domain-lib';
 
-// TODO: fetch from peer/node config once ILP addressing is wired up
-const STUB_DESTINATION_ILP_ADDRESS = 'ilp.rafiki.0';
+const STUB_DESTINATION_ILP_PREFIX = 'g.rafiki';
 
 // TODO: Consider replacing fetch with the open-payments-node client.
 // That would require either: (a) key pair initialization for authenticated
@@ -42,6 +41,14 @@ export class RemotePaymentIntentAdapter implements IRemotePaymentIntentService {
       );
     }
 
+    // Until STREAM is wired, fabricate a dynamic <prefix>.<suffix> destination
+    // (real STREAM supplies data.destinationIlpAddress). The response carries no
+    // id of its own, so use the remote incoming-payment id from the URL as the
+    // suffix — the aggregate strips it back off to resolve the peer by prefix.
+    const incomingPaymentId =
+      new URL(url).pathname.split('/').filter(Boolean).pop() ?? 'stub';
+    const stubDestinationIlpAddress = `${STUB_DESTINATION_ILP_PREFIX}.${incomingPaymentId}`;
+
     return {
       walletAddress: data.walletAddress,
       assetCode: data.receivedAmount.assetCode,
@@ -52,7 +59,7 @@ export class RemotePaymentIntentAdapter implements IRemotePaymentIntentService {
       receivedAmount: BigInt(data.receivedAmount.value),
       expiresAt: data.expiresAt,
       destinationIlpAddress:
-        data.destinationIlpAddress ?? STUB_DESTINATION_ILP_ADDRESS,
+        data.destinationIlpAddress ?? stubDestinationIlpAddress,
       sharedSecret: data.sharedSecret
     };
   }
