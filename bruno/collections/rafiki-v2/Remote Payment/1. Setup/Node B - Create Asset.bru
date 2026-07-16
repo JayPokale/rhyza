@@ -1,0 +1,29 @@
+meta {
+  name: Node B - Create Asset
+  type: http
+  seq: 4
+}
+
+post {
+  url: http://{{adminB}}/assets
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "code": "USD",
+    "scale": 2
+  }
+}
+
+tests {
+  test("created or already exists", function () {
+    expect([201, 409]).to.include(res.getStatus());
+  });
+}
+
+docs {
+  Creates the USD asset on Node B via its admin API (host port 4001).
+  409 means it already exists — the test treats that as a pass.
+}

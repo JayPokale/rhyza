@@ -1,0 +1,37 @@
+meta {
+  name: Create Payment (Node A)
+  type: http
+  seq: 3
+}
+
+post {
+  url: http://{{adminA}}/payments
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "walletAddress": "test.com/sender",
+    "paymentIntentId": "{{quotePaymentIntentId}}",
+    "quoteId": "{{quoteId}}"
+  }
+}
+
+script:post-response {
+  const body = res.getBody();
+  if (body?.id) {
+    bru.setVar("paymentId", body.id);
+  }
+}
+
+docs {
+  Creates the outgoing payment on **Node A** from the completed quote. The mock
+  ASE auto-approves it via the PaymentCreated webhook - no manual approve step.
+
+  `paymentIntentId` is `quotePaymentIntentId` - the local UUID returned by the
+  quote in step 2 (Node A's own intent id), not Node B's intent id from step 1.
+
+  Depends on step 2 producing a completed quote, so it cannot succeed until the
+  ILP transport gap above is closed.
+}

@@ -1,0 +1,49 @@
+meta {
+  name: Create Quote (Node A)
+  type: http
+  seq: 2
+}
+
+post {
+  url: http://{{adminA}}/quotes
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "walletAddress": "test.com/sender",
+    "paymentIntentUrl": "{{receiverIntentUrl}}",
+    "debitAmount": "100"
+  }
+}
+
+script:post-response {
+  const body = res.getBody();
+  if (body?.id) {
+    bru.setVar("quoteId", body.id);
+  }
+  if (body?.paymentIntentId) {
+    bru.setVar("quotePaymentIntentId", body.paymentIntentId);
+  }
+}
+
+docs {
+  Creates the quote on **Node A** against Node B's remote intent.
+
+  Uses `paymentIntentUrl` (not `paymentIntentId`). Because that URL points at
+  `open-payments-resource-service-b` - which does not start with Node A's own
+  `OPEN_PAYMENTS_URL` (`http://open-payments-resource-service:3002`) - Node A
+  classifies it as **remote**: it fetches Node B's incoming payment server-side,
+  generates a **new local payment-intent UUID**, resolves the peer by the
+  destination ILP address, and requests an ILP quote from the peer.
+
+  Save both returned ids: `quoteId` and `paymentIntentId` (`quotePaymentIntentId`
+  - this new local UUID, not step 1's id, is what step 3 uses).
+
+  ## Expected failure today
+  The ILP quoting probe hits the connector's loopback transport, which rejects
+  with `F99 "loopback: no upstream peer connected"`, so the quote never
+  transitions pending -> completed and this call errors/times out. This is the
+  point the flow reaches until an HTTP ILP transport + `/ilp` ingress exist.
+}

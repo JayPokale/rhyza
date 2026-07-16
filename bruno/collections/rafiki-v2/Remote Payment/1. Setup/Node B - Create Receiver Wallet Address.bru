@@ -1,0 +1,37 @@
+meta {
+  name: Node B - Create Receiver Wallet Address
+  type: http
+  seq: 5
+}
+
+post {
+  url: http://{{adminB}}/wallet-addresses
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "assetCode": "USD",
+    "address": "test.com/receiver",
+    "publicName": "Two-Node Receiver"
+  }
+}
+
+script:post-response {
+  const body = res.getBody();
+  if (body?.address) {
+    bru.setVar("receiverWalletAddress", body.address);
+  }
+}
+
+tests {
+  test("created or already exists", function () {
+    expect([201, 409]).to.include(res.getStatus());
+  });
+}
+
+docs {
+  Creates the receiver wallet address on Node B. The Flow payment intent
+  references it by its literal address ("test.com/receiver").
+}

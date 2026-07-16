@@ -1,0 +1,37 @@
+meta {
+  name: Node A - Create Sender Wallet Address
+  type: http
+  seq: 2
+}
+
+post {
+  url: http://{{adminA}}/wallet-addresses
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "assetCode": "USD",
+    "address": "test.com/sender",
+    "publicName": "Two-Node Sender"
+  }
+}
+
+script:post-response {
+  const body = res.getBody();
+  if (body?.address) {
+    bru.setVar("senderWalletAddress", body.address);
+  }
+}
+
+tests {
+  test("created or already exists", function () {
+    expect([201, 409]).to.include(res.getStatus());
+  });
+}
+
+docs {
+  Creates the sender wallet address on Node A. The Flow quote/payment requests
+  reference it by its literal address ("test.com/sender").
+}
