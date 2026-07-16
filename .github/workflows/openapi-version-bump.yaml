@@ -4,10 +4,6 @@ on:
   push:
     branches:
       - main
-  # Just for testing purposes!
-  pull_request:
-    branches:
-      - main
 
 permissions:
   contents: write
@@ -21,8 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-          ref: ${{ github.head_ref }}
+          fetch-depth: 2
 
       - name: Check if OpenAPI spec changed
         id: changes
@@ -55,7 +50,7 @@ jobs:
 
           git add packages/admin-api-service/openapi.yaml
           git commit -m "chore: bump OpenAPI version [skip ci]"
-          git push origin HEAD:${{ github.head_ref }}
+          git push
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
