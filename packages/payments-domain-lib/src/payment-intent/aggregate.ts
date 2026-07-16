@@ -1129,7 +1129,7 @@ export class PaymentIntentAggregate {
           paymentIntentId: paymentIntent.id,
           paymentId: payment.id,
           ledgerTransferId,
-          destinationIlpAddress: paymentIntent.destinationIlpAddress,
+          destinationIlpAddress: remoteDetails.destinationIlpAddress,
           peerId: paymentIntent.peerId!,
           requestId: cmd.requestId,
           debitAmount: String(payment.debitAmount),

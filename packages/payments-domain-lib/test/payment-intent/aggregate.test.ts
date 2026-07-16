@@ -2271,7 +2271,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           assetCode: 'USD',
           assetScale: 2,
           receivedAmount: 0n,
-          destinationIlpAddress: 'g.peer.123',
+          destinationIlpAddress: 'g.peer.fresh-token',
           expiresAt: new Date(Date.now() + 60_000).toISOString(),
           sharedSecret: 'fresh-per-prepare-secret'
         });
@@ -2305,7 +2305,12 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         assert.equal(payload.paymentIntentId, paymentIntentId);
         assert.equal(payload.paymentId, paymentId);
         assert.equal(payload.ledgerTransferId, palTransferId);
-        assert.equal(payload.destinationIlpAddress, 'g.peer.123');
+        // Pair destination + secret from the same OP fetch, not quote-time address.
+        assert.equal(payload.destinationIlpAddress, 'g.peer.fresh-token');
+        assert.notEqual(
+          payload.destinationIlpAddress,
+          paymentIntent.destinationIlpAddress
+        );
         assert.equal(payload.debitAmount, '500');
         assert.equal(payload.receiveAmount, '100');
         assert.equal(payload.sharedSecret, 'fresh-per-prepare-secret');
