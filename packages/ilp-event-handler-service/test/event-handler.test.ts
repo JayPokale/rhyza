@@ -14,12 +14,14 @@ import {
   DeactivatePeerCmd,
   FulfillInboundPaymentCmd,
   ILPQuoteRequestReceivedEvent,
-  RespondToRemoteQuoteCmd
+  RespondToRemoteQuoteCmd,
+  StartRemotePaymentCmd
 } from 'ilp-domain-lib';
 import {
   RemoteQuoteCalculatedEvent,
   RemoteQuoteCalculationFailedEvent,
-  ReceivedPaymentFulfillableEvent
+  ReceivedPaymentFulfillableEvent,
+  RemotePaymentPreparedEvent
 } from 'payments-public-types-lib';
 import { PeerActivatedEvent, PeerDeactivatedEvent } from 'pal-public-types-lib';
 import { IlpEventHandler } from '../src/event-handler';
@@ -121,6 +123,46 @@ describe('IlpEventHandler', () => {
     assert.equal(producer.sent.length, 1);
     const cmd = producer.sent[0] as RespondToRemoteQuoteCmd;
     assert.equal(cmd.payload.destinationAmount, undefined);
+  });
+
+  test('maps a RemotePaymentPreparedEvent to a StartRemotePaymentCmd with sharedSecret', async () => {
+    const producer = new MockProducer();
+    const consumer = new MockConsumer();
+    const handler = new IlpEventHandler(
+      consumer,
+      producer,
+      new ConsoleLogger()
+    );
+    await handler.start();
+
+    const sharedSecret = Buffer.alloc(32, 7).toString('base64url');
+    await consumer.deliver([
+      new RemotePaymentPreparedEvent({
+        paymentIntentId: 'intent-1',
+        paymentId: 'pay-1',
+        ledgerTransferId: 'xfer-1',
+        destinationIlpAddress: 'test.rafiki.token',
+        peerId: 'peer-1',
+        requestId: 'req-1',
+        debitAmount: '100',
+        receiveAmount: '100',
+        assetCode: 'USD',
+        assetScale: 2,
+        sharedSecret,
+        expiresAt: new Date(Date.now() + 30_000).toISOString()
+      })
+    ]);
+
+    assert.equal(producer.sent.length, 1);
+    const cmd = producer.sent[0] as StartRemotePaymentCmd;
+    assert.equal(cmd.msgName, StartRemotePaymentCmd.name);
+    assert.equal(cmd.msgTopic, 'ilp-commands');
+    assert.equal(cmd.payload.peerId, 'peer-1');
+    assert.equal(cmd.payload.paymentIntentId, 'intent-1');
+    assert.equal(cmd.payload.paymentId, 'pay-1');
+    assert.equal(cmd.payload.amount, '100');
+    assert.equal(cmd.payload.sharedSecret, sharedSecret);
+    assert.equal(cmd.requestId, 'req-1');
   });
 
   test('maps a ReceivedPaymentFulfillableEvent to a FulfillInboundPaymentCmd', async () => {

@@ -23,10 +23,13 @@ import {
   ILPPeerUpdatedEvent,
   ILPPeerUpdateFailedEvent,
   IPeer,
+  IPeeringClient,
+  PacketDispatch,
   ProcessPreparePacketCmd,
   ProcessRejectPacketCmd,
   ILPQuoteReceivedEvent,
   ILPQuoteFailedEvent,
+  StartRemotePaymentCmd,
   StartRemoteQuoteCmd,
   UpdatePeerCmd
 } from 'ilp-domain-lib';
@@ -322,6 +325,91 @@ describe('IlpCommandHandler — peer activation mirror', () => {
     assert.equal(event.payload.errorName, 'UnknownPeer');
     assert.equal(event.isErrorEvent, true);
     assert.equal(event.requestId, 'req-deactivate-unknown');
+  });
+});
+
+describe('IlpCommandHandler — remote payment sending', () => {
+  test('starting a remote payment dispatches a prepare to the connector', async () => {
+    const { producer, consumer } = await startedHandler();
+    const sharedSecret = Buffer.alloc(32, 9).toString('base64url');
+
+    await consumer.deliver([
+      new StartRemotePaymentCmd(
+        {
+          peerId: 'peer-1',
+          paymentIntentId: 'intent-1',
+          paymentId: 'pay-1',
+          destinationIlpAddress: 'g.peer.bob',
+          amount: '100',
+          assetCode: 'USD',
+          assetScale: 2,
+          expiresAt: new Date(Date.now() + 30_000).toISOString(),
+          sharedSecret
+        },
+        'req-pay-1'
+      )
+    ]);
+
+    const dispatch = producer.sent.find(
+      (m) => m.msgName === DispatchPreparePacketCmd.name
+    ) as DispatchPreparePacketCmd;
+    assert.ok(dispatch);
+    assert.equal(dispatch.msgTopic, 'ilp-connector-commands');
+    assert.equal(dispatch.msgKey, 'peer-1');
+    assert.equal(dispatch.payload.paymentIntentId, 'intent-1');
+    assert.equal(dispatch.payload.amount, '100');
+  });
+
+  test('StartRemotePaymentCmd passes sharedSecret on PaymentDispatch', async () => {
+    const dispatches: PacketDispatch[] = [];
+    const peeringClient: IPeeringClient = {
+      async dispatch(input) {
+        dispatches.push(input);
+      },
+      async dispatchReject() {},
+      async dispatchFulfill() {}
+    };
+
+    const producer = new MockProducer();
+    const consumer = new MockConsumer();
+    const repo = new InMemoryPeerRepository([PEER]);
+    const aggregate = new IlpPeerAggregate(
+      repo,
+      peeringClient,
+      createFakeResolveStreamCredentials().resolveStreamCredentials
+    );
+    const handler = new IlpCommandHandler(
+      consumer,
+      producer,
+      aggregate,
+      new ConsoleLogger()
+    );
+    await handler.start();
+
+    const sharedSecret = Buffer.alloc(32, 9).toString('base64url');
+    await consumer.deliver([
+      new StartRemotePaymentCmd(
+        {
+          peerId: 'peer-1',
+          paymentIntentId: 'intent-1',
+          paymentId: 'pay-1',
+          destinationIlpAddress: 'g.peer.bob',
+          amount: '100',
+          assetCode: 'USD',
+          assetScale: 2,
+          expiresAt: new Date(Date.now() + 30_000).toISOString(),
+          sharedSecret
+        },
+        'req-pay-1'
+      )
+    ]);
+
+    assert.equal(dispatches.length, 1);
+    assert.equal(dispatches[0].type, 'PAYMENT');
+    if (dispatches[0].type === 'PAYMENT') {
+      assert.equal(dispatches[0].sharedSecret, sharedSecret);
+      assert.equal(dispatches[0].paymentId, 'pay-1');
+    }
   });
 });
 
