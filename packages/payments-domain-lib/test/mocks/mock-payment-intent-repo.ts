@@ -33,7 +33,43 @@ export class MockPaymentIntentRepo implements IPaymentIntentRepository {
     const results: IPaymentIntent[] = [];
     for (const id of ids) {
       const p = this._store.get(id);
-      if (p) results.push(p);
+      if (!p) continue;
+      results.push({
+        ...p,
+        quotes: p.quotes.map((quote) => ({ ...quote })),
+        sentPayments: p.sentPayments.map((payment) => ({
+          id: payment.id,
+          state: payment.state,
+          createdAt: payment.createdAt,
+          paymentIntentId: payment.paymentIntentId,
+          senderWalletAddress: payment.senderWalletAddress,
+          senderWalletAddressId: payment.senderWalletAddressId,
+          quoteId: payment.quoteId,
+          assetCode: payment.assetCode,
+          assetScale: payment.assetScale,
+          debitAmount: payment.debitAmount,
+          receiveAmount: payment.receiveAmount,
+          sentAmount: payment.sentAmount,
+          ledgerTransferId: payment.ledgerTransferId,
+          failReason: payment.failReason,
+          cancelledAt: payment.cancelledAt,
+          cancelReason: payment.cancelReason
+        })),
+        receivedPayments: p.receivedPayments.map((receivedPayment) => ({
+          id: receivedPayment.id,
+          state: receivedPayment.state,
+          createdAt: receivedPayment.createdAt,
+          paymentIntentId: receivedPayment.paymentIntentId,
+          packetId: receivedPayment.packetId,
+          peerId: receivedPayment.peerId,
+          peerAssetCode: receivedPayment.peerAssetCode,
+          peerAssetScale: receivedPayment.peerAssetScale,
+          sourceAmount: receivedPayment.sourceAmount,
+          receiveAmount: receivedPayment.receiveAmount,
+          ledgerTransferId: receivedPayment.ledgerTransferId,
+          failReason: receivedPayment.failReason
+        }))
+      });
     }
     return results;
   }

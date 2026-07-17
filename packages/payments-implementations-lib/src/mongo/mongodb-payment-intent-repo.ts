@@ -263,7 +263,11 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
             assetScale: payment.assetScale,
             debitAmount: payment.debitAmount,
             receiveAmount: payment.receiveAmount,
-            sentAmount: payment.sentAmount
+            sentAmount: payment.sentAmount,
+            ledgerTransferId: payment.ledgerTransferId,
+            failReason: payment.failReason,
+            cancelledAt: payment.cancelledAt,
+            cancelReason: payment.cancelReason
           })),
         receivedPayments: receivedPaymentDocs
           .filter((rp) => rp.paymentIntentId === doc.id)

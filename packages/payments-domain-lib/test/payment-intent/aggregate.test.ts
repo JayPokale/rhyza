@@ -2555,6 +2555,38 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         assert.equal(payload.errorName, 'PaymentInvalidStateError');
       });
 
+      it('fails without mutating when ledgerTransferId is missing after reload', async () => {
+        const paymentIntentId = crypto.randomUUID();
+        const paymentId = crypto.randomUUID();
+        const intent = makeRemoteIntentWithPayment(
+          paymentIntentId,
+          paymentId,
+          'SENDING'
+        );
+        delete intent.sentPayments[0].ledgerTransferId;
+        await repo.storeMany([intent]);
+
+        const cmd = new ConfirmRemotePaymentCmd(
+          { paymentIntentId, paymentId },
+          crypto.randomUUID()
+        );
+        const { events } = await aggregate.handleBatch([cmd]);
+        await aggregate.flush();
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, PaymentCompleteFailedEvent.name);
+        assert.match(
+          (events[0] as PaymentCompleteFailedEvent).payload.message,
+          /missing ledgerTransferId/
+        );
+
+        const stored = repo
+          .getAll()
+          .find((i) => i.id === paymentIntentId)
+          ?.sentPayments.find((p) => p.id === paymentId);
+        assert.equal(stored?.state, 'SENDING');
+      });
+
       it('fails when payment intent not found', async () => {
         const cmd = new ConfirmRemotePaymentCmd(
           {

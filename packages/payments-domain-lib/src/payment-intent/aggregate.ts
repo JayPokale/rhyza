@@ -41,6 +41,7 @@ import {
   WalletAddressNotFoundError,
   WalletAddressInactiveError,
   PaymentIntentNotFoundError,
+  PaymentNotFoundError,
   RatesError,
   MissingDestinationIlpAddressError,
   PeerNotFoundError,
@@ -1224,15 +1225,15 @@ export class PaymentIntentAggregate {
       }
 
       const paymentIntent = PaymentIntent.fromObject(paymentIntentObj);
-      const payment = paymentIntent.confirmRemotePayment({ id: paymentId });
-      this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
-      this._appendToMap(
-        this.confirmedRemotePayments,
-        paymentIntent.id,
-        paymentId
+      const existingPayment = paymentIntent.sentPayments.find(
+        (p) => p.id === paymentId
       );
-
-      if (!payment.ledgerTransferId) {
+      if (!existingPayment) {
+        throw new PaymentNotFoundError(
+          `Payment ${paymentId} not found for ${paymentIntentId} payment intent`
+        );
+      }
+      if (!existingPayment.ledgerTransferId) {
         throw new Error(
           `Payment ${paymentId} is missing ledgerTransferId at confirm time`
         );
@@ -1243,11 +1244,19 @@ export class PaymentIntentAggregate {
         );
       }
 
+      const payment = paymentIntent.confirmRemotePayment({ id: paymentId });
+      this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
+      this._appendToMap(
+        this.confirmedRemotePayments,
+        paymentIntent.id,
+        paymentId
+      );
+
       return new RemotePaymentSendConfirmedEvent(
         {
           paymentIntentId: paymentIntent.id,
           paymentId: payment.id,
-          ledgerTransferId: payment.ledgerTransferId,
+          ledgerTransferId: existingPayment.ledgerTransferId,
           destinationIlpAddress: paymentIntent.destinationIlpAddress,
           peerId: paymentIntent.peerId!,
           requestId: cmd.requestId,
@@ -1285,6 +1294,25 @@ export class PaymentIntentAggregate {
       }
 
       const paymentIntent = PaymentIntent.fromObject(paymentIntentObj);
+      const existingPayment = paymentIntent.sentPayments.find(
+        (p) => p.id === paymentId
+      );
+      if (!existingPayment) {
+        throw new PaymentNotFoundError(
+          `Payment ${paymentId} not found for ${paymentIntentId} payment intent`
+        );
+      }
+      if (!existingPayment.ledgerTransferId) {
+        throw new Error(
+          `Payment ${paymentId} is missing ledgerTransferId at reject time`
+        );
+      }
+      if (!paymentIntent.destinationIlpAddress) {
+        throw new MissingDestinationIlpAddressError(
+          `Payment intent ${paymentIntentId} is missing destinationIlpAddress`
+        );
+      }
+
       const payment = paymentIntent.rejectRemotePayment({
         id: paymentId,
         reason
@@ -1296,22 +1324,11 @@ export class PaymentIntentAggregate {
         paymentId
       );
 
-      if (!payment.ledgerTransferId) {
-        throw new Error(
-          `Payment ${paymentId} is missing ledgerTransferId at reject time`
-        );
-      }
-      if (!paymentIntent.destinationIlpAddress) {
-        throw new MissingDestinationIlpAddressError(
-          `Payment intent ${paymentIntentId} is missing destinationIlpAddress`
-        );
-      }
-
       return new RemotePaymentSendRejectedEvent(
         {
           paymentIntentId: paymentIntent.id,
           paymentId: payment.id,
-          ledgerTransferId: payment.ledgerTransferId,
+          ledgerTransferId: existingPayment.ledgerTransferId,
           reason,
           destinationIlpAddress: paymentIntent.destinationIlpAddress,
           peerId: paymentIntent.peerId!,
