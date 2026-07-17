@@ -6,9 +6,6 @@ import { IMessageProducer } from 'common-types-lib';
 import { PostTransactionCmd } from 'pal-domain-lib';
 import crypto from 'crypto';
 
-// TODO: carve out a better path for depositing liquidity than dragging in kafka,
-// creating the command, and returning 202?
-
 interface LiquidityRouteOptions extends FastifyPluginOptions {
   palClient: PalClient;
   producer: IMessageProducer;
@@ -20,6 +17,8 @@ export async function liquidityRoutes(
 ): Promise<void> {
   const { palClient, producer } = opts;
 
+  // TODO: carve out a better path for depositing liquidity than dragging in kafka,
+  // creating the command, and returning 202?
   server.post<{
     Body: {
       assetCode: string;
@@ -62,11 +61,6 @@ export async function liquidityRoutes(
 
     await producer.send(cmd);
 
-    // TODO: make this synchronous. This is fire-and-forget — the ledger posts
-    // the transaction asynchronously and could reject it (e.g. bad account)
-    // without the caller knowing. Correlate a ledger result event by transaction
-    // id (like the payments gRPC response map) and return success/failure
-    // instead of a bare 202.
     return reply.status(202).send({ id: cmd.payload.id });
   });
 }

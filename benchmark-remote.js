@@ -1,28 +1,11 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-undef */
-
 import http from 'k6/http';
 import { check } from 'k6';
-
-// Two-node remote payment load test — mirrors the Bruno collection
-// "Remote Payment" (rafiki-v2, env "Rafiki v2 Local Peers").
-//
-//   Node A (sender)   admin           -> http://localhost:3001
-//   Node B (receiver) admin           -> http://localhost:4001
-//   Node B open-payments (verify only) -> http://localhost:4002
-//
-// Run on the host: these are the docker host-port mappings. The remote intent's
-// `openPaymentsUrl` is a docker-internal URL that Node A's backend fetches
-// internally — k6 only passes it through to the quote, it never fetches it.
-//
-// Bring both nodes up first: `pnpm docker:peers:up`.
 
 export const options = {
   scenarios: {
     remotePayments: {
       executor: 'ramping-vus',
       startVUs: 0,
-      // Heavy by design; dial `target` down if the stack is resource-constrained.
       stages: [
         { duration: '15s', target: 500 },
         { duration: '15s', target: 500 },
