@@ -474,6 +474,11 @@ export class PaymentsServiceServer {
         name: evt.payload.errorName || 'CommandError',
         metadata: new grpc.Metadata()
       });
+    } else if (PaymentIntentDomainEvent.isRemotePaymentSendApprovedEvent(evt)) {
+      const response = new ApprovePaymentResponse()
+        .setId(evt.payload.paymentId)
+        .setState(evt.payload.state);
+      this._resolvePendingResponse(pending, requestId, null, response);
     } else if (PaymentIntentDomainEvent.isPaymentCompletedEvent(evt)) {
       const response = new ApprovePaymentResponse()
         .setId(evt.payload.id)

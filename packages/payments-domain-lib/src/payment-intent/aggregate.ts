@@ -1051,6 +1051,7 @@ export class PaymentIntentAggregate {
         {
           paymentIntentId: paymentIntent.id,
           paymentId: payment.id,
+          state: payment.state,
           senderWalletAddress: payment.senderWalletAddress,
           senderWalletAddressId: payment.senderWalletAddressId,
           destinationIlpAddress: paymentIntent.destinationIlpAddress,

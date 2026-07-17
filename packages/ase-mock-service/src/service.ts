@@ -88,7 +88,11 @@ export class MockWebhookIntegrationService {
       }
     );
     if (!response.ok) {
-      throw new WebhookServiceError('Failed to approve payment', 401);
+      const detail = await response.text().catch(() => response.statusText);
+      throw new WebhookServiceError(
+        `Failed to approve payment ${payload.id}: ${detail}`,
+        response.status
+      );
     }
   }
 

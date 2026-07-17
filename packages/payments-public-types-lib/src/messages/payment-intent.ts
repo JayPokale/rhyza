@@ -441,6 +441,7 @@ export class RemoteQuoteCalculationFailedEvent extends PaymentIntentDomainEvent 
 export type RemotePaymentSendApprovedPayload = {
   paymentIntentId: string;
   paymentId: string;
+  state: SentPaymentState;
   senderWalletAddress: string;
   senderWalletAddressId: string;
   destinationIlpAddress: string;

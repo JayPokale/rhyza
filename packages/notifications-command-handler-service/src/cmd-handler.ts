@@ -1,7 +1,8 @@
 import { CommandTopics, IMessage, IMessageConsumer } from 'common-types-lib';
 import {
   CreateNotificationCmd,
-  NotificationAggregate
+  NotificationAggregate,
+  NotificationStatus
 } from 'notifications-domain-lib';
 
 export class NotificationsCommandHandler {
@@ -35,14 +36,21 @@ export class NotificationsCommandHandler {
       switch (msg.msgName) {
         case CreateNotificationCmd.name: {
           const payload = (msg as CreateNotificationCmd).payload;
-          const id =
+          const notification =
             await this._notificationAggregate.createAndSendNotification(
+              payload.id,
               payload.type,
               payload.data
             );
-          console.log(
-            `Notification created and sent for command: ${msg.msgName} with id ${id}`
-          );
+          if (notification.status === NotificationStatus.SENT) {
+            console.log(
+              `Notification sent for command ${msg.msgName} — id ${notification.id} (${notification.attempts} attempt(s))`
+            );
+          } else {
+            console.error(
+              `Notification NOT sent for command ${msg.msgName} — id ${notification.id}, type ${payload.type}, status ${notification.status} after ${notification.attempts} attempt(s). Skipping to avoid blocking the partition.`
+            );
+          }
           break;
         }
         default: {
