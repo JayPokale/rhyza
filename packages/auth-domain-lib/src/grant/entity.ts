@@ -1,6 +1,7 @@
 import * as crypto from 'crypto';
 import { isDeepStrictEqual } from 'util';
 import { v4 as uuid } from 'uuid';
+import { JWK, validateSignature } from '@interledger/http-signature-utils';
 import {
   InvalidGrantError,
   InvalidInteractionError,
@@ -27,6 +28,11 @@ import {
   AccessAction,
   ISubjectId
 } from './interfaces';
+
+interface SignatureHeader {
+  name: string;
+  value: string;
+}
 
 interface IGrantInput {
   id: string;
@@ -102,6 +108,7 @@ export class GrantEntity implements IGrantEntity {
   private _client?: string | IJsonWebKey;
   private _subjectIds?: ISubjectId[];
   private _accesses?: IAccessItem[];
+  // TODO: add finish nonce
   private _finishMethod?: IFinishMethod;
   private _finishUri?: string;
   private _interaction?: IInteraction;

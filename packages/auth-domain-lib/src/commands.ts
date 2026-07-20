@@ -27,7 +27,18 @@ interface JsonWebKey {
   x: string;
 }
 
-export interface CreateGrantCmdPayload {
+export interface SignedCommandPayload {
+  client: string;
+  signatureData: {
+    url: string;
+    method: string;
+    body: string;
+    headers: Record<string, string>;
+    kid: string;
+  };
+}
+
+export interface CreateGrantCmdPayload extends SignedCommandPayload {
   id: string;
   access: {
     identifier?: string;
@@ -35,7 +46,6 @@ export interface CreateGrantCmdPayload {
     actions: string[];
     limits?: LimitPayload;
   }[];
-  client?: string | JsonWebKey;
   interact?: {
     start: string[];
     finish?: {
@@ -208,5 +218,5 @@ class HandleInteractionChoiceCmd extends CommandMsg {
   }
 }
 
-export class AcceptInteractionCommand extends HandleInteractionChoiceCmd {}
-export class RejectInteractionCommand extends HandleInteractionChoiceCmd {}
+export class AcceptInteractionCommand extends HandleInteractionChoiceCmd { }
+export class RejectInteractionCommand extends HandleInteractionChoiceCmd { }

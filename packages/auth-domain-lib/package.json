@@ -10,6 +10,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@interledger/http-signature-utils": "^2.0.3",
     "common-types-lib": "workspace:*",
     "uuid": "^14.0.0"
   },

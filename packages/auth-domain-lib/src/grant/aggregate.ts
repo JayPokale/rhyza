@@ -9,7 +9,7 @@ import {
   RotateTokenCmd,
   RevokeTokenCmd
 } from '../commands';
-import { DuplicateGrantError, GrantNotFoundError } from './errors';
+import { DuplicateGrantError, GrantNotFoundError, UnauthorizedRequestError } from './errors';
 import {
   GrantCreatedEvent,
   GrantCreateFailedEvent,
@@ -32,12 +32,17 @@ import {
   IAccessLimit,
   IFinishMethod,
   IGrant,
+  IGrantRepository,
+  IJsonWebKey,
   InteractionChoice,
   InteractionState,
+  isJWK,
   IStartMethod,
-  ISubjectId
+  ISubjectId,
+  IWalletAddressService
 } from './interfaces';
 import { GrantEntity } from './entity';
+import { JWK, validateSignature } from '@interledger/http-signature-utils';
 
 export interface IGrantService {
   fetchByIds(grantIds: string[]): Promise<IGrant[]>;
@@ -45,17 +50,32 @@ export interface IGrantService {
 
 export class GrantAggregate {
   private grantMap = new Map<string, GrantEntity>();
+  private walletAddressRequestMap = new Map<string, { kid: string, requestId: string }[]>
+  private requestIdToClientKeyMap = new Map<string, IJsonWebKey>();
 
-  constructor(private _grantService: IGrantService) {}
+
+  constructor(private _repo: IGrantRepository, private _walletAddressService: IWalletAddressService) { }
 
   async handleBatch(cmds: IMessage[]): Promise<{ events: IMessage[] }> {
     const outputEvents: IMessage[] = [];
 
     const grantIdSet = new Set<string>();
+    const walletAddressSet = new Set<string>();
     for (const cmd of cmds) {
       if (cmd.msgName === CreateGrantCmd.name) {
         const payload = (cmd as CreateGrantCmd).payload;
         grantIdSet.add(payload.id);
+        if (!this.parseJWKJson(payload.client)) {
+          walletAddressSet.add(payload.client);
+          const walletAddressToRequest = this.walletAddressRequestMap.get(payload.client)
+          const requestInfo = {
+            kid: payload.signatureData.kid,
+            requestId: (cmd as CreateGrantCmd).requestId
+          }
+          this.walletAddressRequestMap.set(payload.client, walletAddressToRequest ? [...walletAddressToRequest, requestInfo] : [requestInfo])
+        } else {
+          this.requestIdToClientKeyMap.set((cmd as CreateGrantCmd).requestId, this.parseJWKJson(payload.client) as JWK)
+        }
       } else if (cmd.msgName === ContinueGrantCmd.name) {
         const payload = (cmd as ContinueGrantCmd).payload;
         grantIdSet.add(payload.id);
@@ -69,7 +89,23 @@ export class GrantAggregate {
         grantIdSet.add(payload.id);
       }
 
-      const grants = await this._grantService.fetchByIds([...grantIdSet]);
+      const grants = await this._repo.fetchByIds([...grantIdSet]);
+      const findKeys = async (walletAddress: string): Promise<void> => {
+        const keys = await this._walletAddressService.getWalletAddressKeys(walletAddress)
+        const requestIdAndKid = this.walletAddressRequestMap.get(walletAddress) ?? []
+
+        for (let requested of requestIdAndKid) {
+          const key = keys.find(key => key.kid === requested.kid)
+          if (key) this.requestIdToClientKeyMap.set(requested.requestId, key)
+        }
+      }
+
+      const waRequests = []
+      for (let walletAddress of walletAddressSet) {
+        waRequests.push(findKeys(walletAddress))
+      }
+
+      await Promise.all(waRequests)
 
       for (const grant of grants) {
         this.grantMap.set(grant.id, GrantEntity.fromObject(grant));
@@ -107,11 +143,43 @@ export class GrantAggregate {
     return { events: outputEvents };
   }
 
+  private parseJWKJson(json: string): JWK | null {
+    try {
+      const parsed = JSON.parse(json);
+      if (!isJWK(parsed)) {
+        return null;
+      }
+      return parsed;
+    } catch (err) {
+      return null;
+    }
+  }
+
+  // Signature Header validation can be performed in the application.
+  private async validateRequestSignature(key: JWK, url: string, method: string, body: string, headers: Record<string, string>): Promise<boolean> {
+    const requestLike = {
+      method,
+      body,
+      url,
+      headers
+    }
+    return validateSignature(key, requestLike)
+  }
+
   private handleCreateGrantCommand(cmd: CreateGrantCmd) {
     try {
       const { id } = cmd.payload;
       if (this.grantMap.has(id)) {
         throw new DuplicateGrantError(`Grant with id ${id} already exists`);
+      }
+
+      const clientKey = this.requestIdToClientKeyMap.get(cmd.requestId)
+      if (!clientKey) {
+        throw new UnauthorizedRequestError()
+      }
+      const { signatureData: { url, method, body, headers} } = cmd.payload
+      if (!this.validateRequestSignature(clientKey as JWK, url, method, body, headers)) {
+        throw new UnauthorizedRequestError()
       }
 
       const accessItems: IAccessItem[] | undefined = cmd.payload.access?.map(
@@ -125,6 +193,7 @@ export class GrantAggregate {
         }
       );
 
+      // TODO: pass in finish URI and finish Nonce
       const { entity, accessToken } = GrantEntity.create({
         ...cmd.payload,
         startMethods: cmd.payload.interact?.start as IStartMethod[],

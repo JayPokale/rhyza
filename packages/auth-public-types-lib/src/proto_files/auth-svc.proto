@@ -83,13 +83,14 @@ message SignatureData {
 	string url = 1;
 	string method = 2;
 	string body = 3;
-	repeated SignatureHeader headers = 4;
+	map<string, string> headers = 4;
+	string kid = 5;
 }
 
 message GrantRequest {
 	repeated AccessItem access = 1;
 	string client = 2;
-	Subject subject = 3;
+	repeated SubjectId subject_ids = 3;
 	repeated string start = 4;
 	GrantRequestFinish finish = 5;
 	SignatureData signature_data = 6;

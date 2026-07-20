@@ -7,7 +7,7 @@ import {
   GetGrantRequest,
   AccessItem,
   GrantRequestFinish,
-  Subject,
+  SubjectId,
   RevokeGrantResponse,
   ContinueGrantResponse,
   RotateTokenResponse,
@@ -82,13 +82,13 @@ export class AuthClient {
   createGrant(
     access: AccessItem[],
     client: string,
-    subject: Subject,
+    subjectIds: SubjectId[],
     finish: GrantRequestFinish
   ): Promise<CreateGrantResponse> {
     const request = new GrantRequest();
     request.setAccessList(access);
     request.setClient(client);
-    request.setSubject(subject);
+    request.setSubjectIdsList(subjectIds);
     request.setFinish(finish);
 
     return new Promise((resolve, reject) => {
