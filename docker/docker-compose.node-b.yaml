@@ -13,6 +13,8 @@ services:
   admin-api-service-b:
     build:
       context: ../
+      additional_contexts:
+        rafiki-v2-workspace: docker-image://rafiki-v2-workspace:latest
       dockerfile: ./packages/admin-api-service/Dockerfile
     restart: always
     environment:
@@ -38,6 +40,8 @@ services:
   open-payments-resource-service-b:
     build:
       context: ../
+      additional_contexts:
+        rafiki-v2-workspace: docker-image://rafiki-v2-workspace:latest
       dockerfile: ./packages/open-payments-resource-service/Dockerfile
     restart: always
     environment:
@@ -59,6 +63,8 @@ services:
   pal-api-service-b:
     build:
       context: ../
+      additional_contexts:
+        rafiki-v2-workspace: docker-image://rafiki-v2-workspace:latest
       dockerfile: ./packages/pal-api-service/Dockerfile
     restart: always
     environment:
@@ -78,6 +84,8 @@ services:
   pal-ledger-command-handler-service-b:
     build:
       context: ../
+      additional_contexts:
+        rafiki-v2-workspace: docker-image://rafiki-v2-workspace:latest
       dockerfile: ./packages/pal-ledger-command-handler-service/Dockerfile
     restart: always
     environment:
@@ -95,6 +103,8 @@ services:
   pal-event-handler-service-b:
     build:
       context: ../
+      additional_contexts:
+        rafiki-v2-workspace: docker-image://rafiki-v2-workspace:latest
       dockerfile: ./packages/pal-event-handler-service/Dockerfile
     restart: always
     environment:
@@ -114,6 +124,8 @@ services:
   payments-api-service-b:
     build:
       context: ../
+      additional_contexts:
+        rafiki-v2-workspace: docker-image://rafiki-v2-workspace:latest
       dockerfile: ./packages/payments-api-service/Dockerfile
     restart: always
     environment:
@@ -132,6 +144,8 @@ services:
   payments-command-handler-service-b:
     build:
       context: ../
+      additional_contexts:
+        rafiki-v2-workspace: docker-image://rafiki-v2-workspace:latest
       dockerfile: ./packages/payments-command-handler-service/Dockerfile
     restart: always
     environment:
@@ -153,6 +167,8 @@ services:
   payments-event-handler-service-b:
     build:
       context: ../
+      additional_contexts:
+        rafiki-v2-workspace: docker-image://rafiki-v2-workspace:latest
       dockerfile: ./packages/payments-event-handler-service/Dockerfile
     restart: always
     environment:
@@ -165,6 +181,8 @@ services:
   notifications-command-handler-service-b:
     build:
       context: ../
+      additional_contexts:
+        rafiki-v2-workspace: docker-image://rafiki-v2-workspace:latest
       dockerfile: ./packages/notifications-command-handler-service/Dockerfile
     restart: always
     environment:
@@ -184,6 +202,8 @@ services:
   notifications-event-handler-service-b:
     build:
       context: ../
+      additional_contexts:
+        rafiki-v2-workspace: docker-image://rafiki-v2-workspace:latest
       dockerfile: ./packages/notifications-event-handler-service/Dockerfile
     restart: always
     environment:
@@ -202,6 +222,8 @@ services:
   ilp-connector-service-b:
     build:
       context: ../
+      additional_contexts:
+        rafiki-v2-workspace: docker-image://rafiki-v2-workspace:latest
       dockerfile: ./packages/ilp-connector-service/Dockerfile
     restart: always
     environment:
@@ -214,6 +236,8 @@ services:
   ase-mock-service-b:
     build:
       context: ../
+      additional_contexts:
+        rafiki-v2-workspace: docker-image://rafiki-v2-workspace:latest
       dockerfile: ./packages/ase-mock-service/Dockerfile
     restart: always
     environment:
@@ -230,6 +254,8 @@ services:
   ilp-command-handler-service-b:
     build:
       context: ../
+      additional_contexts:
+        rafiki-v2-workspace: docker-image://rafiki-v2-workspace:latest
       dockerfile: ./packages/ilp-command-handler-service/Dockerfile
     restart: always
     environment:
@@ -246,6 +272,8 @@ services:
   ilp-api-service-b:
     build:
       context: ../
+      additional_contexts:
+        rafiki-v2-workspace: docker-image://rafiki-v2-workspace:latest
       dockerfile: ./packages/ilp-api-service/Dockerfile
     restart: always
     environment:
@@ -264,6 +292,8 @@ services:
   ilp-event-handler-service-b:
     build:
       context: ../
+      additional_contexts:
+        rafiki-v2-workspace: docker-image://rafiki-v2-workspace:latest
       dockerfile: ./packages/ilp-event-handler-service/Dockerfile
     restart: always
     environment:

@@ -1,0 +1,61 @@
+# Overrides docker-compose.yaml for e2e tests to avoid conflicts with a running
+# rafiki-v2 stack (project name, Docker network, and host port mappings).
+#
+# Host ports are +2 of the most significant digit of the base mapping
+#   e.g. "3001:3001" -> "5001:3001"
+# For high gRPC ports, +1 is used instead so the host port stays <= 65535
+#   e.g. "50051:50051" -> "60051:50051"
+#
+# `ports: !override` is required so Compose replaces base host ports instead of
+# appending (which would still bind the original conflicting ports).
+#
+# Usage: pnpm e2e
+# Or manually:
+#   docker compose -f docker/docker-compose.yaml -f docker/docker-compose.test.yaml up --build -d
+
+name: rafiki-v2-test
+
+services:
+  admin-api-service:
+    ports: !override
+      - "5001:3001"
+
+  open-payments-resource-service:
+    ports: !override
+      - "5002:3002"
+
+  pal-api-service:
+    ports: !override
+      - "60051:50051"
+
+  payments-api-service:
+    ports: !override
+      - "60052:50052"
+
+  ase-mock-service:
+    ports: !override
+      - "5000:3000"
+
+  ilp-api-service:
+    ports: !override
+      - "60053:50053"
+
+  mongodb:
+    ports: !override
+      - "47017:27017"
+
+  kafka:
+    ports: !override
+      - "11092:9092"
+
+  redis:
+    ports: !override
+      - "8379:6379"
+
+networks:
+  rafiki-v2:
+    name: rafiki-v2-test
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.5.2.0/24

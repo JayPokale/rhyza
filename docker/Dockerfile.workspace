@@ -1,0 +1,55 @@
+# Shared workspace image: install once, build all packages, then pnpm deploy
+# each runnable service to /prod/<service> for slim runtime images.
+#
+# Build: pnpm docker:build:workspace
+
+FROM node:24-alpine AS base
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+ENV CI=true
+RUN corepack enable
+RUN corepack prepare pnpm@10.28.2 --activate
+
+WORKDIR /workspace
+
+RUN apk update && apk add --no-cache \
+    libc6-compat \
+    librdkafka-dev \
+    cyrus-sasl-dev \
+    openssl-dev \
+    gcc \
+    g++ \
+    python3 \
+    make \
+    musl-dev
+
+COPY pnpm-lock.yaml ./
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm fetch
+
+COPY . .
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store BUILD_LIBRDKAFKA=0 pnpm install --frozen-lockfile
+RUN pnpm -r --filter './packages/*' build
+
+# Portable production trees for each service (copied by service Dockerfiles).
+# --legacy: allow deploy without inject-workspace-packages (pnpm 10+).
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    for pkg in \
+      admin-api-service \
+      ase-mock-service \
+      ilp-api-service \
+      ilp-command-handler-service \
+      ilp-connector-service \
+      ilp-event-handler-service \
+      notifications-command-handler-service \
+      notifications-event-handler-service \
+      open-payments-resource-service \
+      pal-api-service \
+      pal-event-handler-service \
+      pal-ledger-command-handler-service \
+      payments-api-service \
+      payments-command-handler-service \
+      payments-event-handler-service \
+    ; do \
+      echo "Deploying $pkg..." && \
+      pnpm --filter "$pkg" --prod deploy --legacy "/prod/$pkg" \
+    ; done

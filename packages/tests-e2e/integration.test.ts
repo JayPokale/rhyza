@@ -3,20 +3,30 @@ import { test, describe, before, after } from 'node:test';
 import path from 'path';
 import {
   DockerComposeEnvironment,
-  StartedDockerComposeEnvironment
+  StartedDockerComposeEnvironment,
+  Wait
 } from 'testcontainers';
 
-const ADMIN_API_URL = 'http://localhost:3001';
-const COMPOSE_FILE = 'docker-compose.yaml';
+const COMPOSE_DIR = path.resolve(__dirname, '../../docker');
+const COMPOSE_FILES = ['docker-compose.yaml', 'docker-compose.test.yaml'];
+const PROJECT_NAME = 'rafiki-v2-test';
+const ADMIN_API_URL = 'http://localhost:5001';
 
 describe('E2E tests', async () => {
   let environment: StartedDockerComposeEnvironment;
+
   before(async () => {
-    const composeDir = path.resolve(__dirname, '../../docker');
-    environment = await new DockerComposeEnvironment(
-      composeDir,
-      COMPOSE_FILE
-    ).up();
+    // rafiki-v2-workspace must already exist (built by `pnpm e2e` / `pnpm docker:build:workspace`).
+    environment = await new DockerComposeEnvironment(COMPOSE_DIR, COMPOSE_FILES)
+      .withProjectName(PROJECT_NAME)
+      .withBuild()
+      // Testcontainers matches wait strategies on names like "init-kafka-1"
+      // (project prefix stripped), not "rafiki-v2-test-init-kafka-1".
+      // init-kafka exits 0 after creating topics — treat it as a one-shot job.
+      .withWaitStrategy('init-kafka-1', Wait.forOneShotStartup())
+      .withWaitStrategy('admin-api-service-1', Wait.forListeningPorts())
+      .withStartupTimeout(5 * 60 * 1000)
+      .up();
     console.log('E2E tests environment started');
   });
 
@@ -32,6 +42,7 @@ describe('E2E tests', async () => {
         scale: 2
       })
     });
+    console.log('** create asset response: ', createAssetResponse);
     assert.ok(createAssetResponse.ok);
     const assetResponseBody = await createAssetResponse.json();
     assert.ok(assetResponseBody.code === assetCode);
