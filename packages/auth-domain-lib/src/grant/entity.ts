@@ -1,7 +1,6 @@
 import * as crypto from 'crypto';
 import { isDeepStrictEqual } from 'util';
 import { v4 as uuid } from 'uuid';
-
 import {
   InvalidGrantError,
   InvalidInteractionError,

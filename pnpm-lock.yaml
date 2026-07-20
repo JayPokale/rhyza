@@ -227,6 +227,25 @@ importers:
         specifier: ^4.19.3
         version: 4.19.3
 
+  packages/auth-command-handler:
+    dependencies:
+      auth-domain-lib:
+        specifier: workspace:*
+        version: link:../auth-domain-lib
+      auth-implementations-lib:
+        specifier: workspace:*
+        version: link:../auth-implementations-lib
+      common-types-lib:
+        specifier: workspace:*
+        version: link:../common-types-lib
+      implementations-lib:
+        specifier: workspace:*
+        version: link:../implementations-lib
+    devDependencies:
+      tsx:
+        specifier: ^4.19.3
+        version: 4.19.3
+
   packages/auth-command-handler-service:
     dependencies:
       auth-domain-lib:
