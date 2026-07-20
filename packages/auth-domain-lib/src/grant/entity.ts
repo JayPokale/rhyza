@@ -28,6 +28,28 @@ export const GRANT_POLL_MS = 5_000; // 5 seconds
 const INTERACTION_EXPIRY_MS = 600_000; // 10 minutes
 const ACCESS_TOKEN_EXPIRY_MS = 10_000; // 10 seconds
 
+interface IGrantInput {
+  id: string;
+  startMethods: IStartMethod[];
+  continueToken?: string;
+  continueId?: string;
+  state: GrantState;
+  interaction?: IInteraction;
+  client?: string | IJsonWebKey;
+  subjectIds?: ISubjectId[];
+  accesses?: IAccessItem[];
+  finishMethod?: IFinishMethod;
+  finishUri?: string;
+  finishNonce?: string;
+  interactionNonce?: string;
+  lastContinuedAt?: Date;
+}
+
+export type CreateGrantInput = Omit<
+  IGrantInput,
+  'continueToken' | 'continueId' | 'state'
+>;
+
 function generateContinueToken(): string {
   return crypto.randomBytes(16).toString('hex').toUpperCase();
 }
