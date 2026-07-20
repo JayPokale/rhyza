@@ -1,6 +1,7 @@
 import * as crypto from 'crypto';
 import { isDeepStrictEqual } from 'util';
 import { v4 as uuid } from 'uuid';
+import { JWK, validateSignature } from '@interledger/http-signature-utils';
 import {
   InvalidGrantError,
   InvalidInteractionError,
