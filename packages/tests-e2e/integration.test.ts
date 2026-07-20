@@ -3,8 +3,7 @@ import { test, describe, before, after } from 'node:test';
 import path from 'path';
 import {
   DockerComposeEnvironment,
-  StartedDockerComposeEnvironment,
-  Wait
+  StartedDockerComposeEnvironment
 } from 'testcontainers';
 
 const COMPOSE_DIR = path.resolve(__dirname, '../../docker');
@@ -20,12 +19,6 @@ describe('E2E tests', async () => {
     environment = await new DockerComposeEnvironment(COMPOSE_DIR, COMPOSE_FILES)
       .withProjectName(PROJECT_NAME)
       .withBuild()
-      // Testcontainers matches wait strategies on names like "init-kafka-1"
-      // (project prefix stripped), not "rafiki-v2-test-init-kafka-1".
-      // init-kafka exits 0 after creating topics — treat it as a one-shot job.
-      .withWaitStrategy('init-kafka-1', Wait.forOneShotStartup())
-      .withWaitStrategy('admin-api-service-1', Wait.forListeningPorts())
-      .withStartupTimeout(5 * 60 * 1000)
       .up();
     console.log('E2E tests environment started');
   });
