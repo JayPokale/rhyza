@@ -28,7 +28,7 @@ jobs:
       - name: Generate OpenAPI Changelog
         # TODO: Fix the path of the admin openapi file on origin after merge
         run: |
-          git show origin/${{ github.base_ref }}:docs/openapi/admin-api.yaml > old-openapi.yaml
+          git show origin/${{ github.base_ref }}:packages/admin-api-service/openapi.yaml > old-openapi.yaml
           oasdiff changelog old-openapi.yaml docs/openapi/admin/admin-api.yaml > oasdiff-changes.txt
 
       - name: Rebuild CHANGELOG.md from Main
