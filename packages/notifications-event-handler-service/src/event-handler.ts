@@ -14,7 +14,7 @@ import {
   PaymentCreatedEvent,
   PaymentIntentCompletedEvent,
   PaymentIntentCreatedEvent
-} from 'payments-domain-lib';
+} from 'payments-public-types-lib';
 
 export class NotificationsEventHandler {
   private _msgConsumer: IMessageConsumer;

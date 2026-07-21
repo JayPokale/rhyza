@@ -16,9 +16,11 @@
   "dependencies": {
     "admin-client-lib": "workspace:*",
     "fastify": "~5.3.3",
+    "common-types-lib": "workspace:*",
     "ilp-client-lib": "workspace:*",
     "implementations-lib": "workspace:*",
     "pal-client-lib": "workspace:*",
+    "pal-domain-lib": "workspace:*",
     "payments-client-lib": "workspace:*"
   },
   "devDependencies": {

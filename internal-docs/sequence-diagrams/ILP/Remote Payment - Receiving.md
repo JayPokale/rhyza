@@ -45,8 +45,9 @@ sequenceDiagram
 
 
 
-
-    ILPBC -->> PBC: Read received payment finalized event
+    PBC ->> PBC: Mark payment as fulfillable
+    PBC ->> PBC: Publish received payment fulfillable event
+    ILPBC -->> PBC: Read received payment fulfillable event
     ILPBC ->> ILPBC: Create fulfillment
     ILPBC ->> Peer: Return fulfillment
 

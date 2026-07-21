@@ -6,12 +6,22 @@ import {
   IMessageConsumer,
   IMessageProducer
 } from 'common-types-lib';
-import { RespondToRemoteQuoteCmd, StartRemoteQuoteCmd } from 'ilp-domain-lib';
+import {
+  ActivatePeerCmd,
+  DeactivatePeerCmd,
+  FulfillInboundPaymentCmd,
+  RespondToRemoteQuoteCmd,
+  StartRemotePaymentCmd,
+  StartRemoteQuoteCmd
+} from 'ilp-domain-lib';
 import {
   RemoteQuoteCalculatedEvent,
   RemoteQuoteCalculationFailedEvent,
-  RemoteQuoteRequestedEvent
-} from 'payments-domain-lib';
+  RemoteQuoteRequestedEvent,
+  RemotePaymentPreparedEvent,
+  ReceivedPaymentFulfillableEvent
+} from 'payments-public-types-lib';
+import { PeerActivatedEvent, PeerDeactivatedEvent } from 'pal-public-types-lib';
 
 export class IlpEventHandler {
   constructor(
@@ -21,7 +31,10 @@ export class IlpEventHandler {
   ) {}
 
   async start(): Promise<void> {
-    this._msgConsumer.setTopics([DomainEventTopics.PaymentEvents]);
+    this._msgConsumer.setTopics([
+      DomainEventTopics.PaymentEvents,
+      DomainEventTopics.PeerEvents
+    ]);
     this._msgConsumer.setBatchCallbackFn(this._handleBatch.bind(this));
     await this._msgConsumer.connect();
     await this._msgConsumer.startAndWaitForRebalance();
@@ -86,6 +99,61 @@ export class IlpEventHandler {
           peerId: payload.peerId,
           packetId: payload.packetId
         });
+      }
+      case RemotePaymentPreparedEvent.name: {
+        const payload =
+          message.payload as RemotePaymentPreparedEvent['payload'];
+        this._logger.debug(
+          `Starting remote payment ${payload.paymentId} to peer ${payload.peerId}`
+        );
+        return new StartRemotePaymentCmd(
+          {
+            peerId: payload.peerId,
+            paymentIntentId: payload.paymentIntentId,
+            paymentId: payload.paymentId,
+            destinationIlpAddress: payload.destinationIlpAddress,
+            amount: payload.debitAmount,
+            assetCode: payload.assetCode,
+            assetScale: payload.assetScale,
+            expiresAt: payload.expiresAt,
+            sharedSecret: payload.sharedSecret
+          },
+          payload.requestId
+        );
+      }
+      case ReceivedPaymentFulfillableEvent.name: {
+        const payload =
+          message.payload as ReceivedPaymentFulfillableEvent['payload'];
+        this._logger.debug(
+          `Received payment fulfillable for packet ${payload.packetId}; dispatching fulfillment`
+        );
+        return new FulfillInboundPaymentCmd({
+          peerId: payload.peerId,
+          packetId: payload.packetId,
+          paymentIntentId: payload.paymentIntentId,
+          receivedPaymentId: payload.receivedPaymentId,
+          requestId: payload.requestId
+        });
+      }
+      case PeerActivatedEvent.name: {
+        const payload = message.payload as PeerActivatedEvent['payload'];
+        this._logger.debug(
+          `Mirroring PAL activation for peer ${payload.peerId}`
+        );
+        return new ActivatePeerCmd(
+          { peerId: payload.peerId },
+          message.requestId ?? crypto.randomUUID()
+        );
+      }
+      case PeerDeactivatedEvent.name: {
+        const payload = message.payload as PeerDeactivatedEvent['payload'];
+        this._logger.debug(
+          `Mirroring PAL deactivation for peer ${payload.peerId}`
+        );
+        return new DeactivatePeerCmd(
+          { peerId: payload.peerId },
+          message.requestId ?? crypto.randomUUID()
+        );
       }
       default:
         return undefined;

@@ -1,5 +1,9 @@
 import { DomainEvent, DomainEventTopics } from 'common-types-lib';
-import { PaymentIntentState, PaymentState } from './interfaces';
+import {
+  PaymentIntentState,
+  SentPaymentState,
+  ReceivedPaymentState
+} from '../types/payment-intent';
 
 export abstract class PaymentIntentDomainEvent extends DomainEvent {
   msgTopic: string = DomainEventTopics.PaymentEvents;
@@ -111,6 +115,42 @@ export abstract class PaymentIntentDomainEvent extends DomainEvent {
   ): evt is RemotePaymentSendRejectedEvent {
     return evt.msgName === RemotePaymentSendRejectedEvent.name;
   }
+
+  static isReceivedPaymentValidatedEvent(
+    evt: DomainEvent
+  ): evt is ReceivedPaymentValidatedEvent {
+    return evt.msgName === ReceivedPaymentValidatedEvent.name;
+  }
+
+  static isReceivedPaymentValidationFailedEvent(
+    evt: DomainEvent
+  ): evt is ReceivedPaymentValidationFailedEvent {
+    return evt.msgName === ReceivedPaymentValidationFailedEvent.name;
+  }
+
+  static isReceivedPaymentAcceptedEvent(
+    evt: DomainEvent
+  ): evt is ReceivedPaymentAcceptedEvent {
+    return evt.msgName === ReceivedPaymentAcceptedEvent.name;
+  }
+
+  static isReceivedPaymentFailedEvent(
+    evt: DomainEvent
+  ): evt is ReceivedPaymentFailedEvent {
+    return evt.msgName === ReceivedPaymentFailedEvent.name;
+  }
+
+  static isReceivedPaymentFulfillableEvent(
+    evt: DomainEvent
+  ): evt is ReceivedPaymentFulfillableEvent {
+    return evt.msgName === ReceivedPaymentFulfillableEvent.name;
+  }
+
+  static isReceivedPaymentFinalizedEvent(
+    evt: DomainEvent
+  ): evt is ReceivedPaymentFinalizedEvent {
+    return evt.msgName === ReceivedPaymentFinalizedEvent.name;
+  }
 }
 
 export type PaymentIntentCreatedPayload = {
@@ -219,7 +259,7 @@ export type PaymentCreatedPayload = {
   debitAmount: string | null;
   receiveAmount: string | null;
   sentAmount: string | null;
-  state: PaymentState;
+  state: SentPaymentState;
   createdAt: Date;
   assetCode: string;
   assetScale: number;
@@ -261,7 +301,7 @@ export type PaymentCompletedPayload = {
   debitAmount: string | null;
   receiveAmount: string | null;
   sentAmount: string | null;
-  state: PaymentState;
+  state: SentPaymentState;
   createdAt: Date;
   assetCode: string;
   assetScale: number;
@@ -401,12 +441,16 @@ export class RemoteQuoteCalculationFailedEvent extends PaymentIntentDomainEvent 
 export type RemotePaymentSendApprovedPayload = {
   paymentIntentId: string;
   paymentId: string;
+  state: SentPaymentState;
   senderWalletAddress: string;
   senderWalletAddressId: string;
   destinationIlpAddress: string;
+  peerId: string;
+  requestId: string;
   debitAmount: string;
   assetCode: string;
   assetScale: number;
+  transferId?: string;
 };
 
 export class RemotePaymentSendApprovedEvent extends PaymentIntentDomainEvent {
@@ -424,11 +468,14 @@ export type RemotePaymentPreparedPayload = {
   paymentId: string;
   ledgerTransferId: string;
   destinationIlpAddress: string;
+  peerId: string;
+  requestId: string;
   debitAmount: string;
   receiveAmount: string;
   assetCode: string;
   assetScale: number;
   sharedSecret: string;
+  expiresAt: string;
 };
 
 export class RemotePaymentPreparedEvent extends PaymentIntentDomainEvent {
@@ -448,7 +495,7 @@ export type PaymentFailedPayload = {
   debitAmount: string | null;
   receiveAmount: string | null;
   sentAmount: string | null;
-  state: PaymentState;
+  state: SentPaymentState;
   createdAt: Date;
   assetCode: string;
   assetScale: number;
@@ -472,6 +519,12 @@ export type RemotePaymentSendConfirmedPayload = {
   paymentIntentId: string;
   paymentId: string;
   ledgerTransferId: string;
+  destinationIlpAddress: string;
+  peerId: string;
+  requestId: string;
+  debitAmount: string;
+  assetCode: string;
+  assetScale: number;
 };
 
 export class RemotePaymentSendConfirmedEvent extends PaymentIntentDomainEvent {
@@ -489,12 +542,155 @@ export type RemotePaymentSendRejectedPayload = {
   paymentId: string;
   ledgerTransferId: string;
   reason?: string;
+  destinationIlpAddress: string;
+  peerId: string;
+  requestId: string;
+  debitAmount: string;
+  assetCode: string;
+  assetScale: number;
 };
 
 export class RemotePaymentSendRejectedEvent extends PaymentIntentDomainEvent {
   payload: RemotePaymentSendRejectedPayload;
 
   constructor(payload: RemotePaymentSendRejectedPayload, requestId?: string) {
+    super(payload.paymentIntentId);
+    this.payload = payload;
+    this.requestId = requestId;
+  }
+}
+
+export type ReceivedPaymentValidatedPayload = {
+  paymentIntentId: string;
+  receivedPaymentId: string;
+  packetId: string;
+  peerId: string;
+  requestId: string;
+  sourceAmount: string;
+  peerAssetCode: string;
+  peerAssetScale: number;
+  receiveAmount: string;
+  receiveAssetCode: string;
+  receiveAssetScale: number;
+  receiverWalletAddressId?: string;
+  state: ReceivedPaymentState;
+  createdAt: Date;
+};
+
+export class ReceivedPaymentValidatedEvent extends PaymentIntentDomainEvent {
+  payload: ReceivedPaymentValidatedPayload;
+
+  constructor(payload: ReceivedPaymentValidatedPayload, requestId?: string) {
+    super(payload.paymentIntentId);
+    this.payload = payload;
+    this.requestId = requestId;
+  }
+}
+
+export type ReceivedPaymentValidationFailedPayload = {
+  paymentIntentId: string;
+  receivedPaymentId: string;
+  packetId: string;
+  peerId: string;
+  errorName: string;
+  message: string;
+};
+
+export class ReceivedPaymentValidationFailedEvent extends PaymentIntentDomainEvent {
+  payload: ReceivedPaymentValidationFailedPayload;
+  isErrorEvent = true;
+
+  constructor(
+    payload: ReceivedPaymentValidationFailedPayload,
+    requestId?: string
+  ) {
+    super(payload.paymentIntentId);
+    this.payload = payload;
+    this.requestId = requestId;
+  }
+}
+
+export type ReceivedPaymentAcceptedPayload = {
+  paymentIntentId: string;
+  receivedPaymentId: string;
+  packetId: string;
+  peerId: string;
+  requestId: string;
+  ledgerTransferId: string;
+  receiveAmount: string;
+  receiveAssetCode: string;
+  receiveAssetScale: number;
+  state: ReceivedPaymentState;
+};
+
+export class ReceivedPaymentAcceptedEvent extends PaymentIntentDomainEvent {
+  payload: ReceivedPaymentAcceptedPayload;
+
+  constructor(payload: ReceivedPaymentAcceptedPayload, requestId?: string) {
+    super(payload.paymentIntentId);
+    this.payload = payload;
+    this.requestId = requestId;
+  }
+}
+
+export type ReceivedPaymentFailedPayload = {
+  paymentIntentId: string;
+  receivedPaymentId: string;
+  packetId?: string;
+  peerId?: string;
+  errorName: string;
+  message: string;
+};
+
+export class ReceivedPaymentFailedEvent extends PaymentIntentDomainEvent {
+  payload: ReceivedPaymentFailedPayload;
+  isErrorEvent = true;
+
+  constructor(payload: ReceivedPaymentFailedPayload, requestId?: string) {
+    super(payload.paymentIntentId);
+    this.payload = payload;
+    this.requestId = requestId;
+  }
+}
+
+export type ReceivedPaymentFulfillablePayload = {
+  paymentIntentId: string;
+  receivedPaymentId: string;
+  packetId: string;
+  peerId: string;
+  requestId: string;
+  receiveAmount: string;
+  receiveAssetCode: string;
+  receiveAssetScale: number;
+  state: ReceivedPaymentState;
+};
+
+export class ReceivedPaymentFulfillableEvent extends PaymentIntentDomainEvent {
+  payload: ReceivedPaymentFulfillablePayload;
+
+  constructor(payload: ReceivedPaymentFulfillablePayload, requestId?: string) {
+    super(payload.paymentIntentId);
+    this.payload = payload;
+    this.requestId = requestId;
+  }
+}
+
+export type ReceivedPaymentFinalizedPayload = {
+  paymentIntentId: string;
+  receivedPaymentId: string;
+  packetId: string;
+  peerId: string;
+  sourceAmount: string;
+  receiveAmount: string;
+  receiveAssetCode: string;
+  receiveAssetScale: number;
+  state: ReceivedPaymentState;
+};
+
+export class ReceivedPaymentFinalizedEvent extends PaymentIntentDomainEvent {
+  payload: ReceivedPaymentFinalizedPayload;
+
+  constructor(payload: ReceivedPaymentFinalizedPayload, requestId?: string) {
     super(payload.paymentIntentId);
     this.payload = payload;
     this.requestId = requestId;

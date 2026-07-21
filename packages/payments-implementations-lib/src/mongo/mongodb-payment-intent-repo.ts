@@ -1,17 +1,20 @@
 import { Collection, CollectionInfo, Db, MongoClient } from 'mongodb';
 import {
   FinalizedRemoteQuoteUpdate,
-  IPayment,
+  ISentPayment,
   IPaymentIntent,
   IPaymentIntentRepository,
+  IReceivedPayment,
   PaymentIntentState,
-  PaymentState
+  SentPaymentState,
+  ReceivedPaymentState
 } from 'payments-domain-lib';
 import { ILogger } from 'common-types-lib';
 
 const DB_NAME = 'payments';
 const PAYMENT_INTENTS_COLLECTION_NAME = 'paymentIntents';
-const PAYMENTS_COLLECTION_NAME = 'payments';
+const SENT_PAYMENTS_COLLECTION_NAME = 'sentPayments';
+const RECEIVED_PAYMENTS_COLLECTION_NAME = 'receivedPayments';
 const TIMEOUT_MS = 5_000;
 
 export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
@@ -19,9 +22,10 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
   private readonly _logger: ILogger;
   private _client!: MongoClient;
   private _paymentIntentCollection!: Collection<
-    Omit<IPaymentIntent, 'payments'>
+    Omit<IPaymentIntent, 'sentPayments' | 'receivedPayments'>
   >;
-  private _paymentCollection!: Collection<IPayment>;
+  private _sentPaymentCollection!: Collection<ISentPayment>;
+  private _receivedPaymentCollection!: Collection<IReceivedPayment>;
 
   constructor(connectionString: string, logger: ILogger) {
     this._connectionString = connectionString;
@@ -74,18 +78,46 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
       }
 
       const paymentsCollectionExists = collections.some(
-        (collection) => collection.name === PAYMENTS_COLLECTION_NAME
+        (collection) => collection.name === SENT_PAYMENTS_COLLECTION_NAME
       );
       // load or create the collection (and add its indexes) - should check version and perform migrations
       if (paymentsCollectionExists) {
-        this._paymentCollection = db.collection<IPayment>(
-          PAYMENTS_COLLECTION_NAME
+        this._sentPaymentCollection = db.collection<ISentPayment>(
+          SENT_PAYMENTS_COLLECTION_NAME
         );
       } else {
-        this._paymentCollection = await db.createCollection<IPayment>(
-          PAYMENTS_COLLECTION_NAME
+        this._sentPaymentCollection = await db.createCollection<ISentPayment>(
+          SENT_PAYMENTS_COLLECTION_NAME
         );
-        await this._paymentCollection.createIndex({ id: 1 }, { unique: true });
+        await this._sentPaymentCollection.createIndex(
+          { id: 1 },
+          { unique: true }
+        );
+        await this._sentPaymentCollection.createIndex({
+          paymentIntentId: 1
+        });
+      }
+
+      const receivedPaymentsCollectionExists = collections.some(
+        (collection) => collection.name === RECEIVED_PAYMENTS_COLLECTION_NAME
+      );
+      // load or create the collection (and add its indexes) - should check version and perform migrations
+      if (receivedPaymentsCollectionExists) {
+        this._receivedPaymentCollection = db.collection<IReceivedPayment>(
+          RECEIVED_PAYMENTS_COLLECTION_NAME
+        );
+      } else {
+        this._receivedPaymentCollection =
+          await db.createCollection<IReceivedPayment>(
+            RECEIVED_PAYMENTS_COLLECTION_NAME
+          );
+        await this._receivedPaymentCollection.createIndex(
+          { id: 1 },
+          { unique: true }
+        );
+        await this._receivedPaymentCollection.createIndex({
+          paymentIntentId: 1
+        });
       }
     } catch (e: unknown) {
       if (e instanceof Error) {
@@ -115,21 +147,23 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
     try {
       await this._paymentIntentCollection.insertMany(
         payments.map((p) => {
-          const doc: Omit<IPaymentIntent, 'payments'> = {
-            id: p.id,
-            receiverWalletAddressId: p.receiverWalletAddressId,
-            receiverWalletAddress: p.receiverWalletAddress,
-            state: p.state,
-            destination: p.destination,
-            assetCode: p.assetCode,
-            assetScale: p.assetScale,
-            createdAt: p.createdAt,
-            expiresAt: p.expiresAt,
-            incomingAmount: p.incomingAmount,
-            receivedAmount: p.receivedAmount,
-            destinationIlpAddress: p.destinationIlpAddress,
-            quotes: p.quotes
-          };
+          const doc: Omit<IPaymentIntent, 'sentPayments' | 'receivedPayments'> =
+            {
+              id: p.id,
+              receiverWalletAddressId: p.receiverWalletAddressId,
+              receiverWalletAddress: p.receiverWalletAddress,
+              state: p.state,
+              destination: p.destination,
+              assetCode: p.assetCode,
+              assetScale: p.assetScale,
+              createdAt: p.createdAt,
+              expiresAt: p.expiresAt,
+              incomingAmount: p.incomingAmount,
+              receivedAmount: p.receivedAmount,
+              destinationIlpAddress: p.destinationIlpAddress,
+              peerId: p.peerId,
+              quotes: p.quotes
+            };
           if (p.remoteUrl != null) doc.remoteUrl = p.remoteUrl;
           return doc;
         })
@@ -142,7 +176,9 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
     }
   }
 
-  async fetchByIds(ids: string[]): Promise<Omit<IPaymentIntent, 'payments'>[]> {
+  async fetchByIds(
+    ids: string[]
+  ): Promise<Omit<IPaymentIntent, 'sentPayments' | 'receivedPayments'>[]> {
     this._checkInitialisedOrThrow();
 
     if (ids.length === 0) return [];
@@ -166,26 +202,8 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
         receivedAmount: doc.receivedAmount,
         destinationIlpAddress: doc.destinationIlpAddress,
         remoteUrl: doc.remoteUrl,
-        quotes: doc.quotes.map((quote) => ({
-          id: quote.id,
-          senderWalletAddress: quote.senderWalletAddress,
-          senderWalletAddressId: quote.senderWalletAddressId,
-          ...(quote.state === 'COMPLETED'
-            ? {
-                state: quote.state,
-                debitAmount: quote.debitAmount,
-                receiveAmount: quote.receiveAmount,
-                expiresAt: quote.expiresAt,
-                exchangeRate: quote.exchangeRate
-              }
-            : quote.state === 'FAILED'
-              ? {
-                  state: quote.state,
-                  errorName: quote.errorName,
-                  message: quote.message
-                }
-              : { state: quote.state })
-        }))
+        peerId: doc.peerId,
+        quotes: doc.quotes.map((quote) => ({ ...quote }))
       }));
     } catch (err) {
       this._logger.error(err);
@@ -201,12 +219,16 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
     if (ids.length === 0) return [];
 
     try {
-      const [paymentIntentDocs, paymentDocs] = await Promise.all([
-        this._paymentIntentCollection.find({ id: { $in: ids } }).toArray(),
-        this._paymentCollection
-          .find({ paymentIntentId: { $in: ids } })
-          .toArray()
-      ]);
+      const [paymentIntentDocs, paymentDocs, receivedPaymentDocs] =
+        await Promise.all([
+          this._paymentIntentCollection.find({ id: { $in: ids } }).toArray(),
+          this._sentPaymentCollection
+            .find({ paymentIntentId: { $in: ids } })
+            .toArray(),
+          this._receivedPaymentCollection
+            .find({ paymentIntentId: { $in: ids } })
+            .toArray()
+        ]);
 
       return paymentIntentDocs.map((doc) => ({
         id: doc.id,
@@ -222,27 +244,12 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
         receivedAmount: doc.receivedAmount,
         destinationIlpAddress: doc.destinationIlpAddress,
         remoteUrl: doc.remoteUrl,
-        quotes: doc.quotes.map((quote) => ({
-          id: quote.id,
-          senderWalletAddress: quote.senderWalletAddress,
-          senderWalletAddressId: quote.senderWalletAddressId,
-          ...(quote.state === 'COMPLETED'
-            ? {
-                state: quote.state,
-                debitAmount: quote.debitAmount,
-                receiveAmount: quote.receiveAmount,
-                expiresAt: quote.expiresAt,
-                exchangeRate: quote.exchangeRate
-              }
-            : quote.state === 'FAILED'
-              ? {
-                  state: quote.state,
-                  errorName: quote.errorName,
-                  message: quote.message
-                }
-              : { state: quote.state })
-        })),
-        payments: paymentDocs
+        peerId: doc.peerId,
+        // Faithfully round-trip whatever the entity persisted for each quote.
+        // Do NOT re-project by state — that silently drops fields (e.g. a
+        // pending remote quote's peer/source/sender fields).
+        quotes: doc.quotes.map((quote) => ({ ...quote })),
+        sentPayments: paymentDocs
           .filter((p) => p.paymentIntentId === doc.id)
           .map((payment) => ({
             id: payment.id,
@@ -256,7 +263,27 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
             assetScale: payment.assetScale,
             debitAmount: payment.debitAmount,
             receiveAmount: payment.receiveAmount,
-            sentAmount: payment.sentAmount
+            sentAmount: payment.sentAmount,
+            ledgerTransferId: payment.ledgerTransferId,
+            failReason: payment.failReason,
+            cancelledAt: payment.cancelledAt,
+            cancelReason: payment.cancelReason
+          })),
+        receivedPayments: receivedPaymentDocs
+          .filter((rp) => rp.paymentIntentId === doc.id)
+          .map((receivedPayment) => ({
+            id: receivedPayment.id,
+            state: receivedPayment.state,
+            createdAt: receivedPayment.createdAt,
+            paymentIntentId: receivedPayment.paymentIntentId,
+            packetId: receivedPayment.packetId,
+            peerId: receivedPayment.peerId,
+            peerAssetCode: receivedPayment.peerAssetCode,
+            peerAssetScale: receivedPayment.peerAssetScale,
+            sourceAmount: receivedPayment.sourceAmount,
+            receiveAmount: receivedPayment.receiveAmount,
+            ledgerTransferId: receivedPayment.ledgerTransferId,
+            failReason: receivedPayment.failReason
           }))
       }));
     } catch (err) {
@@ -323,17 +350,17 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
     }
   }
 
-  async storePayments(
+  async storeSentPayments(
     paymentUpdates: { paymentIds: string[]; paymentIntent: IPaymentIntent }[]
   ): Promise<void> {
     this._checkInitialisedOrThrow();
 
     if (paymentUpdates.length === 0) return;
 
-    const newPaymentEntities: IPayment[] = [];
+    const newPaymentEntities: ISentPayment[] = [];
 
     for (const update of paymentUpdates) {
-      const payments = update.paymentIntent.payments.filter((p) =>
+      const payments = update.paymentIntent.sentPayments.filter((p) =>
         update.paymentIds.includes(p.id)
       );
 
@@ -356,11 +383,212 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
     }
 
     try {
-      await this._paymentCollection.insertMany(newPaymentEntities);
+      await this._sentPaymentCollection.insertMany(newPaymentEntities);
     } catch (e) {
       this._logger.error(e);
       throw new Error(
         `Unable to store payments - error: ${(e as Error).message}`
+      );
+    }
+  }
+
+  async storeReceivedPayments(
+    receivedPaymentUpdates: {
+      receivedPaymentIds: string[];
+      paymentIntent: IPaymentIntent;
+    }[]
+  ): Promise<void> {
+    this._checkInitialisedOrThrow();
+
+    if (receivedPaymentUpdates.length === 0) return;
+
+    const newReceivedPaymentEntities: IReceivedPayment[] = [];
+
+    for (const update of receivedPaymentUpdates) {
+      const receivedPayments = update.paymentIntent.receivedPayments.filter(
+        (rp) => update.receivedPaymentIds.includes(rp.id)
+      );
+
+      for (const receivedPayment of receivedPayments) {
+        newReceivedPaymentEntities.push({
+          id: receivedPayment.id,
+          state: receivedPayment.state,
+          createdAt: receivedPayment.createdAt,
+          paymentIntentId: receivedPayment.paymentIntentId,
+          packetId: receivedPayment.packetId,
+          peerId: receivedPayment.peerId,
+          peerAssetCode: receivedPayment.peerAssetCode,
+          peerAssetScale: receivedPayment.peerAssetScale,
+          sourceAmount: receivedPayment.sourceAmount,
+          receiveAmount: receivedPayment.receiveAmount
+        });
+      }
+    }
+
+    try {
+      await this._receivedPaymentCollection.insertMany(
+        newReceivedPaymentEntities
+      );
+    } catch (e) {
+      this._logger.error(e);
+      throw new Error(
+        `Unable to store received payments - error: ${(e as Error).message}`
+      );
+    }
+  }
+
+  async storeAcceptedReceivedPayments(
+    receivedPaymentUpdates: {
+      receivedPayments: {
+        id: string;
+        state: ReceivedPaymentState;
+        ledgerTransferId: string;
+      }[];
+    }[]
+  ): Promise<void> {
+    this._checkInitialisedOrThrow();
+
+    if (receivedPaymentUpdates.length === 0) return;
+
+    try {
+      const receivedPaymentWrites = receivedPaymentUpdates.flatMap((update) =>
+        update.receivedPayments.map((receivedPayment) => ({
+          updateOne: {
+            filter: { id: receivedPayment.id },
+            update: {
+              $set: {
+                state: receivedPayment.state,
+                ledgerTransferId: receivedPayment.ledgerTransferId
+              }
+            }
+          }
+        }))
+      );
+
+      await this._receivedPaymentCollection.bulkWrite(receivedPaymentWrites);
+    } catch (e) {
+      this._logger.error(e);
+      throw new Error(
+        `Unable to store accepted received payments - error: ${(e as Error).message}`
+      );
+    }
+  }
+
+  async storeFailedReceivedPayments(
+    receivedPaymentUpdates: {
+      receivedPayments: {
+        id: string;
+        state: ReceivedPaymentState;
+        failReason?: string;
+      }[];
+    }[]
+  ): Promise<void> {
+    this._checkInitialisedOrThrow();
+
+    if (receivedPaymentUpdates.length === 0) return;
+
+    try {
+      const receivedPaymentWrites = receivedPaymentUpdates.flatMap((update) =>
+        update.receivedPayments.map((receivedPayment) => ({
+          updateOne: {
+            filter: { id: receivedPayment.id },
+            update: {
+              $set: {
+                state: receivedPayment.state,
+                ...(receivedPayment.failReason
+                  ? { failReason: receivedPayment.failReason }
+                  : {})
+              }
+            }
+          }
+        }))
+      );
+
+      await this._receivedPaymentCollection.bulkWrite(receivedPaymentWrites);
+    } catch (e) {
+      this._logger.error(e);
+      throw new Error(
+        `Unable to store failed received payments - error: ${(e as Error).message}`
+      );
+    }
+  }
+
+  async storeFulfillableReceivedPayments(
+    receivedPaymentUpdates: {
+      receivedPayments: { id: string; state: ReceivedPaymentState }[];
+    }[]
+  ): Promise<void> {
+    this._checkInitialisedOrThrow();
+
+    if (receivedPaymentUpdates.length === 0) return;
+
+    try {
+      const receivedPaymentWrites = receivedPaymentUpdates.flatMap((update) =>
+        update.receivedPayments.map((receivedPayment) => ({
+          updateOne: {
+            filter: { id: receivedPayment.id },
+            update: {
+              $set: {
+                state: receivedPayment.state
+              }
+            }
+          }
+        }))
+      );
+
+      await this._receivedPaymentCollection.bulkWrite(receivedPaymentWrites);
+    } catch (e) {
+      this._logger.error(e);
+      throw new Error(
+        `Unable to store fulfillable received payments - error: ${(e as Error).message}`
+      );
+    }
+  }
+
+  async storeFinalizedReceivedPayments(
+    receivedPaymentUpdates: {
+      paymentIntent: {
+        id: string;
+        receivedAmount: bigint;
+        state: PaymentIntentState;
+      };
+      receivedPayments: { id: string; state: ReceivedPaymentState }[];
+    }[]
+  ): Promise<void> {
+    this._checkInitialisedOrThrow();
+
+    if (receivedPaymentUpdates.length === 0) return;
+
+    try {
+      const intentWrites = receivedPaymentUpdates.map((update) => ({
+        updateOne: {
+          filter: { id: update.paymentIntent.id },
+          update: {
+            $set: {
+              state: update.paymentIntent.state,
+              receivedAmount: update.paymentIntent.receivedAmount
+            }
+          }
+        }
+      }));
+
+      const receivedPaymentWrites = receivedPaymentUpdates.flatMap((update) =>
+        update.receivedPayments.map((receivedPayment) => ({
+          updateOne: {
+            filter: { id: receivedPayment.id },
+            update: { $set: { state: receivedPayment.state } }
+          }
+        }))
+      );
+
+      await Promise.all([
+        this._paymentIntentCollection.bulkWrite(intentWrites),
+        this._receivedPaymentCollection.bulkWrite(receivedPaymentWrites)
+      ]);
+    } catch (e) {
+      this._logger.error(e);
+      throw new Error(
+        `Unable to store finalized received payments - error: ${(e as Error).message}`
       );
     }
   }
@@ -412,7 +640,11 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
         receivedAmount: bigint;
         state: PaymentIntentState;
       };
-      payments: { id: string; state: PaymentState; sentAmount: bigint }[];
+      sentPayments: {
+        id: string;
+        state: SentPaymentState;
+        sentAmount: bigint;
+      }[];
     }[]
   ): Promise<void> {
     this._checkInitialisedOrThrow();
@@ -433,8 +665,8 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
       }));
 
       const paymentWrites = paymentUpdates.flatMap((update) =>
-        update.payments
-          .filter((p) => update.payments.map((p) => p.id).includes(p.id))
+        update.sentPayments
+          .filter((p) => update.sentPayments.map((p) => p.id).includes(p.id))
           .map((payment) => ({
             updateOne: {
               filter: { id: payment.id },
@@ -450,7 +682,7 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
 
       await Promise.all([
         this._paymentIntentCollection.bulkWrite(intentWrites),
-        this._paymentCollection.bulkWrite(paymentWrites)
+        this._sentPaymentCollection.bulkWrite(paymentWrites)
       ]);
     } catch (e) {
       this._logger.error(e);
@@ -462,7 +694,7 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
 
   async storeApprovedRemotePayments(
     paymentUpdates: {
-      payments: { id: string; state: PaymentState }[];
+      sentPayments: { id: string; state: SentPaymentState }[];
     }[]
   ): Promise<void> {
     this._checkInitialisedOrThrow();
@@ -471,7 +703,7 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
 
     try {
       const paymentWrites = paymentUpdates.flatMap((update) =>
-        update.payments.map((payment) => ({
+        update.sentPayments.map((payment) => ({
           updateOne: {
             filter: { id: payment.id },
             update: { $set: { state: payment.state } }
@@ -479,7 +711,7 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
         }))
       );
 
-      await this._paymentCollection.bulkWrite(paymentWrites);
+      await this._sentPaymentCollection.bulkWrite(paymentWrites);
     } catch (e) {
       this._logger.error(e);
       throw new Error(
@@ -490,9 +722,9 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
 
   async storeSendingRemotePayments(
     paymentUpdates: {
-      payments: {
+      sentPayments: {
         id: string;
-        state: PaymentState;
+        state: SentPaymentState;
         ledgerTransferId: string;
       }[];
     }[]
@@ -503,7 +735,7 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
 
     try {
       const paymentWrites = paymentUpdates.flatMap((update) =>
-        update.payments.map((payment) => ({
+        update.sentPayments.map((payment) => ({
           updateOne: {
             filter: { id: payment.id },
             update: {
@@ -516,7 +748,7 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
         }))
       );
 
-      await this._paymentCollection.bulkWrite(paymentWrites);
+      await this._sentPaymentCollection.bulkWrite(paymentWrites);
     } catch (e) {
       this._logger.error(e);
       throw new Error(
@@ -527,7 +759,11 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
 
   async storeFailedRemotePayments(
     paymentUpdates: {
-      payments: { id: string; state: PaymentState; failReason?: string }[];
+      sentPayments: {
+        id: string;
+        state: SentPaymentState;
+        failReason?: string;
+      }[];
     }[]
   ): Promise<void> {
     this._checkInitialisedOrThrow();
@@ -536,7 +772,7 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
 
     try {
       const paymentWrites = paymentUpdates.flatMap((update) =>
-        update.payments.map((payment) => ({
+        update.sentPayments.map((payment) => ({
           updateOne: {
             filter: { id: payment.id },
             update: {
@@ -551,7 +787,7 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
         }))
       );
 
-      await this._paymentCollection.bulkWrite(paymentWrites);
+      await this._sentPaymentCollection.bulkWrite(paymentWrites);
     } catch (e) {
       this._logger.error(e);
       throw new Error(
@@ -562,7 +798,7 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
 
   async storeConfirmedRemotePayments(
     paymentUpdates: {
-      payments: { id: string; state: PaymentState }[];
+      sentPayments: { id: string; state: SentPaymentState }[];
     }[]
   ): Promise<void> {
     this._checkInitialisedOrThrow();
@@ -571,7 +807,7 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
 
     try {
       const paymentWrites = paymentUpdates.flatMap((update) =>
-        update.payments.map((payment) => ({
+        update.sentPayments.map((payment) => ({
           updateOne: {
             filter: { id: payment.id },
             update: { $set: { state: payment.state } }
@@ -579,7 +815,7 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
         }))
       );
 
-      await this._paymentCollection.bulkWrite(paymentWrites);
+      await this._sentPaymentCollection.bulkWrite(paymentWrites);
     } catch (e) {
       this._logger.error(e);
       throw new Error(
@@ -590,7 +826,11 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
 
   async storeRejectedRemotePayments(
     paymentUpdates: {
-      payments: { id: string; state: PaymentState; failReason?: string }[];
+      sentPayments: {
+        id: string;
+        state: SentPaymentState;
+        failReason?: string;
+      }[];
     }[]
   ): Promise<void> {
     this._checkInitialisedOrThrow();
@@ -599,7 +839,7 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
 
     try {
       const paymentWrites = paymentUpdates.flatMap((update) =>
-        update.payments.map((payment) => ({
+        update.sentPayments.map((payment) => ({
           updateOne: {
             filter: { id: payment.id },
             update: {
@@ -614,7 +854,7 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
         }))
       );
 
-      await this._paymentCollection.bulkWrite(paymentWrites);
+      await this._sentPaymentCollection.bulkWrite(paymentWrites);
     } catch (e) {
       this._logger.error(e);
       throw new Error(
@@ -630,7 +870,11 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
         receivedAmount: bigint;
         state: PaymentIntentState;
       };
-      payments: { id: string; state: PaymentState; sentAmount: bigint }[];
+      sentPayments: {
+        id: string;
+        state: SentPaymentState;
+        sentAmount: bigint;
+      }[];
     }[]
   ): Promise<void> {
     this._checkInitialisedOrThrow();
@@ -651,7 +895,7 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
       }));
 
       const paymentWrites = paymentUpdates.flatMap((update) =>
-        update.payments.map((payment) => ({
+        update.sentPayments.map((payment) => ({
           updateOne: {
             filter: { id: payment.id },
             update: {
@@ -666,7 +910,7 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
 
       await Promise.all([
         this._paymentIntentCollection.bulkWrite(intentWrites),
-        this._paymentCollection.bulkWrite(paymentWrites)
+        this._sentPaymentCollection.bulkWrite(paymentWrites)
       ]);
     } catch (e) {
       this._logger.error(e);
@@ -678,9 +922,9 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
 
   async storeCancelledPayments(
     paymentUpdates: {
-      payments: {
+      sentPayments: {
         id: string;
-        state: PaymentState;
+        state: SentPaymentState;
         cancelledAt: Date;
         cancelReason?: string;
       }[];
@@ -692,8 +936,8 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
 
     try {
       const paymentWrites = paymentUpdates.flatMap((update) =>
-        update.payments
-          .filter((p) => update.payments.map((p) => p.id).includes(p.id))
+        update.sentPayments
+          .filter((p) => update.sentPayments.map((p) => p.id).includes(p.id))
           .map((payment) => ({
             updateOne: {
               filter: { id: payment.id },
@@ -710,7 +954,7 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
           }))
       );
 
-      await Promise.all([this._paymentCollection.bulkWrite(paymentWrites)]);
+      await Promise.all([this._sentPaymentCollection.bulkWrite(paymentWrites)]);
     } catch (e) {
       this._logger.error(e);
       throw new Error(

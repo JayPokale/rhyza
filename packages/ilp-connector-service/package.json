@@ -13,7 +13,8 @@
   "dependencies": {
     "common-types-lib": "workspace:*",
     "ilp-domain-lib": "workspace:*",
-    "implementations-lib": "workspace:*"
+    "implementations-lib": "workspace:*",
+    "ioredis": "~5.10.1"
   },
   "devDependencies": {
     "tsx": "^4.19.3"

@@ -14,6 +14,7 @@ import {
 import {
   DispatchPreparePacketCmd,
   ExpirePacketCmd,
+  createFakeResolveStreamCredentials,
   IlpPeerAggregate,
   IPeer,
   ProcessRejectPacketCmd,
@@ -28,14 +29,15 @@ import {
 } from 'ilp-implementations-lib';
 
 import { IlpConnector } from 'ilp-connector-service/dist/src/connector.js';
+import { InMemoryTransportCorrelationStore } from 'ilp-connector-service/dist/src/correlation/in-memory-store.js';
 import type {
   IConnectorTransport,
+  WireFulfill,
   WirePrepare,
   WireResponse,
   WireResponseHandler,
   WireInboundPrepareHandler,
-  WireFulfillOutbound,
-  WireRejectOutbound
+  WireReject
 } from 'ilp-connector-service/dist/src/transport.js';
 import { IlpCommandHandler } from '../src/cmd-handler';
 
@@ -106,7 +108,11 @@ class InMemoryBus {
 class TestTransport implements IConnectorTransport {
   private _onResponse?: WireResponseHandler;
   private _onInboundPrepare?: WireInboundPrepareHandler;
-  readonly sentResponses: Array<WireFulfillOutbound | WireRejectOutbound> = [];
+  readonly sentResponses: Array<{
+    peerId: string;
+    replyHandle: string;
+    response: WireFulfill | WireReject;
+  }> = [];
 
   constructor(private readonly _autoReject = false) {}
 
@@ -121,11 +127,19 @@ class TestTransport implements IConnectorTransport {
       await this._onResponse(response);
     }
   }
-  async sendFulfill(fulfill: WireFulfillOutbound): Promise<void> {
-    this.sentResponses.push(fulfill);
+  async sendFulfill(
+    fulfill: WireFulfill,
+    peerId: string,
+    replyHandle: string
+  ): Promise<void> {
+    this.sentResponses.push({ peerId, replyHandle, response: fulfill });
   }
-  async sendReject(reject: WireRejectOutbound): Promise<void> {
-    this.sentResponses.push(reject);
+  async sendReject(
+    reject: WireReject,
+    peerId: string,
+    replyHandle: string
+  ): Promise<void> {
+    this.sentResponses.push({ peerId, replyHandle, response: reject });
   }
   onResponse(handler: WireResponseHandler): void {
     this._onResponse = handler;
@@ -163,7 +177,13 @@ async function wireSystem(autoReject: boolean) {
   const producer = bus.producer();
 
   const transport = new TestTransport(autoReject);
-  const connector = new IlpConnector(producer, transport, logger);
+  const correlationStore = new InMemoryTransportCorrelationStore();
+  const connector = new IlpConnector(
+    producer,
+    transport,
+    correlationStore,
+    logger
+  );
   connector.init();
   const connectorConsumer = bus.consumer();
   connectorConsumer.setTopics([CommandTopics.IlpConnectorCommands]);
@@ -176,7 +196,8 @@ async function wireSystem(autoReject: boolean) {
   const repo = new InMemoryPeerRepository([PEER]);
   const aggregate = new IlpPeerAggregate(
     repo,
-    new KafkaPeeringClient(producer, logger)
+    new KafkaPeeringClient(producer, logger),
+    createFakeResolveStreamCredentials().resolveStreamCredentials
   );
   const handler = new IlpCommandHandler(
     bus.consumer(),

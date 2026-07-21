@@ -1,0 +1,26 @@
+meta {
+  name: Create Payment (Node A)
+  type: http
+  seq: 3
+}
+
+post {
+  url: http://{{adminA}}/payments
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "walletAddress": "test.com/sender",
+    "paymentIntentId": "{{quotePaymentIntentId}}",
+    "quoteId": "{{quoteId}}"
+  }
+}
+
+script:post-response {
+  const body = res.getBody();
+  if (body?.id) {
+    bru.setVar("paymentId", body.id);
+  }
+}

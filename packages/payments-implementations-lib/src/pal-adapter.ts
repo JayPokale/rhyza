@@ -33,6 +33,17 @@ export class PalAdapter implements IPalService {
     };
   }
 
+  async getPeerById(peerId: string): Promise<IPeer | null> {
+    const peer = await this._palClient.getPeer(peerId);
+    if (!peer) return null;
+
+    return {
+      peerId: peer.id,
+      assetCode: peer.assetCode,
+      assetScale: peer.assetScale
+    };
+  }
+
   async getRates(request: IFxRateRequest): Promise<number | null> {
     return this._palClient.getFxRate(request);
   }

@@ -134,7 +134,7 @@ export class ILPQuoteFailedEvent extends DomainEvent {
 export interface ILPQuoteRequestReceivedPayload {
   peerId: string;
   packetId: string;
-  destinationIlpAddress: string;
+  paymentIntentId: string;
   incomingAmount: string;
   expiresAt: string;
 }
@@ -199,5 +199,81 @@ export class ILPPaymentFailedEvent extends DomainEvent {
     this.msgKey = payload.peerId;
     this.payload = payload;
     this.requestId = requestId;
+  }
+}
+
+// Inbound prepare verified as a real STREAM payment (awaiting Payments finalization).
+export interface ILPPaymentReceivedPayload {
+  peerId: string;
+  packetId: string;
+  paymentIntentId: string;
+  paymentId: string;
+  sourceAmount: string;
+  requestId: string;
+}
+
+export class ILPPaymentReceivedEvent extends DomainEvent {
+  contextName: string = BOUNDED_CONTEXT_NAME;
+  aggregateName: string = AGGREGATE_NAME;
+  msgTopic: string = DomainEventTopics.IlpEvents;
+  payload: ILPPaymentReceivedPayload;
+
+  constructor(payload: ILPPaymentReceivedPayload) {
+    super(payload.peerId);
+    this.msgKey = payload.peerId;
+    this.payload = payload;
+    this.requestId = payload.requestId;
+  }
+}
+
+/** Fulfillment successfully dispatched back to the source peer. */
+export interface ILPPaymentFulfillmentSentPayload {
+  peerId: string;
+  packetId: string;
+  paymentIntentId: string;
+  paymentId: string;
+  receivedPaymentId: string;
+  fulfilledAt: string;
+  requestId: string;
+}
+
+export class ILPPaymentFulfillmentSentEvent extends DomainEvent {
+  contextName: string = BOUNDED_CONTEXT_NAME;
+  aggregateName: string = AGGREGATE_NAME;
+  msgTopic: string = DomainEventTopics.IlpEvents;
+  payload: ILPPaymentFulfillmentSentPayload;
+
+  constructor(payload: ILPPaymentFulfillmentSentPayload) {
+    super(payload.peerId);
+    this.msgKey = payload.peerId;
+    this.payload = payload;
+    this.requestId = payload.requestId;
+  }
+}
+
+// Could not return fulfillment (expired, missing correlation, dispatch failure).
+export interface ILPPaymentFulfillmentFailedPayload {
+  peerId: string;
+  packetId: string;
+  paymentIntentId: string;
+  paymentId: string;
+  receivedPaymentId: string;
+  failedAt: string;
+  reason: string;
+  requestId: string;
+}
+
+export class ILPPaymentFulfillmentFailedEvent extends DomainEvent {
+  contextName: string = BOUNDED_CONTEXT_NAME;
+  aggregateName: string = AGGREGATE_NAME;
+  msgTopic: string = DomainEventTopics.IlpEvents;
+  isErrorEvent: boolean = true;
+  payload: ILPPaymentFulfillmentFailedPayload;
+
+  constructor(payload: ILPPaymentFulfillmentFailedPayload) {
+    super(payload.peerId);
+    this.msgKey = payload.peerId;
+    this.payload = payload;
+    this.requestId = payload.requestId;
   }
 }

@@ -3,7 +3,8 @@ import {
   IPaymentIntent,
   IPaymentIntentRepository,
   PaymentIntentState,
-  PaymentState
+  SentPaymentState,
+  ReceivedPaymentState
 } from '../../src/payment-intent/interfaces';
 
 export class MockPaymentIntentRepo implements IPaymentIntentRepository {
@@ -15,12 +16,15 @@ export class MockPaymentIntentRepo implements IPaymentIntentRepository {
     }
   }
 
-  async fetchByIds(ids: string[]): Promise<Omit<IPaymentIntent, 'payments'>[]> {
+  async fetchByIds(
+    ids: string[]
+  ): Promise<Omit<IPaymentIntent, 'sentPayments' | 'receivedPayments'>[]> {
     return ids.flatMap((id) => {
       const p = this._store.get(id);
       if (!p) return [];
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/naming-convention
-      const { payments: _payments, ...rest } = p;
+      const { sentPayments, receivedPayments, ...rest } = p;
+      void sentPayments;
+      void receivedPayments;
       return [rest];
     });
   }
@@ -29,7 +33,43 @@ export class MockPaymentIntentRepo implements IPaymentIntentRepository {
     const results: IPaymentIntent[] = [];
     for (const id of ids) {
       const p = this._store.get(id);
-      if (p) results.push(p);
+      if (!p) continue;
+      results.push({
+        ...p,
+        quotes: p.quotes.map((quote) => ({ ...quote })),
+        sentPayments: p.sentPayments.map((payment) => ({
+          id: payment.id,
+          state: payment.state,
+          createdAt: payment.createdAt,
+          paymentIntentId: payment.paymentIntentId,
+          senderWalletAddress: payment.senderWalletAddress,
+          senderWalletAddressId: payment.senderWalletAddressId,
+          quoteId: payment.quoteId,
+          assetCode: payment.assetCode,
+          assetScale: payment.assetScale,
+          debitAmount: payment.debitAmount,
+          receiveAmount: payment.receiveAmount,
+          sentAmount: payment.sentAmount,
+          ledgerTransferId: payment.ledgerTransferId,
+          failReason: payment.failReason,
+          cancelledAt: payment.cancelledAt,
+          cancelReason: payment.cancelReason
+        })),
+        receivedPayments: p.receivedPayments.map((receivedPayment) => ({
+          id: receivedPayment.id,
+          state: receivedPayment.state,
+          createdAt: receivedPayment.createdAt,
+          paymentIntentId: receivedPayment.paymentIntentId,
+          packetId: receivedPayment.packetId,
+          peerId: receivedPayment.peerId,
+          peerAssetCode: receivedPayment.peerAssetCode,
+          peerAssetScale: receivedPayment.peerAssetScale,
+          sourceAmount: receivedPayment.sourceAmount,
+          receiveAmount: receivedPayment.receiveAmount,
+          ledgerTransferId: receivedPayment.ledgerTransferId,
+          failReason: receivedPayment.failReason
+        }))
+      });
     }
     return results;
   }
@@ -54,11 +94,119 @@ export class MockPaymentIntentRepo implements IPaymentIntentRepository {
     }
   }
 
-  async storePayments(
+  async storeSentPayments(
     paymentUpdates: { paymentIds: string[]; paymentIntent: IPaymentIntent }[]
   ): Promise<void> {
     for (const update of paymentUpdates) {
       this._store.set(update.paymentIntent.id, update.paymentIntent);
+    }
+  }
+
+  async storeReceivedPayments(
+    receivedPaymentUpdates: {
+      receivedPaymentIds: string[];
+      paymentIntent: IPaymentIntent;
+    }[]
+  ): Promise<void> {
+    for (const update of receivedPaymentUpdates) {
+      this._store.set(update.paymentIntent.id, update.paymentIntent);
+    }
+  }
+
+  async storeAcceptedReceivedPayments(
+    receivedPaymentUpdates: {
+      receivedPayments: {
+        id: string;
+        state: ReceivedPaymentState;
+        ledgerTransferId: string;
+      }[];
+    }[]
+  ): Promise<void> {
+    for (const update of receivedPaymentUpdates) {
+      for (const receivedPayment of update.receivedPayments) {
+        const found = this.getAll()
+          .flatMap((intent) => intent.receivedPayments)
+          .find((rp) => rp.id === receivedPayment.id);
+        if (!found) {
+          throw new Error('Could not find received payment in store');
+        }
+        found.state = receivedPayment.state;
+        found.ledgerTransferId = receivedPayment.ledgerTransferId;
+      }
+    }
+  }
+
+  async storeFailedReceivedPayments(
+    receivedPaymentUpdates: {
+      receivedPayments: {
+        id: string;
+        state: ReceivedPaymentState;
+        failReason?: string;
+      }[];
+    }[]
+  ): Promise<void> {
+    for (const update of receivedPaymentUpdates) {
+      for (const receivedPayment of update.receivedPayments) {
+        const found = this.getAll()
+          .flatMap((intent) => intent.receivedPayments)
+          .find((rp) => rp.id === receivedPayment.id);
+        if (!found) {
+          throw new Error('Could not find received payment in store');
+        }
+        found.state = receivedPayment.state;
+        if (receivedPayment.failReason) {
+          found.failReason = receivedPayment.failReason;
+        }
+      }
+    }
+  }
+
+  async storeFulfillableReceivedPayments(
+    receivedPaymentUpdates: {
+      receivedPayments: { id: string; state: ReceivedPaymentState }[];
+    }[]
+  ): Promise<void> {
+    for (const update of receivedPaymentUpdates) {
+      for (const receivedPayment of update.receivedPayments) {
+        const found = this.getAll()
+          .flatMap((intent) => intent.receivedPayments)
+          .find((rp) => rp.id === receivedPayment.id);
+        if (!found) {
+          throw new Error('Could not find received payment in store');
+        }
+        found.state = receivedPayment.state;
+      }
+    }
+  }
+
+  async storeFinalizedReceivedPayments(
+    receivedPaymentUpdates: {
+      paymentIntent: {
+        id: string;
+        receivedAmount: bigint;
+        state: PaymentIntentState;
+      };
+      receivedPayments: { id: string; state: ReceivedPaymentState }[];
+    }[]
+  ): Promise<void> {
+    for (const update of receivedPaymentUpdates) {
+      const paymentIntent = this._store.get(update.paymentIntent.id);
+      if (!paymentIntent) {
+        throw new Error('Could not find paymentIntent in store');
+      }
+
+      paymentIntent.state = update.paymentIntent.state;
+      paymentIntent.receivedAmount = update.paymentIntent.receivedAmount;
+
+      for (const receivedPayment of update.receivedPayments) {
+        const found = paymentIntent.receivedPayments.find(
+          (rp) => rp.id === receivedPayment.id
+        );
+        if (!found) {
+          throw new Error('Could not find received payment in store');
+        }
+        found.state = receivedPayment.state;
+      }
     }
   }
 
@@ -69,7 +217,11 @@ export class MockPaymentIntentRepo implements IPaymentIntentRepository {
         receivedAmount: bigint;
         state: PaymentIntentState;
       };
-      payments: { id: string; state: PaymentState; sentAmount: bigint }[];
+      sentPayments: {
+        id: string;
+        state: SentPaymentState;
+        sentAmount: bigint;
+      }[];
     }[]
   ): Promise<void> {
     for (const update of paymentUpdates) {
@@ -81,8 +233,8 @@ export class MockPaymentIntentRepo implements IPaymentIntentRepository {
       paymentIntent.state = update.paymentIntent.state;
       paymentIntent.receivedAmount = update.paymentIntent.receivedAmount;
 
-      for (const payment of update.payments) {
-        const foundPayment = paymentIntent.payments.find(
+      for (const payment of update.sentPayments) {
+        const foundPayment = paymentIntent.sentPayments.find(
           (p) => p.id === payment.id
         );
         if (!foundPayment) {
@@ -97,18 +249,18 @@ export class MockPaymentIntentRepo implements IPaymentIntentRepository {
 
   async storeCancelledPayments(
     paymentUpdates: {
-      payments: {
+      sentPayments: {
         id: string;
-        state: PaymentState;
+        state: SentPaymentState;
         cancelledAt: Date;
         cancelReason?: string;
       }[];
     }[]
   ): Promise<void> {
     for (const update of paymentUpdates) {
-      for (const payment of update.payments) {
+      for (const payment of update.sentPayments) {
         const foundPayment = this.getAll()
-          .flatMap((intent) => intent.payments)
+          .flatMap((intent) => intent.sentPayments)
           .find((p) => p.id === payment.id);
         if (!foundPayment) {
           throw new Error('Could not find payment in store');
@@ -127,13 +279,13 @@ export class MockPaymentIntentRepo implements IPaymentIntentRepository {
 
   async storeApprovedRemotePayments(
     paymentUpdates: {
-      payments: { id: string; state: PaymentState }[];
+      sentPayments: { id: string; state: SentPaymentState }[];
     }[]
   ): Promise<void> {
     for (const update of paymentUpdates) {
-      for (const payment of update.payments) {
+      for (const payment of update.sentPayments) {
         const foundPayment = this.getAll()
-          .flatMap((intent) => intent.payments)
+          .flatMap((intent) => intent.sentPayments)
           .find((p) => p.id === payment.id);
         if (!foundPayment) {
           throw new Error('Could not find payment in store');
@@ -145,17 +297,17 @@ export class MockPaymentIntentRepo implements IPaymentIntentRepository {
 
   async storeSendingRemotePayments(
     paymentUpdates: {
-      payments: {
+      sentPayments: {
         id: string;
-        state: PaymentState;
+        state: SentPaymentState;
         ledgerTransferId: string;
       }[];
     }[]
   ): Promise<void> {
     for (const update of paymentUpdates) {
-      for (const payment of update.payments) {
+      for (const payment of update.sentPayments) {
         const foundPayment = this.getAll()
-          .flatMap((intent) => intent.payments)
+          .flatMap((intent) => intent.sentPayments)
           .find((p) => p.id === payment.id);
         if (!foundPayment) {
           throw new Error('Could not find payment in store');
@@ -168,13 +320,17 @@ export class MockPaymentIntentRepo implements IPaymentIntentRepository {
 
   async storeFailedRemotePayments(
     paymentUpdates: {
-      payments: { id: string; state: PaymentState; failReason?: string }[];
+      sentPayments: {
+        id: string;
+        state: SentPaymentState;
+        failReason?: string;
+      }[];
     }[]
   ): Promise<void> {
     for (const update of paymentUpdates) {
-      for (const payment of update.payments) {
+      for (const payment of update.sentPayments) {
         const foundPayment = this.getAll()
-          .flatMap((intent) => intent.payments)
+          .flatMap((intent) => intent.sentPayments)
           .find((p) => p.id === payment.id);
         if (!foundPayment) {
           throw new Error('Could not find payment in store');
@@ -189,13 +345,13 @@ export class MockPaymentIntentRepo implements IPaymentIntentRepository {
 
   async storeConfirmedRemotePayments(
     paymentUpdates: {
-      payments: { id: string; state: PaymentState }[];
+      sentPayments: { id: string; state: SentPaymentState }[];
     }[]
   ): Promise<void> {
     for (const update of paymentUpdates) {
-      for (const payment of update.payments) {
+      for (const payment of update.sentPayments) {
         const foundPayment = this.getAll()
-          .flatMap((intent) => intent.payments)
+          .flatMap((intent) => intent.sentPayments)
           .find((p) => p.id === payment.id);
         if (!foundPayment) {
           throw new Error('Could not find payment in store');
@@ -207,13 +363,17 @@ export class MockPaymentIntentRepo implements IPaymentIntentRepository {
 
   async storeRejectedRemotePayments(
     paymentUpdates: {
-      payments: { id: string; state: PaymentState; failReason?: string }[];
+      sentPayments: {
+        id: string;
+        state: SentPaymentState;
+        failReason?: string;
+      }[];
     }[]
   ): Promise<void> {
     for (const update of paymentUpdates) {
-      for (const payment of update.payments) {
+      for (const payment of update.sentPayments) {
         const foundPayment = this.getAll()
-          .flatMap((intent) => intent.payments)
+          .flatMap((intent) => intent.sentPayments)
           .find((p) => p.id === payment.id);
         if (!foundPayment) {
           throw new Error('Could not find payment in store');
@@ -233,7 +393,11 @@ export class MockPaymentIntentRepo implements IPaymentIntentRepository {
         receivedAmount: bigint;
         state: PaymentIntentState;
       };
-      payments: { id: string; state: PaymentState; sentAmount: bigint }[];
+      sentPayments: {
+        id: string;
+        state: SentPaymentState;
+        sentAmount: bigint;
+      }[];
     }[]
   ): Promise<void> {
     for (const update of paymentUpdates) {
@@ -245,8 +409,8 @@ export class MockPaymentIntentRepo implements IPaymentIntentRepository {
       paymentIntent.state = update.paymentIntent.state;
       paymentIntent.receivedAmount = update.paymentIntent.receivedAmount;
 
-      for (const payment of update.payments) {
-        const foundPayment = paymentIntent.payments.find(
+      for (const payment of update.sentPayments) {
+        const foundPayment = paymentIntent.sentPayments.find(
           (p) => p.id === payment.id
         );
         if (!foundPayment) {

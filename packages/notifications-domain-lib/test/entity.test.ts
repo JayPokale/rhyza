@@ -37,6 +37,7 @@ describe('notification entity', () => {
     const notificationObject = notification.toObject();
     assert.deepEqual(notificationObject, {
       id,
+      type: NotificationType.PaymentCreated,
       data: {},
       attempts: 0,
       status: NotificationStatus.CREATED,

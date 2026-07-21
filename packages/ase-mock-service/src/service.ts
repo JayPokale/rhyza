@@ -4,7 +4,7 @@ import Fastify, {
   FastifyRequest
 } from 'fastify';
 import { NotificationType } from 'notifications-domain-lib';
-import { PaymentCreatedPayload } from 'payments-domain-lib';
+import { PaymentCreatedPayload } from 'payments-public-types-lib';
 import { RATES } from './rates-data';
 
 const HOST = process.env['HOST'] || '0.0.0.0';
@@ -88,7 +88,11 @@ export class MockWebhookIntegrationService {
       }
     );
     if (!response.ok) {
-      throw new WebhookServiceError('Failed to approve payment', 401);
+      const detail = await response.text().catch(() => response.statusText);
+      throw new WebhookServiceError(
+        `Failed to approve payment ${payload.id}: ${detail}`,
+        response.status
+      );
     }
   }
 

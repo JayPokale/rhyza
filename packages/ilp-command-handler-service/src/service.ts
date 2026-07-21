@@ -13,13 +13,20 @@ import {
 import {
   InMemoryPeerRepository,
   KafkaPeeringClient,
-  MongoDbPeerRepository
+  MongoDbPeerRepository,
+  createResolveStreamCredentials,
+  createStreamServer,
+  parseStreamServerSecret
 } from 'ilp-implementations-lib';
 import { IlpCommandHandler } from './cmd-handler';
 
 const KAFKA_URL = process.env['KAFKA_URL'] || 'localhost:9093';
 const MONGODB_URL = process.env['MONGODB_URL'] || 'mongodb://localhost:27017';
 const CONSUMER_GROUP_ID = 'ilp-command-handler';
+const STREAM_SERVER_SECRET_RAW =
+  process.env['STREAM_SERVER_SECRET'] ||
+  Buffer.from('rafiki-v2-dev-stream-secret-0001').toString('base64url');
+const ILP_ADDRESS = process.env['ILP_ADDRESS'] || 'private.rafiki';
 
 export class IlpCommandHandlerService {
   private static _logger: ILogger;
@@ -78,7 +85,21 @@ export class IlpCommandHandlerService {
     const peeringClient =
       deps?.peeringClient ??
       new KafkaPeeringClient(this._producer, this._logger);
-    const aggregate = new IlpPeerAggregate(peerRepo, peeringClient);
+    const serverSecret = parseStreamServerSecret(STREAM_SERVER_SECRET_RAW);
+    const streamServer = createStreamServer({
+      serverSecret,
+      serverAddress: ILP_ADDRESS
+    });
+    const resolveStreamCredentials = createResolveStreamCredentials({
+      streamServer,
+      serverSecret,
+      serverAddress: ILP_ADDRESS
+    });
+    const aggregate = new IlpPeerAggregate(
+      peerRepo,
+      peeringClient,
+      resolveStreamCredentials
+    );
 
     this._commandHandler = new IlpCommandHandler(
       this._consumer,

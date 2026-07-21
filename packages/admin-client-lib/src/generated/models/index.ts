@@ -6,6 +6,8 @@ export * from './AssetCreate';
 export * from './AssetCreateResponse';
 export * from './CancelPayment200Response';
 export * from './ErrorResponse';
+export * from './LiquidityDeposit202Response';
+export * from './LiquidityDepositRequest';
 export * from './Payment';
 export * from './PaymentApprove';
 export * from './PaymentCancel';

@@ -1,8 +1,10 @@
-export const PaymentIntentState = {
-  CREATED: 'CREATED',
-  COMPLETED: 'COMPLETED'
-} as const;
-export type PaymentIntentState = keyof typeof PaymentIntentState;
+import {
+  PaymentIntentState,
+  SentPaymentState,
+  ReceivedPaymentState
+} from 'payments-public-types-lib';
+
+export { PaymentIntentState, SentPaymentState, ReceivedPaymentState };
 
 export const PaymentIntentDestination = {
   LOCAL: 'LOCAL',
@@ -51,21 +53,9 @@ export interface IFailedQuote extends IBaseQuote {
 
 export type IQuote = IPendingQuote | ICompletedQuote | IFailedQuote;
 
-export const PaymentState = {
-  CREATED: 'CREATED',
-  PROCESSING: 'PROCESSING',
-  SENDING: 'SENDING',
-  CONFIRMED: 'CONFIRMED',
-  REJECTED: 'REJECTED',
-  COMPLETED: 'COMPLETED',
-  CANCELLED: 'CANCELLED',
-  FAILED: 'FAILED'
-} as const;
-export type PaymentState = keyof typeof PaymentState;
-
-export interface IPayment {
+export interface ISentPayment {
   id: string;
-  state: PaymentState;
+  state: SentPaymentState;
   senderWalletAddress: string;
   senderWalletAddressId: string;
   paymentIntentId: string;
@@ -78,6 +68,21 @@ export interface IPayment {
   debitAmount: bigint;
   receiveAmount: bigint;
   sentAmount: bigint;
+  ledgerTransferId?: string;
+  failReason?: string;
+}
+
+export interface IReceivedPayment {
+  id: string;
+  state: ReceivedPaymentState;
+  paymentIntentId: string;
+  packetId: string;
+  peerId: string;
+  peerAssetCode: string;
+  peerAssetScale: number;
+  sourceAmount: bigint;
+  receiveAmount: bigint;
+  createdAt: Date;
   ledgerTransferId?: string;
   failReason?: string;
 }
@@ -95,9 +100,11 @@ export interface IPaymentIntent {
   incomingAmount: bigint | null;
   receivedAmount: bigint;
   quotes: IQuote[];
-  payments: IPayment[];
+  sentPayments: ISentPayment[];
+  receivedPayments: IReceivedPayment[];
   destinationIlpAddress?: string;
   remoteUrl?: string;
+  peerId?: string;
 }
 
 export interface IWalletAddress {
@@ -121,6 +128,7 @@ export interface IPeer {
 export interface IPalService {
   getWalletAddresses(ids: string[]): Promise<IWalletAddress[]>;
   getPeerByIlpAddress(ilpAddress: string): Promise<IPeer | null>;
+  getPeerById(peerId: string): Promise<IPeer | null>;
   getRates(request: IFxRateRequest): Promise<number | null>;
 }
 
@@ -159,7 +167,9 @@ export type FinalizedRemoteQuoteUpdate =
 
 export interface IPaymentIntentRepository {
   storeMany(paymentIntents: IPaymentIntent[]): Promise<void>;
-  fetchByIds(ids: string[]): Promise<Omit<IPaymentIntent, 'payments'>[]>;
+  fetchByIds(
+    ids: string[]
+  ): Promise<Omit<IPaymentIntent, 'sentPayments' | 'receivedPayments'>[]>;
   fetchByIdsWithPayments(ids: string[]): Promise<IPaymentIntent[]>;
   fetchIdsByRemoteUrls(
     urls: string[]
@@ -167,8 +177,47 @@ export interface IPaymentIntentRepository {
   storeQuotes(
     quoteUpdates: { quoteIds: string[]; paymentIntent: IPaymentIntent }[]
   ): Promise<void>;
-  storePayments(
+  storeSentPayments(
     paymentUpdates: { paymentIds: string[]; paymentIntent: IPaymentIntent }[]
+  ): Promise<void>;
+  storeReceivedPayments(
+    receivedPaymentUpdates: {
+      receivedPaymentIds: string[];
+      paymentIntent: IPaymentIntent;
+    }[]
+  ): Promise<void>;
+  storeAcceptedReceivedPayments(
+    receivedPaymentUpdates: {
+      receivedPayments: {
+        id: string;
+        state: ReceivedPaymentState;
+        ledgerTransferId: string;
+      }[];
+    }[]
+  ): Promise<void>;
+  storeFailedReceivedPayments(
+    receivedPaymentUpdates: {
+      receivedPayments: {
+        id: string;
+        state: ReceivedPaymentState;
+        failReason?: string;
+      }[];
+    }[]
+  ): Promise<void>;
+  storeFulfillableReceivedPayments(
+    receivedPaymentUpdates: {
+      receivedPayments: { id: string; state: ReceivedPaymentState }[];
+    }[]
+  ): Promise<void>;
+  storeFinalizedReceivedPayments(
+    receivedPaymentUpdates: {
+      paymentIntent: {
+        id: string;
+        receivedAmount: bigint;
+        state: PaymentIntentState;
+      };
+      receivedPayments: { id: string; state: ReceivedPaymentState }[];
+    }[]
   ): Promise<void>;
   storeCompletedLocalPayments(
     paymentUpdates: {
@@ -177,14 +226,18 @@ export interface IPaymentIntentRepository {
         receivedAmount: bigint;
         state: PaymentIntentState;
       };
-      payments: { id: string; state: PaymentState; sentAmount: bigint }[];
+      sentPayments: {
+        id: string;
+        state: SentPaymentState;
+        sentAmount: bigint;
+      }[];
     }[]
   ): Promise<void>;
   storeCancelledPayments(
     paymentUpdates: {
-      payments: {
+      sentPayments: {
         id: string;
-        state: PaymentState;
+        state: SentPaymentState;
         cancelledAt: Date;
         cancelReason?: string;
       }[];
@@ -192,31 +245,39 @@ export interface IPaymentIntentRepository {
   ): Promise<void>;
   storeApprovedRemotePayments(
     paymentUpdates: {
-      payments: { id: string; state: PaymentState }[];
+      sentPayments: { id: string; state: SentPaymentState }[];
     }[]
   ): Promise<void>;
   storeSendingRemotePayments(
     paymentUpdates: {
-      payments: {
+      sentPayments: {
         id: string;
-        state: PaymentState;
+        state: SentPaymentState;
         ledgerTransferId: string;
       }[];
     }[]
   ): Promise<void>;
   storeFailedRemotePayments(
     paymentUpdates: {
-      payments: { id: string; state: PaymentState; failReason?: string }[];
+      sentPayments: {
+        id: string;
+        state: SentPaymentState;
+        failReason?: string;
+      }[];
     }[]
   ): Promise<void>;
   storeConfirmedRemotePayments(
     paymentUpdates: {
-      payments: { id: string; state: PaymentState }[];
+      sentPayments: { id: string; state: SentPaymentState }[];
     }[]
   ): Promise<void>;
   storeRejectedRemotePayments(
     paymentUpdates: {
-      payments: { id: string; state: PaymentState; failReason?: string }[];
+      sentPayments: {
+        id: string;
+        state: SentPaymentState;
+        failReason?: string;
+      }[];
     }[]
   ): Promise<void>;
   storeCompletedRemotePayments(
@@ -226,7 +287,11 @@ export interface IPaymentIntentRepository {
         receivedAmount: bigint;
         state: PaymentIntentState;
       };
-      payments: { id: string; state: PaymentState; sentAmount: bigint }[];
+      sentPayments: {
+        id: string;
+        state: SentPaymentState;
+        sentAmount: bigint;
+      }[];
     }[]
   ): Promise<void>;
   storeFinalizedRemoteQuotes(

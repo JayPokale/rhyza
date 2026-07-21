@@ -21,6 +21,7 @@ services:
       OPEN_PAYMENTS_URL: http://open-payments-resource-service-b:3002
       ILP_GRPC_URL: ilp-api-service-b:50053
       MONGODB_URL: mongodb://root:mongoPass@mongodb-b:27017
+      KAFKA_URL: kafka-b:19092
     ports:
       - '4001:3001'
     depends_on:
@@ -44,6 +45,8 @@ services:
       PAL_GRPC_URL: pal-api-service-b:50051
       PAYMENTS_GRPC_URL: payments-api-service-b:50052
       OPEN_PAYMENTS_RESOURCE_SERVER_URL: http://open-payments-resource-service-b:3002
+      STREAM_SERVER_SECRET: cmFmaWtpLXYyLWRldi1zdHJlYW0tc2VjcmV0LTAwMDE
+      ILP_ADDRESS: private.rafiki.b
     ports:
       - '4002:3002'
     depends_on:
@@ -206,9 +209,17 @@ services:
     restart: always
     environment:
       KAFKA_URL: kafka-b:19092
+      LOG_LEVEL: debug
+      REDIS_URL: redis-b:6379
+      ILP_CONNECTOR_HTTP_PORT: 4000
+      ILP_CONNECTOR_PUBLIC_URL: http://ilp-connector-service-b:4000
+    ports:
+      - '4100:4000'
     depends_on:
       init-kafka-b:
         condition: service_completed_successfully
+      redis-b:
+        condition: service_healthy
     networks:
       - rafiki-v2
   ase-mock-service-b:
@@ -221,7 +232,7 @@ services:
       PORT: 3000
       ADMIN_URL: http://admin-api-service-b:3001
     ports:
-      - '4000:3000'
+      - '4300:3000'
     depends_on:
       - admin-api-service-b
     networks:
@@ -234,7 +245,10 @@ services:
     restart: always
     environment:
       KAFKA_URL: kafka-b:19092
+      LOG_LEVEL: debug
       MONGODB_URL: mongodb://root:mongoPass@mongodb-b:27017
+      STREAM_SERVER_SECRET: cmFmaWtpLXYyLWRldi1zdHJlYW0tc2VjcmV0LTAwMDE
+      ILP_ADDRESS: private.rafiki.b
     depends_on:
       init-kafka-b:
         condition: service_completed_successfully
@@ -268,6 +282,7 @@ services:
     restart: always
     environment:
       KAFKA_URL: kafka-b:19092
+      LOG_LEVEL: debug
     depends_on:
       init-kafka-b:
         condition: service_completed_successfully

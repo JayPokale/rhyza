@@ -98,6 +98,34 @@ export abstract class LedgerDomainEvent extends DomainEvent {
   ): evt is LedgerIncomingTransferRejectedEvent {
     return evt.msgName === LedgerIncomingTransferRejectedEvent.name;
   }
+  static isLedgerCheckBalanceAndReserveOutgoingTransferFailedEvent(
+    evt: DomainEvent
+  ): evt is LedgerCheckBalanceAndReserveOutgoingTransferFailedEvent {
+    return (
+      evt.msgName ===
+      LedgerCheckBalanceAndReserveOutgoingTransferFailedEvent.name
+    );
+  }
+  static isLedgerOutgoingTransferCommitFailedEvent(
+    evt: DomainEvent
+  ): evt is LedgerOutgoingTransferCommitFailedEvent {
+    return evt.msgName === LedgerOutgoingTransferCommitFailedEvent.name;
+  }
+  static isLedgerOutgoingTransferRejectFailedEvent(
+    evt: DomainEvent
+  ): evt is LedgerOutgoingTransferRejectFailedEvent {
+    return evt.msgName === LedgerOutgoingTransferRejectFailedEvent.name;
+  }
+  static isLedgerIncomingReserveFailedEvent(
+    evt: DomainEvent
+  ): evt is LedgerIncomingReserveFailedEvent {
+    return evt.msgName === LedgerIncomingReserveFailedEvent.name;
+  }
+  static isLedgerIncomingTransferCommitFailedEvent(
+    evt: DomainEvent
+  ): evt is LedgerIncomingTransferCommitFailedEvent {
+    return evt.msgName === LedgerIncomingTransferCommitFailedEvent.name;
+  }
 }
 
 /*
@@ -257,6 +285,9 @@ export type LedgerTransferResponseEventPayload = {
   // for generic error handling (without dedicated error event)
   isError: boolean;
   errorMessage?: string;
+
+  paymentIntentId: string;
+  paymentId: string;
 };
 
 export class LedgerOutgoingTransferReservedEvent extends LedgerDomainEvent {
@@ -275,14 +306,22 @@ export class LedgerOutgoingTransferInsufficientFundsErrorEvent extends LedgerDom
   payload: LedgerTransferResponseEventPayload;
   isErrorEvent = true;
 
-  constructor(aggId: string, requestId: string, transactionId: string) {
+  constructor(
+    aggId: string,
+    requestId: string,
+    transactionId: string,
+    paymentIntentId: string,
+    paymentId: string
+  ) {
     super(aggId);
     this.msgKey = aggId;
     this.payload = {
       requestId: requestId,
       transferId: transactionId,
       isError: true,
-      errorMessage: 'Insufficient funds'
+      errorMessage: 'Insufficient funds',
+      paymentIntentId,
+      paymentId
     };
     this.requestId = requestId;
   }
@@ -313,3 +352,80 @@ export class LedgerOutgoingTransferRejectedEvent extends LedgerDomainEvent {
   }
 }
 export class LedgerIncomingTransferRejectedEvent extends LedgerOutgoingTransferRejectedEvent {}
+
+export type LedgerCheckBalanceAndReserveOutgoingTransferFailedEventPayload = {
+  requestId: string;
+  paymentIntentId: string;
+  paymentId: string;
+  errorMessage: string;
+};
+
+export class LedgerCheckBalanceAndReserveOutgoingTransferFailedEvent extends LedgerDomainEvent {
+  payload: LedgerCheckBalanceAndReserveOutgoingTransferFailedEventPayload;
+  isErrorEvent = true;
+
+  constructor(
+    aggId: string,
+    payload: LedgerCheckBalanceAndReserveOutgoingTransferFailedEventPayload
+  ) {
+    super(aggId);
+    this.msgKey = aggId;
+    this.payload = payload;
+    this.requestId = payload.requestId;
+  }
+}
+
+export class LedgerOutgoingTransferCommitFailedEvent extends LedgerDomainEvent {
+  payload: LedgerTransferResponseEventPayload;
+  isErrorEvent = true;
+
+  constructor(aggId: string, payload: LedgerTransferResponseEventPayload) {
+    super(aggId);
+    this.msgKey = aggId;
+    this.payload = payload;
+    this.requestId = payload.requestId;
+  }
+}
+
+export class LedgerOutgoingTransferRejectFailedEvent extends LedgerDomainEvent {
+  payload: LedgerTransferResponseEventPayload;
+  isErrorEvent = true;
+
+  constructor(aggId: string, payload: LedgerTransferResponseEventPayload) {
+    super(aggId);
+    this.msgKey = aggId;
+    this.payload = payload;
+    this.requestId = payload.requestId;
+  }
+}
+
+export type LedgerIncomingReserveFailedEventPayload = {
+  requestId: string;
+  paymentIntentId: string;
+  paymentId: string;
+  errorMessage: string;
+};
+
+export class LedgerIncomingReserveFailedEvent extends LedgerDomainEvent {
+  payload: LedgerIncomingReserveFailedEventPayload;
+  isErrorEvent = true;
+
+  constructor(aggId: string, payload: LedgerIncomingReserveFailedEventPayload) {
+    super(aggId);
+    this.msgKey = aggId;
+    this.payload = payload;
+    this.requestId = payload.requestId;
+  }
+}
+
+export class LedgerIncomingTransferCommitFailedEvent extends LedgerDomainEvent {
+  payload: LedgerTransferResponseEventPayload;
+  isErrorEvent = true;
+
+  constructor(aggId: string, payload: LedgerTransferResponseEventPayload) {
+    super(aggId);
+    this.msgKey = aggId;
+    this.payload = payload;
+    this.requestId = payload.requestId;
+  }
+}

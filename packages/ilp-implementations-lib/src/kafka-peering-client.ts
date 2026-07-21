@@ -1,7 +1,9 @@
 import { ILogger, ConsoleLogger, IMessageProducer } from 'common-types-lib';
 import {
+  DispatchFulfillPacketCmd,
   DispatchPreparePacketCmd,
   DispatchRejectPacketCmd,
+  FulfillDispatch,
   IPeeringClient,
   PacketDispatch,
   RejectDispatch
@@ -14,20 +16,20 @@ export class KafkaPeeringClient implements IPeeringClient {
   ) {}
 
   async dispatch(input: PacketDispatch): Promise<void> {
+    const isPayment = input.type === 'PAYMENT';
     const cmd = new DispatchPreparePacketCmd({
       peerId: input.peerId,
       packetId: input.packetId,
       paymentIntentId: input.paymentIntentId,
       destinationIlpAddress: input.destinationIlpAddress,
-      amount: input.type === 'QUOTE' ? input.sourceAmount : input.amount,
+      amount: isPayment ? input.amount : input.sourceAmount,
       expiresAt: input.expiresAt,
-      // A quote is an unfulfillable probe, so a random condition is correct (for now).
-      // TODO: once we have STREAM, the execution condition (and the
-      // packet `data`) for both quotes and payments will be produced by the
-      // aggregate and carried on the dispatch instead of added here.
-      executionCondition: Buffer.from(
-        crypto.getRandomValues(new Uint8Array(32))
-      ).toString('base64')
+      executionCondition: isPayment
+        ? input.executionCondition
+        : Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString(
+            'base64'
+          ),
+      data: isPayment ? input.data : undefined
     });
 
     this._logger.debug(
@@ -40,6 +42,7 @@ export class KafkaPeeringClient implements IPeeringClient {
     const cmd = new DispatchRejectPacketCmd({
       peerId: input.peerId,
       packetId: input.packetId,
+      replyHandle: input.replyHandle,
       rejectCode: input.rejectCode,
       rejectMessage: input.rejectMessage,
       triggeredBy: input.triggeredBy,
@@ -54,6 +57,21 @@ export class KafkaPeeringClient implements IPeeringClient {
 
     this._logger.debug(
       `Dispatching reject (${input.rejectCode}) for packet ${input.packetId} to peer ${input.peerId}`
+    );
+    await this._producer.send(cmd);
+  }
+
+  async dispatchFulfill(input: FulfillDispatch): Promise<void> {
+    const cmd = new DispatchFulfillPacketCmd({
+      peerId: input.peerId,
+      packetId: input.packetId,
+      replyHandle: input.replyHandle,
+      fulfillment: input.fulfillment,
+      data: input.data
+    });
+
+    this._logger.debug(
+      `Dispatching fulfill for packet ${input.packetId} to peer ${input.peerId}`
     );
     await this._producer.send(cmd);
   }

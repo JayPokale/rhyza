@@ -28,7 +28,8 @@ import {
   HealthCheckRequest,
   HealthCheckResponse,
   HealthService,
-  PaymentsGrpcService
+  PaymentsGrpcService,
+  PaymentIntentDomainEvent
 } from 'payments-public-types-lib';
 import { IPaymentIntentRepository } from 'payments-domain-lib';
 import {
@@ -42,8 +43,7 @@ import {
   CreateQuoteCmd,
   CreatePaymentCmd,
   ApprovePaymentCmd,
-  CancelPaymentCmd,
-  PaymentIntentDomainEvent
+  CancelPaymentCmd
 } from 'payments-domain-lib';
 
 const PUBLIC_TYPES_LIB_PATH = require.resolve('payments-public-types-lib');
@@ -352,7 +352,9 @@ export class PaymentsServiceServer {
         return;
       }
 
-      const payment = paymentIntent.payments.find((p) => p.id === paymentId);
+      const payment = paymentIntent.sentPayments.find(
+        (p) => p.id === paymentId
+      );
       if (!payment) {
         callback({
           code: grpc.status.NOT_FOUND,
@@ -472,6 +474,11 @@ export class PaymentsServiceServer {
         name: evt.payload.errorName || 'CommandError',
         metadata: new grpc.Metadata()
       });
+    } else if (PaymentIntentDomainEvent.isRemotePaymentSendApprovedEvent(evt)) {
+      const response = new ApprovePaymentResponse()
+        .setId(evt.payload.paymentId)
+        .setState(evt.payload.state);
+      this._resolvePendingResponse(pending, requestId, null, response);
     } else if (PaymentIntentDomainEvent.isPaymentCompletedEvent(evt)) {
       const response = new ApprovePaymentResponse()
         .setId(evt.payload.id)

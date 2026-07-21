@@ -1,9 +1,18 @@
-import { IPacketCorrelation, IPeer, IPeerRepository } from 'ilp-domain-lib';
+import {
+  IInboundPacketReplyHandle,
+  IPacketCorrelation,
+  IPeer,
+  IPeerRepository
+} from 'ilp-domain-lib';
 
 // TODO: Replace
 export class InMemoryPeerRepository implements IPeerRepository {
   private readonly _peers = new Map<string, IPeer>();
   private readonly _packets = new Map<string, IPacketCorrelation>();
+  private readonly _inboundReplyHandles = new Map<
+    string,
+    IInboundPacketReplyHandle
+  >();
 
   constructor(seedPeers: IPeer[] = []) {
     for (const peer of seedPeers) {
@@ -39,5 +48,21 @@ export class InMemoryPeerRepository implements IPeerRepository {
 
   async updatePacket(packet: IPacketCorrelation): Promise<void> {
     this._packets.set(packet.packetId, packet);
+  }
+
+  async fetchInboundReplyHandle(
+    packetId: string
+  ): Promise<IInboundPacketReplyHandle | undefined> {
+    return this._inboundReplyHandles.get(packetId);
+  }
+
+  async storeInboundReplyHandle(
+    handle: IInboundPacketReplyHandle
+  ): Promise<void> {
+    this._inboundReplyHandles.set(handle.packetId, handle);
+  }
+
+  async deleteInboundReplyHandle(packetId: string): Promise<void> {
+    this._inboundReplyHandles.delete(packetId);
   }
 }

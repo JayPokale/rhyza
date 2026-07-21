@@ -5,37 +5,46 @@ import {
   IMessageProducer
 } from 'common-types-lib';
 import {
-  ILPPaymentConfirmedEvent,
-  ILPPaymentFailedEvent,
-  ILPQuoteFailedEvent,
-  ILPQuoteReceivedEvent,
-  ILPQuoteRequestReceivedEvent
-} from 'ilp-domain-lib';
-import {
   CompleteRemoteQuoteCmd,
   FailRemoteQuoteCmd,
   PrepareRemotePaymentCmd,
   FailRemotePaymentCmd,
   ConfirmRemotePaymentCmd,
   RejectRemotePaymentCmd,
-  CompleteRemotePaymentCmd
+  CompleteRemotePaymentCmd,
+  ValidateReceivedPaymentCmd,
+  AcceptReceivedPaymentCmd,
+  FailReceivedPaymentCmd,
+  MarkReceivedPaymentFulfillableCmd,
+  FinalizeReceivedPaymentCmd,
+  CalculateRemoteQuoteCmd
 } from 'payments-domain-lib';
+import {
+  ILPPaymentConfirmedEvent,
+  ILPPaymentFailedEvent,
+  ILPPaymentFulfillmentFailedEvent,
+  ILPPaymentFulfillmentSentEvent,
+  ILPPaymentReceivedEvent,
+  ILPQuoteFailedEvent,
+  ILPQuoteReceivedEvent,
+  ILPQuoteRequestReceivedEvent
+} from 'ilp-domain-lib';
 import {
   LedgerOutgoingTransferReservedEvent,
   LedgerOutgoingTransferInsufficientFundsErrorEvent,
   LedgerOutgoingTransferCommittedEvent,
-  LedgerOutgoingTransferRejectedEvent
+  LedgerOutgoingTransferRejectedEvent,
+  LedgerIncomingTransferReservedEvent,
+  LedgerIncomingTransferInsufficientFundsErrorEvent,
+  LedgerIncomingTransferRejectedEvent,
+  LedgerIncomingTransferCommittedEvent,
+  LedgerTransferResponseEventPayload,
+  LedgerCheckBalanceAndReserveOutgoingTransferFailedEvent,
+  LedgerOutgoingTransferCommitFailedEvent,
+  LedgerOutgoingTransferRejectFailedEvent,
+  LedgerIncomingReserveFailedEvent,
+  LedgerIncomingTransferCommitFailedEvent
 } from 'pal-public-types-lib';
-
-// TODO: use pal event directly. It needs to be updated with paymentintentId and paymentId
-type LedgerTransferPayloadWithPaymentIds = {
-  requestId: string;
-  transferId: string;
-  isError?: boolean;
-  errorMessage?: string;
-  paymentIntentId: string;
-  paymentId: string;
-};
 
 export class PaymentsEventHandler {
   private _msgConsumer: IMessageConsumer;
@@ -102,27 +111,133 @@ export class PaymentsEventHandler {
         break;
       }
       case ILPQuoteRequestReceivedEvent.name: {
-        // TODO: ILP's ILPQuoteRequestReceivedPayload does
-        // not currently carry paymentIntentId / sourceAmount / peerAssetCode /
-        // peerAssetScale / requestId.
-        // const payload =
-        //   message.payload as ILPQuoteRequestReceivedEvent['payload'];
-        // const cmd = new CalculateRemoteQuoteCmd(
-        //   {
-        //     packetId: payload.packetId,
-        //     peerId: payload.peerId,
-        //     paymentIntentId: payload.paymentIntentId,
-        //     sourceAmount: payload.sourceAmount,
-        //     peerAssetCode: payload.peerAssetCode,
-        //     peerAssetScale: payload.peerAssetScale
-        //   },
-        //   payload.requestId
-        // );
-        // await this._msgProducer.send(cmd);
+        const payload =
+          message.payload as ILPQuoteRequestReceivedEvent['payload'];
+        const cmd = new CalculateRemoteQuoteCmd(
+          {
+            packetId: payload.packetId,
+            peerId: payload.peerId,
+            paymentIntentId: payload.paymentIntentId,
+            sourceAmount: payload.incomingAmount
+          },
+          crypto.randomUUID()
+        );
+        await this._msgProducer.send(cmd);
+        break;
+      }
+      case ILPPaymentReceivedEvent.name: {
+        const payload = message.payload as ILPPaymentReceivedEvent['payload'];
+        const cmd = new ValidateReceivedPaymentCmd(
+          {
+            id: crypto.randomUUID(),
+            paymentIntentId: payload.paymentIntentId,
+            packetId: payload.packetId,
+            peerId: payload.peerId,
+            sourceAmount: payload.sourceAmount
+          },
+          payload.requestId
+        );
+        await this._msgProducer.send(cmd);
+        break;
+      }
+      case LedgerIncomingTransferReservedEvent.name: {
+        // TODO: auto-accepting. Design calls for marking pending-acceptance,
+        // webhooking the ASE via Notifications, and the ASE accepting through
+        // the admin API.
+        const payload = message.payload as LedgerTransferResponseEventPayload;
+        const cmd = new AcceptReceivedPaymentCmd(
+          {
+            receivedPaymentId: payload.paymentId,
+            paymentIntentId: payload.paymentIntentId,
+            ledgerTransferId: payload.transferId
+          },
+          payload.requestId
+        );
+        await this._msgProducer.send(cmd);
+        break;
+      }
+      case LedgerIncomingTransferCommittedEvent.name: {
+        const payload = message.payload as LedgerTransferResponseEventPayload;
+        const cmd = new MarkReceivedPaymentFulfillableCmd(
+          {
+            receivedPaymentId: payload.paymentId,
+            paymentIntentId: payload.paymentIntentId
+          },
+          payload.requestId
+        );
+        await this._msgProducer.send(cmd);
+        break;
+      }
+      case ILPPaymentFulfillmentSentEvent.name: {
+        const payload =
+          message.payload as ILPPaymentFulfillmentSentEvent['payload'];
+        const cmd = new FinalizeReceivedPaymentCmd(
+          {
+            receivedPaymentId: payload.receivedPaymentId,
+            paymentIntentId: payload.paymentIntentId
+          },
+          payload.requestId
+        );
+        await this._msgProducer.send(cmd);
+        break;
+      }
+      case ILPPaymentFulfillmentFailedEvent.name: {
+        const payload =
+          message.payload as ILPPaymentFulfillmentFailedEvent['payload'];
+        const cmd = new FailReceivedPaymentCmd(
+          {
+            receivedPaymentId: payload.receivedPaymentId,
+            paymentIntentId: payload.paymentIntentId,
+            reason: payload.reason ?? 'ILP fulfillment failed'
+          },
+          payload.requestId
+        );
+        await this._msgProducer.send(cmd);
+        break;
+      }
+      case LedgerIncomingTransferInsufficientFundsErrorEvent.name:
+      case LedgerIncomingTransferRejectedEvent.name: {
+        const payload = message.payload as LedgerTransferResponseEventPayload;
+        const cmd = new FailReceivedPaymentCmd(
+          {
+            receivedPaymentId: payload.paymentId,
+            paymentIntentId: payload.paymentIntentId,
+            reason: payload.errorMessage ?? 'Ledger transfer failed'
+          },
+          payload.requestId
+        );
+        await this._msgProducer.send(cmd);
+        break;
+      }
+      case LedgerIncomingReserveFailedEvent.name: {
+        const payload =
+          message.payload as LedgerIncomingReserveFailedEvent['payload'];
+        const cmd = new FailReceivedPaymentCmd(
+          {
+            receivedPaymentId: payload.paymentId,
+            paymentIntentId: payload.paymentIntentId,
+            reason: payload.errorMessage
+          },
+          payload.requestId
+        );
+        await this._msgProducer.send(cmd);
+        break;
+      }
+      case LedgerIncomingTransferCommitFailedEvent.name: {
+        const payload = message.payload as LedgerTransferResponseEventPayload;
+        const cmd = new FailReceivedPaymentCmd(
+          {
+            receivedPaymentId: payload.paymentId,
+            paymentIntentId: payload.paymentIntentId,
+            reason: payload.errorMessage ?? 'Ledger commit failed'
+          },
+          payload.requestId
+        );
+        await this._msgProducer.send(cmd);
         break;
       }
       case LedgerOutgoingTransferReservedEvent.name: {
-        const payload = message.payload as LedgerTransferPayloadWithPaymentIds;
+        const payload = message.payload as LedgerTransferResponseEventPayload;
         const cmd = new PrepareRemotePaymentCmd(
           {
             paymentIntentId: payload.paymentIntentId,
@@ -135,12 +250,26 @@ export class PaymentsEventHandler {
         break;
       }
       case LedgerOutgoingTransferInsufficientFundsErrorEvent.name: {
-        const payload = message.payload as LedgerTransferPayloadWithPaymentIds;
+        const payload = message.payload as LedgerTransferResponseEventPayload;
         const cmd = new FailRemotePaymentCmd(
           {
             paymentIntentId: payload.paymentIntentId,
             paymentId: payload.paymentId,
             reason: payload.errorMessage ?? 'Insufficient funds'
+          },
+          payload.requestId
+        );
+        await this._msgProducer.send(cmd);
+        break;
+      }
+      case LedgerCheckBalanceAndReserveOutgoingTransferFailedEvent.name: {
+        const payload =
+          message.payload as LedgerCheckBalanceAndReserveOutgoingTransferFailedEvent['payload'];
+        const cmd = new FailRemotePaymentCmd(
+          {
+            paymentIntentId: payload.paymentIntentId,
+            paymentId: payload.paymentId,
+            reason: payload.errorMessage
           },
           payload.requestId
         );
@@ -173,7 +302,7 @@ export class PaymentsEventHandler {
         break;
       }
       case LedgerOutgoingTransferCommittedEvent.name: {
-        const payload = message.payload as LedgerTransferPayloadWithPaymentIds;
+        const payload = message.payload as LedgerTransferResponseEventPayload;
         const cmd = new CompleteRemotePaymentCmd(
           {
             paymentIntentId: payload.paymentIntentId,
@@ -185,7 +314,7 @@ export class PaymentsEventHandler {
         break;
       }
       case LedgerOutgoingTransferRejectedEvent.name: {
-        const payload = message.payload as LedgerTransferPayloadWithPaymentIds;
+        const payload = message.payload as LedgerTransferResponseEventPayload;
         const cmd = new FailRemotePaymentCmd(
           {
             paymentIntentId: payload.paymentIntentId,
@@ -195,6 +324,11 @@ export class PaymentsEventHandler {
           payload.requestId
         );
         await this._msgProducer.send(cmd);
+        break;
+      }
+      case LedgerOutgoingTransferCommitFailedEvent.name:
+      case LedgerOutgoingTransferRejectFailedEvent.name: {
+        // TODO: placeholder — commit/reject failed mid-flight; needs reconciliation.
         break;
       }
       default:

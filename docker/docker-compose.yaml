@@ -11,6 +11,7 @@ services:
       OPEN_PAYMENTS_URL: http://open-payments-resource-service:3002
       ILP_GRPC_URL: ilp-api-service:50053
       MONGODB_URL: mongodb://root:mongoPass@mongodb:27017
+      KAFKA_URL: kafka:19092
     ports:
       - '3001:3001'
     depends_on:
@@ -34,6 +35,8 @@ services:
       PAL_GRPC_URL: pal-api-service:50051
       PAYMENTS_GRPC_URL: payments-api-service:50052
       OPEN_PAYMENTS_RESOURCE_SERVER_URL: http://open-payments-resource-service:3002
+      STREAM_SERVER_SECRET: cmFmaWtpLXYyLWRldi1zdHJlYW0tc2VjcmV0LTAwMDE
+      ILP_ADDRESS: private.rafiki.a
     ports:
       - '3002:3002'
     depends_on:
@@ -196,9 +199,17 @@ services:
     restart: always
     environment:
       KAFKA_URL: kafka:19092
+      LOG_LEVEL: debug
+      REDIS_URL: redis:6379
+      ILP_CONNECTOR_HTTP_PORT: 4000
+      ILP_CONNECTOR_PUBLIC_URL: http://ilp-connector-service:4000
+    ports:
+      - '4000:4000'
     depends_on:
       init-kafka:
         condition: service_completed_successfully
+      redis:
+        condition: service_healthy
     networks:
       - rafiki-v2
   ase-mock-service:
@@ -224,7 +235,10 @@ services:
     restart: always
     environment:
       KAFKA_URL: kafka:19092
+      LOG_LEVEL: debug
       MONGODB_URL: mongodb://root:mongoPass@mongodb:27017
+      STREAM_SERVER_SECRET: cmFmaWtpLXYyLWRldi1zdHJlYW0tc2VjcmV0LTAwMDE
+      ILP_ADDRESS: private.rafiki.a
     depends_on:
       init-kafka:
         condition: service_completed_successfully
@@ -258,6 +272,7 @@ services:
     restart: always
     environment:
       KAFKA_URL: kafka:19092
+      LOG_LEVEL: debug
     depends_on:
       init-kafka:
         condition: service_completed_successfully
@@ -445,8 +460,6 @@ networks:
         - subnet: 10.5.1.0/24
 
 volumes:
-  tigerbeetle-data:
-  postgres-data:
   grafana-data:
   tempo-data:
   mongodb-data:

@@ -1,4 +1,5 @@
 apis/AssetsApi.ts
+apis/LiquidityApi.ts
 apis/PaymentIntentsApi.ts
 apis/PaymentsApi.ts
 apis/PeersApi.ts
@@ -12,6 +13,9 @@ docs/AssetCreateResponse.md
 docs/AssetsApi.md
 docs/CancelPayment200Response.md
 docs/ErrorResponse.md
+docs/LiquidityApi.md
+docs/LiquidityDeposit202Response.md
+docs/LiquidityDepositRequest.md
 docs/Payment.md
 docs/PaymentApprove.md
 docs/PaymentCancel.md
@@ -43,6 +47,8 @@ models/AssetCreate.ts
 models/AssetCreateResponse.ts
 models/CancelPayment200Response.ts
 models/ErrorResponse.ts
+models/LiquidityDeposit202Response.ts
+models/LiquidityDepositRequest.ts
 models/Payment.ts
 models/PaymentApprove.ts
 models/PaymentCancel.ts

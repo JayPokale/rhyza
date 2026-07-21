@@ -10,13 +10,20 @@ import {
   IMessageProducerAcks
 } from 'common-types-lib';
 import {
+  ActivatePeerCmd,
+  DeactivatePeerCmd,
+  FulfillInboundPaymentCmd,
   ILPQuoteRequestReceivedEvent,
-  RespondToRemoteQuoteCmd
+  RespondToRemoteQuoteCmd,
+  StartRemotePaymentCmd
 } from 'ilp-domain-lib';
 import {
   RemoteQuoteCalculatedEvent,
-  RemoteQuoteCalculationFailedEvent
-} from 'payments-domain-lib';
+  RemoteQuoteCalculationFailedEvent,
+  ReceivedPaymentFulfillableEvent,
+  RemotePaymentPreparedEvent
+} from 'payments-public-types-lib';
+import { PeerActivatedEvent, PeerDeactivatedEvent } from 'pal-public-types-lib';
 import { IlpEventHandler } from '../src/event-handler';
 import { FixedRateQuoteCalculator, PaymentsBcQuoteFixture } from './helpers';
 
@@ -58,7 +65,7 @@ const request = () =>
   new ILPQuoteRequestReceivedEvent({
     peerId: 'peer-1',
     packetId: 'packet-in-1',
-    destinationIlpAddress: 'g.us.alice',
+    paymentIntentId: 'intent-1',
     incomingAmount: '100',
     expiresAt: new Date().toISOString()
   });
@@ -116,6 +123,121 @@ describe('IlpEventHandler', () => {
     assert.equal(producer.sent.length, 1);
     const cmd = producer.sent[0] as RespondToRemoteQuoteCmd;
     assert.equal(cmd.payload.destinationAmount, undefined);
+  });
+
+  test('maps a RemotePaymentPreparedEvent to a StartRemotePaymentCmd with sharedSecret', async () => {
+    const producer = new MockProducer();
+    const consumer = new MockConsumer();
+    const handler = new IlpEventHandler(
+      consumer,
+      producer,
+      new ConsoleLogger()
+    );
+    await handler.start();
+
+    const sharedSecret = Buffer.alloc(32, 7).toString('base64url');
+    await consumer.deliver([
+      new RemotePaymentPreparedEvent({
+        paymentIntentId: 'intent-1',
+        paymentId: 'pay-1',
+        ledgerTransferId: 'xfer-1',
+        destinationIlpAddress: 'test.rafiki.token',
+        peerId: 'peer-1',
+        requestId: 'req-1',
+        debitAmount: '100',
+        receiveAmount: '100',
+        assetCode: 'USD',
+        assetScale: 2,
+        sharedSecret,
+        expiresAt: new Date(Date.now() + 30_000).toISOString()
+      })
+    ]);
+
+    assert.equal(producer.sent.length, 1);
+    const cmd = producer.sent[0] as StartRemotePaymentCmd;
+    assert.equal(cmd.msgName, StartRemotePaymentCmd.name);
+    assert.equal(cmd.msgTopic, 'ilp-commands');
+    assert.equal(cmd.payload.peerId, 'peer-1');
+    assert.equal(cmd.payload.paymentIntentId, 'intent-1');
+    assert.equal(cmd.payload.paymentId, 'pay-1');
+    assert.equal(cmd.payload.amount, '100');
+    assert.equal(cmd.payload.sharedSecret, sharedSecret);
+    assert.equal(cmd.requestId, 'req-1');
+  });
+
+  test('maps a ReceivedPaymentFulfillableEvent to a FulfillInboundPaymentCmd', async () => {
+    const producer = new MockProducer();
+    const consumer = new MockConsumer();
+    const handler = new IlpEventHandler(
+      consumer,
+      producer,
+      new ConsoleLogger()
+    );
+    await handler.start();
+
+    await consumer.deliver([
+      new ReceivedPaymentFulfillableEvent({
+        paymentIntentId: 'intent-1',
+        receivedPaymentId: 'rp-1',
+        packetId: 'packet-in-1',
+        peerId: 'peer-1',
+        requestId: 'req-1',
+        receiveAmount: '100',
+        receiveAssetCode: 'USD',
+        receiveAssetScale: 2,
+        state: 'FULFILLABLE'
+      })
+    ]);
+
+    assert.equal(producer.sent.length, 1);
+    const cmd = producer.sent[0] as FulfillInboundPaymentCmd;
+    assert.equal(cmd.msgName, FulfillInboundPaymentCmd.name);
+    assert.equal(cmd.msgTopic, 'ilp-commands');
+    assert.equal(cmd.msgKey, 'packet-in-1');
+    assert.equal(cmd.payload.receivedPaymentId, 'rp-1');
+    assert.equal(cmd.payload.paymentIntentId, 'intent-1');
+    assert.equal(cmd.requestId, 'req-1');
+  });
+
+  test('maps a PAL PeerActivatedEvent to an ActivatePeerCmd', async () => {
+    const producer = new MockProducer();
+    const consumer = new MockConsumer();
+    const handler = new IlpEventHandler(
+      consumer,
+      producer,
+      new ConsoleLogger()
+    );
+    await handler.start();
+
+    await consumer.deliver([new PeerActivatedEvent({ peerId: 'peer-1' })]);
+
+    assert.equal(producer.sent.length, 1);
+    const cmd = producer.sent[0] as ActivatePeerCmd;
+    assert.equal(cmd.msgName, ActivatePeerCmd.name);
+    assert.equal(cmd.msgTopic, 'ilp-commands');
+    assert.equal(cmd.msgKey, 'peer-1');
+    assert.equal(cmd.payload.peerId, 'peer-1');
+    assert.ok(cmd.requestId, 'expected a requestId to be propagated');
+  });
+
+  test('maps a PAL PeerDeactivatedEvent to a DeactivatePeerCmd', async () => {
+    const producer = new MockProducer();
+    const consumer = new MockConsumer();
+    const handler = new IlpEventHandler(
+      consumer,
+      producer,
+      new ConsoleLogger()
+    );
+    await handler.start();
+
+    await consumer.deliver([new PeerDeactivatedEvent({ peerId: 'peer-1' })]);
+
+    assert.equal(producer.sent.length, 1);
+    const cmd = producer.sent[0] as DeactivatePeerCmd;
+    assert.equal(cmd.msgName, DeactivatePeerCmd.name);
+    assert.equal(cmd.msgTopic, 'ilp-commands');
+    assert.equal(cmd.msgKey, 'peer-1');
+    assert.equal(cmd.payload.peerId, 'peer-1');
   });
 
   test('ignores unrelated Payments BC events', async () => {
@@ -188,7 +310,7 @@ describe('PaymentsBcQuoteFixture', () => {
       new ILPQuoteRequestReceivedEvent({
         peerId: 'peer-1',
         packetId: 'packet-in-1',
-        destinationIlpAddress: 'g.us.alice',
+        paymentIntentId: 'intent-1',
         incomingAmount: 'not-a-number',
         expiresAt: new Date().toISOString()
       })

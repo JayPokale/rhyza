@@ -50,6 +50,47 @@ export class UpdatePeerCmd extends CommandMsg {
   }
 }
 
+// Published by ilp-event-handler-service when it mirrors PAL's
+// PeerActivatedEvent/PeerDeactivatedEvent (PAL is the source of truth for
+// activation state).
+export interface ActivatePeerCmdPayload {
+  peerId: string;
+}
+
+export class ActivatePeerCmd extends CommandMsg {
+  contextName: string = BOUNDED_CONTEXT_NAME;
+  aggregateName: string = AGGREGATE_NAME;
+  msgKey: string;
+  msgTopic: string = CommandTopics.IlpCommands;
+  payload: ActivatePeerCmdPayload;
+
+  constructor(payload: ActivatePeerCmdPayload, requestId: string) {
+    super(payload.peerId);
+    this.requestId = requestId;
+    this.msgKey = payload.peerId;
+    this.payload = payload;
+  }
+}
+
+export interface DeactivatePeerCmdPayload {
+  peerId: string;
+}
+
+export class DeactivatePeerCmd extends CommandMsg {
+  contextName: string = BOUNDED_CONTEXT_NAME;
+  aggregateName: string = AGGREGATE_NAME;
+  msgKey: string;
+  msgTopic: string = CommandTopics.IlpCommands;
+  payload: DeactivatePeerCmdPayload;
+
+  constructor(payload: DeactivatePeerCmdPayload, requestId: string) {
+    super(payload.peerId);
+    this.requestId = requestId;
+    this.msgKey = payload.peerId;
+    this.payload = payload;
+  }
+}
+
 export interface StartRemoteQuoteCmdPayload {
   peerId: string;
   paymentIntentId: string;
@@ -84,6 +125,7 @@ export interface StartRemotePaymentCmdPayload {
   assetCode: string;
   assetScale: number;
   expiresAt: string;
+  sharedSecret: string;
 }
 
 export class StartRemotePaymentCmd extends CommandMsg {
@@ -121,12 +163,38 @@ export class RespondToRemoteQuoteCmd extends CommandMsg {
   }
 }
 
+export interface FulfillInboundPaymentCmdPayload {
+  peerId: string;
+  packetId: string;
+  paymentIntentId: string;
+  receivedPaymentId: string;
+  requestId: string;
+}
+
+// Payments BC: received payment is fulfillable - dispatch stored STREAM fulfillment.
+export class FulfillInboundPaymentCmd extends CommandMsg {
+  contextName: string = BOUNDED_CONTEXT_NAME;
+  aggregateName: string = AGGREGATE_NAME;
+  msgKey: string;
+  msgTopic: string = CommandTopics.IlpCommands;
+  payload: FulfillInboundPaymentCmdPayload;
+
+  constructor(payload: FulfillInboundPaymentCmdPayload) {
+    super(payload.peerId);
+    this.msgKey = payload.packetId;
+    this.payload = payload;
+    this.requestId = payload.requestId;
+  }
+}
+
 export interface ProcessPreparePacketCmdPayload {
   peerId: string;
   packetId: string;
   destinationIlpAddress: string;
   amount: string;
   expiresAt: string;
+  // Connector-issued id for the later fulfill/reject. Connector resolves it.
+  replyHandle: string;
   // base64-encoded 32-byte execution condition.
   executionCondition: string;
   // base64-encoded ILP packet data (opaque STREAM payload) - decoded by the
@@ -244,6 +312,7 @@ export class DispatchPreparePacketCmd extends CommandMsg {
 export interface DispatchFulfillPacketCmdPayload {
   peerId: string;
   packetId: string;
+  replyHandle: string;
   fulfillment: string;
   data?: string;
 }
@@ -265,6 +334,7 @@ export class DispatchFulfillPacketCmd extends CommandMsg {
 export interface DispatchRejectPacketCmdPayload {
   peerId: string;
   packetId: string;
+  replyHandle: string;
   rejectCode: string;
   rejectMessage?: string;
   triggeredBy?: string;

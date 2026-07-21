@@ -1,28 +1,29 @@
 'use strict';
 
-import { randomUUID } from 'crypto';
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { PalClient, parseAddressToDomainAndPathName } from 'pal-client-lib';
 import { PaymentsClient } from 'payments-client-lib';
-import { OpenPaymentsResourceServerRouteError } from '../errors';
-import { components } from '../types/generated/resource-server-types';
-import { IIlpClient } from '../stubs/ilp-client.js';
+import { OpenPaymentsResourceServerRouteError } from '../errors.js';
+import { components } from '../types/generated/resource-server-types.js';
+import { createStreamServer, generateStreamCredentials } from 'ilp-client-lib';
+import { randomUUID } from 'crypto';
+
+type StreamServer = ReturnType<typeof createStreamServer>;
 
 interface IncomingPaymentRouteOptions extends FastifyPluginOptions {
   palClient: PalClient;
   paymentsClient: PaymentsClient;
-  ilpClient: IIlpClient;
+  streamServer: StreamServer;
 }
 
 export async function incomingPaymentRoutes(
   server: FastifyInstance,
   opts: IncomingPaymentRouteOptions
 ): Promise<void> {
-  const { palClient, paymentsClient, ilpClient } = opts;
+  const { palClient, paymentsClient, streamServer } = opts;
 
   server.post<{
     Body: components['schemas']['create-incoming-payment-request'];
-    // Reply: components['schemas']['incoming-payment']
   }>(
     '/incoming-payments',
     {
@@ -111,8 +112,14 @@ export async function incomingPaymentRoutes(
       );
     }
 
+    const streamCredentials = generateStreamCredentials(streamServer, {
+      paymentIntentId: paymentIntent.id,
+      assetCode: paymentIntent.assetCode,
+      assetScale: paymentIntent.assetScale
+    });
+
     const response: components['schemas']['incoming-payment'] & {
-      destinationIlpAddress?: string;
+      destinationIlpAddress: string;
       sharedSecret: string;
     } = {
       id: paymentIntent.id,
@@ -125,7 +132,8 @@ export async function incomingPaymentRoutes(
         assetCode: paymentIntent.assetCode,
         assetScale: paymentIntent.assetScale
       },
-      sharedSecret: await ilpClient.generateStreamCredentials()
+      sharedSecret: streamCredentials.sharedSecret,
+      destinationIlpAddress: streamCredentials.ilpAddress
     };
 
     if (paymentIntent.incomingAmount != null) {
@@ -138,10 +146,6 @@ export async function incomingPaymentRoutes(
 
     if (paymentIntent.expiresAt) {
       response.expiresAt = paymentIntent.expiresAt;
-    }
-
-    if (paymentIntent.destinationIlpAddress) {
-      response.destinationIlpAddress = paymentIntent.destinationIlpAddress;
     }
 
     return reply.status(200).send(response);

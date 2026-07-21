@@ -10,7 +10,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "common-types-lib": "workspace:*"
+    "@interledger/stream-receiver": "0.3.3-alpha.4",
+    "common-types-lib": "workspace:*",
+    "ilp-protocol-stream": "2.7.2-alpha.3"
   },
   "devDependencies": {
     "tsx": "^4.19.3"

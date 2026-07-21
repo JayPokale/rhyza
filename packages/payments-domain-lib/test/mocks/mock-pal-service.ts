@@ -7,9 +7,14 @@ import {
 
 export class MockPalService implements IPalService {
   private _walletAddresses: Map<string, IWalletAddress> = new Map();
+  private _peersById: Map<string, IPeer> = new Map();
 
   addWalletAddress(wallet: IWalletAddress): void {
     this._walletAddresses.set(wallet.id, wallet);
+  }
+
+  setPeerById(peer: IPeer): void {
+    this._peersById.set(peer.peerId, peer);
   }
 
   async getWalletAddresses(ids: string[]): Promise<IWalletAddress[]> {
@@ -24,6 +29,12 @@ export class MockPalService implements IPalService {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async getPeerByIlpAddress(_ilpAddress: string): Promise<IPeer | null> {
     return { peerId: 'peer-1', assetCode: 'USD', assetScale: 2 };
+  }
+
+  async getPeerById(peerId: string): Promise<IPeer | null> {
+    return (
+      this._peersById.get(peerId) ?? { peerId, assetCode: 'USD', assetScale: 2 }
+    );
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars

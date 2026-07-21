@@ -29,7 +29,8 @@ export class NotificationsCommandHandlerService {
 
     const aggregate = new NotificationAggregate(
       this.repo,
-      notificationSenderService
+      notificationSenderService,
+      new PinoLogger()
     );
 
     const kafkaBuilder = new KafkaBuilder()
