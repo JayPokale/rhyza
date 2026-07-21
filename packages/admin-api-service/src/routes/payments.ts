@@ -4,7 +4,14 @@ import { randomUUID } from 'crypto';
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { PalClient, parseAddressToDomainAndPathName } from 'pal-client-lib';
 import { PaymentsClient, PaymentNotFoundError } from 'payments-client-lib';
-import type { components, operations } from '../types/generated/openapi.js';
+import {
+  ApprovePaymentRequest,
+  CancelPaymentRequest,
+  GetPaymentRequest,
+  PaymentApprove,
+  PaymentCancel,
+  PaymentCreate
+} from 'admin-client-lib';
 
 interface PaymentRouteOptions extends FastifyPluginOptions {
   palClient: PalClient;
@@ -18,7 +25,7 @@ export async function paymentRoutes(
   const { palClient, paymentsClient } = opts;
 
   server.post<{
-    Body: components['schemas']['PaymentCreate'];
+    Body: PaymentCreate;
   }>('/payments', async (request, reply) => {
     const { walletAddress, paymentIntentId, quoteId, debitAmount } =
       request.body;
@@ -46,7 +53,7 @@ export async function paymentRoutes(
   });
 
   server.get<{
-    Params: operations['getPayment']['parameters']['path'];
+    Params: GetPaymentRequest;
   }>('/payments/:id/payment-intents/:intentId', async (request, reply) => {
     const { intentId, id } = request.params;
 
@@ -74,8 +81,8 @@ export async function paymentRoutes(
   });
 
   server.post<{
-    Params: operations['approvePayment']['parameters']['path'];
-    Body: components['schemas']['PaymentApprove'];
+    Params: ApprovePaymentRequest;
+    Body: PaymentApprove;
   }>('/payments/:id/approve', async (request, reply) => {
     const { id } = request.params;
     const { intentId } = request.body ?? {};
@@ -90,8 +97,8 @@ export async function paymentRoutes(
   });
 
   server.post<{
-    Params: operations['cancelPayment']['parameters']['path'];
-    Body: components['schemas']['PaymentCancel'];
+    Params: CancelPaymentRequest;
+    Body: PaymentCancel;
   }>('/payments/:id/cancel', async (request, reply) => {
     const { id } = request.params;
     const { intentId, reason } = request.body ?? {};

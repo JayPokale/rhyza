@@ -2,7 +2,7 @@
 
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { PalClient, parseAddressToDomainAndPathName } from 'pal-client-lib';
-import type { components } from '../types/generated/openapi.js';
+import { WalletAddressCreate } from 'admin-client-lib';
 
 interface WalletAddressRouteOptions extends FastifyPluginOptions {
   palClient: PalClient;
@@ -15,7 +15,7 @@ export async function walletAddressRoutes(
   const { palClient } = opts;
 
   server.post<{
-    Body: components['schemas']['WalletAddressCreate'];
+    Body: WalletAddressCreate;
   }>('/wallet-addresses', async (request, reply) => {
     const { address, publicName, assetCode, isActive } = request.body;
 

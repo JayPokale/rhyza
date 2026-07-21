@@ -44,7 +44,6 @@ dist
 **/src/proto_generated/
 **/src/types/generated/*
 !packages/admin-api-service/src/types/generated/openapi.d.ts
-packages/admin-client-lib/src/generated
 .agents
 
 # Docs

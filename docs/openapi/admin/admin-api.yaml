@@ -3,7 +3,7 @@
 openapi: 3.1.0
 info:
   title: Rafiki Admin API
-  version: 0.0.1
+  version: 0.0.0
   license:
     name: ISC
     identifier: ISC
@@ -71,7 +71,8 @@ paths:
       parameters: []
       responses:
         '201':
-          description: The request has succeeded and an asset has been created as a result.
+          description: >-
+            The request has succeeded and an asset has been created as a result.
           content:
             application/json:
               schema:
@@ -268,10 +269,7 @@ paths:
                     type: string
                     description: Unique identifier of the approved payment
                   state:
-                    type: string
-                    enum:
-                      - COMPLETED
-                      - FAILED
+                    $ref: '#/components/schemas/PaymentState'
                 additionalProperties: false
   /payments/{id}/cancel:
     post:
@@ -539,7 +537,7 @@ components:
           type: string
           description: The unique identifier for the payment intent.
         state:
-          type: string
+          $ref: '#/components/schemas/PaymentIntentState'
           description: The current status of the payment intent.
         destination:
           type: string
@@ -693,7 +691,7 @@ components:
           type: string
           description: Unique identifier for the payment.
         state:
-          type: string
+          $ref: '#/components/schemas/PaymentState'
           description: The current state of the payment.
         senderWalletAddress:
           type: string
@@ -716,3 +714,19 @@ components:
         sentAmount:
           type: string
           description: The total amount sent so far.
+    PaymentIntentState:
+      type: string
+      enum:
+        - CREATED
+        - COMPLETED
+    PaymentState:
+      type: string
+      enum:
+        - CREATED
+        - PROCESSING
+        - SENDING
+        - CONFIRMED
+        - REJECTED
+        - COMPLETED
+        - CANCELLED
+        - FAILED

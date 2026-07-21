@@ -1,19 +1,20 @@
 {
   "name": "admin-api-service",
   "main": "dist/index.js",
+  "version": "0.0.1",
   "types": "dist/index.d.ts",
+  "type": "module",
   "scripts": {
     "start": "node dist/index.js",
     "dev": "node --import tsx src/index.ts",
-    "prebuild": "pnpm run generate:types",
     "build": "tsc --build",
-    "lint:openapi": "redocly lint openapi.yaml --lint-config error --format=stylish",
-    "generate:types": "openapi-typescript openapi.yaml -o src/types/generated/openapi.d.ts"
+    "lint:openapi": "redocly lint ../../docs/openapi/admin/admin-api.yaml --lint-config error --format=stylish"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "admin-client-lib": "workspace:*",
     "fastify": "~5.3.3",
     "ilp-client-lib": "workspace:*",
     "implementations-lib": "workspace:*",

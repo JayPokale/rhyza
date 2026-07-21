@@ -1,0 +1,58 @@
+name: OpenAPI Changelog Generator
+
+on:
+  pull_request:
+    paths:
+      - 'docs/openapi/admin-api/admin/openapi.yaml'
+
+jobs:
+  update-changelog:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Required to commit back to the PR branch
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.head_ref }}
+
+      - name: Install oasdiff
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/Tufin/oasdiff/main/install.sh | sh -s -- -b /usr/local/bin
+
+      - name: Fetch Base Branch
+        run: git fetch origin ${{ github.base_ref }}
+
+      - name: Generate OpenAPI Changelog
+        # TODO: Fix the path of the admin openapi file on origin after merge
+        run: |
+          git show origin/${{ github.base_ref }}:docs/openapi/admin-api.yaml > old-openapi.yaml
+          oasdiff changelog old-openapi.yaml docs/openapi/admin/admin-api.yaml > oasdiff-changes.txt
+
+      - name: Rebuild CHANGELOG.md from Main
+        run: |
+          if [ ! -s oasdiff-changes.txt ]; then
+            echo "No meaningful OpenAPI changes detected. Exiting."
+            exit 0
+          fi
+
+          # 1. Create the new entry block
+          echo "## OpenAPI Update - $(date +'%Y-%m-%d')" > new-changelog.md
+          echo "" >> new-changelog.md
+          cat oasdiff-changes.txt >> new-changelog.md
+          echo "" >> new-changelog.md
+
+          # 2. Append the clean CHANGELOG.md directly from the target branch (e.g., main)
+          # The "|| true" prevents failure if the changelog doesn't exist on main yet
+          git show origin/${{ github.base_ref }}:docs/openapi/admin/CHANGELOG.md >> new-changelog.md || true
+
+          # 3. Overwrite the PR's current changelog with the rebuilt version
+          mv new-changelog.md docs/openapi/admin/CHANGELOG.md
+
+      - name: Commit back to PR
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: 'docs: rebuild CHANGELOG.md from main'
+          file_pattern: 'CHANGELOG.md'

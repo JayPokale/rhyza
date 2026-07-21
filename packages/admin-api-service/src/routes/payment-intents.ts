@@ -1,5 +1,6 @@
 'use strict';
 
+import { GetPaymentIntentRequest, PaymentIntentCreate } from 'admin-client-lib';
 import { randomUUID } from 'crypto';
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { PalClient, parseAddressToDomainAndPathName } from 'pal-client-lib';
@@ -7,7 +8,6 @@ import {
   PaymentsClient,
   PaymentIntentNotFoundError
 } from 'payments-client-lib';
-import type { components, operations } from '../types/generated/openapi.js';
 
 interface PaymentIntentRouteOptions extends FastifyPluginOptions {
   palClient: PalClient;
@@ -22,7 +22,7 @@ export async function paymentIntentRoutes(
   const { palClient, paymentsClient, openPaymentsUrl } = opts;
 
   server.post<{
-    Body: components['schemas']['PaymentIntentCreate'];
+    Body: PaymentIntentCreate;
   }>('/payment-intents', async (request, reply) => {
     const { walletAddress, incomingAmount, expiresAt, metadata } = request.body;
 
@@ -43,7 +43,7 @@ export async function paymentIntentRoutes(
       alias.walletAddressId,
       walletAddress,
       incomingAmount ? Number(incomingAmount) : undefined,
-      expiresAt,
+      expiresAt?.toISOString(),
       metadata
     );
 
@@ -59,7 +59,7 @@ export async function paymentIntentRoutes(
   });
 
   server.get<{
-    Params: operations['getPaymentIntent']['parameters']['path'];
+    Params: GetPaymentIntentRequest;
   }>('/payment-intents/:id', async (request, reply) => {
     const { id } = request.params;
 
