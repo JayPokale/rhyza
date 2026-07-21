@@ -14,7 +14,10 @@ import { AuthCommandHandler } from './cmd-handler';
 import process from 'process';
 import crypto from 'crypto';
 
-const INSTANCE_ID = `AUTH_CMD_HANDLER_SVC_${crypto.randomUUID()}`;
+const BC_NAME = 'AUTH';
+const APP_NAME = `${BC_NAME}_CMD_HANDER_SVC`
+const INSTANCE_ID = `${APP_NAME}_${crypto.randomUUID()}`;
+
 const KAFKA_URL = process.env['KAFKA_URL'] || 'localhost:9092';
 const MONGODB_URL = process.env['MONGODB_URL'] || 'mongodb://localhost:27017';
 const CONSUMER_BATCH_SIZE =
@@ -33,17 +36,21 @@ export class AuthCommandHandlerService {
   private static repo: MongoDbGrantRepo;
 
   static async start(): Promise<void> {
-    const logger = new PinoLogger({ service: 'auth-command-handler' });
+    const logger = new PinoLogger({
+      bcName: BC_NAME,
+      appName: APP_NAME,
+      instanceId: INSTANCE_ID
+    });
 
     const kafkaBuilder = new KafkaBuilder()
-      .withLogger(logger.child({ component: 'kafka' }))
+      .withLogger(logger.child('kafka'))
       .withBrokerList(KAFKA_URL)
       .withClientId(INSTANCE_ID)
       .withSerializerFactory(MessageSerializationFactory.instance());
 
     this.repo = new MongoDbGrantRepo(
       MONGODB_URL,
-      logger.child({ component: 'grant-repo' })
+      logger.child('grant-repo')
     );
     await this.repo.init();
 
@@ -64,7 +71,7 @@ export class AuthCommandHandlerService {
       this.msgConsumer,
       this.msgProducer,
       aggregate,
-      logger.child({ component: 'command-handler' })
+      logger.child('command-handler')
     );
     await this.commandHandler.start();
   }
