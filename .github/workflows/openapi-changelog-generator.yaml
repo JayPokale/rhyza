@@ -9,7 +9,7 @@ jobs:
   update-changelog:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Required to commit back to the PR branch
+      contents: write
 
     steps:
       - name: Checkout PR branch
@@ -38,17 +38,13 @@ jobs:
             exit 0
           fi
 
-          # 1. Create the new entry block
           echo "## OpenAPI Update - $(date +'%Y-%m-%d')" > new-changelog.md
           echo "" >> new-changelog.md
           cat oasdiff-changes.txt >> new-changelog.md
           echo "" >> new-changelog.md
 
-          # 2. Append the clean CHANGELOG.md directly from the target branch (e.g., main)
-          # The "|| true" prevents failure if the changelog doesn't exist on main yet
-          git show origin/${{ github.base_ref }}:docs/openapi/admin/CHANGELOG.md >> new-changelog.md || true
+          git show origin/${{ github.base_ref }}:docs/openapi/admin/CHANGELOG.md 2>/dev/null >> new-changelog.md || true
 
-          # 3. Overwrite the PR's current changelog with the rebuilt version
           mv new-changelog.md docs/openapi/admin/CHANGELOG.md
 
       - name: Commit back to PR
