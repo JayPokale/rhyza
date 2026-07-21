@@ -3,7 +3,7 @@ name: OpenAPI Changelog Generator
 on:
   pull_request:
     paths:
-      - 'docs/openapi/admin-api/admin/openapi.yaml'
+      - 'docs/openapi/admin/admin-api.yaml'
 
 jobs:
   update-changelog:
