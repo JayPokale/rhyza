@@ -1,4 +1,4 @@
-## OpenAPI Update - 2026-07-21
+## OpenAPI Update - 2026-07-22
 
 15 changes: 3 error, 2 warning, 10 info
 error	[api-path-removed-without-deprecation] at old-openapi.yaml
