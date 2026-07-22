@@ -120,6 +120,20 @@ export class CreatePaymentIntentCmd extends PaymentIntentCommand {
   }
 }
 
+export type CompletePaymentIntentCmdPayload = {
+  id: string;
+};
+
+export class CompletePaymentIntentCmd extends PaymentIntentCommand {
+  payload: CompletePaymentIntentCmdPayload;
+
+  constructor(payload: CompletePaymentIntentCmdPayload, requestId: string) {
+    super(payload.id);
+    this.requestId = requestId;
+    this.payload = payload;
+  }
+}
+
 export type CreateQuoteCmdPayload = {
   id: string;
   paymentIntentId: string;

@@ -236,6 +236,10 @@ importers:
         version: 4.19.3
 
   packages/common-types-lib:
+    dependencies:
+      '@grpc/grpc-js':
+        specifier: ~1.14.3
+        version: 1.14.3
     devDependencies:
       tsx:
         specifier: ^4.19.3

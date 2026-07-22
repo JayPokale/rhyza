@@ -128,4 +128,19 @@ export async function paymentIntentRoutes(
       return reply.status(200).send(response);
     }
   );
+
+  server.post<{
+    Params: { intentId: string; id: string };
+    Body: { reason?: string };
+  }>('/payment-intents/:id/complete', async (request, reply) => {
+    const { id } = request.params;
+
+    try {
+      const result = await paymentsClient.completePaymentIntent(id);
+      return reply.status(200).send({ id, state: result.state });
+    } catch (err) {
+      server.log.error(err);
+      return reply.status(500).send({ error: (err as Error).message });
+    }
+  });
 }

@@ -18,6 +18,7 @@ import {
 import { PaymentIntent } from './entity';
 import {
   CreatePaymentIntentCmd,
+  CompletePaymentIntentCmd,
   CreateQuoteCmd,
   CreatePaymentCmd,
   ApprovePaymentCmd,
@@ -61,6 +62,7 @@ import {
   RemoteQuoteCalculatedEvent,
   RemoteQuoteCalculationFailedEvent,
   PaymentIntentCompletedEvent,
+  PaymentIntentCompleteFailedEvent,
   PaymentCancelFailedEvent,
   PaymentCancelledEvent,
   RemotePaymentSendApprovedEvent,
@@ -87,6 +89,7 @@ const intraFxKey = (sourceAssetCode: string, destinationAssetCode: string) =>
 
 export class PaymentIntentAggregate {
   private newPaymentIntentIds: string[] = [];
+  private completedPaymentIntentIds: string[] = [];
   private newPaymentIntentQuotes = new Map<string, string[]>(); // paymentIntentId, quoteIds
   private newSentPaymentsMap = new Map<string, string[]>(); // paymentIntentId, paymentIds
   private completedLocalPayments = new Map<string, string[]>(); // paymentIntentId, paymentIds
@@ -132,6 +135,9 @@ export class PaymentIntentAggregate {
       if (cmd.msgName === CreatePaymentIntentCmd.name) {
         const payload = (cmd as CreatePaymentIntentCmd).payload;
         walletAddressIdSet.add(payload.receiverWalletAddressId);
+        paymentIntentIdsSet.add(payload.id);
+      } else if (cmd.msgName === CompletePaymentIntentCmd.name) {
+        const payload = (cmd as CompletePaymentIntentCmd).payload;
         paymentIntentIdsSet.add(payload.id);
       } else if (cmd.msgName === CreateQuoteCmd.name) {
         const payload = (cmd as CreateQuoteCmd).payload;
@@ -309,6 +315,10 @@ export class PaymentIntentAggregate {
         event = this.handleCreatePaymentIntentCommand(
           cmd as CreatePaymentIntentCmd
         );
+      } else if (cmd.msgName === CompletePaymentIntentCmd.name) {
+        event = this.handleCompletePaymentIntentCommand(
+          cmd as CompletePaymentIntentCmd
+        );
       } else if (cmd.msgName === CreateQuoteCmd.name) {
         event = await this.handleCreateQuoteCommand(cmd as CreateQuoteCmd);
       } else if (cmd.msgName === CreatePaymentCmd.name) {
@@ -463,6 +473,50 @@ export class PaymentIntentAggregate {
       );
 
       return event;
+    }
+  }
+
+  private handleCompletePaymentIntentCommand(cmd: CompletePaymentIntentCmd) {
+    this._logger.debug(
+      `handleCompletePaymentIntentCommand — paymentIntentId: ${cmd.payload.id}`
+    );
+    const { id: paymentIntentId } = cmd.payload;
+
+    try {
+      const paymentIntentObj = this.paymentIntentMap.get(paymentIntentId);
+      if (!paymentIntentObj) {
+        throw new PaymentIntentNotFoundError(
+          `Payment intent ${paymentIntentId} not found`
+        );
+      }
+
+      const paymentIntent = PaymentIntent.fromObject(paymentIntentObj);
+      paymentIntent.complete();
+      this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
+      this.completedPaymentIntentIds.push(paymentIntent.id);
+
+      return new PaymentIntentCompletedEvent(
+        {
+          id: paymentIntent.id,
+          createdAt: paymentIntent.createdAt,
+          expiresAt: paymentIntent.expiresAt,
+          receivedAmount: String(paymentIntent.receivedAmount),
+          incomingAmount: String(paymentIntent.incomingAmount),
+          state: paymentIntent.state,
+          assetCode: paymentIntent.assetCode,
+          assetScale: paymentIntent.assetScale
+        },
+        cmd.requestId
+      );
+    } catch (err) {
+      return new PaymentIntentCompleteFailedEvent(
+        {
+          id: cmd.payload.id,
+          errorName: (err as Error).constructor.name,
+          message: (err as Error).message
+        },
+        cmd.requestId
+      );
     }
   }
 
@@ -2032,6 +2086,26 @@ export class PaymentIntentAggregate {
       promises.push(this._repo.storeMany(newEntities));
     }
 
+    if (this.completedPaymentIntentIds.length > 0) {
+      const completedEntities: { id: string; state: PaymentIntentState }[] = [];
+      for (const id of this.completedPaymentIntentIds) {
+        const paymentIntent = this.paymentIntentMap.get(id);
+        if (!paymentIntent) {
+          this._logger.error(
+            `Payment intent ${id} missing from paymentIntentMap during flush (completed payment intents)`
+          );
+          continue;
+        }
+
+        completedEntities.push({
+          id: paymentIntent.id,
+          state: paymentIntent.state
+        });
+      }
+
+      promises.push(this._repo.storeCompletedPaymentIntents(completedEntities));
+    }
+
     if (this.newPaymentIntentQuotes.size > 0) {
       const updates: {
         paymentIntent: IPaymentIntent;
@@ -2596,6 +2670,7 @@ export class PaymentIntentAggregate {
       this.finalizedRemoteQuotes.clear();
       this.newPaymentIntentQuotes.clear();
       this.newPaymentIntentIds = [];
+      this.completedPaymentIntentIds = [];
       this.remotePaymentIntentFetchErrors.clear();
       this.peerMap.clear();
       this.peerFetchErrors.clear();

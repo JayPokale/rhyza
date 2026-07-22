@@ -26,6 +26,18 @@ export abstract class PaymentIntentDomainEvent extends DomainEvent {
     return evt.msgName === PaymentIntentCreateFailedEvent.name;
   }
 
+  static isPaymentIntentCompletedEvent(
+    evt: DomainEvent
+  ): evt is PaymentIntentCompletedEvent {
+    return evt.msgName === PaymentIntentCompletedEvent.name;
+  }
+
+  static isPaymentIntentCompleteFailedEvent(
+    evt: DomainEvent
+  ): evt is PaymentIntentCompleteFailedEvent {
+    return evt.msgName === PaymentIntentCompleteFailedEvent.name;
+  }
+
   static isQuoteCompletedEvent(evt: DomainEvent): evt is QuoteCompletedEvent {
     return evt.msgName === QuoteCompletedEvent.name;
   }
@@ -208,6 +220,23 @@ export class PaymentIntentCompletedEvent extends PaymentIntentDomainEvent {
   payload: PaymentIntentCompletedPayload;
 
   constructor(payload: PaymentIntentCompletedPayload, requestId?: string) {
+    super(payload.id);
+    this.payload = payload;
+    this.requestId = requestId;
+  }
+}
+
+export type PaymentIntentCompleteFailedPayload = {
+  id: string;
+  errorName: string;
+  message: string;
+};
+
+export class PaymentIntentCompleteFailedEvent extends PaymentIntentDomainEvent {
+  payload: PaymentIntentCompleteFailedPayload;
+  isErrorEvent = true;
+
+  constructor(payload: PaymentIntentCompleteFailedPayload, requestId?: string) {
     super(payload.id);
     this.payload = payload;
     this.requestId = requestId;

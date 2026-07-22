@@ -7,6 +7,7 @@ import {
 } from 'common-types-lib';
 import {
   CreatePaymentIntentCmd,
+  CompletePaymentIntentCmd,
   CreateQuoteCmd,
   CreatePaymentCmd,
   PaymentIntentAggregate,
@@ -64,6 +65,9 @@ export class PaymentsCommandHandler {
     for (const msg of messages) {
       switch (msg.msgName) {
         case CreatePaymentIntentCmd.name:
+          commandMessages.push(msg);
+          break;
+        case CompletePaymentIntentCmd.name:
           commandMessages.push(msg);
           break;
         case CreateQuoteCmd.name:

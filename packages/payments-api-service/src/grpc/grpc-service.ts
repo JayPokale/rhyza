@@ -13,6 +13,8 @@ import {
 import {
   CreatePaymentIntentRequest,
   CreatePaymentIntentResponse,
+  CompletePaymentIntentRequest,
+  CompletePaymentIntentResponse,
   CreateQuoteRequest,
   CreateQuoteResponse,
   CreatePaymentRequest,
@@ -40,6 +42,7 @@ import {
 } from 'common-types-lib';
 import {
   CreatePaymentIntentCmd,
+  CompletePaymentIntentCmd,
   CreateQuoteCmd,
   CreatePaymentCmd,
   ApprovePaymentCmd,
@@ -217,6 +220,23 @@ export class PaymentsServiceServer {
         commandId
       );
       await this._msgProducer.send(cmd);
+    } else if (call.request instanceof CompletePaymentIntentRequest) {
+      const commandId = call.request.getId();
+      if (!PaymentsServiceServer.UUID_REGEX.test(commandId)) {
+        callback({
+          code: grpc.status.INVALID_ARGUMENT,
+          message: 'id must be a valid UUID'
+        });
+        return;
+      }
+      this._storePendingResponse(commandId, call, callback);
+      const cmd = new CompletePaymentIntentCmd(
+        {
+          id: commandId
+        },
+        commandId
+      );
+      await this._msgProducer.send(cmd);
     } else if (call.request instanceof CreateQuoteRequest) {
       const commandId = call.request.getId();
       if (!PaymentsServiceServer.UUID_REGEX.test(commandId)) {
@@ -311,7 +331,7 @@ export class PaymentsServiceServer {
 
       const response = new GetPaymentIntentResponse();
       response.setId(paymentIntent.id);
-      response.setWalletAddress(paymentIntent.receiverWalletAddress);
+      response.setReceiverWalletAddress(paymentIntent.receiverWalletAddress);
       response.setState(paymentIntent.state);
       response.setDestination(paymentIntent.destination);
       response.setReceivedAmount(Number(paymentIntent.receivedAmount));
@@ -437,6 +457,21 @@ export class PaymentsServiceServer {
       const response = new CreatePaymentIntentResponse().setId(evt.payload.id);
       this._resolvePendingResponse(pending, requestId, null, response);
     } else if (PaymentIntentDomainEvent.isPaymentIntentCreateFailedEvent(evt)) {
+      this._resolvePendingResponse(pending, requestId, {
+        code: grpc.status.INTERNAL,
+        message: evt.payload.message || 'Command processing failed',
+        details: evt.payload.message,
+        name: evt.payload.errorName || 'CommandError',
+        metadata: new grpc.Metadata()
+      });
+    } else if (PaymentIntentDomainEvent.isPaymentIntentCompletedEvent(evt)) {
+      const response = new CompletePaymentIntentResponse()
+        .setId(evt.payload.id)
+        .setState(evt.payload.state);
+      this._resolvePendingResponse(pending, requestId, null, response);
+    } else if (
+      PaymentIntentDomainEvent.isPaymentIntentCompleteFailedEvent(evt)
+    ) {
       this._resolvePendingResponse(pending, requestId, {
         code: grpc.status.INTERNAL,
         message: evt.payload.message || 'Command processing failed',

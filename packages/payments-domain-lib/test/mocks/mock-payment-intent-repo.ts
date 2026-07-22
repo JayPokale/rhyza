@@ -16,6 +16,18 @@ export class MockPaymentIntentRepo implements IPaymentIntentRepository {
     }
   }
 
+  async storeCompletedPaymentIntents(
+    paymentIntents: { id: string; state: PaymentIntentState }[]
+  ): Promise<void> {
+    for (const update of paymentIntents) {
+      const paymentIntent = this._store.get(update.id);
+      if (!paymentIntent) {
+        throw new Error('Could not find paymentIntent in store');
+      }
+      paymentIntent.state = update.state;
+    }
+  }
+
   async fetchByIds(
     ids: string[]
   ): Promise<Omit<IPaymentIntent, 'sentPayments' | 'receivedPayments'>[]> {

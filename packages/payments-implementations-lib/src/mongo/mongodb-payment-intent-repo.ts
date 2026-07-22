@@ -176,6 +176,34 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
     }
   }
 
+  async storeCompletedPaymentIntents(
+    paymentIntents: { id: string; state: PaymentIntentState }[]
+  ): Promise<void> {
+    this._checkInitialisedOrThrow();
+
+    if (paymentIntents.length === 0) return;
+
+    try {
+      await this._paymentIntentCollection.bulkWrite(
+        paymentIntents.map((paymentIntent) => ({
+          updateOne: {
+            filter: { id: paymentIntent.id },
+            update: {
+              $set: {
+                state: paymentIntent.state
+              }
+            }
+          }
+        }))
+      );
+    } catch (e) {
+      this._logger.error(e);
+      throw new Error(
+        `Unable to store completed payment intents - error: ${(e as Error).message}`
+      );
+    }
+  }
+
   async fetchByIds(
     ids: string[]
   ): Promise<Omit<IPaymentIntent, 'sentPayments' | 'receivedPayments'>[]> {
