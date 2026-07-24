@@ -13,6 +13,7 @@ import { GrantAggregate } from 'auth-domain-lib';
 import { AuthCommandHandler } from './cmd-handler';
 import process from 'process';
 import crypto from 'crypto';
+import { ILogger } from 'common-types-lib';
 
 const BC_NAME = 'AUTH';
 const APP_NAME = `${BC_NAME}_CMD_HANDER_SVC`;
@@ -30,30 +31,38 @@ const CONSUMER_BATCH_TIMEOUT_MS =
   50;
 
 export class AuthCommandHandlerService {
+  private static _logger: ILogger;
   private static commandHandler: AuthCommandHandler;
   private static msgProducer: KafkaProducer;
   private static msgConsumer: KafkaConsumer;
   private static repo: MongoDbGrantRepo;
 
   static async start(): Promise<void> {
-    const logger = new PinoLogger({
+    this._logger = new PinoLogger({
       bcName: BC_NAME,
       appName: APP_NAME,
       instanceId: INSTANCE_ID
     });
 
     const kafkaBuilder = new KafkaBuilder()
-      .withLogger(logger.child('kafka'))
+      .withLogger(this._logger.child('kafka'))
       .withBrokerList(KAFKA_URL)
       .withClientId(INSTANCE_ID)
       .withSerializerFactory(MessageSerializationFactory.instance());
 
-    this.repo = new MongoDbGrantRepo(MONGODB_URL, logger.child('grant-repo'));
+    this.repo = new MongoDbGrantRepo(
+      MONGODB_URL,
+      this._logger.child('grant-repo')
+    );
     await this.repo.init();
 
     const walletAddressAdapter = new WalletAddressAdapter();
 
-    const aggregate = new GrantAggregate(this.repo, walletAddressAdapter);
+    const aggregate = new GrantAggregate(
+      this.repo,
+      walletAddressAdapter,
+      this._logger
+    );
 
     this.msgProducer = kafkaBuilder.buildProducer({});
     await this.msgProducer.connect();
@@ -68,7 +77,7 @@ export class AuthCommandHandlerService {
       this.msgConsumer,
       this.msgProducer,
       aggregate,
-      logger.child('command-handler')
+      this._logger.child('command-handler')
     );
     await this.commandHandler.start();
   }
