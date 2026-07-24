@@ -1,4 +1,4 @@
-import { CommandMsg, CommandTopics } from 'common-types-lib';
+import { AppErrorType, CommandMsg, CommandTopics } from 'common-types-lib';
 
 export abstract class PaymentIntentCommand extends CommandMsg {
   msgTopic: string = CommandTopics.PaymentCommands;
@@ -224,6 +224,7 @@ export type FailRemoteQuoteCmdPayload = {
   quoteId: string;
   paymentIntentId: string;
   errorName: string;
+  errorType?: AppErrorType;
   message: string;
 };
 

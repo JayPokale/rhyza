@@ -1,4 +1,4 @@
-import { ILogger, IMessage } from 'common-types-lib';
+import { getErrorDetails, ILogger, IMessage } from 'common-types-lib';
 import {
   FinalizedRemoteQuoteUpdate,
   IFxRateRequest,
@@ -466,8 +466,7 @@ export class PaymentIntentAggregate {
       const event = new PaymentIntentCreateFailedEvent(
         {
           paymentIntentId: cmd.payload.id,
-          errorName: (err as Error).constructor.name,
-          message: (err as Error).message
+          ...getErrorDetails(err)
         },
         cmd.requestId
       );
@@ -512,8 +511,7 @@ export class PaymentIntentAggregate {
       return new PaymentIntentCompleteFailedEvent(
         {
           id: cmd.payload.id,
-          errorName: (err as Error).constructor.name,
-          message: (err as Error).message
+          ...getErrorDetails(err)
         },
         cmd.requestId
       );
@@ -685,8 +683,7 @@ export class PaymentIntentAggregate {
       return new QuoteCreateFailedEvent(
         {
           paymentIntentId: cmd.payload.paymentIntentId,
-          errorName: (err as Error).constructor.name,
-          message: (err as Error).message
+          ...getErrorDetails(err)
         },
         cmd.requestId
       );
@@ -801,8 +798,7 @@ export class PaymentIntentAggregate {
       const event = new PaymentCreateFailedEvent(
         {
           paymentIntentId: cmd.payload.paymentIntentId,
-          errorName: (err as Error).constructor.name,
-          message: (err as Error).message
+          ...getErrorDetails(err)
         },
         cmd.requestId
       );
@@ -900,8 +896,7 @@ export class PaymentIntentAggregate {
       return new QuoteCreateFailedEvent(
         {
           paymentIntentId: cmd.payload.paymentIntentId,
-          errorName: (err as Error).constructor.name,
-          message: (err as Error).message
+          ...getErrorDetails(err)
         },
         cmd.requestId
       );
@@ -913,6 +908,7 @@ export class PaymentIntentAggregate {
       `handleFailRemoteQuoteCommand — quoteId: ${cmd.payload.quoteId} paymentIntentId: ${cmd.payload.paymentIntentId} error: ${cmd.payload.message}`
     );
     const { quoteId, paymentIntentId, errorName, message } = cmd.payload;
+    const errorType = cmd.payload.errorType ?? 'Internal';
 
     try {
       const paymentIntentObj = this.paymentIntentMap.get(paymentIntentId);
@@ -930,15 +926,14 @@ export class PaymentIntentAggregate {
       this._appendToMap(this.finalizedRemoteQuotes, paymentIntent.id, quoteId);
 
       return new QuoteCreateFailedEvent(
-        { paymentIntentId, errorName, message },
+        { paymentIntentId, errorName, errorType, message },
         cmd.requestId
       );
     } catch (err) {
       return new QuoteCreateFailedEvent(
         {
           paymentIntentId,
-          errorName: (err as Error).constructor.name,
-          message: (err as Error).message
+          ...getErrorDetails(err)
         },
         cmd.requestId
       );
@@ -1013,8 +1008,7 @@ export class PaymentIntentAggregate {
           packetId,
           peerId,
           paymentIntentId,
-          errorName: (err as Error).constructor.name,
-          message: (err as Error).message
+          ...getErrorDetails(err)
         },
         cmd.requestId
       );
@@ -1123,8 +1117,7 @@ export class PaymentIntentAggregate {
         {
           id: cmd.payload.id,
           paymentIntentId: cmd.payload.paymentIntentId,
-          errorName: (err as Error).constructor.name,
-          message: (err as Error).message
+          ...getErrorDetails(err)
         },
         cmd.requestId
       );
@@ -1203,8 +1196,7 @@ export class PaymentIntentAggregate {
         {
           id: cmd.payload.paymentId,
           paymentIntentId,
-          errorName: (err as Error).constructor.name,
-          message: (err as Error).message
+          ...getErrorDetails(err)
         },
         cmd.requestId
       );
@@ -1256,8 +1248,7 @@ export class PaymentIntentAggregate {
         {
           id: cmd.payload.paymentId,
           paymentIntentId,
-          errorName: (err as Error).constructor.name,
-          message: (err as Error).message
+          ...getErrorDetails(err)
         },
         cmd.requestId
       );
@@ -1325,8 +1316,7 @@ export class PaymentIntentAggregate {
         {
           id: cmd.payload.paymentId,
           paymentIntentId,
-          errorName: (err as Error).constructor.name,
-          message: (err as Error).message
+          ...getErrorDetails(err)
         },
         cmd.requestId
       );
@@ -1398,8 +1388,7 @@ export class PaymentIntentAggregate {
         {
           id: cmd.payload.paymentId,
           paymentIntentId,
-          errorName: (err as Error).constructor.name,
-          message: (err as Error).message
+          ...getErrorDetails(err)
         },
         cmd.requestId
       );
@@ -1471,8 +1460,7 @@ export class PaymentIntentAggregate {
         {
           id: cmd.payload.paymentId,
           paymentIntentId,
-          errorName: (err as Error).constructor.name,
-          message: (err as Error).message
+          ...getErrorDetails(err)
         },
         cmd.requestId
       );
@@ -1573,8 +1561,7 @@ export class PaymentIntentAggregate {
           receivedPaymentId,
           packetId,
           peerId,
-          errorName: (err as Error).constructor.name,
-          message: (err as Error).message
+          ...getErrorDetails(err)
         },
         cmd.requestId
       );
@@ -1632,8 +1619,7 @@ export class PaymentIntentAggregate {
         {
           paymentIntentId,
           receivedPaymentId,
-          errorName: (err as Error).constructor.name,
-          message: (err as Error).message
+          ...getErrorDetails(err)
         },
         cmd.requestId
       );
@@ -1674,6 +1660,7 @@ export class PaymentIntentAggregate {
           packetId: receivedPayment.packetId,
           peerId: receivedPayment.peerId,
           errorName: 'ReceivedPaymentFailed',
+          errorType: 'Internal',
           message: reason ?? 'Received payment failed'
         },
         cmd.requestId
@@ -1686,8 +1673,7 @@ export class PaymentIntentAggregate {
         {
           paymentIntentId,
           receivedPaymentId,
-          errorName: (err as Error).constructor.name,
-          message: (err as Error).message
+          ...getErrorDetails(err)
         },
         cmd.requestId
       );
@@ -1744,8 +1730,7 @@ export class PaymentIntentAggregate {
         {
           paymentIntentId,
           receivedPaymentId,
-          errorName: (err as Error).constructor.name,
-          message: (err as Error).message
+          ...getErrorDetails(err)
         },
         cmd.requestId
       );
@@ -1822,8 +1807,7 @@ export class PaymentIntentAggregate {
         {
           paymentIntentId,
           receivedPaymentId,
-          errorName: (err as Error).constructor.name,
-          message: (err as Error).message
+          ...getErrorDetails(err)
         },
         cmd.requestId
       );
@@ -1854,8 +1838,7 @@ export class PaymentIntentAggregate {
       return new PaymentCancelFailedEvent(
         {
           paymentIntentId: cmd.payload.paymentIntentId,
-          errorName: (err as Error).constructor.name,
-          message: (err as Error).message
+          ...getErrorDetails(err)
         },
         cmd.requestId
       );

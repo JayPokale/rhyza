@@ -1,11 +1,7 @@
 import * as grpc from '@grpc/grpc-js';
 import { ServiceError, status } from '@grpc/grpc-js';
 import { randomUUID } from 'node:crypto';
-import {
-  PaymentIntentNotFoundError,
-  PaymentNotFoundError,
-  RemoteQuotingNotConfiguredError
-} from './errors';
+import { createServiceError } from './errors';
 import {
   CreatePaymentIntentRequest,
   CreatePaymentIntentResponse,
@@ -162,7 +158,11 @@ export class PaymentsClient {
 
     if ('incomingPaymentUrl' in incomingPayment) {
       if (!this._openPaymentsUrl) {
-        throw new RemoteQuotingNotConfiguredError();
+        throw createServiceError(
+          status.FAILED_PRECONDITION,
+          'Remote quoting is currently not configured',
+          'RemoteQuotingNotConfigured'
+        );
       }
       if (
         incomingPayment.incomingPaymentUrl.startsWith(this._openPaymentsUrl)
@@ -327,9 +327,6 @@ export class PaymentsClient {
         request,
         (error: ServiceError | null, response: GetPaymentIntentResponse) => {
           if (error) {
-            if (error.code === status.NOT_FOUND) {
-              return reject(new PaymentIntentNotFoundError(id));
-            }
             console.error(error);
             return reject(error);
           }
@@ -373,9 +370,6 @@ export class PaymentsClient {
         request,
         (error: ServiceError | null, response: GetPaymentResponse) => {
           if (error) {
-            if (error.code === status.NOT_FOUND) {
-              return reject(new PaymentNotFoundError(id));
-            }
             console.error(error);
             return reject(error);
           }

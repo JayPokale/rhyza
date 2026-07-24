@@ -35,6 +35,7 @@ import {
 } from 'payments-public-types-lib';
 import { IPaymentIntentRepository } from 'payments-domain-lib';
 import {
+  AppErrorType,
   ILogger,
   IMessage,
   IMessageConsumer,
@@ -122,6 +123,7 @@ export class PaymentsServiceServer {
     // payments service RPCs
     this._server.addService(PaymentsGrpcService, {
       createPaymentIntent: this._handleUnary.bind(this),
+      completePaymentIntent: this._handleUnary.bind(this),
       createQuote: this._handleUnary.bind(this),
       createPayment: this._handleUnary.bind(this),
       approvePayment: this._handleUnary.bind(this),
@@ -457,13 +459,11 @@ export class PaymentsServiceServer {
       const response = new CreatePaymentIntentResponse().setId(evt.payload.id);
       this._resolvePendingResponse(pending, requestId, null, response);
     } else if (PaymentIntentDomainEvent.isPaymentIntentCreateFailedEvent(evt)) {
-      this._resolvePendingResponse(pending, requestId, {
-        code: grpc.status.INTERNAL,
-        message: evt.payload.message || 'Command processing failed',
-        details: evt.payload.message,
-        name: evt.payload.errorName || 'CommandError',
-        metadata: new grpc.Metadata()
-      });
+      this._resolvePendingResponse(
+        pending,
+        requestId,
+        this._toServiceError(evt.payload)
+      );
     } else if (PaymentIntentDomainEvent.isPaymentIntentCompletedEvent(evt)) {
       const response = new CompletePaymentIntentResponse()
         .setId(evt.payload.id)
@@ -472,13 +472,11 @@ export class PaymentsServiceServer {
     } else if (
       PaymentIntentDomainEvent.isPaymentIntentCompleteFailedEvent(evt)
     ) {
-      this._resolvePendingResponse(pending, requestId, {
-        code: grpc.status.INTERNAL,
-        message: evt.payload.message || 'Command processing failed',
-        details: evt.payload.message,
-        name: evt.payload.errorName || 'CommandError',
-        metadata: new grpc.Metadata()
-      });
+      this._resolvePendingResponse(
+        pending,
+        requestId,
+        this._toServiceError(evt.payload)
+      );
     } else if (PaymentIntentDomainEvent.isQuoteCompletedEvent(evt)) {
       const response = new CreateQuoteResponse()
         .setId(evt.payload.id)
@@ -491,32 +489,23 @@ export class PaymentsServiceServer {
         .setExchangeRate(evt.payload.exchangeRate);
       this._resolvePendingResponse(pending, requestId, null, response);
     } else if (PaymentIntentDomainEvent.isQuoteCreateFailedEvent(evt)) {
-      this._resolvePendingResponse(pending, requestId, {
-        code: grpc.status.INTERNAL,
-        message: evt.payload.message || 'Command processing failed',
-        details: evt.payload.message,
-        name: evt.payload.errorName || 'CommandError',
-        metadata: new grpc.Metadata()
-      });
+      this._resolvePendingResponse(
+        pending,
+        requestId,
+        this._toServiceError(evt.payload)
+      );
     } else if (PaymentIntentDomainEvent.isPaymentCreatedEvent(evt)) {
       const response = new CreatePaymentResponse().setId(evt.payload.id);
       this._resolvePendingResponse(pending, requestId, null, response);
     } else if (PaymentIntentDomainEvent.isPaymentCreateFailedEvent(evt)) {
-      this._resolvePendingResponse(pending, requestId, {
-        code: grpc.status.INTERNAL,
-        message: evt.payload.message || 'Command processing failed',
-        details: evt.payload.message,
-        name: evt.payload.errorName || 'CommandError',
-        metadata: new grpc.Metadata()
-      });
+      this._resolvePendingResponse(
+        pending,
+        requestId,
+        this._toServiceError(evt.payload)
+      );
     } else if (PaymentIntentDomainEvent.isRemotePaymentSendApprovedEvent(evt)) {
       const response = new ApprovePaymentResponse()
         .setId(evt.payload.paymentId)
-        .setState(evt.payload.state);
-      this._resolvePendingResponse(pending, requestId, null, response);
-    } else if (PaymentIntentDomainEvent.isPaymentCompletedEvent(evt)) {
-      const response = new ApprovePaymentResponse()
-        .setId(evt.payload.id)
         .setState(evt.payload.state);
       this._resolvePendingResponse(pending, requestId, null, response);
     } else if (PaymentIntentDomainEvent.isPaymentFailedEvent(evt)) {
@@ -524,29 +513,66 @@ export class PaymentsServiceServer {
         .setId(evt.payload.id)
         .setState(evt.payload.state);
       this._resolvePendingResponse(pending, requestId, null, response);
+    } else if (PaymentIntentDomainEvent.isPaymentCompletedEvent(evt)) {
+      const response = new ApprovePaymentResponse()
+        .setId(evt.payload.id)
+        .setState(evt.payload.state);
+      this._resolvePendingResponse(pending, requestId, null, response);
     } else if (PaymentIntentDomainEvent.isPaymentCompleteFailedEvent(evt)) {
-      this._resolvePendingResponse(pending, requestId, {
-        code: grpc.status.INTERNAL,
-        message: evt.payload.message || 'Command processing failed',
-        details: evt.payload.message,
-        name: evt.payload.errorName || 'CommandError',
-        metadata: new grpc.Metadata()
-      });
+      this._resolvePendingResponse(
+        pending,
+        requestId,
+        this._toServiceError(evt.payload)
+      );
     } else if (PaymentIntentDomainEvent.isPaymentCancelledEvent(evt)) {
       const response = new CancelPaymentResponse().setId(evt.payload.id);
       this._resolvePendingResponse(pending, requestId, null, response);
     } else if (PaymentIntentDomainEvent.isPaymentCancelFailedEvent(evt)) {
-      this._resolvePendingResponse(pending, requestId, {
-        code: grpc.status.INTERNAL,
-        message: evt.payload.message || 'Command processing failed',
-        details: evt.payload.message,
-        name: evt.payload.errorName || 'CommandError',
-        metadata: new grpc.Metadata()
-      });
+      this._resolvePendingResponse(
+        pending,
+        requestId,
+        this._toServiceError(evt.payload)
+      );
     } else {
       this._logger.warn(
         `Unknown response event — msgName: ${message.msgName}, requestId: ${requestId}`
       );
+    }
+  }
+
+  private _toServiceError(payload: {
+    errorName: string;
+    errorType: AppErrorType;
+    message: string;
+  }): grpc.ServiceError {
+    return {
+      code: this._toGrpcStatus(payload.errorType),
+      message: payload.message || 'Command processing failed',
+      details: payload.message,
+      name: payload.errorName || 'CommandError',
+      metadata: new grpc.Metadata()
+    };
+  }
+
+  private _toGrpcStatus(errorType: AppErrorType): grpc.status {
+    switch (errorType) {
+      case 'InvalidArgument':
+        return grpc.status.INVALID_ARGUMENT;
+      case 'NotFound':
+        return grpc.status.NOT_FOUND;
+      case 'AlreadyExists':
+        return grpc.status.ALREADY_EXISTS;
+      case 'FailedPrecondition':
+        return grpc.status.FAILED_PRECONDITION;
+      case 'PermissionDenied':
+        return grpc.status.PERMISSION_DENIED;
+      case 'Unavailable':
+        return grpc.status.UNAVAILABLE;
+      case 'Aborted':
+        return grpc.status.ABORTED;
+      case 'Internal':
+      default:
+        return grpc.status.INTERNAL;
     }
   }
 
