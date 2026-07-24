@@ -2,7 +2,11 @@
 
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { PalClient, parseAddressToDomainAndPathName } from 'pal-client-lib';
-import { PaymentsClient } from 'payments-client-lib';
+import {
+  httpStatusFromGrpcError,
+  isGrpcServiceError,
+  PaymentsClient
+} from 'payments-client-lib';
 import { OpenPaymentsResourceServerRouteError } from '../errors.js';
 import { components } from '../types/generated/resource-server-types.js';
 import { createStreamServer, generateStreamCredentials } from 'ilp-client-lib';
@@ -80,36 +84,122 @@ export async function incomingPaymentRoutes(
         );
       }
 
-      const result = await paymentsClient.createPaymentIntent(
-        id,
-        walletAddress.id,
-        `${domain}/${pathName}`,
-        incomingAmount ? Number(incomingAmount.value) : undefined,
-        expiresAt,
-        JSON.stringify(metadata)
-      );
+      try {
+        const result = await paymentsClient.createPaymentIntent(
+          id,
+          walletAddress.id,
+          `${domain}/${pathName}`,
+          incomingAmount ? Number(incomingAmount.value) : undefined,
+          expiresAt,
+          JSON.stringify(metadata)
+        );
 
-      return reply.status(201).send({ id: result.id });
+        return reply.status(201).send({ id: result.id });
+      } catch (err) {
+        const httpStatus = httpStatusFromGrpcError(err);
+        const message = isGrpcServiceError(err)
+          ? err.details || err.message
+          : (err as Error).message;
+        return reply.status(httpStatus).send({ error: message });
+      }
     }
   );
 
   server.get<{
     Params: { id: string };
-    Reply: components['schemas']['incoming-payment'] & {
-      destinationIlpAddress?: string;
-    };
+    Reply:
+      | (components['schemas']['incoming-payment'] & {
+          destinationIlpAddress?: string;
+        })
+      | components['schemas']['error-response'];
   }>('/incoming-payments/:id', async (request, reply) => {
     const { id } = request.params;
 
     let paymentIntent;
     try {
       paymentIntent = await paymentsClient.getPaymentIntent(id);
-    } catch {
-      throw new OpenPaymentsResourceServerRouteError(
-        400,
-        'Incoming payment not found',
-        'not_found'
-      );
+    } catch (err) {
+      const httpStatus = httpStatusFromGrpcError(err);
+      const { name, message } = isGrpcServiceError(err)
+        ? { name: err.name, message: err.details || err.message }
+        : { name: (err as Error).message, message: (err as Error).message };
+      return reply
+        .status(httpStatus)
+        .send({ error: { code: name, description: message } });
+    }
+
+    const streamCredentials = generateStreamCredentials(streamServer, {
+      paymentIntentId: paymentIntent.id,
+      assetCode: paymentIntent.assetCode,
+      assetScale: paymentIntent.assetScale
+    });
+
+    const response: components['schemas']['incoming-payment'] & {
+      destinationIlpAddress: string;
+      sharedSecret: string;
+    } = {
+      id: paymentIntent.id,
+      expiresAt: paymentIntent.expiresAt,
+      completed: paymentIntent.state === 'COMPLETED',
+      walletAddress: paymentIntent.receiverWalletAddress,
+      createdAt: new Date().toISOString(),
+      receivedAmount: {
+        value: String(paymentIntent.receivedAmount),
+        assetCode: paymentIntent.assetCode,
+        assetScale: paymentIntent.assetScale
+      },
+      sharedSecret: streamCredentials.sharedSecret,
+      destinationIlpAddress: streamCredentials.ilpAddress
+    };
+
+    if (paymentIntent.incomingAmount != null) {
+      response.incomingAmount = {
+        value: String(paymentIntent.incomingAmount),
+        assetCode: paymentIntent.assetCode,
+        assetScale: paymentIntent.assetScale
+      };
+    }
+
+    if (paymentIntent.expiresAt) {
+      response.expiresAt = paymentIntent.expiresAt;
+    }
+
+    return reply.status(200).send(response);
+  });
+
+  server.post<{
+    Params: { id: string };
+    Reply:
+      | (components['schemas']['incoming-payment'] & {
+          destinationIlpAddress?: string;
+        })
+      | components['schemas']['error-response'];
+  }>('/incoming-payments/:id/complete', async (request, reply) => {
+    const { id } = request.params;
+
+    try {
+      await paymentsClient.completePaymentIntent(id);
+    } catch (err) {
+      const httpStatus = httpStatusFromGrpcError(err);
+      const { name, message } = isGrpcServiceError(err)
+        ? { name: err.name, message: err.details || err.message }
+        : { name: (err as Error).name, message: (err as Error).message };
+      return reply
+        .status(httpStatus)
+        .send({ error: { code: name, description: message } });
+    }
+
+    let paymentIntent;
+    try {
+      paymentIntent = await paymentsClient.getPaymentIntent(id);
+    } catch (err) {
+      const httpStatus = httpStatusFromGrpcError(err);
+      const { name, message } = isGrpcServiceError(err)
+        ? { name: err.name, message: err.details || err.message }
+        : { name: (err as Error).name, message: (err as Error).message };
+      return reply
+        .status(httpStatus)
+        .send({ error: { code: name, description: message } });
     }
 
     const streamCredentials = generateStreamCredentials(streamServer, {
