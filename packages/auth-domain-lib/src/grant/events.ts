@@ -127,6 +127,7 @@ export class GrantCreatedEvent extends AuthDomainEvent {
     super(payload.id, requestId);
     this.isErrorEvent = false;
     this.payload = payload;
+    this.requestId = requestId;
   }
 }
 
@@ -143,6 +144,7 @@ export class GrantCreateFailedEvent extends AuthDomainEvent {
     super(payload.grantId, requestId);
     this.isErrorEvent = true;
     this.payload = payload;
+    this.requestId = requestId;
   }
 }
 

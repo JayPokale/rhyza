@@ -207,5 +207,5 @@ class HandleInteractionChoiceCmd extends AuthCmd {
   }
 }
 
-export class AcceptInteractionCommand extends HandleInteractionChoiceCmd { }
-export class RejectInteractionCommand extends HandleInteractionChoiceCmd { }
+export class AcceptInteractionCommand extends HandleInteractionChoiceCmd {}
+export class RejectInteractionCommand extends HandleInteractionChoiceCmd {}
