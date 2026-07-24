@@ -16,6 +16,7 @@
     "auth-implementations-lib": "workspace:*"
   },
   "devDependencies": {
+    "@interledger/http-signature-utils": "^2.0.3",
     "tsx": "^4.19.3"
   }
 }
