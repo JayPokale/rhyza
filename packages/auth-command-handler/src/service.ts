@@ -15,7 +15,7 @@ import process from 'process';
 import crypto from 'crypto';
 
 const BC_NAME = 'AUTH';
-const APP_NAME = `${BC_NAME}_CMD_HANDER_SVC`
+const APP_NAME = `${BC_NAME}_CMD_HANDER_SVC`;
 const INSTANCE_ID = `${APP_NAME}_${crypto.randomUUID()}`;
 
 const KAFKA_URL = process.env['KAFKA_URL'] || 'localhost:9092';
@@ -48,10 +48,7 @@ export class AuthCommandHandlerService {
       .withClientId(INSTANCE_ID)
       .withSerializerFactory(MessageSerializationFactory.instance());
 
-    this.repo = new MongoDbGrantRepo(
-      MONGODB_URL,
-      logger.child('grant-repo')
-    );
+    this.repo = new MongoDbGrantRepo(MONGODB_URL, logger.child('grant-repo'));
     await this.repo.init();
 
     const walletAddressAdapter = new WalletAddressAdapter();
