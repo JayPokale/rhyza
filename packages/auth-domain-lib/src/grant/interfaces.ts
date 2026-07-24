@@ -108,8 +108,6 @@ export interface IInteraction {
   expiresInMs: number;
 }
 
-export type IGrantEntity = Omit<IGrant, 'id'>;
-
 export interface IGrant {
   id: string;
   startMethods: IStartMethod[];
@@ -157,13 +155,13 @@ export function isJWK(obj: unknown): obj is JWK {
   return (
     typeof obj === 'object' &&
     obj !== null &&
-    typeof (obj as any).kid === 'string' &&
-    (obj as any).alg === 'EdDSA' &&
-    (typeof (obj as any).use === 'string' ||
-      typeof (obj as any).use === 'undefined') &&
-    (obj as any).kty === 'OKP' &&
-    (obj as any).crv === 'Ed25519' &&
-    typeof (obj as any).x === 'string'
+    typeof (obj as Record<string, unknown>).kid === 'string' &&
+    (obj as Record<string, unknown>).alg === 'EdDSA' &&
+    (typeof (obj as Record<string, unknown>).use === 'string' ||
+      typeof (obj as Record<string, unknown>).use === 'undefined') &&
+    (obj as Record<string, unknown>).kty === 'OKP' &&
+    (obj as Record<string, unknown>).crv === 'Ed25519' &&
+    typeof (obj as Record<string, unknown>).x === 'string'
   );
 }
 

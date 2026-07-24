@@ -1,4 +1,4 @@
-import { IMessage } from 'common-types-lib';
+import { ILogger, IMessage } from 'common-types-lib';
 import {
   ContinueGrantCmd,
   CreateGrantCmd,
@@ -53,6 +53,7 @@ export interface IGrantService {
 }
 
 export class GrantAggregate {
+  private newGrantIds: string[] = [];
   private grantMap = new Map<string, GrantEntity>();
   private walletAddressRequestMap = new Map<
     string,
@@ -62,10 +63,12 @@ export class GrantAggregate {
 
   constructor(
     private _repo: IGrantRepository,
-    private _walletAddressService: IWalletAddressService
+    private _walletAddressService: IWalletAddressService,
+    private _logger: ILogger
   ) {}
 
   async handleBatch(cmds: IMessage[]): Promise<{ events: IMessage[] }> {
+    this._logger.debug(`handleBatch — ${cmds.length} cmd(s)`);
     const outputEvents: IMessage[] = [];
 
     const grantIdSet = new Set<string>();
@@ -115,14 +118,14 @@ export class GrantAggregate {
         const requestIdAndKid =
           this.walletAddressRequestMap.get(walletAddress) ?? [];
 
-        for (let requested of requestIdAndKid) {
+        for (const requested of requestIdAndKid) {
           const key = keys.find((key) => key.kid === requested.kid);
           if (key) this.requestIdToClientKeyMap.set(requested.requestId, key);
         }
       };
 
       const waRequests = [];
-      for (let walletAddress of walletAddressSet) {
+      for (const walletAddress of walletAddressSet) {
         waRequests.push(findKeys(walletAddress));
       }
 
@@ -171,7 +174,7 @@ export class GrantAggregate {
         return null;
       }
       return parsed;
-    } catch (err) {
+    } catch {
       return null;
     }
   }
@@ -194,6 +197,7 @@ export class GrantAggregate {
   }
 
   private async handleCreateGrantCommand(cmd: CreateGrantCmd) {
+    this._logger.debug(`handleCreateGrantCommand — id: ${cmd.payload.id}`);
     try {
       const { id } = cmd.payload;
       if (this.grantMap.has(id)) {
@@ -240,6 +244,9 @@ export class GrantAggregate {
       });
 
       this.grantMap.set(id, entity);
+      this.newGrantIds.push(id);
+
+      this._logger.debug(`handleCreateGrantCommand — created id: ${id}`);
 
       return new GrantCreatedEvent(
         {
@@ -257,6 +264,9 @@ export class GrantAggregate {
         cmd.requestId
       );
     } catch (err) {
+      this._logger.debug(
+        `handleCreateGrantCommand — failed id: ${cmd.payload.id} error: ${(err as Error).message}`
+      );
       return new GrantCreateFailedEvent(
         {
           grantId: cmd.payload.id,
@@ -447,5 +457,31 @@ export class GrantAggregate {
       InteractionState.DENIED,
       interactRef
     );
+  }
+
+  public async flush() {
+    const promises = [];
+
+    if (this.newGrantIds.length > 0) {
+      const newEntities = [];
+      for (const id of this.newGrantIds) {
+        const grant = this.grantMap.get(id);
+        if (!grant) {
+          this._logger.error(`Grant ${id} missing from grantMap during flush`);
+          continue;
+        }
+
+        newEntities.push(grant);
+      }
+
+      promises.push(this._repo.storeMany(newEntities));
+    }
+
+    // TODO handle gracefully
+    try {
+      await Promise.all(promises);
+    } finally {
+      this.grantMap.clear();
+    }
   }
 }

@@ -18,7 +18,6 @@ import {
   InteractionState,
   InteractionChoice,
   IStartMethod,
-  IGrantEntity,
   IAccessToken,
   NewAccessToken,
   RevokedAccessToken,
@@ -95,7 +94,7 @@ const GRANT_POLL_MS = 5_000; // 5 seconds
 const INTERACTION_EXPIRY_MS = 10_000; // 10 seconds
 const ACCESS_TOKEN_EXPIRY_MS = 10_000; // 10 seconds
 
-export class GrantEntity implements IGrantEntity {
+export class GrantEntity implements IGrant {
   private _id: string;
   private _startMethods: IStartMethod[];
   private _continueToken?: string;
@@ -377,6 +376,10 @@ export class GrantEntity implements IGrantEntity {
 
     this.revokeAccessToken(value, managementId);
     return this.createAccessToken();
+  }
+
+  get id(): string {
+    return this._id;
   }
 
   get startMethods(): IStartMethod[] {

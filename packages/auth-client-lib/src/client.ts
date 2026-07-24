@@ -104,9 +104,9 @@ export class AuthClient {
     options: CreateGrantOptions
   ): Promise<CreateGrantResponse> {
     const request = new GrantRequest();
-    options.access && request.setAccessList(options.access);
+    if (options.access) request.setAccessList(options.access);
     request.setClient(client);
-    options.subjectIds && request.setSubjectIdsList(options.subjectIds);
+    if (options.subjectIds) request.setSubjectIdsList(options.subjectIds);
     request.setFinish(options.finish);
 
     const signatureDataMsg = new SignatureData();

@@ -18,15 +18,6 @@ interface SubjectId {
   id: string;
 }
 
-interface JsonWebKey {
-  kty: string;
-  kid: string;
-  use?: string;
-  alg: string;
-  crv: string;
-  x: string;
-}
-
 export interface SignedCommandPayload {
   client: string;
   signatureData: {
