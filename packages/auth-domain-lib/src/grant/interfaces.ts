@@ -104,7 +104,6 @@ export type GrantFinalization = keyof typeof GrantFinalization;
 
 export interface IInteraction {
   interactRef: string;
-  clientNonce: string;
   state: InteractionState;
   expiresInMs: number;
 }
@@ -121,8 +120,11 @@ export interface IGrant {
   client?: string | IJsonWebKey;
   subjectIds?: ISubjectId[];
   accesses?: IAccessItem[];
+  finishNonce?: string;
   finishMethod?: IFinishMethod;
   finishUri?: string;
+  interactionId?: string;
+  interactionNonce?: string;
   interaction?: IInteraction;
   lastContinuedAt?: Date;
   accessTokens: Map<string, IAccessToken>;
@@ -157,7 +159,8 @@ export function isJWK(obj: unknown): obj is JWK {
     obj !== null &&
     typeof (obj as any).kid === 'string' &&
     (obj as any).alg === 'EdDSA' &&
-    (typeof (obj as any).use === 'string' || typeof (obj as any).use === 'undefined') &&
+    (typeof (obj as any).use === 'string' ||
+      typeof (obj as any).use === 'undefined') &&
     (obj as any).kty === 'OKP' &&
     (obj as any).crv === 'Ed25519' &&
     typeof (obj as any).x === 'string'

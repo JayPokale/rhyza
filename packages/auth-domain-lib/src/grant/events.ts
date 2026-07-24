@@ -82,7 +82,8 @@ export interface GrantCreatedPayload {
   id: string;
   continueId?: string;
   continueToken?: string;
-  interactNonce?: string;
+  interactionId?: string;
+  interactionNonce?: string;
   accessTokenValue?: string;
   accessTokenManagementId?: string;
   accessTokenExpiresIn?: number;
@@ -98,10 +99,11 @@ export class GrantCreatedEvent extends DomainEvent {
   msgTopic: string = DomainEventTopics.AuthEvents;
   payload: GrantCreatedPayload;
 
-  constructor(payload: GrantCreatedPayload) {
+  constructor(payload: GrantCreatedPayload, requestId?: string) {
     super(payload.id);
     this.aggregateId = this.msgKey = payload.id;
     this.payload = payload;
+    this.requestId = requestId;
   }
 }
 
@@ -119,10 +121,11 @@ export class GrantCreateFailedEvent extends DomainEvent {
   isErrorEvent: boolean = true;
   payload: GrantCreateFailedPayload;
 
-  constructor(payload: GrantCreateFailedPayload) {
+  constructor(payload: GrantCreateFailedPayload, requestId?: string) {
     super(payload.grantId);
     this.aggregateId = this.msgKey = payload.grantId;
     this.payload = payload;
+    this.requestId = requestId;
   }
 }
 

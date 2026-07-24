@@ -244,12 +244,9 @@ export class AuthServiceServer {
           : undefined
       }));
 
-      const subject = call.request.getSubject();
-      const subjectIds = subject
-        ? subject
-            .getSubIdsList()
-            .map((s: any) => ({ format: s.getFormat(), id: s.getId() }))
-        : [];
+      const subjectIds = call.request
+        .getSubjectIdsList()
+        .map((s: any) => ({ format: s.getFormat(), id: s.getId() }));
 
       const finishObj = call.request.getFinish();
       const finish = finishObj
@@ -264,11 +261,25 @@ export class AuthServiceServer {
         .getStartList()
         .map((s: any) => s.toString());
 
+      const signatureDataMsg = call.request.getSignatureData();
+      if (!signatureDataMsg) {
+        callback(new Error('Missing signature data'));
+        return;
+      }
+      const signatureData = {
+        url: signatureDataMsg.getUrl(),
+        method: signatureDataMsg.getMethod(),
+        body: signatureDataMsg.getBody(),
+        headers: Object.fromEntries(signatureDataMsg.getHeadersMap().toArray()),
+        kid: signatureDataMsg.getKid()
+      };
+
       const cmd = new CreateGrantCmd(
         {
           id: commandId,
           access: accessList,
           client: call.request.getClient(),
+          signatureData,
           subjectIds: subjectIds,
           interact: finish
             ? { start: startMethods, finish }
@@ -456,9 +467,6 @@ export class AuthServiceServer {
       }
       if (payload.continueId) {
         response.setContinueId(payload.continueId);
-      }
-      if (payload.interactNonce) {
-        response.setInteractNonce(payload.interactNonce);
       }
 
       if (payload.accessTokenValue) {

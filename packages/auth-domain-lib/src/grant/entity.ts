@@ -1,7 +1,7 @@
 import * as crypto from 'crypto';
 import { isDeepStrictEqual } from 'util';
 import { v4 as uuid } from 'uuid';
-import { JWK, validateSignature } from '@interledger/http-signature-utils';
+
 import {
   InvalidGrantError,
   InvalidInteractionError,
@@ -29,11 +29,6 @@ import {
   ISubjectId
 } from './interfaces';
 
-interface SignatureHeader {
-  name: string;
-  value: string;
-}
-
 interface IGrantInput {
   id: string;
   startMethods: IStartMethod[];
@@ -47,6 +42,8 @@ interface IGrantInput {
   accesses?: IAccessItem[];
   finishMethod?: IFinishMethod;
   finishUri?: string;
+  finishNonce?: string;
+  interactionId?: string;
   interactionNonce?: string;
   lastContinuedAt?: Date;
 }
@@ -108,9 +105,11 @@ export class GrantEntity implements IGrantEntity {
   private _client?: string | IJsonWebKey;
   private _subjectIds?: ISubjectId[];
   private _accesses?: IAccessItem[];
-  // TODO: add finish nonce
+  private _finishNonce?: string;
   private _finishMethod?: IFinishMethod;
   private _finishUri?: string;
+  private _interactionId?: string;
+  private _interactionNonce?: string;
   private _interaction?: IInteraction;
   private _lastContinuedAt?: Date;
   // Map is indexed by the value of the access token.
@@ -129,8 +128,11 @@ export class GrantEntity implements IGrantEntity {
     this._client = input.client;
     this._subjectIds = input.subjectIds;
     this._accesses = input.accesses;
+    this._finishNonce = input.finishNonce;
     this._finishMethod = input.finishMethod;
     this._finishUri = input.finishUri;
+    this._interactionId = input.interactionId;
+    this._interactionNonce = input.interactionNonce;
     this._interaction = input.interaction;
     this._lastContinuedAt = input.lastContinuedAt;
   }
@@ -154,7 +156,9 @@ export class GrantEntity implements IGrantEntity {
         ...input,
         state: GrantState.PENDING,
         continueToken: generateContinueToken(),
-        continueId: uuid()
+        continueId: uuid(),
+        interactionId: uuid(),
+        interactionNonce: crypto.randomBytes(16).toString('hex').toUpperCase()
       });
 
       return {
@@ -175,6 +179,8 @@ export class GrantEntity implements IGrantEntity {
   toObject(): IGrant {
     return {
       id: this._id,
+      interactionId: this._interactionId,
+      interactionNonce: this._interactionNonce,
       interaction: this._interaction,
       startMethods: this._startMethods,
       continueToken: this._continueToken,
@@ -184,6 +190,7 @@ export class GrantEntity implements IGrantEntity {
       client: this._client,
       subjectIds: this._subjectIds,
       accesses: this._accesses,
+      finishNonce: this._finishNonce,
       finishMethod: this._finishMethod,
       finishUri: this._finishUri,
       lastContinuedAt: this._lastContinuedAt,
@@ -199,7 +206,6 @@ export class GrantEntity implements IGrantEntity {
 
     this._interaction = {
       interactRef: uuid(),
-      clientNonce: crypto.randomBytes(16).toString('hex').toUpperCase(),
       expiresInMs: INTERACTION_EXPIRY_MS,
       state: InteractionState.PENDING
     };
@@ -407,6 +413,14 @@ export class GrantEntity implements IGrantEntity {
 
   get finishMethod(): IFinishMethod | undefined {
     return this._finishMethod;
+  }
+
+  get interactionId(): string | undefined {
+    return this._interactionId;
+  }
+
+  get interactionNonce(): string | undefined {
+    return this._interactionNonce;
   }
 
   get interaction(): IInteraction | undefined {

@@ -42,16 +42,19 @@ message Grant {
 	repeated string start = 2;
 	string continue_token = 3;
 	string continue_id = 4;
-	string state = 5;
-	string finalization = 6;
-	string client = 7;
-	repeated SubjectId sub_ids = 8;
-	repeated AccessItem accesses = 9;
-	string finish_method = 10;
-	string finish_uri = 11;
-	Interaction interaction = 12;
-	string last_continued_at = 13; // Date string
-	repeated AccessToken access_tokens = 14;
+	string interaction_id = 5;
+	string interaction_nonce = 6;
+	string state = 7;
+	string finalization = 8;
+	string client = 9;
+	repeated SubjectId sub_ids = 10;
+	repeated AccessItem accesses = 11;
+	string finish_method = 12;
+	string finish_uri = 13;
+	string finish_nonce = 14;
+	Interaction interaction = 15;
+	string last_continued_at = 16; // Date string
+	repeated AccessToken access_tokens = 17;
 }
 
 message AccessLimits {
@@ -100,12 +103,13 @@ message CreateGrantResponse {
 	string id = 1;
 	string continue_id = 2;
 	string continue_token = 3;
-	string interact_nonce = 4;
-	string access_token_value = 5;
-	string access_token_management_id = 6;
-	int32 access_token_expires_in = 7;
-	repeated AccessItem access = 8;
-	repeated SubjectId sub_ids = 9;
+	string interaction_id = 4;
+	string interaction_nonce = 5;
+	string access_token_value = 6;
+	string access_token_management_id = 7;
+	int32 access_token_expires_in = 8;
+	repeated AccessItem access = 9;
+	repeated SubjectId sub_ids = 10;
 }
 
 message GetGrantRequest {

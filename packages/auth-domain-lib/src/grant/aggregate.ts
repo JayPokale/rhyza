@@ -9,7 +9,11 @@ import {
   RotateTokenCmd,
   RevokeTokenCmd
 } from '../commands';
-import { DuplicateGrantError, GrantNotFoundError, UnauthorizedRequestError } from './errors';
+import {
+  DuplicateGrantError,
+  GrantNotFoundError,
+  UnauthorizedRequestError
+} from './errors';
 import {
   GrantCreatedEvent,
   GrantCreateFailedEvent,
@@ -50,11 +54,16 @@ export interface IGrantService {
 
 export class GrantAggregate {
   private grantMap = new Map<string, GrantEntity>();
-  private walletAddressRequestMap = new Map<string, { kid: string, requestId: string }[]>
+  private walletAddressRequestMap = new Map<
+    string,
+    { kid: string; requestId: string }[]
+  >();
   private requestIdToClientKeyMap = new Map<string, IJsonWebKey>();
 
-
-  constructor(private _repo: IGrantRepository, private _walletAddressService: IWalletAddressService) { }
+  constructor(
+    private _repo: IGrantRepository,
+    private _walletAddressService: IWalletAddressService
+  ) {}
 
   async handleBatch(cmds: IMessage[]): Promise<{ events: IMessage[] }> {
     const outputEvents: IMessage[] = [];
@@ -67,14 +76,24 @@ export class GrantAggregate {
         grantIdSet.add(payload.id);
         if (!this.parseJWKJson(payload.client)) {
           walletAddressSet.add(payload.client);
-          const walletAddressToRequest = this.walletAddressRequestMap.get(payload.client)
+          const walletAddressToRequest = this.walletAddressRequestMap.get(
+            payload.client
+          );
           const requestInfo = {
             kid: payload.signatureData.kid,
             requestId: (cmd as CreateGrantCmd).requestId
-          }
-          this.walletAddressRequestMap.set(payload.client, walletAddressToRequest ? [...walletAddressToRequest, requestInfo] : [requestInfo])
+          };
+          this.walletAddressRequestMap.set(
+            payload.client,
+            walletAddressToRequest
+              ? [...walletAddressToRequest, requestInfo]
+              : [requestInfo]
+          );
         } else {
-          this.requestIdToClientKeyMap.set((cmd as CreateGrantCmd).requestId, this.parseJWKJson(payload.client) as JWK)
+          this.requestIdToClientKeyMap.set(
+            (cmd as CreateGrantCmd).requestId,
+            this.parseJWKJson(payload.client) as JWK
+          );
         }
       } else if (cmd.msgName === ContinueGrantCmd.name) {
         const payload = (cmd as ContinueGrantCmd).payload;
@@ -91,21 +110,23 @@ export class GrantAggregate {
 
       const grants = await this._repo.fetchByIds([...grantIdSet]);
       const findKeys = async (walletAddress: string): Promise<void> => {
-        const keys = await this._walletAddressService.getWalletAddressKeys(walletAddress)
-        const requestIdAndKid = this.walletAddressRequestMap.get(walletAddress) ?? []
+        const keys =
+          await this._walletAddressService.getWalletAddressKeys(walletAddress);
+        const requestIdAndKid =
+          this.walletAddressRequestMap.get(walletAddress) ?? [];
 
         for (let requested of requestIdAndKid) {
-          const key = keys.find(key => key.kid === requested.kid)
-          if (key) this.requestIdToClientKeyMap.set(requested.requestId, key)
+          const key = keys.find((key) => key.kid === requested.kid);
+          if (key) this.requestIdToClientKeyMap.set(requested.requestId, key);
         }
-      }
+      };
 
-      const waRequests = []
+      const waRequests = [];
       for (let walletAddress of walletAddressSet) {
-        waRequests.push(findKeys(walletAddress))
+        waRequests.push(findKeys(walletAddress));
       }
 
-      await Promise.all(waRequests)
+      await Promise.all(waRequests);
 
       for (const grant of grants) {
         this.grantMap.set(grant.id, GrantEntity.fromObject(grant));
@@ -114,7 +135,7 @@ export class GrantAggregate {
       for (const cmd of cmds) {
         let event: IMessage;
         if (cmd.msgName == CreateGrantCmd.name) {
-          event = this.handleCreateGrantCommand(cmd as CreateGrantCmd);
+          event = await this.handleCreateGrantCommand(cmd as CreateGrantCmd);
         } else if (cmd.msgName === ContinueGrantCmd.name) {
           event = this.handleContinueGrantCommand(cmd as ContinueGrantCmd);
         } else if (cmd.msgName === RevokeGrantCmd.name) {
@@ -156,40 +177,56 @@ export class GrantAggregate {
   }
 
   // Signature Header validation can be performed in the application.
-  private async validateRequestSignature(key: JWK, url: string, method: string, body: string, headers: Record<string, string>): Promise<boolean> {
+  private async validateRequestSignature(
+    key: JWK,
+    url: string,
+    method: string,
+    body: string,
+    headers: Record<string, string>
+  ): Promise<boolean> {
     const requestLike = {
       method,
       body,
       url,
       headers
-    }
-    return validateSignature(key, requestLike)
+    };
+    return validateSignature(key, requestLike);
   }
 
-  private handleCreateGrantCommand(cmd: CreateGrantCmd) {
+  private async handleCreateGrantCommand(cmd: CreateGrantCmd) {
     try {
       const { id } = cmd.payload;
       if (this.grantMap.has(id)) {
         throw new DuplicateGrantError(`Grant with id ${id} already exists`);
       }
 
-      const clientKey = this.requestIdToClientKeyMap.get(cmd.requestId)
+      const clientKey = this.requestIdToClientKeyMap.get(cmd.requestId);
       if (!clientKey) {
-        throw new UnauthorizedRequestError()
+        throw new UnauthorizedRequestError();
       }
-      const { signatureData: { url, method, body, headers} } = cmd.payload
-      if (!this.validateRequestSignature(clientKey as JWK, url, method, body, headers)) {
-        throw new UnauthorizedRequestError()
+      const {
+        signatureData: { url, method, body, headers }
+      } = cmd.payload;
+      const isValidSignature = await this.validateRequestSignature(
+        clientKey as JWK,
+        url,
+        method,
+        body,
+        headers
+      );
+      if (!isValidSignature) {
+        throw new UnauthorizedRequestError();
       }
 
       const accessItems: IAccessItem[] | undefined = cmd.payload.access?.map(
         (access) => {
-          return {
+          const accessItem = {
             ...access,
             type: access.type as AccessType,
-            actions: access.actions as AccessAction[],
-            limits: access.limits as IAccessLimit
+            actions: access.actions as AccessAction[]
           };
+          if (access.limits) accessItem.limits = access.limits as IAccessLimit;
+          return accessItem;
         }
       );
 
@@ -204,23 +241,30 @@ export class GrantAggregate {
 
       this.grantMap.set(id, entity);
 
-      return new GrantCreatedEvent({
-        id,
-        continueId: entity.continueId,
-        continueToken: entity.continueToken,
-        interactNonce: entity.interaction?.clientNonce,
-        accessTokenValue: accessToken?.value,
-        accessTokenManagementId: accessToken?.managementId,
-        accessTokenExpiresIn: accessToken?.expiresInMs,
-        access: entity.accesses,
-        subjectIds: entity.subjectIds
-      });
+      return new GrantCreatedEvent(
+        {
+          id,
+          continueId: entity.continueId,
+          continueToken: entity.continueToken,
+          interactionId: entity.interactionId,
+          interactionNonce: entity.interactionNonce,
+          accessTokenValue: accessToken?.value,
+          accessTokenManagementId: accessToken?.managementId,
+          accessTokenExpiresIn: accessToken?.expiresInMs,
+          access: entity.accesses,
+          subjectIds: entity.subjectIds
+        },
+        cmd.requestId
+      );
     } catch (err) {
-      return new GrantCreateFailedEvent({
-        grantId: cmd.payload.id,
-        errorName: (err as Error).name,
-        message: (err as Error).message
-      });
+      return new GrantCreateFailedEvent(
+        {
+          grantId: cmd.payload.id,
+          errorName: (err as Error).constructor.name,
+          message: (err as Error).message
+        },
+        cmd.requestId
+      );
     }
   }
 

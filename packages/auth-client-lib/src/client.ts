@@ -8,6 +8,7 @@ import {
   AccessItem,
   GrantRequestFinish,
   SubjectId,
+  SignatureData,
   RevokeGrantResponse,
   ContinueGrantResponse,
   RotateTokenResponse,
@@ -23,6 +24,24 @@ import {
   RotateTokenRequest,
   RevokeTokenRequest
 } from 'auth-public-types-lib';
+
+export interface SignatureRequestData {
+  url: string;
+  method: string;
+  body: string;
+  headers: Record<string, string>;
+  kid: string;
+}
+
+export interface BaseCreateGrantOptions {
+  finish?: GrantRequestFinish;
+  subjectIds?: SubjectId[];
+  access?: AccessItem[];
+}
+
+export type CreateGrantOptions =
+  | (BaseCreateGrantOptions & { access: AccessItem[] })
+  | (BaseCreateGrantOptions & { subjectIds: SubjectId[] });
 
 export class AuthClient {
   private readonly _serverUrl: string;
@@ -80,16 +99,26 @@ export class AuthClient {
   }
 
   createGrant(
-    access: AccessItem[],
     client: string,
-    subjectIds: SubjectId[],
-    finish: GrantRequestFinish
+    signatureData: SignatureRequestData,
+    options: CreateGrantOptions
   ): Promise<CreateGrantResponse> {
     const request = new GrantRequest();
-    request.setAccessList(access);
+    options.access && request.setAccessList(options.access);
     request.setClient(client);
-    request.setSubjectIdsList(subjectIds);
-    request.setFinish(finish);
+    options.subjectIds && request.setSubjectIdsList(options.subjectIds);
+    request.setFinish(options.finish);
+
+    const signatureDataMsg = new SignatureData();
+    signatureDataMsg.setUrl(signatureData.url);
+    signatureDataMsg.setMethod(signatureData.method);
+    signatureDataMsg.setBody(signatureData.body);
+    signatureDataMsg.setKid(signatureData.kid);
+    const headersMap = signatureDataMsg.getHeadersMap();
+    for (const [key, value] of Object.entries(signatureData.headers)) {
+      headersMap.set(key, value);
+    }
+    request.setSignatureData(signatureDataMsg);
 
     return new Promise((resolve, reject) => {
       this._grpcClient.createGrant(

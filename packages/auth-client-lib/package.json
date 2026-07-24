@@ -14,6 +14,7 @@
     "@grpc/grpc-js": "~1.14.3"
   },
   "devDependencies": {
+    "@interledger/http-signature-utils": "^2.0.3",
     "@types/google-protobuf": "~3.15.12",
     "tsx": "^4.19.3",
     "tslib": "~2.8.1"
