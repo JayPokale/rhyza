@@ -66,7 +66,8 @@ export async function paymentIntentRoutes(
     } catch (err) {
       server.log.error(err);
       const httpStatus = httpStatusFromGrpcError(err);
-      return reply.status(httpStatus).send(toClientApiErrorResponse(err));
+      const { error } = toClientApiErrorResponse(err);
+      return reply.status(httpStatus).send({ error: error.description });
     }
   });
 
@@ -81,7 +82,8 @@ export async function paymentIntentRoutes(
       } catch (err) {
         server.log.error(err);
         const httpStatus = httpStatusFromGrpcError(err);
-        return reply.status(httpStatus).send(toClientApiErrorResponse(err));
+        const { error } = toClientApiErrorResponse(err);
+        return reply.status(httpStatus).send({ error: error.description });
       }
 
       const response: {
@@ -145,7 +147,8 @@ export async function paymentIntentRoutes(
     } catch (err) {
       server.log.error(err);
       const httpStatus = httpStatusFromGrpcError(err);
-      return reply.status(httpStatus).send(toClientApiErrorResponse(err));
+      const { error } = toClientApiErrorResponse(err);
+      return reply.status(httpStatus).send({ error: error.description });
     }
   });
 }

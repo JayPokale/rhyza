@@ -1,5 +1,5 @@
 import { Metadata, ServiceError, status } from '@grpc/grpc-js';
-import { IClientApiErrorResponse } from './local-types';
+import { IClientErrorResponse } from './local-types';
 
 export function createServiceError(
   code: status,
@@ -24,9 +24,7 @@ export function isGrpcServiceError(err: unknown): err is ServiceError {
   );
 }
 
-export function toClientApiErrorResponse(
-  err: unknown
-): IClientApiErrorResponse {
+export function toClientApiErrorResponse(err: unknown): IClientErrorResponse {
   if (isGrpcServiceError(err)) {
     return {
       error: {
