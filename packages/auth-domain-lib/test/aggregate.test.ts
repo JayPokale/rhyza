@@ -11,6 +11,7 @@ import { CreateGrantCmd, CreateGrantCmdPayload } from '../src/commands';
 import { GrantCreatedEvent, GrantCreateFailedEvent } from '../src/grant/events';
 import { AccessAction, AccessType } from '../src/grant/interfaces';
 import { MockGrantRepo, MockWalletAddressService } from './mocks';
+import { PinoLogger } from 'implementations-lib';
 
 const REQUEST_URL = 'https://auth.example/create';
 const REQUEST_METHOD = 'POST';
@@ -69,11 +70,13 @@ describe('GrantAggregate.handleBatch', () => {
   let repo: MockGrantRepo;
   let walletAddressService: MockWalletAddressService;
   let aggregate: GrantAggregate;
+  let logger: PinoLogger;
 
   beforeEach(() => {
     repo = new MockGrantRepo();
+    logger = new PinoLogger();
     walletAddressService = new MockWalletAddressService();
-    aggregate = new GrantAggregate(repo, walletAddressService);
+    aggregate = new GrantAggregate(repo, walletAddressService, logger);
   });
 
   describe('handleBatch', async () => {
