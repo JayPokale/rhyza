@@ -129,7 +129,6 @@ export class MongoDbGrantRepo implements IGrantRepository {
       finishNonce: doc.finishNonce,
       finishMethod: doc.finishMethod,
       finishUri: doc.finishUri,
-      interactionId: doc.interactionId,
       interactionNonce: doc.interactionNonce,
       interaction: doc.interaction,
       lastContinuedAt: doc.lastContinuedAt,
@@ -157,7 +156,6 @@ export class MongoDbGrantRepo implements IGrantRepository {
           finishNonce: grant.finishNonce,
           finishMethod: grant.finishMethod,
           finishUri: grant.finishUri,
-          interactionId: grant.interactionId,
           interactionNonce: grant.interactionNonce,
           interaction: grant.interaction,
           lastContinuedAt: grant.lastContinuedAt

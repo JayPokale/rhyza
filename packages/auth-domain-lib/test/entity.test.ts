@@ -48,7 +48,6 @@ describe('GrantEntity', () => {
       assert.equal(entity.continueToken, undefined);
       assert.equal(entity.continueId, undefined);
 
-      assert.equal(entity.interactionId, undefined);
       assert.equal(entity.interactionNonce, undefined);
       assert.equal(entity.interaction, undefined);
 
@@ -102,7 +101,6 @@ describe('GrantEntity', () => {
       assert.ok(entity.continueToken);
       assert.ok(entity.continueId);
 
-      assert.ok(entity.interactionId);
       assert.ok(entity.interactionNonce);
       assert.equal(entity.interaction, undefined); // This should not be initalized until startInteraction is called on the entity.
 
@@ -137,7 +135,6 @@ describe('GrantEntity', () => {
       assert.equal(entity.state, 'PENDING');
       assert.ok(entity.continueToken);
       assert.ok(entity.continueId);
-      assert.ok(entity.interactionId);
       assert.ok(entity.interactionNonce);
       assert.equal(entity.interaction, undefined); // This should not be initialized at this point.
       assert.equal(accessToken, undefined);

@@ -121,7 +121,6 @@ export interface IGrant {
   finishNonce?: string;
   finishMethod?: IFinishMethod;
   finishUri?: string;
-  interactionId?: string;
   interactionNonce?: string;
   interaction?: IInteraction;
   lastContinuedAt?: Date;

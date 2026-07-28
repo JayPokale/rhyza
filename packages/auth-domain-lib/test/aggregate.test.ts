@@ -101,7 +101,6 @@ describe('GrantAggregate.handleBatch', () => {
         assert.equal(payload.accessTokenExpiresIn, 10_000);
         assert.equal(payload.continueId, undefined);
         assert.equal(payload.continueToken, undefined);
-        assert.equal(payload.interactionId, undefined);
         assert.equal(payload.interactionNonce, undefined);
         assert.deepEqual(payload.access, cmd.payload.access);
       });
@@ -129,7 +128,6 @@ describe('GrantAggregate.handleBatch', () => {
         const payload = (events[0] as GrantCreatedEvent).payload;
         assert.ok(payload.continueId);
         assert.ok(payload.continueToken);
-        assert.ok(payload.interactionId);
         assert.ok(payload.interactionNonce);
         assert.equal(payload.accessTokenValue, undefined);
         assert.equal(payload.accessTokenValue, undefined);

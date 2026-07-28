@@ -42,7 +42,6 @@ interface IGrantInput {
   finishMethod?: IFinishMethod;
   finishUri?: string;
   finishNonce?: string;
-  interactionId?: string;
   interactionNonce?: string;
   lastContinuedAt?: Date;
 }
@@ -107,7 +106,6 @@ export class GrantEntity implements IGrant {
   private _finishNonce?: string;
   private _finishMethod?: IFinishMethod;
   private _finishUri?: string;
-  private _interactionId?: string;
   private _interactionNonce?: string;
   private _interaction?: IInteraction;
   private _lastContinuedAt?: Date;
@@ -130,7 +128,6 @@ export class GrantEntity implements IGrant {
     this._finishNonce = input.finishNonce;
     this._finishMethod = input.finishMethod;
     this._finishUri = input.finishUri;
-    this._interactionId = input.interactionId;
     this._interactionNonce = input.interactionNonce;
     this._interaction = input.interaction;
     this._lastContinuedAt = input.lastContinuedAt;
@@ -156,7 +153,6 @@ export class GrantEntity implements IGrant {
         state: GrantState.PENDING,
         continueToken: generateContinueToken(),
         continueId: uuid(),
-        interactionId: uuid(),
         interactionNonce: crypto.randomBytes(16).toString('hex').toUpperCase()
       });
 
@@ -178,7 +174,6 @@ export class GrantEntity implements IGrant {
   toObject(): IGrant {
     return {
       id: this._id,
-      interactionId: this._interactionId,
       interactionNonce: this._interactionNonce,
       interaction: this._interaction,
       startMethods: this._startMethods,
@@ -416,10 +411,6 @@ export class GrantEntity implements IGrant {
 
   get finishMethod(): IFinishMethod | undefined {
     return this._finishMethod;
-  }
-
-  get interactionId(): string | undefined {
-    return this._interactionId;
   }
 
   get interactionNonce(): string | undefined {

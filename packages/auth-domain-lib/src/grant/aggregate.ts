@@ -253,7 +253,6 @@ export class GrantAggregate {
           id,
           continueId: entity.continueId,
           continueToken: entity.continueToken,
-          interactionId: entity.interactionId,
           interactionNonce: entity.interactionNonce,
           accessTokenValue: accessToken?.value,
           accessTokenManagementId: accessToken?.managementId,

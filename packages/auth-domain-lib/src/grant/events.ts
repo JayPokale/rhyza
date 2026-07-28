@@ -82,7 +82,6 @@ export interface GrantCreatedPayload {
   id: string;
   continueId?: string;
   continueToken?: string;
-  interactionId?: string;
   interactionNonce?: string;
   accessTokenValue?: string;
   accessTokenManagementId?: string;
