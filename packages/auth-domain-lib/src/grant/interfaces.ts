@@ -126,10 +126,6 @@ export interface IGrant {
   finishNonce?: string;
   finishMethod?: IFinishMethod;
   finishUri?: string;
-<<<<<<< HEAD
-=======
-  interactionId?: string;
->>>>>>> cc12b6f (feat: remaining create grant services)
   interactionNonce?: string;
   interaction?: IInteraction;
   accessTokens: IAccessToken[];
