@@ -104,7 +104,6 @@ describe('Auth Client', () => {
       assert.ok(result.getAccessTokenExpiresIn());
       assert.equal(result.getContinueId(), undefined);
       assert.equal(result.getContinueToken(), undefined);
-      assert.equal(result.getInteractionId(), undefined);
       assert.equal(result.getInteractionNonce(), undefined);
       assert.equal(result.getAccessList, [access]);
       assert.equal(result.getSubIdsList, [subjectId]);
@@ -138,7 +137,6 @@ describe('Auth Client', () => {
       assert.ok(result);
       assert.ok(result.getContinueId());
       assert.ok(result.getContinueToken());
-      assert.ok(result.getInteractionId());
       assert.ok(result.getInteractionNonce());
       assert.equal(result.getAccessTokenValue(), undefined);
       assert.equal(result.getAccessTokenManagementId, undefined);

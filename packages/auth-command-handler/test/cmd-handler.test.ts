@@ -25,6 +25,7 @@ import {
   IWalletAddressService
 } from 'auth-domain-lib';
 import { AuthCommandHandler } from '../src/cmd-handler';
+import { PinoLogger } from '../../implementations-lib/dist';
 
 class MockProducer implements IMessageProducer {
   readonly sent: IMessage[] = [];
@@ -89,7 +90,8 @@ async function startedHandler() {
   const consumer = new MockConsumer();
   const aggregate = new GrantAggregate(
     new InMemoryGrantRepo(),
-    new NullWalletAddressService()
+    new NullWalletAddressService(),
+    new PinoLogger()
   );
   const handler = new AuthCommandHandler(
     consumer,
