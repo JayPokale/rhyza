@@ -7,6 +7,7 @@ export interface ILedgerTransaction {
   amount: bigint;
   amountScale: number;
   timestamp: number;
+  // external transaction id passed in by clients
   externalId?: string;
 }
 

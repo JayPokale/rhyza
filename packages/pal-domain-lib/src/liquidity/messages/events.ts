@@ -61,12 +61,20 @@ export class LedgerCreatedStateEvent extends LedgerStateEvent {
 export type LedgerAccountsCreatedStatePayload = {
   accounts: {
     id: string;
+    // must align with LedgerAccountTypes enum
+    type:
+      | 'ASSET_LIQUIDITY_ACCOUNT'
+      | 'PEER_LIQUIDITY_ACCOUNT'
+      | 'PEER_CLEARING_ACCOUNT'
+      | 'ASE_LIQUIDITY_ACCOUNT'
+      | 'ASE_CLEARING_ACCOUNT'
+      | 'SUSPENSE_ACCOUNT';
     name: string;
     assetCode: string;
     assetDisplayScale: number;
     debitedAmount: string;
     creditedAmount: string;
-    externalId?: string;
+    peerId?: string;
   }[];
 };
 export class LedgerAccountsCreatedStateEvent extends LedgerStateEvent {
@@ -104,6 +112,13 @@ export class LedgerTransactionRecordedStateEvent extends LedgerStateEvent {
 export type LedgerSnapshotPayload = {
   accounts: {
     id: string;
+    type:
+      | 'ASSET_LIQUIDITY_ACCOUNT'
+      | 'PEER_LIQUIDITY_ACCOUNT'
+      | 'PEER_CLEARING_ACCOUNT'
+      | 'ASE_LIQUIDITY_ACCOUNT'
+      | 'ASE_CLEARING_ACCOUNT'
+      | 'SUSPENSE_ACCOUNT';
     name: string;
     assetCode: string;
     assetDisplayScale: number;

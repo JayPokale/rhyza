@@ -6,11 +6,13 @@ Specific payload messages
 
 message PbLedgerAccountState{
     string id = 1;
-    string name = 2;
-    string asset_code = 3;
-    uint32 asset_display_scale = 4;
-    string debited_amount = 5;
-    string credited_amount = 6;
+    string type = 2;
+    string name = 3;
+    string asset_code = 4;
+    uint32 asset_display_scale = 5;
+    string debited_amount = 6;
+    string credited_amount = 7;
+    optional string peer_id = 8;
 }
 
 message PbLedgerSnapshotPayload{

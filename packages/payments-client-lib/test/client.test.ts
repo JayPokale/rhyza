@@ -74,7 +74,7 @@ describe('Payments Client', () => {
       // already exists — fine for reruns
     }
 
-    const receiverAlias = await palClient.ResolveWalletAddressAlias(
+    const receiverAlias = await palClient.resolveWalletAddressAlias(
       receiverDomain,
       receiverPathName
     );
@@ -83,7 +83,7 @@ describe('Payments Client', () => {
 
     receiverWalletAddressId = receiverAlias.walletAddressId;
 
-    const senderAlias = await palClient.ResolveWalletAddressAlias(
+    const senderAlias = await palClient.resolveWalletAddressAlias(
       receiverDomain,
       receiverPathName
     );

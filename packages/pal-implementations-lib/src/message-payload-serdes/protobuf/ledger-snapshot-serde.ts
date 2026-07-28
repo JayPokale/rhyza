@@ -20,6 +20,7 @@ export class LedgerSnapshotSerde extends ProtoBufBaseSnapshotEventSerializer<Led
       typedPayload.accounts.map((a) => {
         const pbAccount = new PbLedgerAccountState();
         pbAccount.setId(a.id);
+        pbAccount.setType(a.type);
         pbAccount.setName(a.name);
         pbAccount.setAssetCode(a.assetCode);
         pbAccount.setAssetDisplayScale(a.assetDisplayScale);
@@ -50,9 +51,16 @@ export class LedgerSnapshotSerde extends ProtoBufBaseSnapshotEventSerializer<Led
     payload.accounts = pbPayload.getAccountsList().map((acc) => {
       return {
         id: acc.getId(),
+        type: acc.getType() as
+          | 'ASSET_LIQUIDITY_ACCOUNT'
+          | 'PEER_LIQUIDITY_ACCOUNT'
+          | 'PEER_CLEARING_ACCOUNT'
+          | 'ASE_LIQUIDITY_ACCOUNT'
+          | 'ASE_CLEARING_ACCOUNT'
+          | 'SUSPENSE_ACCOUNT',
+        name: acc.getName(),
         assetCode: acc.getAssetCode(),
         assetDisplayScale: acc.getAssetDisplayScale(),
-        name: acc.getName(),
         creditedAmount: acc.getCreditedAmount(),
         debitedAmount: acc.getDebitedAmount()
       };

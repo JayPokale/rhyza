@@ -397,7 +397,6 @@ export class PalLedgerEventHandlerService {
     this._integrationEventHandler = new IntegrationEventHandler(
       this._integrationEventsConsumer,
       this._producer,
-      peerAggregate,
       this._logger
     );
     await this._integrationEventHandler.init();

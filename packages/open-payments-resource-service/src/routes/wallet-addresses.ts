@@ -20,7 +20,7 @@ export async function walletAddressRoutes(
   }>('/:walletAddressPath', async (request, reply) => {
     const { walletAddressPath } = request.params;
 
-    const alias = await opts.palClient.ResolveWalletAddressAlias(
+    const alias = await opts.palClient.resolveWalletAddressAlias(
       null,
       walletAddressPath
     );

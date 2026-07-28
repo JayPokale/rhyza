@@ -187,7 +187,7 @@ test('PAL Peer Domain - associate ledger accounts and activate', async () => {
     PEER_ONE_ID,
     'peerLiqAcc',
     'peerClearAcc',
-    'aseLiqacc',
+    'aseLiqAcc',
     'aseClearAcc',
     'suspenseAcc'
   );
