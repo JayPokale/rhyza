@@ -6,7 +6,7 @@ import { PalClient, parseAddressToDomainAndPathName } from 'pal-client-lib';
 import {
   PaymentsClient,
   httpStatusFromGrpcError,
-  isGrpcServiceError
+  toClientApiErrorResponse
 } from 'payments-client-lib';
 
 interface PaymentRouteOptions extends FastifyPluginOptions {
@@ -56,10 +56,7 @@ export async function paymentRoutes(
     } catch (err) {
       server.log.error(err);
       const httpStatus = httpStatusFromGrpcError(err);
-      const message = isGrpcServiceError(err)
-        ? err.details || err.message
-        : (err as Error).message;
-      return reply.status(httpStatus).send({ error: message });
+      return reply.status(httpStatus).send(toClientApiErrorResponse(err));
     }
   });
 
@@ -74,10 +71,7 @@ export async function paymentRoutes(
       } catch (err) {
         server.log.error(err);
         const httpStatus = httpStatusFromGrpcError(err);
-        const message = isGrpcServiceError(err)
-          ? err.details || err.message
-          : (err as Error).message;
-        return reply.status(httpStatus).send({ error: message });
+        return reply.status(httpStatus).send(toClientApiErrorResponse(err));
       }
 
       return reply.status(200).send({
@@ -107,10 +101,7 @@ export async function paymentRoutes(
       } catch (err) {
         server.log.error(err);
         const httpStatus = httpStatusFromGrpcError(err);
-        const message = isGrpcServiceError(err)
-          ? err.details || err.message
-          : (err as Error).message;
-        return reply.status(httpStatus).send({ error: message });
+        return reply.status(httpStatus).send(toClientApiErrorResponse(err));
       }
     }
   );
@@ -130,10 +121,7 @@ export async function paymentRoutes(
       } catch (err) {
         server.log.error(err);
         const httpStatus = httpStatusFromGrpcError(err);
-        const message = isGrpcServiceError(err)
-          ? err.details || err.message
-          : (err as Error).message;
-        return reply.status(httpStatus).send({ error: message });
+        return reply.status(httpStatus).send(toClientApiErrorResponse(err));
       }
     }
   );

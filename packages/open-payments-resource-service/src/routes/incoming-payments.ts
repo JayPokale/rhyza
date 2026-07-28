@@ -5,6 +5,7 @@ import { PalClient, parseAddressToDomainAndPathName } from 'pal-client-lib';
 import {
   httpStatusFromGrpcError,
   isGrpcServiceError,
+  toClientApiErrorResponse,
   PaymentsClient
 } from 'payments-client-lib';
 import { OpenPaymentsResourceServerRouteError } from '../errors.js';
@@ -120,12 +121,7 @@ export async function incomingPaymentRoutes(
       paymentIntent = await paymentsClient.getPaymentIntent(id);
     } catch (err) {
       const httpStatus = httpStatusFromGrpcError(err);
-      const { name, message } = isGrpcServiceError(err)
-        ? { name: err.name, message: err.details || err.message }
-        : { name: (err as Error).message, message: (err as Error).message };
-      return reply
-        .status(httpStatus)
-        .send({ error: { code: name, description: message } });
+      return reply.status(httpStatus).send(toClientApiErrorResponse(err));
     }
 
     const streamCredentials = generateStreamCredentials(streamServer, {
@@ -181,12 +177,7 @@ export async function incomingPaymentRoutes(
       await paymentsClient.completePaymentIntent(id);
     } catch (err) {
       const httpStatus = httpStatusFromGrpcError(err);
-      const { name, message } = isGrpcServiceError(err)
-        ? { name: err.name, message: err.details || err.message }
-        : { name: (err as Error).name, message: (err as Error).message };
-      return reply
-        .status(httpStatus)
-        .send({ error: { code: name, description: message } });
+      return reply.status(httpStatus).send(toClientApiErrorResponse(err));
     }
 
     let paymentIntent;
@@ -194,12 +185,7 @@ export async function incomingPaymentRoutes(
       paymentIntent = await paymentsClient.getPaymentIntent(id);
     } catch (err) {
       const httpStatus = httpStatusFromGrpcError(err);
-      const { name, message } = isGrpcServiceError(err)
-        ? { name: err.name, message: err.details || err.message }
-        : { name: (err as Error).name, message: (err as Error).message };
-      return reply
-        .status(httpStatus)
-        .send({ error: { code: name, description: message } });
+      return reply.status(httpStatus).send(toClientApiErrorResponse(err));
     }
 
     const streamCredentials = generateStreamCredentials(streamServer, {

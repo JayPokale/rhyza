@@ -6,7 +6,7 @@ import { PalClient, parseAddressToDomainAndPathName } from 'pal-client-lib';
 import {
   PaymentsClient,
   httpStatusFromGrpcError,
-  isGrpcServiceError
+  toClientApiErrorResponse
 } from 'payments-client-lib';
 
 interface PaymentIntentRouteOptions extends FastifyPluginOptions {
@@ -66,10 +66,7 @@ export async function paymentIntentRoutes(
     } catch (err) {
       server.log.error(err);
       const httpStatus = httpStatusFromGrpcError(err);
-      const message = isGrpcServiceError(err)
-        ? err.details || err.message
-        : (err as Error).message;
-      return reply.status(httpStatus).send({ error: message });
+      return reply.status(httpStatus).send(toClientApiErrorResponse(err));
     }
   });
 
@@ -84,10 +81,7 @@ export async function paymentIntentRoutes(
       } catch (err) {
         server.log.error(err);
         const httpStatus = httpStatusFromGrpcError(err);
-        const message = isGrpcServiceError(err)
-          ? err.details || err.message
-          : (err as Error).message;
-        return reply.status(httpStatus).send({ error: message });
+        return reply.status(httpStatus).send(toClientApiErrorResponse(err));
       }
 
       const response: {
@@ -151,10 +145,7 @@ export async function paymentIntentRoutes(
     } catch (err) {
       server.log.error(err);
       const httpStatus = httpStatusFromGrpcError(err);
-      const message = isGrpcServiceError(err)
-        ? err.details || err.message
-        : (err as Error).message;
-      return reply.status(httpStatus).send({ error: message });
+      return reply.status(httpStatus).send(toClientApiErrorResponse(err));
     }
   });
 }

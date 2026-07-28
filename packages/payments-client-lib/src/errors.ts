@@ -1,5 +1,12 @@
 import { Metadata, ServiceError, status } from '@grpc/grpc-js';
 
+export type ClientApiErrorResponse = {
+  error: {
+    code: string;
+    description: string;
+  };
+};
+
 export function createServiceError(
   code: status,
   message: string,
@@ -21,6 +28,25 @@ export function isGrpcServiceError(err: unknown): err is ServiceError {
     'code' in err &&
     typeof (err as ServiceError).code === 'number'
   );
+}
+
+export function toClientApiErrorResponse(err: unknown): ClientApiErrorResponse {
+  if (isGrpcServiceError(err)) {
+    return {
+      error: {
+        code: status[err.code] ?? 'INTERNAL',
+        description: err.details || err.message
+      }
+    };
+  }
+
+  const fallbackError = err as Error;
+  return {
+    error: {
+      code: fallbackError.name || 'Error',
+      description: fallbackError.message
+    }
+  };
 }
 
 export function httpStatusFromGrpcError(err: unknown): number {
