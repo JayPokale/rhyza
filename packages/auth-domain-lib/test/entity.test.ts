@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, randomBytes } from 'node:crypto';
 
 import { GrantEntity } from '../src/grant/entity';
 import {
@@ -478,16 +478,12 @@ describe('GrantEntity', () => {
   })
   describe('startInteraction', () => {
     function makeInteractiveGrant(): GrantEntity {
-      const input = makeCreateGrantInput({
+      return GrantEntity.fromObject({
+        id: randomUUID(),
+        state: 'PENDING',
         startMethods: ['REDIRECT'],
-        accesses: [
-          {
-            type: AccessType.OUTGOING_PAYMENT,
-            actions: [AccessAction.CREATE]
-          }
-        ]
-      });
-      return GrantEntity.create(input).entity;
+        interactionNonce: randomBytes(16).toString('hex').toUpperCase()
+      } as IGrant);
     }
 
     it('creates a pending interaction when the nonce matches', () => {
@@ -518,14 +514,28 @@ describe('GrantEntity', () => {
     it('throws NonInteractiveGrantError when the grant has no start methods', () => {
       const entity = GrantEntity.fromObject({
         id: randomUUID(),
-        state: 'FINALIZED',
-        accessTokens: new Map()
-      } as unknown as IGrant);
+        state: 'PENDING'
+      } as IGrant);
 
       assert.throws(
         () => entity.startInteraction('any-nonce'),
         (err: Error) => {
           assert(err instanceof NonInteractiveGrantError);
+          return true;
+        }
+      );
+    });
+
+    it('throws InvalidGrantError when the grant is already finalized', () => {
+      const entity = GrantEntity.fromObject({
+        id: randomUUID(),
+        state: 'FINALIZED'
+      } as IGrant);
+
+      assert.throws(
+        () => entity.startInteraction('any-nonce'),
+        (err: Error) => {
+          assert(err instanceof InvalidGrantError);
           return true;
         }
       );
