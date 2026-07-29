@@ -67,6 +67,7 @@ import {
   LedgerWithdrawFromPeerFailedWithInsufficientFundsEvent,
   LedgerWithdrawFromAseFailedWithInsufficientFundsEvent
 } from 'pal-public-types-lib';
+import {amountToBigIntOfSize, amountFromBigIntOfSize} from "../utils";
 
 const DEFAULT_DISPLAY_ASSET_SCALE = 2;
 
@@ -183,6 +184,8 @@ export class Ledger {
     }
     this._uncommittedDomainEvents.push(event);
   }
+
+
 
   /*
    * Apply events and snapshot
@@ -550,6 +553,9 @@ export class Ledger {
     // note: we don't need to check that the accounts are of the same asset in the same ledger!
 
     // TODO validate amount and convert to ledger scale
+    const ledgerAmount = amountToBigIntOfSize(
+      cmd.payload.amount, cmd.payload.amountScale, this._assetScale
+    );
 
     const transactionDTO: ILedgerTransactionDto = {
       id: cmd.payload.id,

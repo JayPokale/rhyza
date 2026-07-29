@@ -42,9 +42,9 @@ import {
   LedgerWithdrawFromAseSucceededEvent,
   LedgerWithdrawFromPeerSucceededEvent,
   LedgerWithdrawFromAseFailedWithInsufficientFundsEvent,
-  LedgerWithdrawFromPeerFailedWithInsufficientFundsEvent
+  LedgerWithdrawFromPeerFailedWithInsufficientFundsEvent,
+  LedgerAccountCreatedForAssetEvent
 } from 'pal-public-types-lib';
-import { LedgerAccountCreatedForAssetEvent } from 'pal-public-types-lib/dist';
 
 let mockRepo: MockLedgerEventSourcingRepository;
 let mockProducer: MockMessageProducer;
