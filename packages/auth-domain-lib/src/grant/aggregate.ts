@@ -7,7 +7,8 @@ import {
   RevokeGrantCmd,
   IntrospectTokenCmd,
   RotateTokenCmd,
-  RevokeTokenCmd
+  RevokeTokenCmd,
+  StartInteractionCmd
 } from '../commands';
 import {
   DuplicateGrantError,
@@ -25,7 +26,9 @@ import {
   GrantRevokeFailedEvent,
   TokenIntrospectedEvent,
   TokenRotatedEvent,
-  TokenRotationFailedEvent
+  TokenRotationFailedEvent,
+  GrantInteractionStartedEvent,
+  GrantInteractionStartFailedEvent
 } from './events';
 import {
   AccessAction,
@@ -106,6 +109,7 @@ export class GrantAggregate {
         cmd.msgName === IntrospectTokenCmd.name ||
         cmd.msgName === RotateTokenCmd.name ||
         cmd.msgName === RevokeTokenCmd.name ||
+        cmd.msgName === StartInteractionCmd.name ||
         cmd.msgName === AcceptInteractionCommand.name ||
         cmd.msgName === RejectInteractionCommand.name
       ) {
@@ -486,6 +490,31 @@ export class GrantAggregate {
         errorName: (error as Error).name,
         message: (error as Error).message
       });
+    }
+  }
+
+  private handleStartInteractionCommand(cmd: StartInteractionCmd) {
+    const { id, interactionNonce } = cmd.payload;
+
+    try {
+      const grant = this.grantMap.get(id);
+      if (!grant) {
+        throw new GrantNotFoundError(`Grant ${id} not found`);
+      }
+
+      grant.startInteraction(interactionNonce);
+      this.grantMap.set(id, grant);
+
+      return new GrantInteractionStartedEvent({ id }, cmd.requestId);
+    } catch (error) {
+      return new GrantInteractionStartFailedEvent(
+        {
+          grantId: id,
+          errorName: (error as Error).constructor.name,
+          message: (error as Error).message
+        },
+        cmd.requestId
+      );
     }
   }
 

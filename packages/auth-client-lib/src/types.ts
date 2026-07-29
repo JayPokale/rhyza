@@ -116,6 +116,10 @@ export interface RevokeTokenResult {
   id: string;
 }
 
+export interface StartInteractionResult {
+  id: string;
+}
+
 export interface HandleInteractionChoiceResult {
   success: boolean;
 }

@@ -2,6 +2,7 @@
 
 import { after, before, describe, test } from 'node:test';
 import * as assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import {
   createHeaders,
   generateTestKeys
@@ -427,6 +428,62 @@ describe('Auth Client', () => {
       );
 
       assert.equal(result.active, false);
+    });
+  });
+  describe('startInteraction', () => {
+    async function createInteractiveGrant(): Promise<{
+      id: string;
+      interactionNonce: string;
+    }> {
+      const keys = generateTestKeys();
+      const signatureData = await signedSignatureData(
+        keys.privateKey,
+        keys.publicKey.kid
+      );
+
+      const grant = await authClient.createGrant(
+        JSON.stringify(keys.publicKey),
+        signatureData,
+        {
+          access: [
+            makeAccessItem({ type: 'OUTGOING_PAYMENT', actions: ['CREATE'] })
+          ]
+        }
+      );
+
+      return {
+        id: grant.id,
+        interactionNonce: grant.interactionNonce as string
+      };
+    }
+
+    test('starts the interaction for a pending interactive grant', async () => {
+      const { id, interactionNonce } = await createInteractiveGrant();
+
+      const result = await authClient.startInteraction(id, interactionNonce);
+
+      assert.ok(result);
+      assert.equal(result.id, id);
+    });
+
+    test('invalid nonce is rejected', async () => {
+      const { id } = await createInteractiveGrant();
+
+      try {
+        await authClient.startInteraction(id, 'wrong-nonce');
+        assert.fail('expected error for invalid nonce');
+      } catch (e) {
+        assert.ok(e instanceof Error);
+      }
+    });
+
+    test('unknown grant id is rejected', async () => {
+      try {
+        await authClient.startInteraction(randomUUID(), 'any-nonce');
+        assert.fail('expected error for unknown grant');
+      } catch (e) {
+        assert.ok(e instanceof Error);
+      }
     });
   });
 });

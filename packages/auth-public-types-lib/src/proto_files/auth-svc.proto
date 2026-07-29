@@ -12,6 +12,7 @@ service RafikiAuth {
 	rpc RotateToken(RotateTokenRequest) returns (RotateTokenResponse) {}
 	rpc RevokeToken(RevokeTokenRequest) returns (RevokeTokenResponse) {}
 	// Interaction RPCs
+	rpc StartInteraction(StartInteractionRequest) returns (StartInteractionResponse) {}
 	rpc AcceptInteraction(AcceptInteractionRequest)  returns (HandleInteractionChoiceResponse) {}
 	rpc RejectInteraction(RejectInteractionRequest) returns (HandleInteractionChoiceResponse) {}
 }
@@ -170,6 +171,15 @@ message RevokeTokenRequest {
 }
 
 message RevokeTokenResponse {
+	string id = 1;
+}
+
+message StartInteractionRequest {
+	string id = 1;
+	string nonce = 2;
+}
+
+message StartInteractionResponse {
 	string id = 1;
 }
 

@@ -5,7 +5,8 @@ import { randomUUID } from 'node:crypto';
 import { GrantEntity } from '../src/grant/entity';
 import {
   InvalidGrantError,
-  InvalidInteractionError
+  InvalidInteractionError,
+  NonInteractiveGrantError
 } from '../src/grant/errors';
 import {
   AccessAction,
@@ -325,6 +326,62 @@ describe('GrantEntity', () => {
       assert.throws(
         () => entity.continue(token, id, interaction.interactRef),
         InvalidInteractionError
+      );
+    });
+  });
+
+  describe('startInteraction', () => {
+    function makeInteractiveGrant(): GrantEntity {
+      const input = makeCreateGrantInput({
+        startMethods: ['REDIRECT'],
+        accesses: [
+          {
+            type: AccessType.OUTGOING_PAYMENT,
+            actions: [AccessAction.CREATE]
+          }
+        ]
+      });
+      return GrantEntity.create(input).entity;
+    }
+
+    it('creates a pending interaction when the nonce matches', () => {
+      const entity = makeInteractiveGrant();
+      const nonce = entity.interactionNonce as string;
+
+      const interaction = entity.startInteraction(nonce);
+
+      assert.equal(interaction.state, 'PENDING');
+      assert.equal(interaction.expiresInMs, 10_000); // Default interaction expiry
+      assert.ok(interaction.interactRef);
+      assert.equal(entity.interaction, interaction);
+    });
+
+    it('throws InvalidInteractionError when the provided nonce does not match', () => {
+      const entity = makeInteractiveGrant();
+
+      assert.throws(
+        () => entity.startInteraction('wrong-nonce'),
+        (err: Error) => {
+          assert(err instanceof InvalidInteractionError);
+          return true;
+        }
+      );
+      assert.equal(entity.interaction, undefined);
+    });
+
+    it('throws NonInteractiveGrantError when the grant has no start methods', () => {
+      const entity = GrantEntity.fromObject({
+        id: randomUUID(),
+        state: 'FINALIZED',
+        accessTokens: new Map()
+      } as unknown as IGrant);
+
+      assert.throws(
+        () => entity.startInteraction('any-nonce'),
+        (err: Error) => {
+          assert(err instanceof NonInteractiveGrantError);
+          return true;
+        }
       );
     });
   });
