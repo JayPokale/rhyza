@@ -6,8 +6,44 @@ on:
       - 'docs/openapi/admin/admin-api.yaml'
 
 jobs:
+  check-client-generation:
+    name: Check if admin-client was generated
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout codebase
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate SDK
+        run: pnpm generate
+
+      - name: Check for unstaged changes
+        run: |
+          if [[ -n $(git status --porcelain) ]]; then
+             echo "ERROR: The generated admin client is out of sync with the API spec."
+             echo "Please run 'pnpm generate' locally and commit the updated files."
+             echo ""
+             echo "Files changed:"
+             git status --porcelain
+             
+             git diff
+             
+             exit 1
+           else
+             echo "Admin client is up to date!"
+           fi
+
   update-changelog:
     runs-on: ubuntu-latest
+    needs: check-client-generation
     permissions:
       contents: write
 
