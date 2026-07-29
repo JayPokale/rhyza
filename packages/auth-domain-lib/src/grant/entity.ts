@@ -36,6 +36,10 @@ function generateAccessToken(): string {
   return crypto.randomBytes(10).toString('hex').toUpperCase();
 }
 
+function generateNonce(): string {
+  return crypto.randomBytes(16).toString('hex').toUpperCase();
+}
+
 function compareAccessItems(
   inputAccessItem: IAccessItem,
   grantAccessItem: IAccessItem
@@ -140,8 +144,8 @@ export class GrantEntity implements IGrant {
         continueToken: generateContinueToken(),
         continueId: uuid(),
         lastContinuedAt: new Date(),
-        interactionNonce: crypto.randomBytes(16).toString('hex').toUpperCase(),
-        accessTokens: []
+        accessTokens: [],
+        interactionNonce: generateNonce()
       });
 
       return {
@@ -184,6 +188,10 @@ export class GrantEntity implements IGrant {
 
   // Generates an interaction for the grant.
   startInteraction(interactionNonce: string): IInteraction {
+    if (this._state === GrantState.ISSUED || this._state === GrantState.REVOKED || this._state === GrantState.REJECTED) {
+      throw new InvalidGrantError();
+    }
+
     if (!this._startMethods) {
       throw new NonInteractiveGrantError();
     }
@@ -195,6 +203,7 @@ export class GrantEntity implements IGrant {
     this._interaction = {
       interactionNonce,
       interactRef: uuid(),
+      createdAt: Date.now(),
       expiresInMs: INTERACTION_EXPIRY_MS,
       state: InteractionState.PENDING
     };
