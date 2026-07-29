@@ -15,7 +15,8 @@ import {
   IntrospectTokenCmd,
   IntrospectTokenCmdPayload,
   RevokeTokenCmd,
-  RotateTokenCmd
+  RotateTokenCmd,
+  StartInteractionCmd
 } from '../src/commands';
 import {
   GrantCreatedEvent,
@@ -24,7 +25,9 @@ import {
   TokenRevokedEvent,
   TokenRevokeFailedEvent,
   TokenRotatedEvent,
-  TokenRotationFailedEvent
+  TokenRotationFailedEvent,
+  GrantInteractionStartedEvent,
+  GrantInteractionStartFailedEvent
 } from '../src/grant/events';
 import { AccessAction, AccessType } from '../src/grant/interfaces';
 import { MockGrantRepo, MockWalletAddressService } from './mocks';
@@ -854,6 +857,96 @@ describe('GrantAggregate.handleBatch', () => {
         assert.equal(payload.id, id);
         assert.equal(payload.active, false);
         assert.equal(errorMock.mock.callCount(), 1);
+        describe('handleStartInteractionCommand', async () => {
+          async function createInteractiveGrant(): Promise<{
+            id: string;
+            interactionNonce: string;
+          }> {
+            const keys = generateTestKeys();
+            const cmd = makeCreateGrantCmd({
+              client: JSON.stringify(keys.publicKey),
+              signatureData: await signedSignatureData(
+                keys.privateKey,
+                keys.publicKey.kid
+              ),
+              access: [
+                {
+                  type: AccessType.OUTGOING_PAYMENT,
+                  actions: [AccessAction.CREATE]
+                }
+              ],
+              interact: { start: ['REDIRECT'] }
+            });
+            const { events } = await aggregate.handleBatch([cmd]);
+            const payload = (events[0] as GrantCreatedEvent).payload;
+            return {
+              id: payload.id,
+              interactionNonce: payload.interactionNonce as string
+            };
+          }
+
+          it('starts the interaction and returns GrantInteractionStartedEvent when the nonce matches', async () => {
+            const { id, interactionNonce } = await createInteractiveGrant();
+            const requestId = randomUUID();
+
+            const { events } = await aggregate.handleBatch([
+              new StartInteractionCmd(
+                { id, interactionNonce: interactionNonce },
+                requestId
+              )
+            ]);
+
+            assert.equal(events.length, 1);
+            assert.equal(events[0].msgName, GrantInteractionStartedEvent.name);
+            const payload = (events[0] as GrantInteractionStartedEvent).payload;
+            assert.equal(payload.id, id);
+            assert.equal(events[0].requestId, requestId);
+          });
+
+          it('fails with InvalidInteractionError when the nonce does not match', async () => {
+            const { id } = await createInteractiveGrant();
+            const requestId = randomUUID();
+
+            const { events } = await aggregate.handleBatch([
+              new StartInteractionCmd(
+                { id, interactionNonce: 'wrong-nonce' },
+                requestId
+              )
+            ]);
+
+            assert.equal(events.length, 1);
+            assert.equal(
+              events[0].msgName,
+              GrantInteractionStartFailedEvent.name
+            );
+            const payload = (events[0] as GrantInteractionStartFailedEvent)
+              .payload;
+            assert.equal(payload.grantId, id);
+            assert.equal(payload.errorName, 'InvalidInteractionError');
+            assert.equal(events[0].requestId, requestId);
+          });
+
+          it('fails with GrantNotFoundError when the grant does not exist', async () => {
+            const requestId = randomUUID();
+
+            const { events } = await aggregate.handleBatch([
+              new StartInteractionCmd(
+                { id: randomUUID(), interactionNonce: 'any-nonce' },
+                requestId
+              )
+            ]);
+
+            assert.equal(events.length, 1);
+            assert.equal(
+              events[0].msgName,
+              GrantInteractionStartFailedEvent.name
+            );
+            const payload = (events[0] as GrantInteractionStartFailedEvent)
+              .payload;
+            assert.equal(payload.errorName, 'GrantNotFoundError');
+            assert.equal(events[0].requestId, requestId);
+          });
+        });
       });
     });
   });
