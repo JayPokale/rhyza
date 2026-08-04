@@ -25,13 +25,12 @@ import {
   RevokeTokenRequest
 } from 'auth-public-types-lib';
 
-export interface SignatureRequestData {
-  url: string;
-  method: string;
-  body: string;
+export type SignatureRequestData = Omit<
+  SignatureData.AsObject,
+  'headersMap'
+> & {
   headers: Record<string, string>;
-  kid: string;
-}
+};
 
 export interface BaseCreateGrantOptions {
   finish?: GrantRequestFinish;

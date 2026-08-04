@@ -102,8 +102,8 @@ export class GrantAggregate {
         const payload = (cmd as ContinueGrantCmd).payload;
         grantIdSet.add(payload.id);
       } else if (
-        (cmd.msgName = AcceptInteractionCommand.name) ||
-        (cmd.msgName = RejectInteractionCommand.name)
+        cmd.msgName === AcceptInteractionCommand.name ||
+        cmd.msgName === RejectInteractionCommand.name
       ) {
         const payload = (
           cmd as AcceptInteractionCommand | RejectInteractionCommand
@@ -158,7 +158,8 @@ export class GrantAggregate {
             cmd as RejectInteractionCommand
           );
         } else {
-          throw new Error('Unexpected command');
+          this._logger.error(`Received unexpected command: ${cmd.msgName}`);
+          continue;
         }
 
         outputEvents.push(event);

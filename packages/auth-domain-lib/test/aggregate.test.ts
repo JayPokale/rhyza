@@ -1,6 +1,7 @@
-import { describe, it, beforeEach } from 'node:test';
+import { describe, it, beforeEach, afterEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { KeyObject, randomUUID } from 'node:crypto';
+import { IMessage } from 'common-types-lib';
 import {
   createHeaders,
   generateTestKeys
@@ -79,7 +80,37 @@ describe('GrantAggregate.handleBatch', () => {
     aggregate = new GrantAggregate(repo, walletAddressService, logger);
   });
 
+  afterEach(() => {
+    mock.restoreAll();
+  });
+
   describe('handleBatch', async () => {
+    it('logs an error when it processes an unknown command', async () => {
+      const errorMock = mock.method(logger, 'error', () => {});
+
+      const unknownCmd: IMessage = {
+        msgDataFormat: 'JSON',
+        msgType: 'COMMAND',
+        msgId: randomUUID(),
+        msgName: 'SomeUnknownCommand',
+        msgTimestamp: Date.now(),
+        msgTopic: 'auth-commands',
+        msgKey: null,
+        msgPartition: null,
+        msgOffset: null,
+        msgBatchId: null,
+        payload: {}
+      };
+
+      await assert.doesNotReject(() => aggregate.handleBatch([unknownCmd]));
+
+      assert.equal(errorMock.mock.callCount(), 1);
+      assert.equal(
+        errorMock.mock.calls[0].arguments[0],
+        `Received unexpected command: ${unknownCmd.msgName}`
+      );
+    });
+
     describe('handleCreateGrantCommand', async () => {
       it('creates a non-interactive grant and issues an access token', async () => {
         const keys = generateTestKeys();
