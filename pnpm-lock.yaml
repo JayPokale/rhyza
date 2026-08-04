@@ -200,7 +200,7 @@ importers:
         specifier: ^4.19.3
         version: 4.19.3
 
-  packages/auth-command-handler:
+  packages/auth-command-handler-service:
     dependencies:
       auth-domain-lib:
         specifier: workspace:*
