@@ -4,14 +4,24 @@ import { IAccessItem } from './grant/interfaces';
 const BOUNDED_CONTEXT_NAME = 'auth';
 const GRANT_AGGREGATE_NAME = 'grant';
 
-interface LimitPayload {
+interface BaseLimitPayload {
   receiver: string;
   assetCode: string;
   assetScale: number;
-  debitAmount?: bigint;
-  sendAmount?: bigint;
   interval?: string;
 }
+
+type ReceiveAmountLimitPayload = BaseLimitPayload & {
+  debitAmount?: bigint;
+  receiveAmount: bigint;
+};
+
+type DebitAmountLimitPayload = BaseLimitPayload & {
+  debitAmount: bigint;
+  receiveAmount?: bigint;
+};
+
+type LimitPayload = ReceiveAmountLimitPayload | DebitAmountLimitPayload;
 
 interface SubjectId {
   format: string;

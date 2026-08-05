@@ -180,8 +180,8 @@ export class AuthServiceServer {
     if (accessItem.limits) {
       const limits = new AccessLimits();
       limits.setReceiver(accessItem.limits.receiver);
-      if (accessItem.limits.sendAmount) {
-        limits.setReceiveAmountValue(String(accessItem.limits.sendAmount));
+      if (accessItem.limits.receiveAmount) {
+        limits.setReceiveAmountValue(String(accessItem.limits.receiveAmount));
       }
       if (accessItem.limits.debitAmount) {
         limits.setDebitAmountValue(String(accessItem.limits.debitAmount));
@@ -237,9 +237,10 @@ export class AuthServiceServer {
           ? {
               receiver: item.getLimits().getReceiver(),
               assetCode: item.getLimits().getAssetCode(),
-              assetScale: item.getLimits().getDebitAmount()
-                ? item.getLimits().getDebitAmount().getScale()
-                : 0
+              assetScale: item.getLimits().getAssetScale(),
+              debitAmount: item.getLimits().getDebitAmountValue(),
+              receiveAmount: item.getLimits().getReceiveAmountValue(),
+              interval: item.getLimits().getInterval()
             }
           : undefined
       }));
@@ -333,7 +334,6 @@ export class AuthServiceServer {
       const cmd = new AcceptInteractionCommand(
         {
           id: call.request.getId(),
-          interactRef: call.request.getInteractRef(),
           nonce: call.request.getNonce()
         },
         commandId
@@ -367,9 +367,9 @@ export class AuthServiceServer {
               ? {
                   receiver: item.getLimits().getReceiver(),
                   assetCode: item.getLimits().getAssetCode(),
-                  assetScale: item.getLimits().getDebitAmount()
-                    ? item.getLimits().getDebitAmount().getScale()
-                    : 0
+                  assetScale: item.getLimits().getAssetScale(),
+                  debitAmount: item.getLimits().getDebitAmountValue(),
+                  receiveAmount: item.getLimits().getReceiveAmountValue()
                 }
               : undefined
           }))

@@ -5,10 +5,12 @@ import { JWK, createUnauthenticatedClient } from '@interledger/open-payments';
 import { IWalletAddressService } from 'auth-domain-lib';
 
 export class WalletAddressAdapter implements IWalletAddressService {
-  async getWalletAddressKeys(url: string): Promise<JWK[]> {
+  async getWalletAddressKeys(walletAddressUrl: string): Promise<JWK[]> {
     const client = await createUnauthenticatedClient({});
 
-    const { keys } = await client.walletAddress.getKeys({ url });
+    const { keys } = await client.walletAddress.getKeys({
+      url: walletAddressUrl
+    });
 
     return keys;
   }

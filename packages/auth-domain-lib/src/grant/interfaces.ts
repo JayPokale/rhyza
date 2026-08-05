@@ -11,14 +11,24 @@ export const InteractiveAccessType: AccessType[] = [
   AccessType.OUTGOING_PAYMENT
 ] as const;
 
-export interface IAccessLimit {
+interface IBaseAccessLimit {
   receiver: string;
   assetCode: string;
   assetScale: number;
-  debitAmount?: bigint;
-  sendAmount?: bigint;
   interval?: string;
 }
+
+type IDebitAmountAccessLimit = IBaseAccessLimit & {
+  debitAmount: bigint;
+  receiveAmount?: bigint;
+};
+
+type IReceiveAmountAccessLimit = IBaseAccessLimit & {
+  debitAmount?: bigint;
+  receiveAmount: bigint;
+};
+
+export type IAccessLimit = IDebitAmountAccessLimit | IReceiveAmountAccessLimit;
 
 export const AccessAction = {
   CREATE: 'CREATE',
