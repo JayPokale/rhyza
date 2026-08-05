@@ -193,8 +193,6 @@ export class FinishInteractionCmd extends CommandMsg {
 
 export interface HandleInteractionChoiceCmdPayload {
   id: string;
-  nonce: string;
-  interactRef?: string;
 }
 
 class HandleInteractionChoiceCmd extends AuthCmd {

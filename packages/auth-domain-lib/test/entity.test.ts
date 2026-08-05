@@ -15,7 +15,8 @@ import {
   GrantState,
   IFinishMethod,
   IGrant,
-  InteractionState
+  InteractionState,
+  IInteraction
 } from '../src/grant/interfaces';
 
 function generateNonce(): string {
@@ -717,6 +718,83 @@ describe('GrantEntity', () => {
           }
         );
       });
+    });
+  });
+
+  describe('handleInteractionChoice', () => {
+    function makeGrantWithInteraction(
+      overrides: Partial<IInteraction> = {}
+    ): GrantEntity {
+      const createdAt = Date.now();
+      return GrantEntity.fromObject({
+        id: randomUUID(),
+        state: 'PENDING',
+        interaction: {
+          interactRef: randomUUID(),
+          state: 'PENDING',
+          createdAt: Date.now(),
+          expiresAt: createdAt + 10_000,
+          ...overrides
+        }
+      } as IGrant);
+    }
+
+    it('approves a pending interaction', () => {
+      const entity = makeGrantWithInteraction();
+
+      entity.handleInteraction('APPROVED');
+
+      assert.equal(entity.interaction?.state, 'APPROVED');
+    });
+
+    it('denies a pending interaction', () => {
+      const entity = makeGrantWithInteraction();
+
+      entity.handleInteraction('REJECTED');
+
+      assert.equal(entity.interaction?.state, 'REJECTED');
+    });
+
+    it('throws UnknownInteractionError when there is no interaction', () => {
+      const entity = GrantEntity.fromObject({
+        id: randomUUID(),
+        state: 'PENDING'
+      } as IGrant);
+
+      assert.throws(
+        () => entity.handleInteraction('APPROVED'),
+        (err: Error) => {
+          assert(err instanceof UnknownInteractionError);
+          return true;
+        }
+      );
+    });
+
+    it('throws InvalidInteractionError when the interaction has expired', () => {
+      const entity = makeGrantWithInteraction({
+        createdAt: Date.now() - 20_000,
+        expiresAt: Date.now() - 20_000
+      });
+
+      assert.throws(
+        () => entity.handleInteraction('APPROVED'),
+        (err: Error) => {
+          assert(err instanceof InvalidInteractionError);
+          return true;
+        }
+      );
+    });
+
+    it('throws InvalidInteractionError when the interaction is not pending', () => {
+      const entity = makeGrantWithInteraction({ state: 'APPROVED' });
+
+      assert.throws(
+        () => entity.handleInteraction('REJECTED'),
+        (err: Error) => {
+          assert(err instanceof InvalidInteractionError);
+          return true;
+        }
+      );
     });
   });
 });

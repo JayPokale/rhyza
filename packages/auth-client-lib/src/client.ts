@@ -321,12 +321,10 @@ export class AuthClient {
 
   acceptInteraction(
     id: string,
-    interactRef: string,
     nonce: string
   ): Promise<HandleInteractionChoiceResult> {
     const request = new PbAcceptInteractionRequest();
     request.setId(id);
-    request.setInteractRef(interactRef);
     request.setNonce(nonce);
 
     return new Promise((resolve, reject) => {

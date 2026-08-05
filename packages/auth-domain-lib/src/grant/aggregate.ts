@@ -571,7 +571,7 @@ export class GrantAggregate {
   private handleInteractionChoice(
     id: string,
     choice: InteractionChoice,
-    interactRef?: string
+    requestId?: string
   ) {
     try {
       const grant = this.grantMap.get(id);
@@ -582,36 +582,42 @@ export class GrantAggregate {
       grant.handleInteraction(choice);
       this.grantMap.set(id, grant);
 
-      return new GrantInteractionChoiceHandledEvent({
-        id,
-        interactRef
-      });
+      return new GrantInteractionChoiceHandledEvent(
+        {
+          id,
+          choice
+        },
+        requestId
+      );
     } catch (error) {
-      return new GrantInteractionChoiceFailedEvent({
-        grantId: id,
-        errorName: (error as Error).name,
-        message: (error as Error).message
-      });
+      return new GrantInteractionChoiceFailedEvent(
+        {
+          grantId: id,
+          errorName: (error as Error).constructor.name,
+          message: (error as Error).message
+        },
+        requestId
+      );
     }
   }
 
   private handleAcceptInteractionCommand(cmd: AcceptInteractionCommand) {
-    const { id, interactRef } = cmd.payload;
+    const { id } = cmd.payload;
 
     return this.handleInteractionChoice(
       id,
       InteractionState.APPROVED,
-      interactRef
+      cmd.requestId
     );
   }
 
   private handleRejectInteractionCommand(cmd: RejectInteractionCommand) {
-    const { id, interactRef } = cmd.payload;
+    const { id } = cmd.payload;
 
     return this.handleInteractionChoice(
       id,
       InteractionState.REJECTED,
-      interactRef
+      cmd.requestId
     );
   }
 

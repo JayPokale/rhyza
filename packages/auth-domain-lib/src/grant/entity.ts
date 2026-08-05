@@ -243,6 +243,10 @@ export class GrantEntity implements IGrant {
       throw new UnknownInteractionError();
     }
 
+    if (Date.now() > this._interaction.expiresAt) {
+      throw new InvalidInteractionError();
+    }
+
     if (this._interaction.state !== InteractionState.PENDING) {
       throw new InvalidInteractionError();
     }
