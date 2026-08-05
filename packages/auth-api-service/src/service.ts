@@ -47,7 +47,7 @@ export class AuthApiService {
 
     this.grpcService = new AuthServiceServer(
       '1',
-      '0.0.0.0:50053',
+      '0.0.0.0:50054',
       this.msgProducer,
       this.msgConsumer
     );

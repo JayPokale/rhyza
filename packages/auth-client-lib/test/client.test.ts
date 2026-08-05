@@ -14,7 +14,7 @@ import {
 } from 'auth-public-types-lib';
 
 describe('Auth Client', () => {
-  const AUTH_GRPC_URL = process.env['AUTH_GRPC_URL'] || '0.0.0.0:50053';
+  const AUTH_GRPC_URL = process.env['AUTH_GRPC_URL'] || '0.0.0.0:50054';
 
   const REQUEST_URL = 'https://auth.example/create';
   const REQUEST_METHOD = 'POST';
