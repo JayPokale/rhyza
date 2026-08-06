@@ -1281,9 +1281,10 @@ export class PaymentIntentAggregate {
 
   private handleRejectRemotePaymentCommand(cmd: RejectRemotePaymentCmd) {
     this._logger.debug(
-      `handleRejectRemotePaymentCommand — paymentId: ${cmd.payload.paymentId} paymentIntentId: ${cmd.payload.paymentIntentId} reason: ${cmd.payload.reason}`
+      `handleRejectRemotePaymentCommand — paymentId: ${cmd.payload.paymentId} paymentIntentId: ${cmd.payload.paymentIntentId} reason: ${cmd.payload.reason} rejectCode: ${cmd.payload.rejectCode}`
     );
-    const { paymentIntentId, paymentId, reason } = cmd.payload;
+    const { paymentIntentId, paymentId, reason, rejectCode, rejectMessage } =
+      cmd.payload;
 
     try {
       const paymentIntentObj = this.paymentIntentMap.get(paymentIntentId);
@@ -1330,6 +1331,8 @@ export class PaymentIntentAggregate {
           paymentId: payment.id,
           ledgerTransferId: existingPayment.ledgerTransferId,
           reason,
+          rejectCode,
+          rejectMessage,
           destinationIlpAddress: paymentIntent.destinationIlpAddress,
           peerId: paymentIntent.peerId!,
           requestId: cmd.requestId,

@@ -335,7 +335,7 @@ describe('HttpConnectorTransport — self-loop over real HTTP (async/callback)',
     }
   });
 
-  test('an outbound prepare that never gets a callback times out with T01 at its own expiry', async () => {
+  test('an outbound prepare that never gets a callback times out with R00 at its own expiry', async () => {
     const store = new InMemoryTransportCorrelationStore();
     // Outbound-only stub: simulates 202 without looping back as inbound.
     class OutboundOnlyTransport implements IConnectorTransport {
@@ -396,7 +396,7 @@ describe('HttpConnectorTransport — self-loop over real HTTP (async/callback)',
       const cmd = sent.find(
         (m) => m.msgName === ProcessRejectPacketCmd.name
       ) as ProcessRejectPacketCmd;
-      assert.equal(cmd.payload.rejectCode, 'T01');
+      assert.equal(cmd.payload.rejectCode, 'R00');
       assert.equal(cmd.payload.packetId, 'packet-expiring');
       assert.equal(cmd.payload.paymentIntentId, 'intent-expiring');
     } finally {

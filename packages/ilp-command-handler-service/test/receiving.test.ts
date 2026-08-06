@@ -27,7 +27,8 @@ import {
   ILPPaymentFulfillmentFailedEvent,
   FulfillInboundPaymentCmd,
   DispatchFulfillPacketCmd,
-  RespondToRemoteQuoteCmd
+  RespondToRemoteQuoteCmd,
+  RejectInboundPaymentCmd
 } from 'ilp-domain-lib';
 import {
   InMemoryPeerRepository,
@@ -200,15 +201,15 @@ describe('IlpCommandHandler — remote quote receiving', () => {
     assert.equal(decoded.destinationAmount, '95');
   });
 
-  test('an invalid amount yields a generic reject and no event', async () => {
+  test('an invalid amount yields F03 and no event', async () => {
     const { producer, consumer, credentials } = await startedHandler();
     await consumer.deliver([
       inboundProbe(credentials.ilpAddress, { amount: '' })
     ]);
 
     const reject = rejectFor(producer);
-    assert.ok(reject, 'expected a generic reject');
-    assert.equal(reject.payload.rejectCode, 'T00');
+    assert.ok(reject, 'expected an F03 reject');
+    assert.equal(reject.payload.rejectCode, 'F03');
     assert.equal(reject.payload.data, undefined, 'must not leak detail');
     assert.equal(
       producer.sent.filter(
@@ -218,7 +219,7 @@ describe('IlpCommandHandler — remote quote receiving', () => {
     );
   });
 
-  test('an unresolved destination yields a generic reject', async () => {
+  test('an unresolved destination yields F06', async () => {
     const { producer, consumer } = await startedHandler(
       [PEER],
       createFakeResolveStreamCredentials(),
@@ -227,8 +228,8 @@ describe('IlpCommandHandler — remote quote receiving', () => {
     await consumer.deliver([inboundProbe('test.rafiki.unknown-token')]);
 
     const reject = rejectFor(producer);
-    assert.ok(reject, 'expected a generic reject');
-    assert.equal(reject.payload.rejectCode, 'T00');
+    assert.ok(reject, 'expected an F06 reject');
+    assert.equal(reject.payload.rejectCode, 'F06');
     assert.equal(reject.payload.data, undefined);
     assert.equal(
       producer.sent.filter(
@@ -238,7 +239,7 @@ describe('IlpCommandHandler — remote quote receiving', () => {
     );
   });
 
-  test('an unresolved peer yields a generic reject', async () => {
+  test('an unresolved peer yields a generic T00 reject', async () => {
     const { producer, consumer, credentials } = await startedHandler();
     await consumer.deliver([
       inboundProbe(credentials.ilpAddress, { peerId: 'peer-unknown' })
@@ -256,7 +257,7 @@ describe('IlpCommandHandler — remote quote receiving', () => {
     );
   });
 
-  test('an inactive peer yields a generic reject', async () => {
+  test('an inactive peer yields a generic T00 reject', async () => {
     const { producer, consumer, credentials } = await startedHandler([
       { ...PEER, isActive: false }
     ]);
@@ -459,5 +460,56 @@ describe('IlpCommandHandler — remote quote receiving', () => {
         .length,
       0
     );
+  });
+
+  test('reject inbound payment dispatches T00 and clears reply handle', async () => {
+    const { producer, consumer, repo, credentials, fake } =
+      await startedHandler();
+    const resolved = await fake.resolveStreamCredentials(
+      credentials.ilpAddress
+    );
+    assert.ok(resolved);
+    const { data, executionCondition } = fulfillablePrepareData(
+      resolved!.sharedSecret
+    );
+
+    await consumer.deliver([
+      inboundProbe(credentials.ilpAddress, {
+        packetId: 'packet-pay-reject',
+        data,
+        executionCondition
+      })
+    ]);
+
+    assert.ok(await repo.fetchInboundReplyHandle('packet-pay-reject'));
+    producer.sent.length = 0;
+
+    await consumer.deliver([
+      new RejectInboundPaymentCmd({
+        peerId: 'peer-1',
+        packetId: 'packet-pay-reject',
+        paymentIntentId: PAYMENT_INTENT_ID,
+        receivedPaymentId: 'rp-fail-1',
+        requestId: crypto.randomUUID(),
+        rejectCode: 'T00',
+        rejectMessage: 'Ledger transfer failed'
+      })
+    ]);
+
+    const reject = producer.sent.find(
+      (m) => m.msgName === DispatchRejectPacketCmd.name
+    ) as DispatchRejectPacketCmd;
+    assert.ok(reject);
+    assert.equal(reject.payload.packetId, 'packet-pay-reject');
+    assert.equal(reject.payload.replyHandle, TEST_REPLY_HANDLE);
+    assert.equal(reject.payload.rejectCode, 'T00');
+    assert.equal(
+      await repo.fetchInboundReplyHandle('packet-pay-reject'),
+      undefined
+    );
+
+    const stored = await repo.fetchPacketById('packet-pay-reject');
+    assert.ok(stored);
+    assert.equal(stored.state, 'REJECTED');
   });
 });

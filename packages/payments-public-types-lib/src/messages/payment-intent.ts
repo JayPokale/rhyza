@@ -542,6 +542,8 @@ export type RemotePaymentSendRejectedPayload = {
   paymentId: string;
   ledgerTransferId: string;
   reason?: string;
+  rejectCode?: string;
+  rejectMessage?: string;
   destinationIlpAddress: string;
   peerId: string;
   requestId: string;

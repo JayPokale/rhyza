@@ -9,6 +9,7 @@ import {
   ProcessPreparePacketCmd,
   ProcessPreparePacketCmdPayload,
   ProcessRejectPacketCmd,
+  RejectInboundPaymentCmd,
   RespondToRemoteQuoteCmd,
   StartRemotePaymentCmd,
   StartRemoteQuoteCmd,
@@ -43,13 +44,19 @@ import {
 } from './events';
 import { IPeer, IPeerRepository } from './interfaces';
 
-// ILP reject codes for the receiving quote flow.
+// ILP reject codes for inbound prepare / quote / receive-fail paths.
 // F99 (application error) is the expected quote response: the unfulfillable
-// probe is answered with a reject carrying the destination amount. T00
-// (internal error) is the generic "could not respond" reject
+// probe is answered with a reject carrying the destination amount.
+// T00 (internal error) is the generic temporary reject (inactive peer,
+// quote calc failure, post-accept receive fail)
+// F06 / F03 are final: bad STREAM credentials / invalid amount.
+// R00 is connector wire timeout (no callback before expiresAt).
 // TODO: Move these in the future
 const REJECT_CODE_QUOTE_RESPONSE = 'F99';
 const REJECT_CODE_INTERNAL = 'T00';
+const REJECT_CODE_UNEXPECTED_PAYMENT = 'F06';
+const REJECT_CODE_INVALID_AMOUNT = 'F03';
+const REJECT_CODE_TRANSFER_TIMED_OUT = 'R00';
 
 export class IlpPeerAggregate {
   constructor(
@@ -236,6 +243,8 @@ export class IlpPeerAggregate {
         return this.handleFulfillInboundPayment(
           cmd as FulfillInboundPaymentCmd
         );
+      case RejectInboundPaymentCmd.name:
+        return this.handleRejectInboundPayment(cmd as RejectInboundPaymentCmd);
       case ProcessFulfillPacketCmd.name:
         return this.handleProcessFulfillPacket(cmd as ProcessFulfillPacketCmd);
       case ProcessRejectPacketCmd.name:
@@ -337,7 +346,7 @@ export class IlpPeerAggregate {
 
     const peer = await this.peerRepo.fetchById(payload.peerId);
     if (!peer || peer.isActive === false) {
-      await this.rejectInbound(payload);
+      await this.rejectInbound(payload, REJECT_CODE_INTERNAL);
       return [];
     }
 
@@ -345,12 +354,12 @@ export class IlpPeerAggregate {
       payload.destinationIlpAddress
     );
     if (!resolved) {
-      await this.rejectInbound(payload);
+      await this.rejectInbound(payload, REJECT_CODE_UNEXPECTED_PAYMENT);
       return [];
     }
 
     if (!/^\d+$/.test(payload.amount)) {
-      await this.rejectInbound(payload);
+      await this.rejectInbound(payload, REJECT_CODE_INVALID_AMOUNT);
       return [];
     }
 
@@ -511,6 +520,30 @@ export class IlpPeerAggregate {
     ];
   }
 
+  private async handleRejectInboundPayment(
+    cmd: RejectInboundPaymentCmd
+  ): Promise<IMessage[]> {
+    const payload = cmd.payload;
+    const replyHandle = await this.peerRepo.fetchInboundReplyHandle(
+      payload.packetId
+    );
+    if (!replyHandle) {
+      return [];
+    }
+
+    const stored = await this.peerRepo.fetchPacketById(payload.packetId);
+    if (stored?.state === 'PENDING') {
+      const rejected = PacketCorrelation.fromObject(stored).reject().toObject();
+      await this.peerRepo.updatePacket(rejected);
+    }
+
+    await this.rejectInbound(
+      replyHandle,
+      payload.rejectCode ?? REJECT_CODE_INTERNAL
+    );
+    return [];
+  }
+
   private async rejectInbound(
     context: ProcessPreparePacketCmdPayload | IInboundPacketReplyHandle,
     rejectCode: string = REJECT_CODE_INTERNAL
@@ -590,7 +623,8 @@ export class IlpPeerAggregate {
             paymentIntentId: transitioned.paymentIntentId,
             quoteId: transitioned.quoteId,
             rejectCode: payload.rejectCode,
-            rejectMessage: payload.rejectMessage
+            rejectMessage: payload.rejectMessage,
+            expired: payload.rejectCode === REJECT_CODE_TRANSFER_TIMED_OUT
           },
           transitioned.requestId
         )
@@ -604,7 +638,12 @@ export class IlpPeerAggregate {
           paymentIntentId: transitioned.paymentIntentId,
           paymentId: transitioned.paymentId,
           failedAt: payload.rejectedAt,
-          reason: 'REJECTED'
+          reason:
+            payload.rejectCode === REJECT_CODE_TRANSFER_TIMED_OUT
+              ? 'EXPIRED'
+              : 'REJECTED',
+          rejectCode: payload.rejectCode,
+          rejectMessage: payload.rejectMessage
         },
         transitioned.requestId
       )
