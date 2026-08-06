@@ -2,8 +2,8 @@ import { ILogger, IMessage } from 'common-types-lib';
 import {
   ContinueGrantCmd,
   CreateGrantCmd,
-  AcceptInteractionCommand,
-  RejectInteractionCommand,
+  AcceptInteractionCmd,
+  RejectInteractionCmd,
   RevokeGrantCmd,
   IntrospectTokenCmd,
   RotateTokenCmd,
@@ -115,8 +115,8 @@ export class GrantAggregate {
         cmd.msgName === RotateTokenCmd.name ||
         cmd.msgName === RevokeTokenCmd.name ||
         cmd.msgName === StartInteractionCmd.name ||
-        cmd.msgName === AcceptInteractionCommand.name ||
-        cmd.msgName === RejectInteractionCommand.name ||
+        cmd.msgName === AcceptInteractionCmd.name ||
+        cmd.msgName === RejectInteractionCmd.name ||
         cmd.msgName === FinishInteractionCmd.name
       ) {
         grantIdSet.add(
@@ -128,8 +128,8 @@ export class GrantAggregate {
               | RotateTokenCmd
               | RevokeTokenCmd
               | StartInteractionCmd
-              | AcceptInteractionCommand
-              | RejectInteractionCommand
+              | AcceptInteractionCmd
+              | RejectInteractionCmd
               | FinishInteractionCmd
           ).payload.id
         );
@@ -172,13 +172,13 @@ export class GrantAggregate {
         event = this.handleRevokeTokenCommand(cmd as RevokeTokenCmd);
       } else if (cmd.msgName === StartInteractionCmd.name) {
         event = this.handleStartInteractionCommand(cmd as StartInteractionCmd);
-      } else if (cmd.msgName === AcceptInteractionCommand.name) {
+      } else if (cmd.msgName === AcceptInteractionCmd.name) {
         event = this.handleAcceptInteractionCommand(
-          cmd as AcceptInteractionCommand
+          cmd as AcceptInteractionCmd
         );
-      } else if (cmd.msgName === RejectInteractionCommand.name) {
+      } else if (cmd.msgName === RejectInteractionCmd.name) {
         event = this.handleRejectInteractionCommand(
-          cmd as RejectInteractionCommand
+          cmd as RejectInteractionCmd
         );
       } else if (cmd.msgName === FinishInteractionCmd.name) {
         event = this.handleFinishInteractionCommand(
@@ -601,7 +601,7 @@ export class GrantAggregate {
     }
   }
 
-  private handleAcceptInteractionCommand(cmd: AcceptInteractionCommand) {
+  private handleAcceptInteractionCommand(cmd: AcceptInteractionCmd) {
     const { id } = cmd.payload;
 
     return this.handleInteractionChoice(
@@ -611,7 +611,7 @@ export class GrantAggregate {
     );
   }
 
-  private handleRejectInteractionCommand(cmd: RejectInteractionCommand) {
+  private handleRejectInteractionCommand(cmd: RejectInteractionCmd) {
     const { id } = cmd.payload;
 
     return this.handleInteractionChoice(

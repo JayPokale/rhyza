@@ -47,8 +47,8 @@ import {
   RevokeGrantCmd,
   RotateTokenCmd,
   RevokeTokenCmd,
-  AcceptInteractionCommand,
-  RejectInteractionCommand,
+  AcceptInteractionCmd,
+  RejectInteractionCmd,
   GrantCreateFailedEvent,
   GrantContinuedEvent,
   GrantContinueFailedEvent,
@@ -349,7 +349,7 @@ export class AuthServiceServer {
       const commandId = call.request.getId();
       this._storePendingResponse(commandId, call, callback);
 
-      const cmd = new AcceptInteractionCommand(
+      const cmd = new AcceptInteractionCmd(
         {
           id: call.request.getId(),
           nonce: call.request.getNonce()
@@ -361,7 +361,7 @@ export class AuthServiceServer {
       const commandId = call.request.getId();
       this._storePendingResponse(commandId, call, callback);
 
-      const cmd = new RejectInteractionCommand(
+      const cmd = new RejectInteractionCmd(
         {
           id: call.request.getId(),
           nonce: call.request.getNonce()

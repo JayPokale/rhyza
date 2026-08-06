@@ -11,14 +11,14 @@ import {
 import { GrantAggregate } from '../src/grant/aggregate';
 import { GrantEntity } from '../src/grant/entity';
 import {
-  AcceptInteractionCommand,
+  AcceptInteractionCmd,
   CreateGrantCmd,
   CreateGrantCmdPayload,
   IntrospectTokenCmd,
   IntrospectTokenCmdPayload,
   StartInteractionCmd,
   FinishInteractionCmd,
-  RejectInteractionCommand
+  RejectInteractionCmd,
 } from '../src/commands';
 import {
   GrantCreatedEvent,
@@ -714,7 +714,7 @@ describe('GrantAggregate.handleBatch', () => {
         const requestId = randomUUID();
 
         const { events } = await aggregate.handleBatch([
-          new AcceptInteractionCommand({ id }, requestId)
+          new AcceptInteractionCmd({ id }, requestId)
         ]);
 
         assert.equal(events.length, 1);
@@ -733,7 +733,7 @@ describe('GrantAggregate.handleBatch', () => {
         const requestId = randomUUID();
 
         const { events } = await aggregate.handleBatch([
-          new RejectInteractionCommand({ id }, requestId)
+          new RejectInteractionCmd({ id }, requestId)
         ]);
 
         assert.equal(events.length, 1);
@@ -751,7 +751,7 @@ describe('GrantAggregate.handleBatch', () => {
         const requestId = randomUUID();
 
         const { events } = await aggregate.handleBatch([
-          new AcceptInteractionCommand({ id: randomUUID() }, requestId)
+          new AcceptInteractionCmd({ id: randomUUID() }, requestId)
         ]);
 
         assert.equal(events.length, 1);
@@ -779,7 +779,7 @@ describe('GrantAggregate.handleBatch', () => {
         const requestId = randomUUID();
 
         const { events } = await aggregate.handleBatch([
-          new AcceptInteractionCommand({ id }, requestId)
+          new AcceptInteractionCmd({ id }, requestId)
         ]);
 
         assert.equal(events.length, 1);
@@ -810,7 +810,7 @@ describe('GrantAggregate.handleBatch', () => {
         const requestId = randomUUID();
 
         const { events } = await aggregate.handleBatch([
-          new AcceptInteractionCommand({ id }, requestId)
+          new AcceptInteractionCmd({ id }, requestId)
         ]);
 
         assert.equal(events.length, 1);
