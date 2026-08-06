@@ -75,6 +75,7 @@ export class GrantAggregate {
 
     const grantIdSet = new Set<string>();
     const walletAddressSet = new Set<string>();
+    // Maybe consolidate commands that just insert a grant id into the map into a single else-if block?
     for (const cmd of cmds) {
       if (cmd.msgName === CreateGrantCmd.name) {
         const payload = (cmd as CreateGrantCmd).payload;
@@ -400,13 +401,14 @@ export class GrantAggregate {
       this.grantMap.set(id, grant);
       return new TokenIntrospectedEvent({
         id,
+        value: tokenValue,
         active: accessToken.active,
         access: accessToken.access
       });
     } catch (err) {
       return new TokenIntrospectionFailedEvent({
         grantId: cmd.payload.id,
-        errorName: (err as Error).name,
+        errorName: (err as Error).constructor.name,
         message: (err as Error).message
       });
     }

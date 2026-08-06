@@ -8,8 +8,18 @@ import {
 } from '@interledger/http-signature-utils';
 
 import { GrantAggregate } from '../src/grant/aggregate';
-import { CreateGrantCmd, CreateGrantCmdPayload } from '../src/commands';
-import { GrantCreatedEvent, GrantCreateFailedEvent } from '../src/grant/events';
+import {
+  CreateGrantCmd,
+  CreateGrantCmdPayload,
+  IntrospectTokenCmd,
+  IntrospectTokenCmdPayload
+} from '../src/commands';
+import {
+  GrantCreatedEvent,
+  GrantCreateFailedEvent,
+  TokenIntrospectedEvent,
+  TokenIntrospectionFailedEvent
+} from '../src/grant/events';
 import { AccessAction, AccessType } from '../src/grant/interfaces';
 import { MockGrantRepo, MockWalletAddressService } from './mocks';
 import { PinoLogger } from 'implementations-lib';
@@ -65,6 +75,14 @@ function makeCreateGrantCmd(
     },
     requestId
   );
+}
+
+function makeIntrospectTokenCmd(
+  payload: Partial<IntrospectTokenCmdPayload> &
+    Pick<IntrospectTokenCmdPayload, 'id' | 'tokenValue'>,
+  requestId: string = randomUUID()
+): IntrospectTokenCmd {
+  return new IntrospectTokenCmd(payload, requestId);
 }
 
 describe('GrantAggregate.handleBatch', () => {
@@ -266,9 +284,6 @@ describe('GrantAggregate.handleBatch', () => {
         });
 
         it('fails with UnauthorizedRequestError when the resolved key does not validate the signature', async () => {
-          // The request is actually signed by signerKeys, but the wallet
-          // address lookup resolves to a different (wrong) public key that
-          // happens to share the requested kid.
           const signerKeys = generateTestKeys();
           const wrongKeys = generateTestKeys();
           const walletAddress = 'https://wallet.example/carol';
@@ -340,6 +355,122 @@ describe('GrantAggregate.handleBatch', () => {
         assert.equal(events[0].msgName, GrantCreatedEvent.name);
         const payload = (events[0] as GrantCreatedEvent).payload;
         assert.deepEqual(payload.subjectIds, subjectIds);
+      });
+    });
+
+    describe('handleIntrospectTokenCommand', async () => {
+      async function createAndFlushIssuedGrant(
+        access: CreateGrantCmdPayload['access'] = [
+          { type: AccessType.INCOMING_PAYMENT, actions: [AccessAction.READ] }
+        ]
+      ): Promise<{ id: string; tokenValue: string }> {
+        const keys = generateTestKeys();
+        const createCmd = makeCreateGrantCmd({
+          client: JSON.stringify(keys.publicKey),
+          signatureData: await signedSignatureData(
+            keys.privateKey,
+            keys.publicKey.kid
+          ),
+          access
+        });
+        const { events } = await aggregate.handleBatch([createCmd]);
+        const payload = (events[0] as GrantCreatedEvent).payload;
+
+        await aggregate.flush();
+
+        return {
+          id: createCmd.payload.id,
+          tokenValue: payload.accessTokenValue as string
+        };
+      }
+
+      it('returns active: true for a valid access token', async () => {
+        const access = [
+          { type: AccessType.INCOMING_PAYMENT, actions: [AccessAction.READ] }
+        ];
+        const { id, tokenValue } = await createAndFlushIssuedGrant(access);
+
+        const { events } = await aggregate.handleBatch([
+          makeIntrospectTokenCmd({ id, tokenValue })
+        ]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, TokenIntrospectedEvent.name);
+        const payload = (events[0] as TokenIntrospectedEvent).payload;
+        assert.equal(payload.id, id);
+        assert.equal(payload.active, true);
+        assert.deepEqual(payload.access, access);
+      });
+
+      it('returns active: false for an access token value that does not match', async () => {
+        const { id } = await createAndFlushIssuedGrant();
+
+        const { events } = await aggregate.handleBatch([
+          makeIntrospectTokenCmd({ id, tokenValue: 'unknown-token-value' })
+        ]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, TokenIntrospectedEvent.name);
+        const payload = (events[0] as TokenIntrospectedEvent).payload;
+        assert.equal(payload.active, false);
+        assert.equal(payload.access, undefined);
+      });
+
+      it('restricts the returned access to the requested access items', async () => {
+        const access = [
+          { type: AccessType.INCOMING_PAYMENT, actions: [AccessAction.READ] },
+          { type: AccessType.QUOTE, actions: [AccessAction.CREATE] }
+        ];
+        const { id, tokenValue } = await createAndFlushIssuedGrant(access);
+
+        const { events } = await aggregate.handleBatch([
+          makeIntrospectTokenCmd({
+            id,
+            tokenValue,
+            access: [access[0]]
+          })
+        ]);
+
+        assert.equal(events[0].msgName, TokenIntrospectedEvent.name);
+        const payload = (events[0] as TokenIntrospectedEvent).payload;
+        assert.equal(payload.active, true);
+        assert.deepEqual(payload.access, [access[0]]);
+      });
+
+      it('returns active: false when the requested access items are not fully covered by the grant', async () => {
+        const access = [
+          { type: AccessType.INCOMING_PAYMENT, actions: [AccessAction.READ] }
+        ];
+        const { id, tokenValue } = await createAndFlushIssuedGrant(access);
+
+        const { events } = await aggregate.handleBatch([
+          makeIntrospectTokenCmd({
+            id,
+            tokenValue,
+            access: [
+              ...access,
+              { type: AccessType.QUOTE, actions: [AccessAction.CREATE] }
+            ]
+          })
+        ]);
+
+        assert.equal(events[0].msgName, TokenIntrospectedEvent.name);
+        const payload = (events[0] as TokenIntrospectedEvent).payload;
+        assert.equal(payload.active, false);
+      });
+
+      it('fails with GrantNotFoundError when the grant does not exist', async () => {
+        const id = randomUUID();
+
+        const { events } = await aggregate.handleBatch([
+          makeIntrospectTokenCmd({ id, tokenValue: 'some-token-value' })
+        ]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, TokenIntrospectionFailedEvent.name);
+        const payload = (events[0] as TokenIntrospectionFailedEvent).payload;
+        assert.equal(payload.errorName, 'GrantNotFoundError');
+        assert.equal(payload.grantId, id);
       });
     });
   });

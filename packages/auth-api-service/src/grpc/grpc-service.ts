@@ -378,7 +378,8 @@ export class AuthServiceServer {
                   assetCode: item.getLimits().getAssetCode(),
                   assetScale: item.getLimits().getAssetScale(),
                   debitAmount: item.getLimits().getDebitAmountValue(),
-                  receiveAmount: item.getLimits().getReceiveAmountValue()
+                  receiveAmount: item.getLimits().getReceiveAmountValue(),
+                  interval: item.getLimits().getInterval()
                 }
               : undefined
           }))
