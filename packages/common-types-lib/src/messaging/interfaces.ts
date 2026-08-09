@@ -1,5 +1,6 @@
 import { IMessage } from './messages';
 import { IRawMessage } from './raw/messages';
+import {ITelemetryService} from "../telemetry";
 
 export interface IMessageFetcher {
   fetchLast(
@@ -60,6 +61,7 @@ export interface IMessageConsumer {
 }
 
 export interface IRawMessageSerializerFactory {
+  setTelemetry(telemetryService: ITelemetryService):void;
   serialize(msg: IMessage): IRawMessage;
   deserialize(rawMsg: IRawMessage): IMessage;
 }

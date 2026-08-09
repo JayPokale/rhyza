@@ -6,8 +6,10 @@ import {
   MessageDataFormats
 } from 'common-types-lib';
 
+const DATAFORMAT = MessageDataFormats.JSON;
+
 export abstract class LedgerStateEvent extends StateEvent {
-  msgDataFormat: MessageDataFormats = MessageDataFormats.JSON;
+  msgDataFormat: MessageDataFormats = DATAFORMAT;
   msgTopic: string = StateEventTopics.LedgerStateEvents;
   protected constructor(aggId: string) {
     super(aggId);
@@ -30,7 +32,7 @@ export abstract class LedgerStateEvent extends StateEvent {
   }
 }
 export abstract class BaseLedgerSnapshotEvent extends SnapshotEvent {
-  msgDataFormat: MessageDataFormats = MessageDataFormats.PROTOBUF;
+  msgDataFormat: MessageDataFormats = DATAFORMAT;
   msgTopic: string = SnapshotEventTopics.LedgerSnapshotEvents;
   protected constructor(aggId: string, aggVersion: string) {
     super(aggId, aggVersion);

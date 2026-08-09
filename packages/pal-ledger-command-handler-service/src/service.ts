@@ -20,7 +20,7 @@ import {
   KafkaLedgerEventSourcingRepository,
   LedgerCreatedStateEventSerde,
   LedgerSnapshotSerde,
-  LedgerAccountsCreatedStateEventSerde
+  LedgerAccountsCreatedStateEventSerde, PostTransactionCmdSerde
 } from 'pal-implementations-lib';
 import { LedgerTransactionRecordedStateEventSerde } from 'pal-implementations-lib';
 import crypto from 'crypto';
@@ -82,14 +82,14 @@ const KAFKA_URL =
 
 // kafka common options
 const kafkaProducerCommonOptions: KafkaProducerOptions = {
-  queueBufferingMaxMessages: 100_000,
-  compressionCodec: KafkaProducerCompressionCodecs.GZIP,
+  queueBufferingMaxMessages: 500_000,
+  compressionCodec: KafkaProducerCompressionCodecs.SNAPPY,
   messageMaxBytes: 20971520
 };
 const kafkaConsumerCommonOptions: KafkaConsumerOptions = {
   consumerGroupId: 'ES_LEDGER_POC_COMMAND_SVC',
-  batchTimeoutMs: 50,
-  batchSize: 100_000
+  batchTimeoutMs: 15,
+  batchSize: 500_000
 };
 
 const CMD_BATCHES_HISTOGRAM_NAME = 'PalLedgerCmdHandler_batches';
@@ -149,9 +149,12 @@ export class PalLedgerCommandHandlerService {
         // commands
         .register(new CreateLedgerCmdSerde())
         .register(new CreateLedgerAccountForAssetCmdSerde())
-        .register(new CreateLedgerAccountsForPeerCmdSerde());
+        .register(new CreateLedgerAccountsForPeerCmdSerde())
+        .register(new PostTransactionCmdSerde());
+
 
       msgSerializationFactory = MessageSerializationFactory.instance();
+      msgSerializationFactory.setTelemetry(this._telemetryService);
     }
     this._msgSerializationFactory = msgSerializationFactory;
 
@@ -160,6 +163,7 @@ export class PalLedgerCommandHandlerService {
         .withLogger(this._logger)
         .withBrokerList(KAFKA_URL)
         .withClientId(INSTANCE_ID)
+        .withTelemetry(this._telemetryService)
         .withSerializerFactory(this._msgSerializationFactory);
     }
     this._kafkaBuilder = kafkaBuilder;
@@ -192,6 +196,7 @@ export class PalLedgerCommandHandlerService {
 
     if (!producer) {
       producer = this._kafkaBuilder.buildProducer(kafkaProducerCommonOptions);
+      //producer = (this._kafkaBuilder as KafkaBuilder).buildProducerNew();
       await producer.connect();
     }
     this._producer = producer;
@@ -234,6 +239,7 @@ export class PalLedgerCommandHandlerService {
       };
 
       consumer = this._kafkaBuilder.buildLowLevelConsumer(consumerOpts);
+      // consumer = (this._kafkaBuilder as KafkaBuilder).buildConsumerNew(consumerOpts);
 
       // const lowLevelConsumerOptions:KafkaLowLevelConsumerOptions ={
       //   ...kafkaConsumerCommonOptions,

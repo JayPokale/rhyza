@@ -3,26 +3,8 @@ import {LedgerPrecisionLossError} from "./errors";
 // Allows optional negative sign, digits, and optional decimal point with digits
 const STRICT_NUMBER_REGEX = /^\d*$/;
 
-/*
-export function stringToBigint(stringValue: string, decimals: number): bigint {
-  const num = Number(stringValue);
-  const floatNum = +(num * (10**decimals)).toFixed(8);
-  const intNum = Math.trunc(floatNum);
-  if(intNum != floatNum)
-    throw new AccountsAndBalancesError("Provided string number has more decimals than the decimals param, stringToBigint() would lose precision");
-  return BigInt(intNum);
-}
-
-export function bigintToString(bigintValue: bigint, decimals: number): string {
-  let num = Number(bigintValue);
-  num = num / (10**decimals);
-  return num.toString();
-}
-*/
-
-
 /**
- * Converts a string-represented amount with a given source scale into a BigInt scaled to DEFAULT_DISPLAY_ASSET_SCALE.
+ * Converts a string-represented int amount with a given source scale into a BigInt scaled to DEFAULT_DISPLAY_ASSET_SCALE.
  *
  * @param sourceAmount - Integer amount string (e.g., "123456", "-1", "100")
  * @param sourceScale - Decimal precision of sourceAmount (e.g., 2 if "123.45" represents 123.456)
@@ -70,12 +52,12 @@ export function amountToBigIntOfSize(sourceAmount:string, sourceScale:number, ta
 
 
 /**
- * Converts a raw BigInt amount from `sourceScale` into a formatted decimal string scaled to `targetScale`.
+ * Converts a raw BigInt amount from `sourceScale` into a formatted int string scaled to `targetScale`.
  *
  * @param sourceAmount - BigInt amount (e.g., 10n, 10000n, 10000000000000000000n)
  * @param sourceScale - The precision scale of the incoming BigInt
- * @param targetScale - Desired decimal precision in the output string (defaults to 20)
- * @returns Formatted decimal string (e.g., "0.10", "10.000")
+ * @param targetScale - Desired precision scale for the output int string
+ * @returns Formatted decimal string (e.g., "10", "10", "123")
  */
 export function amountFromBigIntOfSize(
   sourceAmount: bigint,
@@ -84,24 +66,67 @@ export function amountFromBigIntOfSize(
 ): string {
   const scaleDiff = targetScale - sourceScale;
 
-  if (scaleDiff < 0) {
-    const divisor = 10n ** BigInt(Math.abs(scaleDiff));
-    const remainder = sourceAmount % divisor;
+  // same scale
+  if (scaleDiff == 0) {
+    return sourceAmount.toString();
+  }
 
-    // Check if non-zero digits are being lost
-    if (remainder !== 0n) {
-      throw new LedgerPrecisionLossError(
-        `Precision loss error: Cannot convert amount ${sourceAmount} from scale ${sourceScale} to ${targetScale} without discarding non-zero digits (${remainder}).`
-      );
-    }
+  // target scale is bigger, increase zeros
+  if (scaleDiff > 0) {
+    return (sourceAmount * 10n ** BigInt(scaleDiff)).toString();
+  }
 
+  // target scale is smaller, clip zeros if possible
+  const divisor = 10n ** BigInt(Math.abs(scaleDiff));
+  const remainder = sourceAmount % divisor;
+
+  // check if non-zero digits are being lost
+  if (remainder == 0n) {
     return (sourceAmount / divisor).toString();
   }
 
-  if (scaleDiff > 0) {
-    return (sourceAmount * (10n ** BigInt(scaleDiff))).toString();
-  }
+  // we can't return decimals, so anything else is a loss of precision
+  throw new LedgerPrecisionLossError(
+    `Precision loss error: Cannot convert amount  ${sourceAmount} from scale ${sourceScale} to ${targetScale} without discarding non-zero digits (${remainder}).`
+  );
 
-  return sourceAmount.toString();
+  /* if (sourceScale + scaleDiff >= targetScale) {
+     // try adding the decimal separator if possible
+     const isNegative = sourceAmount < 0;
+     let remainderLength = remainder.toString().length;
+     if (isNegative) {
+       sourceAmount *= -1n;
+     }
+
+     let ret = Number(sourceAmount) / Number(divisor);
+     ret = isNegative ? ret * -1 : ret;
+     console.log(ret);
+     return ret.toString();
+
+     // add leading zero if smaller than 1
+     // if (sourceAmount.toString().length == sourceScale) {
+     //   return isNegative
+     //     ? `-0.${sourceAmount.toString()}`
+     //     : `0.${sourceAmount.toString()}`;
+     // } else if(sourceAmount.toString().length == targetScale) {
+     //
+     // }
+
+     // let intPart = sourceAmount.toString().substring(0, remainderLength - 1);
+     // let decPart = sourceAmount.toString().substring(remainderLength - 1);
+     // if (intPart.length <= 0) {
+     //   intPart = '0';
+     // }
+     // if (decPart.length < remainderLength - 1) {
+     //   decPart = decPart.padStart(remainderLength, '0');
+     // }
+     // const ret = isNegative ? `-${intPart}.${decPart}` : `${intPart}.${decPart}`;
+     // console.log(ret);
+     // return ret;
+   }
+
+   throw new LedgerPrecisionLossError(
+     `Precision loss error: Cannot convert amount  ${sourceAmount} from scale ${sourceScale} to ${targetScale} without discarding non-zero digits (${remainder}).`
+   );*/
 }
 

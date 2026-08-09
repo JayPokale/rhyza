@@ -1,8 +1,8 @@
 import { KafkaJS, RdKafka } from '@confluentinc/kafka-javascript';
 import {
   ConsoleLogger,
-  ILogger,
-  IRawMessageSerializerFactory
+  ILogger, IMessageConsumer, IMessageProducer,
+  IRawMessageSerializerFactory, ITelemetryService
 } from 'common-types-lib';
 import crypto from 'crypto';
 import { KafkaConsumer } from './kafka-consumer';
@@ -22,6 +22,8 @@ import { KafkaFetcher } from './kafka-fetcher';
 import { KafkaAdmin } from './kafka-admin';
 import { KafkaLowLevelConsumer } from './kafka-lowlevel-consumer';
 import { KafkaLoggerWrapper } from './kafka-logger-wrapper';
+import {KafkaProducerNew2} from "./kafka-producer2";
+import {KafkaLowLevelConsumerNew2} from "./kafka-consumer2";
 
 export class KafkaBuilder implements IKafkaBuilder {
   constructor() {
@@ -33,6 +35,7 @@ export class KafkaBuilder implements IKafkaBuilder {
   private _serializerFactory!: IRawMessageSerializerFactory;
   private _kafka!: KafkaJS.Kafka;
   private _globalConfig: KafkaJS.CommonConstructorConfig;
+  private _telemetryService?:ITelemetryService;
 
   private _buildBasics() {
     if (!this._logger) {
@@ -97,6 +100,11 @@ export class KafkaBuilder implements IKafkaBuilder {
     return this;
   }
 
+  withTelemetry(telemetryService:ITelemetryService):KafkaBuilder {
+    this._telemetryService = telemetryService;
+    return this;
+  }
+
   /*
    * Builder methods
    */
@@ -147,6 +155,21 @@ export class KafkaBuilder implements IKafkaBuilder {
     );
   }
 
+  buildConsumerNew(consumerOptions: KafkaConsumerOptions): IMessageConsumer {
+    this._buildBasics();
+
+    return new KafkaLowLevelConsumerNew2(
+      this._globalConfig['client.id'] || crypto.randomUUID(),
+      consumerOptions.consumerGroupId || crypto.randomUUID(),
+      this._globalConfig["metadata.broker.list"]!.split(','),
+      this._serializerFactory,
+      this._logger,
+      this._telemetryService || null,
+      consumerOptions.batchSize,
+      consumerOptions.batchTimeoutMs
+    );
+  }
+
   buildProducer(producerOptions: KafkaProducerOptions): KafkaProducer {
     this._buildBasics();
 
@@ -182,7 +205,19 @@ export class KafkaBuilder implements IKafkaBuilder {
       this._kafka,
       this._kafka.producer(producerConfig),
       this._serializerFactory,
-      this._logger
+      this._logger,
+      this._telemetryService || null
+    );
+  }
+
+  buildProducerNew(): IMessageProducer {
+    this._buildBasics();
+
+    return new KafkaProducerNew2(
+      this._globalConfig["metadata.broker.list"]!.split(','),
+      this._serializerFactory,
+      this._logger,
+      this._telemetryService || null
     );
   }
 
@@ -221,7 +256,8 @@ export class KafkaBuilder implements IKafkaBuilder {
       globalConfig,
       consumerOptions,
       this._serializerFactory,
-      this._logger
+      this._logger,
+      this._telemetryService || null
     );
   }
 }

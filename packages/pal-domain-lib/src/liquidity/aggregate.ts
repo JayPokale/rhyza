@@ -138,21 +138,18 @@ export class LedgerAggregate {
     const procMs = Date.now() - startTs;
 
     // publish and clear uncommited events
-    const preEsrepoPublishStart = Date.now();
     const eventsCount =
       this._uncommittedStateEvents.length +
       this._uncommittedDomainEvents.length;
-    await this._esRepo.publishEvents(this._uncommittedStateEvents);
-    const esRepoMs = Date.now() - preEsrepoPublishStart;
 
     const prePublishStart = Date.now();
-    this._uncommittedStateEvents.length = 0;
-    await this._msgProducer.send(this._uncommittedDomainEvents);
-    this._uncommittedDomainEvents.length = 0;
+    await this._msgProducer.send([...this._uncommittedStateEvents, ...this._uncommittedDomainEvents]);
     const producerMs = Date.now() - prePublishStart;
+    this._uncommittedStateEvents.length = 0;
+    this._uncommittedDomainEvents.length = 0;
 
     this._logger.debug(
-      `LedgerAggregate: processed ${commands.length} commands and published ${eventsCount} events in ${Date.now() - startTs}ms - proc: ${procMs}ms esRepo pub: ${esRepoMs}ms producer pub: ${producerMs}ms`
+      `LedgerAggregate: processed ${commands.length} commands and published ${eventsCount} events in ${Date.now() - startTs}ms - proc: ${procMs}ms producer pub: ${producerMs}ms`
     );
   }
 

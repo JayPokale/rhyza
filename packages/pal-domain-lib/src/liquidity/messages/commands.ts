@@ -4,8 +4,10 @@ import {
   MessageDataFormats
 } from 'common-types-lib';
 
+const DATAFORMAT = MessageDataFormats.JSON;
+
 export abstract class LedgerCommand extends CommandMsg {
-  msgDataFormat: MessageDataFormats = MessageDataFormats.JSON;
+  msgDataFormat: MessageDataFormats = DATAFORMAT;
   msgTopic: string = CommandTopics.LedgerCommands;
   protected constructor(aggId: string) {
     super(aggId);
@@ -144,7 +146,6 @@ export type CheckBalanceAndReserveTransferCmdPayload = {
   paymentId: string;
 };
 export class CheckBalanceAndReserveTransferCmd extends LedgerCommand {
-  msgDataFormat: MessageDataFormats = MessageDataFormats.JSON;
   payload: CheckBalanceAndReserveTransferCmdPayload;
   constructor(
     aggId: string,
@@ -168,7 +169,6 @@ export type ReserveTransferCmdPayload = {
   paymentId: string;
 };
 export class ReserveTransferCmd extends LedgerCommand {
-  msgDataFormat: MessageDataFormats = MessageDataFormats.JSON;
   payload: ReserveTransferCmdPayload;
   constructor(aggId: string, payload: ReserveTransferCmdPayload) {
     super(aggId);
@@ -190,7 +190,6 @@ export type CommitTransferCmdPayload = {
   paymentId: string;
 };
 export class CommitTransferCmd extends LedgerCommand {
-  msgDataFormat: MessageDataFormats = MessageDataFormats.JSON;
   payload: CommitTransferCmdPayload;
   constructor(aggId: string, payload: CommitTransferCmdPayload) {
     super(aggId);
@@ -211,7 +210,6 @@ export type RejectTransferCmdPayload = {
   paymentId: string;
 };
 export class RejectTransferCmd extends LedgerCommand {
-  msgDataFormat: MessageDataFormats = MessageDataFormats.JSON;
   payload: RejectTransferCmdPayload;
   constructor(aggId: string, payload: RejectTransferCmdPayload) {
     super(aggId);
@@ -232,7 +230,6 @@ export type LiquidityManagementCmdPayload = {
   externalId?: string;
 };
 export class DepositToPeerCmd extends LedgerCommand {
-  msgDataFormat: MessageDataFormats = MessageDataFormats.JSON;
   payload: LiquidityManagementCmdPayload;
   constructor(payload: LiquidityManagementCmdPayload) {
     super(payload.assetCode);
@@ -241,7 +238,6 @@ export class DepositToPeerCmd extends LedgerCommand {
 }
 
 export class WithdrawFromPeerCmd extends LedgerCommand {
-  msgDataFormat: MessageDataFormats = MessageDataFormats.JSON;
   payload: LiquidityManagementCmdPayload;
   constructor(payload: LiquidityManagementCmdPayload) {
     super(payload.assetCode);
@@ -249,7 +245,6 @@ export class WithdrawFromPeerCmd extends LedgerCommand {
   }
 }
 export class DepositToAseCmd extends LedgerCommand {
-  msgDataFormat: MessageDataFormats = MessageDataFormats.JSON;
   payload: LiquidityManagementCmdPayload;
   constructor(payload: LiquidityManagementCmdPayload) {
     super(payload.assetCode);
@@ -258,7 +253,6 @@ export class DepositToAseCmd extends LedgerCommand {
 }
 
 export class WithdrawFromAseCmd extends LedgerCommand {
-  msgDataFormat: MessageDataFormats = MessageDataFormats.JSON;
   payload: LiquidityManagementCmdPayload;
   constructor(payload: LiquidityManagementCmdPayload) {
     super(payload.assetCode);
