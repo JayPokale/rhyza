@@ -7,13 +7,16 @@ import {
   IMessageConsumer,
   ILogger,
   IRawMessageSerializerFactory,
-  IMessage
+  IMessage, ITelemetryService, ITelemetryHistogram, TELEMETRY_PROPS_CALL_NAME_PROP
 } from 'common-types-lib';
 import { KafkaConsumerOptions } from './types';
 import { KafkaUtil } from './kafka-util';
+import process from "process";
 
 const DEFAULT_BATCH_SIZE = 1;
 const DEFAULT_BATCH_TIMEOUT_MS = 50;
+
+const HISTOGRAM_NAME = 'KafkaLowLevelConsumer_histo';
 
 export type rebalanceCallback = (
   type: 'error' | 'assign' | 'revoke',
@@ -27,6 +30,8 @@ export class KafkaLowLevelConsumer implements IMessageConsumer {
   private readonly _consumer: RdKafka.KafkaConsumer;
   private readonly _serializerFactory: IRawMessageSerializerFactory;
   private readonly _globalConfig: RdKafka.ConsumerGlobalConfig = {};
+  private readonly _telemetryService: ITelemetryService | null = null;
+  private readonly _histogram: ITelemetryHistogram | null = null;
 
   private _topics: string[] = [];
   private _batchHandlerCallback: messageHandlerCallback | null = null;
@@ -40,14 +45,22 @@ export class KafkaLowLevelConsumer implements IMessageConsumer {
     globalConfigs: RdKafka.ConsumerGlobalConfig,
     consumerConfigs: KafkaConsumerOptions,
     serializerFactory: IRawMessageSerializerFactory,
-    logger: ILogger | null = null
+    logger: ILogger | null = null,
+    telemetryService: ITelemetryService | null = null
   ) {
     this._logger = logger;
+    this._telemetryService = telemetryService;
     this._globalConfig = globalConfigs;
     this._serializerFactory = serializerFactory;
     this._batchSize = consumerConfigs.batchSize ?? DEFAULT_BATCH_SIZE;
     this._batchTimeoutMs =
       consumerConfigs.batchTimeoutMs ?? DEFAULT_BATCH_TIMEOUT_MS;
+
+    if(this._telemetryService) {
+      this._histogram = this._telemetryService.getHistogram(
+        HISTOGRAM_NAME
+      );
+    }
 
     this._consumer = new RdKafka.KafkaConsumer(
       {
@@ -183,41 +196,61 @@ export class KafkaLowLevelConsumer implements IMessageConsumer {
 
     this._consuming = true;
     this._logger?.info(
-      `${this.constructor.name} - starting consume loop with batch size ${this._batchSize} and timeout ${this._batchTimeoutMs}ms`
+      `${this.constructor.name} - starting consume loop with batch size ${this._batchSize} and timeout ${this._batchTimeoutMs}ms...`
     );
+
+    let cycleStartTs:bigint, beforeDeserializeTs:bigint, beforeHandlerTs:bigint, beforeCommitTs:bigint;
+    let fetchBatchTookNs:number, deserializeTookNs:number,
+      handlerTookNs:number, commitTookNs:number, cycleTookNs:number;
+    let kafkaMessages: RdKafka.Message[] = [];
+    let deserializedMessages: IMessage[] = [];
 
     while (this._consuming) {
       if (this._stopConsumingRequested) break;
 
-      const start = Date.now();
-      const kafkaMessages = await this._fetchBatch();
-      const afterFetch = Date.now();
+      kafkaMessages.length = 0;
+      cycleStartTs = process.hrtime.bigint();
+      kafkaMessages = await this._fetchBatch();
+      fetchBatchTookNs = Number(process.hrtime.bigint() - cycleStartTs);
 
       if (kafkaMessages.length <= 0) {
-        // // No messages? Wait a bit before polling again to save CPU
-        // const waitMs = this._batchTimeoutMs - (Date.now() - afterFetch);
-        // if(waitMs > 0) {
-        //   await new Promise((resolve) => setTimeout(resolve, waitMs));
-        // }
         continue;
       }
 
-      // const msgs = kafkaMessages.map(this._toIMessage.bind(this));
-      const msgs = kafkaMessages.map((msg) =>
+      // NOTE: we only measure when there are messages to process
+      deserializedMessages.length = 0;
+
+      beforeDeserializeTs = process.hrtime.bigint();
+      deserializedMessages = kafkaMessages.map((msg) =>
         this._serializerFactory.deserialize(
           KafkaUtil.convertFromKafkaMsg(msg, msg.topic, msg.partition)
         )
       );
-      const beforeHander = Date.now();
-      await this._batchHandlerCallback(msgs);
-      const handlerTook = Date.now() - beforeHander;
+      deserializeTookNs = Number(process.hrtime.bigint() - beforeDeserializeTs);
+
+
+      beforeHandlerTs = process.hrtime.bigint();
+      await this._batchHandlerCallback(deserializedMessages);
+      handlerTookNs = Number(process.hrtime.bigint() - beforeHandlerTs);
 
       // Commit offsets after successful processing
-      const beforeCommit = Date.now();
+      beforeCommitTs = process.hrtime.bigint();
       this._consumer.commit();
-      const afterCommit = Date.now();
-      this._logger?.debug(
-        `Consume cycle took:  ${afterCommit - start}ms - fetch: ${afterFetch - start}ms - handler: ${handlerTook}ms - commit: ${afterCommit - beforeCommit}ms`
+      commitTookNs = Number(process.hrtime.bigint() - beforeCommitTs);
+
+      cycleTookNs = Number(process.hrtime.bigint() - cycleStartTs);
+
+      if(this._histogram){
+        this._histogram.observe(cycleTookNs, {[TELEMETRY_PROPS_CALL_NAME_PROP]: 'consumeCycle'});
+        this._histogram.observe(fetchBatchTookNs, {[TELEMETRY_PROPS_CALL_NAME_PROP]: 'fetchBatch'});
+        this._histogram.observe(deserializeTookNs, {[TELEMETRY_PROPS_CALL_NAME_PROP]: 'deserialize'});
+        this._histogram.observe(handlerTookNs, {[TELEMETRY_PROPS_CALL_NAME_PROP]: 'handler'});
+        this._histogram.observe(commitTookNs, {[TELEMETRY_PROPS_CALL_NAME_PROP]: 'commit'});
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+      this._logger?.isDebugEnabled() && this._logger?.debug(
+        `Consume cycle took:  ${Math.round(cycleTookNs/1e+6)}ms - parts: ${Math.round(fetchBatchTookNs/1e+6)}ms / ${Math.round(deserializeTookNs/1e+6)}ms / ${Math.round(handlerTookNs/1e+6)}ms / ${Math.round(commitTookNs/1e+6)}ms (fetch/deserialization/handler/commit)`
       );
     }
   }

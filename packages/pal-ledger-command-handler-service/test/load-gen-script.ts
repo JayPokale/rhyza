@@ -34,7 +34,8 @@ const KAFKA_URL =
 const kafkaProducerCommonOptions: KafkaProducerOptions = {
   compressionCodec: KafkaProducerCompressionCodecs.GZIP,
   queueBufferingMaxMessages: 500_000,
-  messageMaxBytes: 20971520 * 2
+  messageMaxBytes: 20971520 * 2,
+  skipAcknowledgements: false
 };
 // const kafkaConsumerCommonOptions:KafkaConsumerOptions = {};
 
@@ -107,20 +108,10 @@ async function setup() {
     .withBrokerList(KAFKA_URL)
     .withClientId(`${INSTANCE_ID}`);
 
-  producer = kafkaBuilder.buildProducer(kafkaProducerCommonOptions);
+  // producer = kafkaBuilder.buildProducer(kafkaProducerCommonOptions);
+  producer = kafkaBuilder.buildProducerNew();
   await producer.connect();
 
-  const cmds: CommandMsg[] = [];
-
-  if (CREATE_LEDGER_AND_ACCOUNTS) {
-    const startTs = Date.now();
-    cmds.push(...createLedgerAssetAndPeerAccounts());
-    await producer.send(cmds);
-    const endTs = Date.now();
-    logger.debug(`Setup - Created ledger and accounts in ${endTs - startTs}ms`);
-  } else {
-    logger.debug(`Setup - Skipping ledger and accounts creation`);
-  }
 }
 
 function createLedgerAssetAndPeerAccounts(): CommandMsg[] {
@@ -187,25 +178,48 @@ async function main() {
   const cmds: CommandMsg[] = [];
 
   if (CREATE_LEDGER_AND_ACCOUNTS) {
+    const startTs = Date.now();
     cmds.push(...createLedgerAssetAndPeerAccounts());
+    await producer.send(cmds);
+    const endTs = Date.now();
+    logger.debug(`Setup - Created ledger and accounts in ${endTs - startTs}ms`);
+    return;
+  } else {
+    logger.debug(`Setup - Skipping ledger and accounts creation`);
   }
 
   const transactionIdPrefix = `txn_${randomBytes(3).toString('hex')}_`;
+  let startTs:number,sendStartTs:number,cycleDuration:number,sendDuration:number;
 
-  if (TEST_TYPE === TEST_TYPE_HIGH_LEVEL) {
-    cmds.push(...getHighLevelTransactionTestCommands(transactionIdPrefix));
-  } else if (TEST_TYPE === TEST_TYPE_LOW_LEVEL) {
-    cmds.push(...getSimpleTransactionTestCommands(transactionIdPrefix));
-  } else {
-    throw new Error(`Invalid test type: ${TEST_TYPE}`);
+  while(true){
+    cmds.length = 0;
+    startTs = Date.now();
+
+    if (TEST_TYPE === TEST_TYPE_HIGH_LEVEL) {
+      cmds.push(...getHighLevelTransactionTestCommands(transactionIdPrefix));
+    } else if (TEST_TYPE === TEST_TYPE_LOW_LEVEL) {
+      cmds.push(...getSimpleTransactionTestCommands(transactionIdPrefix));
+    } else {
+      throw new Error(`Invalid test type: ${TEST_TYPE}`);
+    }
+
+    sendStartTs = Date.now();
+    await producer.send(cmds);
+    sendDuration = Date.now()-sendStartTs;
+
+    cycleDuration = Date.now() - startTs;
+
+    logger.debug(
+      `${cmds.length} transactions posted, publishing took: ${sendDuration} ms - cycle took: ${cycleDuration}`
+    );
+    if(cycleDuration < 1000){
+      await new Promise(resolve => setTimeout(resolve, 1000-cycleDuration));
+    }
   }
 
-  const startTs = Date.now();
-  await producer.send(cmds);
 
-  logger.debug(
-    `${cmds.length} transactions posted, publishing took: ${Date.now() - startTs} ms`
-  );
+
+
 }
 
 main().then(() => {

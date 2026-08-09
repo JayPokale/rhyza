@@ -192,7 +192,7 @@ export class LedgerAggregate {
     this._uncommittedDomainEvents.length = 0;
 
     this._logger.debug(
-      `LedgerAggregate: processed ${commands.length} commands and published ${eventsCount} events in ${Date.now() - startTs}ms - proc: ${procMs}ms producer pub: ${producerMs}ms`
+      `LedgerAggregate: processed ${commands.length} commands and published ${eventsCount} events in ${Date.now() - startTs}ms - proc: ${procMs}ms esRepo pub: ${esRepoMs}ms producer pub: ${producerMs}ms`
     );
 
     this._processing = false;

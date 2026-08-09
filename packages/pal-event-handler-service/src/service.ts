@@ -222,6 +222,7 @@ export class PalLedgerEventHandlerService {
         .register(new WithdrawFromPeerCmdSerde());
 
       msgSerializationFactory = MessageSerializationFactory.instance();
+      msgSerializationFactory.setTelemetry(this._telemetryService);
     }
     this._msgSerializationFactory = msgSerializationFactory;
 
@@ -230,6 +231,7 @@ export class PalLedgerEventHandlerService {
         .withLogger(this._logger)
         .withBrokerList(KAFKA_URL)
         .withClientId(INSTANCE_ID)
+        .withTelemetry(this._telemetryService)
         .withSerializerFactory(MessageSerializationFactory.instance());
     }
     this._kafkaBuilder = kafkaBuilder;

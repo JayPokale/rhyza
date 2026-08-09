@@ -69,7 +69,7 @@ export interface IKafkaSourcingRepository<
   T extends SnapshotEvent
 > {
   // for any events other than snapshot events
-  publishEvents(events: IMessage[]): Promise<void>;
+  // publishEvents(events: IMessage[]): Promise<void>;
 
   // specific for snapshot events
   publishSnapshotEvent(events: T[]): Promise<void>;
