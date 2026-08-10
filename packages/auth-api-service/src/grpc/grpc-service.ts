@@ -271,7 +271,7 @@ export class AuthServiceServer {
         url: signatureDataMsg.getUrl(),
         method: signatureDataMsg.getMethod(),
         body: signatureDataMsg.getBody(),
-        headers: Object.fromEntries(signatureDataMsg.getHeadersMap().toArray()),
+        headers: JSON.parse(signatureDataMsg.getHeaders()),
         kid: signatureDataMsg.getKid()
       };
 
@@ -467,6 +467,9 @@ export class AuthServiceServer {
       }
       if (payload.continueId) {
         response.setContinueId(payload.continueId);
+      }
+      if (payload.interactionNonce) {
+        response.setInteractionNonce(payload.interactionNonce);
       }
 
       if (payload.accessTokenValue) {

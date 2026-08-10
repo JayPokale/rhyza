@@ -113,10 +113,7 @@ export class AuthClient {
     signatureDataMsg.setMethod(signatureData.method);
     signatureDataMsg.setBody(signatureData.body);
     signatureDataMsg.setKid(signatureData.kid);
-    const headersMap = signatureDataMsg.getHeadersMap();
-    for (const [key, value] of Object.entries(signatureData.headers)) {
-      headersMap.set(key, value);
-    }
+    signatureDataMsg.setHeaders(JSON.stringify(signatureData.headers));
     request.setSignatureData(signatureDataMsg);
 
     return new Promise((resolve, reject) => {
