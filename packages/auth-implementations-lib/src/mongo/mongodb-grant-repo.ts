@@ -108,6 +108,7 @@ export class MongoDbGrantRepo implements IGrantRepository {
         tokenDoc.value,
         {
           value: tokenDoc.value,
+          type: tokenDoc.type,
           managementId: tokenDoc.managementId,
           expiresInMs: tokenDoc.expiresInMs,
           createdAt: tokenDoc.createdAt,
@@ -122,7 +123,6 @@ export class MongoDbGrantRepo implements IGrantRepository {
       continueToken: doc.continueToken,
       continueId: doc.continueId,
       state: doc.state,
-      finalizationReason: doc.finalizationReason,
       client: doc.client,
       subjectIds: doc.subjectIds,
       accesses: doc.accesses,
@@ -149,7 +149,6 @@ export class MongoDbGrantRepo implements IGrantRepository {
           continueToken: grant.continueToken,
           continueId: grant.continueId,
           state: grant.state,
-          finalizationReason: grant.finalizationReason,
           client: grant.client,
           subjectIds: grant.subjectIds,
           accesses: grant.accesses,
@@ -166,6 +165,7 @@ export class MongoDbGrantRepo implements IGrantRepository {
         [...grant.accessTokens.values()].map((token) => ({
           grantId: grant.id,
           value: token.value,
+          type: token.type,
           managementId: token.managementId,
           expiresInMs: token.expiresInMs,
           createdAt: token.createdAt,

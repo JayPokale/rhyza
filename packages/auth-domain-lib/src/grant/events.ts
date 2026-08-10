@@ -1,5 +1,5 @@
 import { DomainEventTopics, DomainEvent } from 'common-types-lib';
-import { GrantFinalization, IAccessItem, ISubjectId } from './interfaces';
+import { GrantState, IAccessItem, ISubjectId } from './interfaces';
 
 const BOUNDED_CONTEXT_NAME = 'auth';
 const AGGREGATE_NAME = 'grant';
@@ -130,7 +130,7 @@ export class GrantCreateFailedEvent extends DomainEvent {
 
 export interface GrantContinuedPayload {
   id: string;
-  finalizationReason: GrantFinalization;
+  state: GrantState;
   accessTokenValue?: string;
   accessTokenManagementId?: string;
   accessTokenExpiresIn?: number;

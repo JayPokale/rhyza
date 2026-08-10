@@ -42,16 +42,11 @@ export interface ISubjectId {
   id: string;
 }
 
-export type InteractionChoice =
-  | typeof InteractionState.APPROVED
-  | typeof InteractionState.DENIED;
-
-export const InteractionState = {
-  PENDING: 'PENDING',
+export const Interaction = {
   APPROVED: 'APPROVED',
-  DENIED: 'DENIED'
+  REJECTED: 'REJECTED'
 } as const;
-export type InteractionState = keyof typeof InteractionState;
+export type Interaction = keyof typeof Interaction;
 
 export interface IGrantContinuation {
   accessToken: {
@@ -88,23 +83,19 @@ export interface IAccessRequest {
 }
 
 export const GrantState = {
-  PROCESSING: 'PROCESSING',
+  // transitional states
   PENDING: 'PENDING',
   APPROVED: 'APPROVED',
-  FINALIZED: 'FINALIZED'
-} as const;
-export type GrantState = keyof typeof GrantState;
-
-export const GrantFinalization = {
+  // finalized states
   ISSUED: 'ISSUED',
   REVOKED: 'REVOKED',
   REJECTED: 'REJECTED'
 } as const;
-export type GrantFinalization = keyof typeof GrantFinalization;
+export type GrantState = keyof typeof GrantState;
 
 export interface IInteraction {
   interactRef: string;
-  state: InteractionState;
+  state?: Interaction;
   expiresInMs: number;
 }
 
@@ -114,7 +105,6 @@ export interface IGrant {
   continueToken?: string;
   continueId?: string;
   state: GrantState;
-  finalizationReason?: GrantFinalization;
   client?: string | IJsonWebKey;
   subjectIds?: ISubjectId[];
   accesses?: IAccessItem[];
@@ -127,14 +117,16 @@ export interface IGrant {
   accessTokens: Map<string, IAccessToken>;
 }
 
-export type NewAccessToken = Omit<IAccessToken, 'revokedAt'>;
-
-export type RevokedAccessToken = IAccessToken & {
-  revokedAt: Date;
+export const AccessTokenType = {
+  ACCESS: 'ACCESS',
+  CONTINUE: 'CONTINUE',
+  MANAGE: 'MANAGE'
 };
+export type AccessTokenType = keyof typeof AccessTokenType;
 
 export interface IAccessToken {
   value: string;
+  type: AccessTokenType;
   managementId: string;
   expiresInMs: number;
   createdAt: Date;

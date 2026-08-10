@@ -507,7 +507,7 @@ export class AuthServiceServer {
       const payload: GrantContinuedEvent['payload'] = event.payload;
 
       response.setId(payload.id);
-      response.setFinalizationReason(payload.finalizationReason);
+      response.setState(payload.state);
 
       if (payload.accessTokenValue) {
         response.setAccessTokenValue(payload.accessTokenValue);

@@ -31,15 +31,13 @@ import {
 import {
   AccessAction,
   AccessType,
-  GrantFinalization,
   IAccessItem,
   IAccessLimit,
   IFinishMethod,
   IGrant,
   IGrantRepository,
   IJsonWebKey,
-  InteractionChoice,
-  InteractionState,
+  Interaction,
   isJWK,
   IStartMethod,
   ISubjectId,
@@ -295,7 +293,7 @@ export class GrantAggregate {
       this.grantMap.set(id, grant);
       return new GrantContinuedEvent({
         id,
-        finalizationReason: grant.finalizationReason as GrantFinalization,
+        state: grant.state,
         accessTokenValue: accessToken?.value,
         accessTokenManagementId: accessToken?.managementId,
         accessTokenExpiresIn: accessToken?.expiresInMs,
@@ -414,7 +412,7 @@ export class GrantAggregate {
 
   private handleInteractionChoice(
     id: string,
-    choice: InteractionChoice,
+    choice: Interaction,
     interactRef?: string
   ) {
     try {
@@ -423,7 +421,7 @@ export class GrantAggregate {
         throw new GrantNotFoundError(`Grant ${id} not found`);
       }
 
-      grant.handleInteractionChoice(choice);
+      grant.handleInteraction(choice);
       this.grantMap.set(id, grant);
 
       return new GrantInteractionChoiceHandledEvent({
@@ -442,21 +440,13 @@ export class GrantAggregate {
   private handleAcceptInteractionCommand(cmd: AcceptInteractionCommand) {
     const { id, interactRef } = cmd.payload;
 
-    return this.handleInteractionChoice(
-      id,
-      InteractionState.APPROVED,
-      interactRef
-    );
+    return this.handleInteractionChoice(id, Interaction.APPROVED, interactRef);
   }
 
   private handleRejectInteractionCommand(cmd: RejectInteractionCommand) {
     const { id, interactRef } = cmd.payload;
 
-    return this.handleInteractionChoice(
-      id,
-      InteractionState.DENIED,
-      interactRef
-    );
+    return this.handleInteractionChoice(id, Interaction.REJECTED, interactRef);
   }
 
   public async flush() {

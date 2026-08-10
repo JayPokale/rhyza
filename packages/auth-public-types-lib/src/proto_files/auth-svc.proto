@@ -123,7 +123,7 @@ message ContinueGrantRequest {
 
 message ContinueGrantResponse {
 	string id = 1;
-	string finalization_reason = 2;
+	string state = 2;
 	string access_token_value = 3;
 	string access_token_management_id = 4;
 	int32 access_token_expires_in = 5;

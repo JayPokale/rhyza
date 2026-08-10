@@ -15,13 +15,9 @@ import {
   GrantState,
   IGrant,
   IInteraction,
-  InteractionState,
-  InteractionChoice,
+  Interaction,
   IStartMethod,
   IAccessToken,
-  NewAccessToken,
-  RevokedAccessToken,
-  GrantFinalization,
   InteractiveAccessType,
   IJsonWebKey,
   AccessAction,
@@ -34,7 +30,6 @@ interface IGrantInput {
   continueToken?: string;
   continueId?: string;
   state: GrantState;
-  finalizationReason?: GrantFinalization;
   interaction?: IInteraction;
   client?: string | IJsonWebKey;
   subjectIds?: ISubjectId[];
@@ -99,7 +94,6 @@ export class GrantEntity implements IGrant {
   private _continueToken?: string;
   private _continueId?: string;
   private _state: GrantState;
-  private _finalizationReason?: GrantFinalization;
   private _client?: string | IJsonWebKey;
   private _subjectIds?: ISubjectId[];
   private _accesses?: IAccessItem[];
@@ -121,7 +115,6 @@ export class GrantEntity implements IGrant {
     this._continueToken = input.continueToken;
     this._continueId = input.continueId;
     this._state = input.state;
-    this._finalizationReason = input.finalizationReason;
     this._client = input.client;
     this._subjectIds = input.subjectIds;
     this._accesses = input.accesses;
@@ -162,8 +155,7 @@ export class GrantEntity implements IGrant {
     } else {
       const entity = new GrantEntity({
         ...input,
-        state: GrantState.FINALIZED,
-        finalizationReason: GrantFinalization.ISSUED
+        state: GrantState.ISSUED
       });
 
       const accessToken = entity.createAccessToken();
@@ -180,7 +172,6 @@ export class GrantEntity implements IGrant {
       continueToken: this._continueToken,
       continueId: this._continueId,
       state: this._state,
-      finalizationReason: this._finalizationReason,
       client: this._client,
       subjectIds: this._subjectIds,
       accesses: this._accesses,
@@ -200,23 +191,21 @@ export class GrantEntity implements IGrant {
 
     this._interaction = {
       interactRef: uuid(),
-      expiresInMs: INTERACTION_EXPIRY_MS,
-      state: InteractionState.PENDING
+      expiresInMs: INTERACTION_EXPIRY_MS
     };
 
     return this._interaction;
   }
 
   // Updates the approval state of the interaction.
-  handleInteractionChoice(choice: InteractionChoice) {
+  handleInteraction(interaction: Interaction) {
     if (!this._interaction) {
       throw new UnknownInteractionError();
     }
 
-    if (this._interaction.state !== InteractionState.PENDING)
-      throw new InvalidInteractionError();
+    if (this._interaction.state) throw new InvalidInteractionError();
 
-    this._interaction.state = choice;
+    this._interaction.state = interaction;
   }
 
   // Continues the grant, if an interaction was required.
@@ -224,7 +213,7 @@ export class GrantEntity implements IGrant {
     continueToken: string,
     continueId: string,
     interactRef: string
-  ): NewAccessToken | undefined {
+  ): IAccessToken | undefined {
     if (
       continueToken !== this.continueToken ||
       continueId !== this.continueId
@@ -244,29 +233,24 @@ export class GrantEntity implements IGrant {
 
     if (
       !this._interaction ||
-      this._interaction.interactRef !== interactRef ||
-      this._interaction.state === InteractionState.PENDING
+      !this._interaction.state ||
+      this._interaction.interactRef !== interactRef
     ) {
       throw new InvalidInteractionError();
     }
 
-    if (
-      this._state !== GrantState.PROCESSING &&
-      this._state !== GrantState.PENDING
-    ) {
+    if (this._state !== GrantState.PENDING) {
       throw new InvalidGrantError(
         'Cannot continue grant that is not in processing or pending state'
       );
     }
 
-    if (this._interaction.state === InteractionState.APPROVED) {
-      this._state = GrantState.FINALIZED;
-      this._finalizationReason = GrantFinalization.ISSUED;
+    if (this._interaction.state === Interaction.APPROVED) {
+      this._state = GrantState.ISSUED;
 
       return this.createAccessToken();
-    } else if (this._interaction.state === InteractionState.DENIED) {
-      this._state = GrantState.FINALIZED;
-      this._finalizationReason = GrantFinalization.REJECTED;
+    } else if (this._interaction.state === Interaction.REJECTED) {
+      this._state = GrantState.REJECTED;
     }
   }
 
@@ -274,21 +258,27 @@ export class GrantEntity implements IGrant {
     if (continueToken !== this.continueToken || continueId !== this.continueId)
       throw new InvalidGrantError('Invalid continue token or continue id');
 
-    if (this._state !== GrantState.FINALIZED) {
-      throw new InvalidGrantError('Cannot revoke finalized grant');
+    if (
+      this._state !== GrantState.APPROVED &&
+      this._state !== GrantState.ISSUED
+    ) {
+      throw new InvalidGrantError(
+        'Only approved and issued grants can be revoked'
+      );
     }
-    this._state = GrantState.FINALIZED;
-    this._finalizationReason = GrantFinalization.REVOKED;
+
+    this._state = GrantState.REVOKED;
   }
 
   // Issues a new access token for this grant.
-  createAccessToken(): NewAccessToken {
-    if (this.finalizationReason !== GrantFinalization.ISSUED) {
+  createAccessToken(): IAccessToken {
+    if (this.state !== GrantState.ISSUED) {
       throw new InvalidGrantError(
         'Cannot create access token for grant that has not been issued'
       );
     }
-    const newAccessToken: NewAccessToken = {
+    const newAccessToken: IAccessToken = {
+      type: 'ACCESS',
       managementId: uuid(),
       value: generateAccessToken(),
       createdAt: new Date(),
@@ -314,7 +304,7 @@ export class GrantEntity implements IGrant {
       return { active: false };
     }
 
-    if (this.finalizationReason !== GrantFinalization.ISSUED) {
+    if (this.state !== GrantState.ISSUED) {
       return { active: false };
     }
 
@@ -337,7 +327,7 @@ export class GrantEntity implements IGrant {
     }
   }
 
-  revokeAccessToken(value: string, managementId: string): RevokedAccessToken {
+  revokeAccessToken(value: string, managementId: string): IAccessToken {
     const accessToken = this._accessTokens.get(value);
     if (!accessToken) {
       throw new UnknownAccessTokenError();
@@ -349,14 +339,11 @@ export class GrantEntity implements IGrant {
 
     accessToken.revokedAt = new Date();
     this._accessTokens.set(value, accessToken);
-    return accessToken as RevokedAccessToken;
+    return accessToken as IAccessToken;
   }
 
-  rotateAccessToken(value: string, managementId: string): NewAccessToken {
-    if (
-      this.state !== GrantState.FINALIZED &&
-      this.finalizationReason !== GrantFinalization.ISSUED
-    ) {
+  rotateAccessToken(value: string, managementId: string): IAccessToken {
+    if (this.state !== GrantState.ISSUED) {
       throw new InvalidGrantError();
     }
 
@@ -391,10 +378,6 @@ export class GrantEntity implements IGrant {
 
   get state(): GrantState {
     return this._state;
-  }
-
-  get finalizationReason(): GrantFinalization | undefined {
-    return this._finalizationReason;
   }
 
   get client(): string | IJsonWebKey | undefined {
