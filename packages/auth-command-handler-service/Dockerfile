@@ -37,7 +37,7 @@ RUN pnpm --filter common-types-lib build
 RUN pnpm --filter implementations-lib build
 RUN pnpm --filter auth-domain-lib build
 RUN pnpm --filter auth-implementations-lib build
-RUN pnpm --filter auth-command-handler build
+RUN pnpm --filter auth-command-handler-service build
 
 FROM node:24-alpine AS runner
 RUN apk update && apk add --no-cache librdkafka
