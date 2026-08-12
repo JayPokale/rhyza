@@ -18,7 +18,7 @@ import {
   IntrospectTokenCmdPayload,
   StartInteractionCmd,
   FinishInteractionCmd,
-  RejectInteractionCmd,
+  RejectInteractionCmd
 } from '../src/commands';
 import {
   GrantCreatedEvent,

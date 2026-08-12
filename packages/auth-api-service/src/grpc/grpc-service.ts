@@ -351,8 +351,7 @@ export class AuthServiceServer {
 
       const cmd = new AcceptInteractionCmd(
         {
-          id: call.request.getId(),
-          nonce: call.request.getNonce()
+          id: call.request.getId()
         },
         commandId
       );
@@ -363,8 +362,7 @@ export class AuthServiceServer {
 
       const cmd = new RejectInteractionCmd(
         {
-          id: call.request.getId(),
-          nonce: call.request.getNonce()
+          id: call.request.getId()
         },
         commandId
       );
