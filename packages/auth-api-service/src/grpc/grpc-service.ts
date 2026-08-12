@@ -701,6 +701,7 @@ export class AuthServiceServer {
       const response = new StartInteractionResponse();
       const payload: GrantInteractionStartedEvent['payload'] = event.payload;
       response.setId(payload.id);
+      this._resolvePendingResponse(pending, requestId, null, response);
     } else if (AuthDomainEvent.isGrantInteractionStartFailedEvent(event)) {
       this._resolvePendingResponse(pending, requestId, {
         code: grpc.status.INTERNAL,
