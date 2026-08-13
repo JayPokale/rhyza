@@ -270,7 +270,11 @@ export class AuthServiceServer {
         url: signatureDataMsg.getUrl(),
         method: signatureDataMsg.getMethod(),
         body: signatureDataMsg.getBody(),
-        headers: Object.fromEntries(signatureDataMsg.getHeadersMap().toArray()),
+        headers: Object.fromEntries(
+          signatureDataMsg
+            .getHeadersList()
+            .map((h) => [h.getName(), h.getValue()])
+        ),
         kid: signatureDataMsg.getKid()
       };
 
@@ -312,7 +316,11 @@ export class AuthServiceServer {
         url: signatureDataMsg.getUrl(),
         method: signatureDataMsg.getMethod(),
         body: signatureDataMsg.getBody(),
-        headers: Object.fromEntries(signatureDataMsg.getHeadersMap().toArray()),
+        headers: Object.fromEntries(
+          signatureDataMsg
+            .getHeadersList()
+            .map((h) => [h.getName(), h.getValue()])
+        ),
         kid: signatureDataMsg.getKid()
       };
 

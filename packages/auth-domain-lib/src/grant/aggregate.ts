@@ -286,20 +286,7 @@ export class GrantAggregate {
         throw new GrantNotFoundError(`Grant ${id} not found`);
       }
 
-      let clientKey = this.requestIdToClientKeyMap.get(cmd.requestId);
-      if (!clientKey && grant.client) {
-        if (typeof grant.client === 'string') {
-          clientKey =
-            this.parseJWKJson(grant.client) ??
-            (
-              await this._walletAddressService.getWalletAddressKeys(
-                grant.client
-              )
-            ).find((key) => key.kid === cmd.payload.signatureData.kid);
-        } else {
-          clientKey = grant.client;
-        }
-      }
+      const clientKey = this.requestIdToClientKeyMap.get(cmd.requestId);
       if (!clientKey) {
         throw new UnauthorizedRequestError();
       }

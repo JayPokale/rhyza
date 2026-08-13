@@ -9,6 +9,7 @@ import {
   GrantRequestFinish,
   SubjectId,
   SignatureData,
+  SignatureHeader,
   RevokeGrantResponse,
   ContinueGrantResponse,
   RotateTokenResponse,
@@ -27,7 +28,7 @@ import {
 
 export type SignatureRequestData = Omit<
   SignatureData.AsObject,
-  'headersMap'
+  'headersList'
 > & {
   headers: Record<string, string>;
 };
@@ -157,9 +158,11 @@ export class AuthClient {
     msg.setMethod(signatureData.method);
     msg.setBody(signatureData.body);
     msg.setKid(signatureData.kid);
-    const headersMap = msg.getHeadersMap();
     for (const [key, value] of Object.entries(signatureData.headers)) {
-      headersMap.set(key, value);
+      const header = new SignatureHeader();
+      header.setName(key);
+      header.setValue(value);
+      msg.addHeaders(header);
     }
     return msg;
   }
