@@ -84,6 +84,7 @@ export interface IAccessRequest {
 
 export const GrantState = {
   // transitional states
+  PROCESSING: 'PROCESSING',
   PENDING: 'PENDING',
   APPROVED: 'APPROVED',
   // finalized states
@@ -102,8 +103,7 @@ export interface IInteraction {
 export interface IGrant {
   id: string;
   startMethods: IStartMethod[];
-  continueToken?: string;
-  continueId?: string;
+  continueToken?: IContinueToken;
   state: GrantState;
   client?: string | IJsonWebKey;
   subjectIds?: ISubjectId[];
@@ -113,24 +113,26 @@ export interface IGrant {
   finishUri?: string;
   interactionNonce?: string;
   interaction?: IInteraction;
-  lastContinuedAt?: Date;
   accessTokens: Map<string, IAccessToken>;
 }
 
-export const AccessTokenType = {
-  ACCESS: 'ACCESS',
-  CONTINUE: 'CONTINUE',
-  MANAGE: 'MANAGE'
-};
-export type AccessTokenType = keyof typeof AccessTokenType;
-
 export interface IAccessToken {
   value: string;
-  type: AccessTokenType;
-  managementId: string;
+  manageToken: IManageToken;
   expiresInMs: number;
   createdAt: Date;
   revokedAt?: Date;
+}
+
+export interface IContinueToken {
+  id: string;
+  value: string;
+  activeAt: Date;
+}
+
+export interface IManageToken {
+  id: string;
+  value: string;
 }
 
 export interface IJsonWebKey {

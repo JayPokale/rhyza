@@ -303,12 +303,26 @@ export class AuthServiceServer {
       const commandId = crypto.randomUUID();
       this._storePendingResponse(commandId, call, callback);
 
+      const signatureDataMsg = call.request.getSignatureData();
+      if (!signatureDataMsg) {
+        callback(new Error('Missing signature data'));
+        return;
+      }
+      const signatureData = {
+        url: signatureDataMsg.getUrl(),
+        method: signatureDataMsg.getMethod(),
+        body: signatureDataMsg.getBody(),
+        headers: Object.fromEntries(signatureDataMsg.getHeadersMap().toArray()),
+        kid: signatureDataMsg.getKid()
+      };
+
       const cmd = new ContinueGrantCmd(
         {
           id: call.request.getId(),
           continueId: call.request.getContinueId(),
           continueToken: call.request.getContinueToken(),
-          interactRef: call.request.getInteractRef()
+          interactRef: call.request.getInteractRef() || undefined,
+          signatureData
         },
         commandId
       );

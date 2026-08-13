@@ -169,10 +169,11 @@ export class GrantContinueFailedEvent extends DomainEvent {
   msgTopic: string = DomainEventTopics.AuthEvents;
   payload: GrantContinueFailedPayload;
 
-  constructor(payload: GrantContinueFailedPayload) {
+  constructor(payload: GrantContinueFailedPayload, requestId?: string) {
     super(payload.grantId);
     this.aggregateId = this.msgKey = payload.grantId;
     this.payload = payload;
+    this.requestId = requestId;
   }
 }
 

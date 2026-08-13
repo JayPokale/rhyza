@@ -138,7 +138,9 @@ export class GrantAggregate {
         if (cmd.msgName == CreateGrantCmd.name) {
           event = await this.handleCreateGrantCommand(cmd as CreateGrantCmd);
         } else if (cmd.msgName === ContinueGrantCmd.name) {
-          event = this.handleContinueGrantCommand(cmd as ContinueGrantCmd);
+          event = await this.handleContinueGrantCommand(
+            cmd as ContinueGrantCmd
+          );
         } else if (cmd.msgName === RevokeGrantCmd.name) {
           event = this.handleRevokeGrantCommand(cmd as RevokeGrantCmd);
         } else if (cmd.msgName === IntrospectTokenCmd.name) {
@@ -250,11 +252,11 @@ export class GrantAggregate {
       return new GrantCreatedEvent(
         {
           id,
-          continueId: entity.continueId,
-          continueToken: entity.continueToken,
+          continueId: entity.continueToken?.id,
+          continueToken: entity.continueToken?.value,
           interactionNonce: entity.interactionNonce,
           accessTokenValue: accessToken?.value,
-          accessTokenManagementId: accessToken?.managementId,
+          accessTokenManagementId: accessToken?.manageToken.id,
           accessTokenExpiresIn: accessToken?.expiresInMs,
           access: entity.accesses,
           subjectIds: entity.subjectIds
@@ -276,12 +278,45 @@ export class GrantAggregate {
     }
   }
 
-  private handleContinueGrantCommand(cmd: ContinueGrantCmd) {
+  private async handleContinueGrantCommand(cmd: ContinueGrantCmd) {
     const { id, continueId, continueToken, interactRef } = cmd.payload;
     try {
       const grant = this.grantMap.get(id);
       if (!grant) {
         throw new GrantNotFoundError(`Grant ${id} not found`);
+      }
+
+      let clientKey = this.requestIdToClientKeyMap.get(cmd.requestId);
+      if (!clientKey && grant.client) {
+        if (typeof grant.client === 'string') {
+          clientKey =
+            this.parseJWKJson(grant.client) ??
+            (
+              await this._walletAddressService.getWalletAddressKeys(
+                grant.client
+              )
+            ).find((key) => key.kid === cmd.payload.signatureData.kid);
+        } else {
+          clientKey = grant.client;
+        }
+      }
+      if (!clientKey) {
+        throw new UnauthorizedRequestError();
+      }
+
+      const {
+        signatureData: { url, method, body, headers }
+      } = cmd.payload;
+
+      const isValidSignature = await this.validateRequestSignature(
+        clientKey as JWK,
+        url,
+        method,
+        body,
+        headers
+      );
+      if (!isValidSignature) {
+        throw new UnauthorizedRequestError();
       }
 
       const accessToken = grant.continue(
@@ -291,22 +326,28 @@ export class GrantAggregate {
       );
 
       this.grantMap.set(id, grant);
-      return new GrantContinuedEvent({
-        id,
-        state: grant.state,
-        accessTokenValue: accessToken?.value,
-        accessTokenManagementId: accessToken?.managementId,
-        accessTokenExpiresIn: accessToken?.expiresInMs,
-        access: grant.accesses,
-        continueId: grant.continueId,
-        continueToken: grant.continueToken
-      });
+      return new GrantContinuedEvent(
+        {
+          id,
+          state: grant.state,
+          accessTokenValue: accessToken?.value,
+          accessTokenManagementId: accessToken?.manageToken.id,
+          accessTokenExpiresIn: accessToken?.expiresInMs,
+          access: grant.accesses,
+          continueId: grant.continueToken?.id,
+          continueToken: grant.continueToken?.value
+        },
+        cmd.requestId
+      );
     } catch (err) {
-      return new GrantContinueFailedEvent({
-        grantId: cmd.payload.id,
-        errorName: (err as Error).name,
-        message: (err as Error).message
-      });
+      return new GrantContinueFailedEvent(
+        {
+          grantId: cmd.payload.id,
+          errorName: (err as Error).name,
+          message: (err as Error).message
+        },
+        cmd.requestId
+      );
     }
   }
 
@@ -373,7 +414,7 @@ export class GrantAggregate {
       return new TokenRotatedEvent({
         id,
         newAccessTokenValue: accessToken.value,
-        newAccessTokenManagementId: accessToken.managementId,
+        newAccessTokenManagementId: accessToken.manageToken.id,
         newAccessTokenExpiresIn: accessToken.expiresInMs,
         access: grant.accesses
       });

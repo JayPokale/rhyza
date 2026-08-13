@@ -118,7 +118,8 @@ message ContinueGrantRequest {
 	string id = 1;
 	string continue_id = 2;
 	string continue_token = 3;
-	string interact_ref = 4;
+	optional string interact_ref = 4;
+	SignatureData signature_data = 5;
 }
 
 message ContinueGrantResponse {

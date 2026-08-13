@@ -108,8 +108,7 @@ export class MongoDbGrantRepo implements IGrantRepository {
         tokenDoc.value,
         {
           value: tokenDoc.value,
-          type: tokenDoc.type,
-          managementId: tokenDoc.managementId,
+          manageToken: tokenDoc.manageToken,
           expiresInMs: tokenDoc.expiresInMs,
           createdAt: tokenDoc.createdAt,
           revokedAt: tokenDoc.revokedAt
@@ -121,7 +120,6 @@ export class MongoDbGrantRepo implements IGrantRepository {
       id: doc.id,
       startMethods: doc.startMethods,
       continueToken: doc.continueToken,
-      continueId: doc.continueId,
       state: doc.state,
       client: doc.client,
       subjectIds: doc.subjectIds,
@@ -131,7 +129,6 @@ export class MongoDbGrantRepo implements IGrantRepository {
       finishUri: doc.finishUri,
       interactionNonce: doc.interactionNonce,
       interaction: doc.interaction,
-      lastContinuedAt: doc.lastContinuedAt,
       accessTokens
     };
   }
@@ -147,7 +144,6 @@ export class MongoDbGrantRepo implements IGrantRepository {
           id: grant.id,
           startMethods: grant.startMethods,
           continueToken: grant.continueToken,
-          continueId: grant.continueId,
           state: grant.state,
           client: grant.client,
           subjectIds: grant.subjectIds,
@@ -156,8 +152,7 @@ export class MongoDbGrantRepo implements IGrantRepository {
           finishMethod: grant.finishMethod,
           finishUri: grant.finishUri,
           interactionNonce: grant.interactionNonce,
-          interaction: grant.interaction,
-          lastContinuedAt: grant.lastContinuedAt
+          interaction: grant.interaction
         }))
       );
 
@@ -165,8 +160,7 @@ export class MongoDbGrantRepo implements IGrantRepository {
         [...grant.accessTokens.values()].map((token) => ({
           grantId: grant.id,
           value: token.value,
-          type: token.type,
-          managementId: token.managementId,
+          manageToken: token.manageToken,
           expiresInMs: token.expiresInMs,
           createdAt: token.createdAt,
           revokedAt: token.revokedAt

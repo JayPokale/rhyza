@@ -103,11 +103,12 @@ export class RevokeGrantCmd extends CommandMsg {
   }
 }
 
-export interface ContinueGrantCmdPayload {
+export interface ContinueGrantCmdPayload
+  extends Omit<SignedCommandPayload, 'client'> {
   id: string;
   continueId: string;
   continueToken: string;
-  interactRef: string;
+  interactRef?: string;
 }
 
 export class ContinueGrantCmd extends CommandMsg {
