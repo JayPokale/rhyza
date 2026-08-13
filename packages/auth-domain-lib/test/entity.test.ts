@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID, randomBytes } from 'node:crypto';
 
-import { GrantEntity } from '../src/grant/entity';
+import { GrantEntity,  } from '../src/grant/entity';
 import {
   InvalidGrantError,
   InvalidInteractionError,
@@ -334,7 +334,7 @@ describe('GrantEntity', () => {
     function makeInteractiveGrant(): GrantEntity {
       return GrantEntity.fromObject({
         id: randomUUID(),
-        state: 'PENDING',
+        state: GrantState.PROCESSING,
         startMethods: ['REDIRECT'],
         interactionNonce: randomBytes(16).toString('hex').toUpperCase()
       } as IGrant);
@@ -346,7 +346,7 @@ describe('GrantEntity', () => {
 
       const interaction = entity.startInteraction(nonce);
 
-      assert.equal(interaction.state, 'PENDING');
+      assert.equal(interaction.state, GrantState.PENDING);
       assert.equal(interaction.expiresInMs, 10_000); // Default interaction expiry
       assert.ok(interaction.interactRef);
       assert.equal(entity.interaction, interaction);
@@ -368,7 +368,7 @@ describe('GrantEntity', () => {
     it('throws NonInteractiveGrantError when the grant has no start methods', () => {
       const entity = GrantEntity.fromObject({
         id: randomUUID(),
-        state: 'PENDING'
+        state: GrantState.PROCESSING
       } as IGrant);
 
       assert.throws(
@@ -380,10 +380,25 @@ describe('GrantEntity', () => {
       );
     });
 
-    it('throws InvalidGrantError when the grant is already finalized', () => {
+    it('throws InvalidGrantError when the grant is already in final state', () => {
       const entity = GrantEntity.fromObject({
         id: randomUUID(),
-        state: 'FINALIZED'
+        state: GrantState.ISSUED
+      } as IGrant);
+
+      assert.throws(
+        () => entity.startInteraction('any-nonce'),
+        (err: Error) => {
+          assert(err instanceof InvalidGrantError);
+          return true;
+        }
+      );
+    });
+
+    it('throws InvalidGrantError when the grant is already approved', () => {
+      const entity = GrantEntity.fromObject({
+        id: randomUUID(),
+        state: GrantState.APPROVED
       } as IGrant);
 
       assert.throws(
