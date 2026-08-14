@@ -644,18 +644,6 @@ export class GrantAggregate {
     );
   }
 
-  private _appendToMap(
-    map: Map<string, string[]>,
-    grantId: string,
-    idToAppend: string
-  ) {
-    if (!map.has(grantId)) {
-      map.set(grantId, []);
-    }
-
-    map.get(grantId)?.push(idToAppend);
-  }
-
   public async flush() {
     const promises = [];
 
