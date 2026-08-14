@@ -33,6 +33,12 @@ export class MockGrantRepo implements IGrantRepository {
       });
     }
   }
+  
+  async storeInteractions(interactionUpdates: { interactRefs: string[]; grant: IGrant }[]): Promise<void> {
+    for (const update of interactionUpdates) {
+      this._store.set(update.grant.id, update.grant)
+    }
+  }
 
   async fetchById(id: string): Promise<IGrant | undefined> {
     return this._store.get(id);

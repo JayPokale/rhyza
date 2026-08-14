@@ -39,6 +39,7 @@ import {
   IFinishMethod,
   IGrant,
   IGrantRepository,
+  IInteraction,
   IJsonWebKey,
   InteractionChoice,
   InteractionState,
@@ -59,6 +60,7 @@ export class GrantAggregate {
   private continuedGrantIds = new Set<string>();
   private continuedGrantAccessTokens = new Map<string, IAccessToken>();
   private grantMap = new Map<string, GrantEntity>();
+  private newGrantInteractions = new Map<string, string[]>(); // grant id, interactRefs
   private walletAddressRequestMap = new Map<
     string,
     { kid: string; requestId: string }[]
@@ -504,6 +506,11 @@ export class GrantAggregate {
 
       grant.startInteraction(interactionNonce);
       this.grantMap.set(id, grant);
+      this._appendToMap(
+        this.newGrantInteractions,
+        grant.id,
+        grant.interaction?.interactRef as string
+      );
 
       return new GrantInteractionStartedEvent({ id }, cmd.requestId);
     } catch (error) {
@@ -565,6 +572,18 @@ export class GrantAggregate {
     );
   }
 
+  private _appendToMap(
+    map: Map<string, string[]>,
+    grantId: string,
+    idToAppend: string
+  ) {
+    if (!map.has(grantId)) {
+      map.set(grantId, []);
+    }
+
+    map.get(grantId)?.push(idToAppend);
+  }
+
   public async flush() {
     const promises = [];
 
@@ -590,20 +609,42 @@ export class GrantAggregate {
         if (!grant) {
           this._logger.error(
             `Grant ${id} missing from grantMap during continue flush`
+          )
+          continue;
+        }
+        continuedEntities.push({
+            id: grant.id,
+            state: grant.state,
+            continueToken: grant.continueToken,
+            continueId: grant.continueId,
+            lastContinuedAt: grant.lastContinuedAt,
+            accessToken: this.continuedGrantAccessTokens.get(id)
+          });
+      }
+
+      promises.push(this._repo.storeContinuedGrants(continuedEntities));
+    }
+    
+    if (this.newGrantInteractions.size > 0) {
+      const updates: {
+        grant: IGrant;
+        interactRefs: string[];
+      }[] = [];
+      for (const [
+        grantId,
+        interactRefs
+      ] of this.newGrantInteractions.entries()) {
+        const grant = this.grantMap.get(grantId);
+        if (!grant) {
+          this._logger.error(
+            `Grant ${grantId} missing from paymentIntentMap during flush (quotes)`
           );
           continue;
         }
-
-        continuedEntities.push({
-          id: grant.id,
-          state: grant.state,
-          continueToken: grant.continueToken,
-          continueId: grant.continueId,
-          lastContinuedAt: grant.lastContinuedAt,
-          accessToken: this.continuedGrantAccessTokens.get(id)
-        });
+        updates.push({ grant, interactRefs });    
       }
-      promises.push(this._repo.storeContinuedGrants(continuedEntities));
+      
+      promises.push(this._repo.storeInteractions(updates));
     }
 
     // TODO handle gracefully

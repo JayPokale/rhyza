@@ -187,4 +187,7 @@ export interface IGrantRepository {
   storeContinuedGrants(grants: IContinuedGrantUpdate[]): Promise<void>;
   fetchById(id: string): Promise<IGrant | undefined>;
   fetchByIds(ids: string[]): Promise<IGrant[]>;
+  storeInteractions(
+    interactionUpdates: { interactRefs: string[]; grant: IGrant }[]
+  ): Promise<void>;
 }

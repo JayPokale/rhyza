@@ -463,6 +463,7 @@ describe('GrantAggregate.handleBatch', () => {
       });
 
       it('returns active: false when the grant does not exist', async () => {
+        const storeInteractionsMock = mock.method(repo, 'storeInteractions');
         const id = randomUUID();
         const debugMock = mock.method(logger, 'debug', () => {});
 
@@ -531,6 +532,8 @@ describe('GrantAggregate.handleBatch', () => {
           }
 
           it('starts the interaction and returns GrantInteractionStartedEvent when the nonce matches', async () => {
+            const storeInteractionsMock = mock.method(repo, 'storeInteractions');
+
             const { id, interactionNonce } = await createInteractiveGrant();
             const requestId = randomUUID();
 
@@ -546,9 +549,21 @@ describe('GrantAggregate.handleBatch', () => {
             const payload = (events[0] as GrantInteractionStartedEvent).payload;
             assert.equal(payload.id, id);
             assert.equal(events[0].requestId, requestId);
+            assert.equal(events[0].requestId, requestId);
+
+            assert.equal(storeInteractionsMock.mock.callCount(), 0);
+
+            await aggregate.flush();
+
+            assert.equal(storeInteractionsMock.mock.callCount(), 1);
+            const updates = storeInteractionsMock.mock.calls[0].arguments[0];
+            assert.equal(updates.length, 1);
+            assert.equal(updates[0].grant.id, id);
+            assert.equal(updates[0].interactRefs.length, 1);
           });
 
           it('fails with InvalidInteractionError when the nonce does not match', async () => {
+            const storeInteractionsMock = mock.method(repo, 'storeInteractions');
             const { id } = await createInteractiveGrant();
             const requestId = randomUUID();
 
@@ -569,9 +584,14 @@ describe('GrantAggregate.handleBatch', () => {
             assert.equal(payload.grantId, id);
             assert.equal(payload.errorName, 'InvalidInteractionError');
             assert.equal(events[0].requestId, requestId);
+
+            await aggregate.flush();
+
+            assert.equal(storeInteractionsMock.mock.callCount(), 0);
           });
 
           it('fails with GrantNotFoundError when the grant does not exist', async () => {
+            const storeInteractionsMock = mock.method(repo, 'storeInteractions');
             const requestId = randomUUID();
 
             const { events } = await aggregate.handleBatch([
@@ -590,6 +610,9 @@ describe('GrantAggregate.handleBatch', () => {
               .payload;
             assert.equal(payload.errorName, 'GrantNotFoundError');
             assert.equal(events[0].requestId, requestId);
+            await aggregate.flush();
+            
+            assert.equal(storeInteractionsMock.mock.callCount(), 0);
           });
         });
       });
