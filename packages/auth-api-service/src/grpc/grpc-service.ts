@@ -23,6 +23,7 @@ import {
   RotateTokenRequest,
   RevokeTokenRequest,
   StartInteractionRequest,
+  StartInteractionResponse,
   AcceptInteractionRequest,
   RejectInteractionRequest,
   GetGrantRequest,
@@ -492,7 +493,6 @@ export class AuthServiceServer {
 
       if (grant.interaction) {
         const interaction = new Interaction();
-        interaction.setClientNonce(grant.interaction.clientNonce);
         interaction.setExpiresInMs(grant.interaction.expiresInMs);
         interaction.setState(grant.interaction.state);
         interaction.setInteractRef(grant.interaction.interactRef);

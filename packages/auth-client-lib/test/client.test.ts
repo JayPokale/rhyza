@@ -459,7 +459,6 @@ describe('Auth Client', () => {
 
     test('starts the interaction for a pending interactive grant', async () => {
       const { id, interactionNonce } = await createInteractiveGrant();
-
       const result = await authClient.startInteraction(id, interactionNonce);
 
       assert.ok(result);

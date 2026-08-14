@@ -201,7 +201,6 @@ export class GrantEntity implements IGrant {
     }
 
     this._interaction = {
-      interactionNonce,
       interactRef: uuid(),
       createdAt: Date.now(),
       expiresInMs: INTERACTION_EXPIRY_MS,

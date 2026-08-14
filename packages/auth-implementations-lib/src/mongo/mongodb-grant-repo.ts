@@ -295,20 +295,18 @@ export class MongoDbGrantRepo implements IGrantRepository {
     }
   }
 
-  async storeInteractions(
-    interactionUpdates: { interactRefs: string[]; grant: IGrant }[]
-  ): Promise<void> {
+  async storeInteractions(grants: IGrant[]): Promise<void> {
     this._checkInitialisedOrThrow();
 
-    if (interactionUpdates.length === 0) return;
+    if (grants.length === 0) return;
 
     try {
       await this._grantCollection.bulkWrite(
-        interactionUpdates.map((update) => ({
+        grants.map((update) => ({
           updateOne: {
-            filter: { id: update.grant.id },
+            filter: { id: update.id },
             update: {
-              interaction: update.grant.interaction
+              $set: { interaction: update.interaction }
             }
           }
         }))
