@@ -130,8 +130,8 @@ describe('GrantAggregate.handleBatch', () => {
         assert.ok(payload.accessTokenValue);
         assert.ok(payload.accessTokenManagementId);
         assert.equal(payload.accessTokenExpiresIn, 10_000);
-        assert.equal(payload.continueId, undefined);
-        assert.equal(payload.continueToken, undefined);
+        assert.notEqual(payload.continueId, undefined);
+        assert.notEqual(payload.continueToken, undefined);
         assert.equal(payload.interactionNonce, undefined);
         assert.deepEqual(payload.access, cmd.payload.access);
       });

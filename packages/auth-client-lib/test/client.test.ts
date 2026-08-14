@@ -102,8 +102,8 @@ describe('Auth Client', () => {
       assert.ok(result.getAccessTokenValue());
       assert.ok(result.getAccessTokenManagementId);
       assert.ok(result.getAccessTokenExpiresIn());
-      assert.equal(result.getContinueId(), '');
-      assert.equal(result.getContinueToken(), '');
+      assert.ok(result.getContinueId());
+      assert.ok(result.getContinueToken());
       assert.equal(result.getInteractionNonce(), '');
       assert.deepStrictEqual(
         result.getAccessList().map((a) => a.toObject()),

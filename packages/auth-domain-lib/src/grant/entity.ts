@@ -31,8 +31,8 @@ import {
 interface IGrantInput {
   id: string;
   startMethods: IStartMethod[];
-  continueToken?: string;
-  continueId?: string;
+  continueToken: string;
+  continueId: string;
   state: GrantState;
   finalizationReason?: GrantFinalization;
   interaction?: IInteraction;
@@ -96,8 +96,8 @@ const ACCESS_TOKEN_EXPIRY_MS = 10_000; // 10 seconds
 export class GrantEntity implements IGrant {
   private _id: string;
   private _startMethods: IStartMethod[];
-  private _continueToken?: string;
-  private _continueId?: string;
+  private _continueToken: string;
+  private _continueId: string;
   private _state: GrantState;
   private _finalizationReason?: GrantFinalization;
   private _client?: string | IJsonWebKey;
@@ -143,11 +143,11 @@ export class GrantEntity implements IGrant {
     entity: GrantEntity;
     accessToken?: IAccessToken;
   } {
-    const isContinuableGrant = input.accesses?.some((access) =>
+    const isInteractiveGrant = input.accesses?.some((access) =>
       InteractiveAccessType.includes(access.type)
     );
 
-    if (isContinuableGrant) {
+    if (isInteractiveGrant) {
       const entity = new GrantEntity({
         ...input,
         state: GrantState.PENDING,
@@ -162,8 +162,9 @@ export class GrantEntity implements IGrant {
     } else {
       const entity = new GrantEntity({
         ...input,
-        state: GrantState.FINALIZED,
-        finalizationReason: GrantFinalization.ISSUED
+        state: GrantState.APPROVED,
+        continueToken: generateContinueToken(),
+        continueId: uuid()
       });
 
       const accessToken = entity.createAccessToken();
@@ -283,9 +284,9 @@ export class GrantEntity implements IGrant {
 
   // Issues a new access token for this grant.
   createAccessToken(): NewAccessToken {
-    if (this.finalizationReason !== GrantFinalization.ISSUED) {
+    if (this.state !== GrantState.APPROVED) {
       throw new InvalidGrantError(
-        'Cannot create access token for grant that has not been issued'
+        'Cannot create access token for grant that has not been approved'
       );
     }
     const newAccessToken: NewAccessToken = {
@@ -381,11 +382,11 @@ export class GrantEntity implements IGrant {
     return this._startMethods;
   }
 
-  get continueToken(): string | undefined {
+  get continueToken(): string {
     return this._continueToken;
   }
 
-  get continueId(): string | undefined {
+  get continueId(): string {
     return this._continueId;
   }
 
