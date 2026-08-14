@@ -41,7 +41,6 @@ import {
   IFinishMethod,
   IGrant,
   IGrantRepository,
-  IInteraction,
   IJsonWebKey,
   InteractionChoice,
   InteractionState,
