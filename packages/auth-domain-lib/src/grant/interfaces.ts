@@ -195,4 +195,7 @@ export interface IGrantRepository {
   storeRevokedTokens(tokens: IAccessToken[]): Promise<void>;
   fetchById(id: string): Promise<IGrant | undefined>;
   fetchByIds(ids: string[]): Promise<IGrant[]>;
+  storeInteractions(
+    interactionUpdates: { interactRefs: string[]; grant: IGrant }[]
+  ): Promise<void>;
 }
