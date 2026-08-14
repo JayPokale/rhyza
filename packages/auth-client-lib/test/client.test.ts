@@ -9,12 +9,7 @@ import {
   createHeaders,
   generateTestKeys
 } from '@interledger/http-signature-utils';
-import { AuthClient } from '../src/client';
-import {
-  AccessItem,
-  GrantRequestFinish,
-  SubjectId
-} from 'auth-public-types-lib';
+import { AuthClient, AccessItem, GrantFinish, SubjectId } from '../src/client';
 
 describe('Auth Client', () => {
   const AUTH_GRPC_URL = process.env['AUTH_GRPC_URL'] || '0.0.0.0:50054';
@@ -59,10 +54,10 @@ describe('Auth Client', () => {
   function makeAccessItem(
     overrides: { type?: string; actions?: string[] } = {}
   ): AccessItem {
-    const item = new AccessItem();
-    item.setType(overrides.type ?? 'INCOMING_PAYMENT');
-    item.setActionsList(overrides.actions ?? ['READ']);
-    return item;
+    return {
+      type: overrides.type ?? 'INCOMING_PAYMENT',
+      actions: overrides.actions ?? ['READ']
+    };
   }
 
   let authClient: AuthClient;
@@ -84,9 +79,10 @@ describe('Auth Client', () => {
         keys.publicKey.kid
       );
 
-      const subjectId = new SubjectId();
-      subjectId.setFormat('email');
-      subjectId.setId('alice@example.com');
+      const subjectId: SubjectId = {
+        format: 'uri',
+        id: 'https://wallet.com/alice'
+      };
 
       const access = makeAccessItem({
         type: 'INCOMING_PAYMENT',
@@ -102,20 +98,14 @@ describe('Auth Client', () => {
       );
 
       assert.ok(result);
-      assert.ok(result.getAccessTokenValue());
-      assert.ok(result.getAccessTokenManagementId);
-      assert.ok(result.getAccessTokenExpiresIn());
-      assert.equal(result.getContinueId(), '');
-      assert.equal(result.getContinueToken(), '');
-      assert.equal(result.getInteractionNonce(), '');
-      assert.deepStrictEqual(
-        result.getAccessList().map((a) => a.toObject()),
-        [access].map((a) => a.toObject())
-      );
-      assert.deepStrictEqual(
-        result.getSubIdsList().map((s) => s.toObject()),
-        [subjectId].map((s) => s.toObject())
-      );
+      assert.ok(result.accessTokenValue);
+      assert.ok(result.accessTokenManagementId);
+      assert.ok(result.accessTokenExpiresIn);
+      assert.equal(result.continueId, '');
+      assert.equal(result.continueToken, '');
+      assert.equal(result.interactionNonce, '');
+      assert.deepStrictEqual(result.access, [access]);
+      assert.deepStrictEqual(result.subjectIds, [subjectId]);
     });
 
     test('create interactive grant', async () => {
@@ -125,10 +115,11 @@ describe('Auth Client', () => {
         keys.publicKey.kid
       );
 
-      const finish = new GrantRequestFinish();
-      finish.setFinish('REDIRECT');
-      finish.setUri('https://client.example/finish');
-      finish.setNonce('finish-nonce');
+      const finish: GrantFinish = {
+        method: 'REDIRECT',
+        uri: 'https://client.example/finish',
+        nonce: 'finish-nonce'
+      };
 
       const access = [
         makeAccessItem({ type: 'OUTGOING_PAYMENT', actions: ['CREATE'] })
@@ -144,16 +135,13 @@ describe('Auth Client', () => {
       );
 
       assert.ok(result);
-      assert.ok(result.getContinueId());
-      assert.ok(result.getContinueToken());
-      assert.ok(result.getInteractionNonce());
-      assert.equal(result.getAccessTokenValue(), '');
-      assert.equal(result.getAccessTokenManagementId(), '');
-      assert.equal(result.getAccessTokenExpiresIn(), 0);
-      assert.deepStrictEqual(
-        result.getAccessList().map((a) => a.toObject()),
-        access.map((a) => a.toObject())
-      );
+      assert.ok(result.continueId);
+      assert.ok(result.continueToken);
+      assert.ok(result.interactionNonce);
+      assert.equal(result.accessTokenValue, '');
+      assert.equal(result.accessTokenManagementId, '');
+      assert.equal(result.accessTokenExpiresIn, 0);
+      assert.deepStrictEqual(result.access, access);
     });
 
     test('invalid signature is rejected', async () => {
