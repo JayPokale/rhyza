@@ -64,7 +64,7 @@ export class GrantAggregate {
   private continuedGrantAccessTokens = new Map<string, IAccessToken>();
   private revokedTokens = new Map<string, IAccessToken>();
   private grantMap = new Map<string, GrantEntity>();
-  private newGrantInteractions = new Map<string, string[]>(); // grant id, interactRefs
+  private newGrantInteractions = new Set<string>(); // grant ids
   private walletAddressRequestMap = new Map<
     string,
     { kid: string; requestId: string }[]
@@ -578,10 +578,10 @@ export class GrantAggregate {
 
       grant.startInteraction(interactionNonce);
       this.grantMap.set(id, grant);
-      this._appendToMap(
-        this.newGrantInteractions,
-        grant.id,
-        grant.interaction?.interactRef as string
+      this.newGrantInteractions.add(grant.id);
+      this._logger.info(
+        { set: this.newGrantInteractions, stub: 'stub' },
+        'added new grant interaction'
       );
 
       return new GrantInteractionStartedEvent({ id }, cmd.requestId);
@@ -644,18 +644,6 @@ export class GrantAggregate {
     );
   }
 
-  private _appendToMap(
-    map: Map<string, string[]>,
-    grantId: string,
-    idToAppend: string
-  ) {
-    if (!map.has(grantId)) {
-      map.set(grantId, []);
-    }
-
-    map.get(grantId)?.push(idToAppend);
-  }
-
   public async flush() {
     const promises = [];
 
@@ -706,22 +694,16 @@ export class GrantAggregate {
     }
     
     if (this.newGrantInteractions.size > 0) {
-      const updates: {
-        grant: IGrant;
-        interactRefs: string[];
-      }[] = [];
-      for (const [
-        grantId,
-        interactRefs
-      ] of this.newGrantInteractions.entries()) {
-        const grant = this.grantMap.get(grantId);
+      const updates: IGrant[] = [];
+      for (const id of this.newGrantInteractions) {
+        const grant = this.grantMap.get(id);
         if (!grant) {
           this._logger.error(
-            `Grant ${grantId} missing from paymentIntentMap during flush (quotes)`
+            `Grant ${id} missing from grantMap during flush (interactions)`
           );
           continue;
         }
-        updates.push({ grant, interactRefs });    
+        updates.push(grant);
       }
       
       promises.push(this._repo.storeInteractions(updates));
@@ -743,6 +725,8 @@ export class GrantAggregate {
       this.revokedTokens.clear();
       this.grantMap.clear();
       this.grantIdsWithRotatedTokens.clear();
+      this.newGrantIds = [];
+      this.newGrantInteractions.clear();
     }
   }
 }

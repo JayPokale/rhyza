@@ -913,8 +913,8 @@ describe('GrantAggregate.handleBatch', () => {
             assert.equal(storeInteractionsMock.mock.callCount(), 1);
             const updates = storeInteractionsMock.mock.calls[0].arguments[0];
             assert.equal(updates.length, 1);
-            assert.equal(updates[0].grant.id, id);
-            assert.equal(updates[0].interactRefs.length, 1);
+            assert.equal(updates[0].id, id);
+            assert.ok(updates[0].interaction?.interactRef);
           });
 
           it('fails with InvalidInteractionError when the nonce does not match', async () => {
