@@ -579,10 +579,6 @@ export class GrantAggregate {
       grant.startInteraction(interactionNonce);
       this.grantMap.set(id, grant);
       this.newGrantInteractions.add(grant.id);
-      this._logger.info(
-        { set: this.newGrantInteractions, stub: 'stub' },
-        'added new grant interaction'
-      );
 
       return new GrantInteractionStartedEvent({ id }, cmd.requestId);
     } catch (error) {
