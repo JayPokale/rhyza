@@ -41,6 +41,7 @@ import {
   IFinishMethod,
   IGrant,
   IGrantRepository,
+  IInteraction,
   IJsonWebKey,
   InteractionChoice,
   InteractionState,
@@ -596,31 +597,6 @@ export class GrantAggregate {
     }
   }
 
-  private handleStartInteractionCommand(cmd: StartInteractionCmd) {
-    const { id, interactionNonce } = cmd.payload;
-
-    try {
-      const grant = this.grantMap.get(id);
-      if (!grant) {
-        throw new GrantNotFoundError(`Grant ${id} not found`);
-      }
-
-      grant.startInteraction(interactionNonce);
-      this.grantMap.set(id, grant);
-
-      return new GrantInteractionStartedEvent({ id }, cmd.requestId);
-    } catch (error) {
-      return new GrantInteractionStartFailedEvent(
-        {
-          grantId: id,
-          errorName: (error as Error).constructor.name,
-          message: (error as Error).message
-        },
-        cmd.requestId
-      );
-    }
-  }
-
   private handleInteractionChoice(
     id: string,
     choice: InteractionChoice,
@@ -668,6 +644,18 @@ export class GrantAggregate {
     );
   }
 
+  private _appendToMap(
+    map: Map<string, string[]>,
+    grantId: string,
+    idToAppend: string
+  ) {
+    if (!map.has(grantId)) {
+      map.set(grantId, []);
+    }
+
+    map.get(grantId)?.push(idToAppend);
+  }
+
   public async flush() {
     const promises = [];
 
@@ -701,17 +689,17 @@ export class GrantAggregate {
         if (!grant) {
           this._logger.error(
             `Grant ${id} missing from grantMap during continue flush`
-          );
+          )
           continue;
         }
         continuedEntities.push({
-          id: grant.id,
-          state: grant.state,
-          continueToken: grant.continueToken,
-          continueId: grant.continueId,
-          lastContinuedAt: grant.lastContinuedAt,
-          accessToken: this.continuedGrantAccessTokens.get(id)
-        });
+            id: grant.id,
+            state: grant.state,
+            continueToken: grant.continueToken,
+            continueId: grant.continueId,
+            lastContinuedAt: grant.lastContinuedAt,
+            accessToken: this.continuedGrantAccessTokens.get(id)
+          });
       }
 
       promises.push(this._repo.storeContinuedGrants(continuedEntities));

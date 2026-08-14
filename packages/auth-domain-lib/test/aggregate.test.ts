@@ -818,6 +818,7 @@ describe('GrantAggregate.handleBatch', () => {
       });
 
       it('returns active: false when the grant does not exist', async () => {
+        const storeInteractionsMock = mock.method(repo, 'storeInteractions');
         const id = randomUUID();
         const debugMock = mock.method(logger, 'debug', () => {});
 
@@ -935,7 +936,6 @@ describe('GrantAggregate.handleBatch', () => {
             assert.equal(payload.errorName, 'GrantNotFoundError');
             assert.equal(events[0].requestId, requestId);
             await aggregate.flush();
-
             assert.equal(storeInteractionsMock.mock.callCount(), 0);
           });
         });
