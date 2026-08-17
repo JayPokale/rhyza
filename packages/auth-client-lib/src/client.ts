@@ -6,7 +6,6 @@ import {
   Grant as PbGrant,
   GetGrantRequest as PbGetGrantRequest,
   AccessLimits as PbAccessLimits,
-  AccessToken as PbAccessToken,
   Interaction as PbInteraction,
   GrantRequestFinish as PbGrantRequestFinish,
   SignatureData as PbSignatureData,
@@ -30,7 +29,6 @@ import {
 import {
   AccessItem,
   AccessLimits,
-  AccessTokenResult,
   ContinueGrantResult,
   CreateGrantOptions,
   CreateGrantResult,
@@ -408,15 +406,6 @@ function toPbGrantRequestFinish(input: GrantFinish): PbGrantRequestFinish {
   finish.setUri(input.uri);
   finish.setNonce(input.nonce);
   return finish;
-}
-
-function fromPbAccessToken(accessToken: PbAccessToken): AccessTokenResult {
-  return {
-    value: accessToken.getValue(),
-    managementId: accessToken.getManagementId(),
-    expiresIn: accessToken.getExpiresIn(),
-    revokedAt: accessToken.getRevokedAt()
-  };
 }
 
 function fromPbInteraction(

@@ -47,13 +47,6 @@ export type CreateGrantOptions =
   | (BaseCreateGrantOptions & { access: AccessItem[] })
   | (BaseCreateGrantOptions & { subjectIds: SubjectId[] });
 
-export interface AccessTokenResult {
-  value: string;
-  managementId: string;
-  expiresIn: number;
-  revokedAt: string;
-}
-
 export interface InteractionResult {
   interactRef: string;
   clientNonce: string;
