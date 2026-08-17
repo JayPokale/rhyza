@@ -14,7 +14,7 @@ import {
 } from 'auth-public-types-lib';
 
 describe('Auth Client', () => {
-  const AUTH_GRPC_URL = process.env['AUTH_GRPC_URL'] || '0.0.0.0:50053';
+  const AUTH_GRPC_URL = process.env['AUTH_GRPC_URL'] || '0.0.0.0:50054';
 
   const REQUEST_URL = 'https://auth.example/create';
   const REQUEST_METHOD = 'POST';
@@ -100,13 +100,19 @@ describe('Auth Client', () => {
 
       assert.ok(result);
       assert.ok(result.getAccessTokenValue());
-      assert.ok(result.getAccessTokenManagementId);
+      assert.ok(result.getAccessTokenManagementId());
       assert.ok(result.getAccessTokenExpiresIn());
-      assert.equal(result.getContinueId(), undefined);
-      assert.equal(result.getContinueToken(), undefined);
-      assert.equal(result.getInteractionNonce(), undefined);
-      assert.equal(result.getAccessList, [access]);
-      assert.equal(result.getSubIdsList, [subjectId]);
+      assert.equal(result.getContinueId(), '');
+      assert.equal(result.getContinueToken(), '');
+      assert.equal(result.getInteractionNonce(), '');
+      assert.deepStrictEqual(
+        result.getAccessList().map((a) => a.toObject()),
+        [access].map((a) => a.toObject())
+      );
+      assert.deepStrictEqual(
+        result.getSubIdsList().map((s) => s.toObject()),
+        [subjectId].map((s) => s.toObject())
+      );
     });
 
     test('create interactive grant', async () => {
@@ -138,10 +144,13 @@ describe('Auth Client', () => {
       assert.ok(result.getContinueId());
       assert.ok(result.getContinueToken());
       assert.ok(result.getInteractionNonce());
-      assert.equal(result.getAccessTokenValue(), undefined);
-      assert.equal(result.getAccessTokenManagementId, undefined);
-      assert.equal(result.getAccessTokenExpiresIn, undefined);
-      assert.equal(result.getAccessList, access);
+      assert.equal(result.getAccessTokenValue(), '');
+      assert.equal(result.getAccessTokenManagementId(), '');
+      assert.equal(result.getAccessTokenExpiresIn(), 0);
+      assert.deepStrictEqual(
+        result.getAccessList().map((a) => a.toObject()),
+        access.map((a) => a.toObject())
+      );
     });
 
     test('invalid signature is rejected', async () => {
@@ -233,8 +242,8 @@ describe('Auth Client', () => {
       assert.ok(result.getContinueToken());
       assert.notEqual(result.getContinueToken(), created.getContinueToken());
       assert.notEqual(result.getContinueId(), created.getContinueId());
-      assert.equal(result.getAccessTokenValue(), undefined);
-      assert.equal(result.getAccessTokenManagementId(), undefined);
+      assert.equal(result.getAccessTokenValue(), '');
+      assert.equal(result.getAccessTokenManagementId(), '');
       assert.equal(result.getAccessTokenExpiresIn(), 0);
     });
 

@@ -39,21 +39,20 @@ message Interaction {
 
 message Grant {
 	string id = 1;
-	repeated string start = 2;
+	repeated string start_methods = 2;
 	string continue_token = 3;
 	string continue_id = 4;
 	string interaction_nonce = 5;
 	string state = 6;
-	string finalization = 7;
+	string finalization_reason = 7;
 	string client = 8;
-	repeated SubjectId sub_ids = 9;
+	repeated SubjectId subject_ids = 9;
 	repeated AccessItem accesses = 10;
 	string finish_method = 11;
 	string finish_uri = 12;
 	string finish_nonce = 13;
 	Interaction interaction = 14;
 	string last_continued_at = 15; // Date string
-	repeated AccessToken access_tokens = 16;
 }
 
 message AccessLimits {
@@ -76,16 +75,11 @@ message SubjectId {
 	string id = 2;
 }
 
-message SignatureHeader {
-	string name = 1;
-	string value = 2;
-}
-
 message SignatureData {
 	string url = 1;
 	string method = 2;
 	string body = 3;
-	repeated SignatureHeader headers = 4;
+	string headers = 4; // JSON string
 	string kid = 5;
 }
 

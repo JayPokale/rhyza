@@ -283,6 +283,38 @@ services:
     networks:
       - rafiki-v2
 
+  auth-api-service:
+    build:
+      context: ../
+      dockerfile: ./packages/auth-api-service/Dockerfile
+    restart: always
+    environment:
+      KAFKA_URL: kafka:19092
+      MONGODB_URL: mongodb://root:mongoPass@mongodb:27017
+    ports:
+      - '50054:50054'
+    depends_on:
+      init-kafka:
+        condition: service_completed_successfully
+    networks:
+      - rafiki-v2
+
+  auth-command-handler-service:
+    build:
+      context: ../
+      dockerfile: ./packages/auth-command-handler-service/Dockerfile
+    restart: always
+    environment:
+      KAFKA_URL: kafka:19092
+      MONGODB_URL: mongodb://root:mongoPass@mongodb:27017
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      init-kafka:
+        condition: service_completed_successfully
+    networks:
+      - rafiki-v2
+
   mongodb:
     image: mongo
     restart: unless-stopped
@@ -370,6 +402,8 @@ services:
       ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 24 --topic ilp-commands
       ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 24 --topic ilp-connector-commands
       ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 24 --topic notification-commands
+      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 24 --topic auth-commands
+      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 24 --topic auth-domain-events
       echo -e '\nSuccessfully created the following topics:'
       ./kafka-topics.sh --bootstrap-server kafka:19092 --list
       "

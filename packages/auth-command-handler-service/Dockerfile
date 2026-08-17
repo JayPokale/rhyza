@@ -27,7 +27,7 @@ COPY packages/common-types-lib/package.json ./packages/common-types-lib/package.
 COPY packages/implementations-lib/package.json ./packages/implementations-lib/package.json
 COPY packages/auth-domain-lib/package.json ./packages/auth-domain-lib/package.json
 COPY packages/auth-implementations-lib/package.json ./packages/auth-implementations-lib/package.json
-COPY packages/auth-command-handler/package.json ./packages/auth-command-handler/package.json
+COPY packages/auth-command-handler-service/package.json ./packages/auth-command-handler-service/package.json
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store BUILD_LIBRDKAFKA=0 pnpm install --recursive --prefer-offline --frozen-lockfile --prod
 
 FROM base AS build
@@ -37,7 +37,7 @@ RUN pnpm --filter common-types-lib build
 RUN pnpm --filter implementations-lib build
 RUN pnpm --filter auth-domain-lib build
 RUN pnpm --filter auth-implementations-lib build
-RUN pnpm --filter auth-command-handler build
+RUN pnpm --filter auth-command-handler-service build
 
 FROM node:24-alpine AS runner
 RUN apk update && apk add --no-cache librdkafka
@@ -48,20 +48,20 @@ COPY --from=prod-deps /workspace/node_modules ./node_modules
 COPY --from=prod-deps /workspace/packages/implementations-lib/node_modules ./packages/implementations-lib/node_modules
 COPY --from=prod-deps /workspace/packages/auth-domain-lib/node_modules ./packages/auth-domain-lib/node_modules
 COPY --from=prod-deps /workspace/packages/auth-implementations-lib/node_modules ./packages/auth-implementations-lib/node_modules
-COPY --from=prod-deps /workspace/packages/auth-command-handler/node_modules ./packages/auth-command-handler/node_modules
+COPY --from=prod-deps /workspace/packages/auth-command-handler-service/node_modules ./packages/auth-command-handler-service/node_modules
 
 # package.json for each workspace dep
 COPY --from=prod-deps /workspace/packages/common-types-lib/package.json ./packages/common-types-lib/package.json
 COPY --from=prod-deps /workspace/packages/implementations-lib/package.json ./packages/implementations-lib/package.json
 COPY --from=prod-deps /workspace/packages/auth-domain-lib/package.json ./packages/auth-domain-lib/package.json
 COPY --from=prod-deps /workspace/packages/auth-implementations-lib/package.json ./packages/auth-implementations-lib/package.json
-COPY --from=prod-deps /workspace/packages/auth-command-handler/package.json ./packages/auth-command-handler/package.json
+COPY --from=prod-deps /workspace/packages/auth-command-handler-service/package.json ./packages/auth-command-handler-service/package.json
 
 # built dist from each workspace dep
 COPY --from=build /workspace/packages/common-types-lib/dist ./packages/common-types-lib/dist
 COPY --from=build /workspace/packages/implementations-lib/dist ./packages/implementations-lib/dist
 COPY --from=build /workspace/packages/auth-domain-lib/dist ./packages/auth-domain-lib/dist
 COPY --from=build /workspace/packages/auth-implementations-lib/dist ./packages/auth-implementations-lib/dist
-COPY --from=build /workspace/packages/auth-command-handler/dist ./packages/auth-command-handler/dist
+COPY --from=build /workspace/packages/auth-command-handler-service/dist ./packages/auth-command-handler-service/dist
 
-CMD ["node", "packages/auth-command-handler/dist/index.js"]
+CMD ["node", "packages/auth-command-handler-service/dist/index.js"]

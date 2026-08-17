@@ -15,7 +15,8 @@ import {
   GrantState,
   IGrant,
   IInteraction,
-  Interaction,
+  InteractionChoice,
+  InteractionState,
   IStartMethod,
   IAccessToken,
   InteractiveAccessType,
@@ -107,7 +108,12 @@ export class GrantEntity implements IGrant {
     this._finishUri = input.finishUri;
     this._interactionNonce = input.interactionNonce;
     this._interaction = input.interaction;
-    this._accessTokens = new Map(input.accessTokens);
+
+    if (input.accessTokens) {
+      for (const accessToken of input.accessTokens) {
+        this._accessTokens.set(accessToken.value, accessToken);
+      }
+    }
   }
 
   static fromObject(obj: IGrant): GrantEntity {
@@ -132,7 +138,7 @@ export class GrantEntity implements IGrant {
         state: GrantState.PENDING,
         continueToken: createContinueToken(),
         interactionNonce: crypto.randomBytes(16).toString('hex').toUpperCase(),
-        accessTokens: new Map()
+        accessTokens: []
       });
 
       return {
@@ -142,7 +148,7 @@ export class GrantEntity implements IGrant {
       const entity = new GrantEntity({
         ...input,
         state: GrantState.ISSUED,
-        accessTokens: new Map()
+        accessTokens: []
       });
 
       const accessToken = entity.createAccessToken();
@@ -164,33 +170,37 @@ export class GrantEntity implements IGrant {
       finishNonce: this._finishNonce,
       finishMethod: this._finishMethod,
       finishUri: this._finishUri,
-      accessTokens: this._accessTokens
+      accessTokens: Array.from(this._accessTokens.values())
     };
   }
 
   // Generates an interaction for the grant.
-  startInteraction(): IInteraction {
+  startInteraction(clientNonce: string): IInteraction {
     if (!this._startMethods) {
       throw new NonInteractiveGrantError();
     }
 
     this._interaction = {
+      clientNonce,
       interactRef: uuid(),
-      expiresInMs: INTERACTION_EXPIRY_MS
+      expiresInMs: INTERACTION_EXPIRY_MS,
+      state: InteractionState.PENDING
     };
 
     return this._interaction;
   }
 
   // Updates the approval state of the interaction.
-  handleInteraction(interaction: Interaction) {
+  handleInteraction(choice: InteractionChoice) {
     if (!this._interaction) {
       throw new UnknownInteractionError();
     }
 
-    if (this._interaction.state) throw new InvalidInteractionError();
+    if (this._interaction.state !== InteractionState.PENDING) {
+      throw new InvalidInteractionError();
+    }
 
-    this._interaction.state = interaction;
+    this._interaction.state = choice;
   }
 
   // Continues the grant, if an interaction was required.
@@ -233,7 +243,7 @@ export class GrantEntity implements IGrant {
     } else {
       if (
         !this._interaction ||
-        !this._interaction.state ||
+        this._interaction.state === InteractionState.PENDING ||
         this._interaction.interactRef !== interactRef
       ) {
         throw new InvalidInteractionError();
@@ -245,12 +255,12 @@ export class GrantEntity implements IGrant {
         );
       }
 
-      if (this._interaction.state === Interaction.APPROVED) {
+      if (this._interaction.state === InteractionState.APPROVED) {
         this._state = GrantState.ISSUED;
         return this.createAccessToken();
       }
 
-      if (this._interaction.state === Interaction.REJECTED) {
+      if (this._interaction.state === InteractionState.REJECTED) {
         this._state = GrantState.REJECTED;
       }
     }
@@ -407,7 +417,7 @@ export class GrantEntity implements IGrant {
     return this._interaction;
   }
 
-  get accessTokens(): Map<string, IAccessToken> {
-    return this._accessTokens;
+  get accessTokens(): IAccessToken[] {
+    return Array.from(this._accessTokens.values());
   }
 }

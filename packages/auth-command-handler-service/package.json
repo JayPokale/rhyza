@@ -1,5 +1,5 @@
 {
-  "name": "auth-command-handler",
+  "name": "auth-command-handler-service",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {

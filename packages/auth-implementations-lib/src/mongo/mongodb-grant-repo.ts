@@ -1,5 +1,16 @@
-import { Collection, CollectionInfo, Db, MongoClient, WithId } from 'mongodb';
-import { IAccessToken, IGrant, IGrantRepository } from 'auth-domain-lib';
+import {
+  Collection,
+  CollectionInfo,
+  Db,
+  MongoClient,
+  WithId
+} from 'mongodb';
+import {
+  ContinuedGrantUpdate,
+  IAccessToken,
+  IGrant,
+  IGrantRepository
+} from 'auth-domain-lib';
 import { ILogger } from 'common-types-lib';
 
 const DB_NAME = 'auth';
@@ -103,23 +114,15 @@ export class MongoDbGrantRepo implements IGrantRepository {
     doc: WithId<GrantDoc>,
     tokenDocs: AccessTokenDoc[]
   ): IGrant {
-    const accessTokens = new Map<string, IAccessToken>(
-      tokenDocs.map((tokenDoc) => [
-        tokenDoc.value,
-        {
-          value: tokenDoc.value,
-          manageToken: tokenDoc.manageToken,
-          expiresInMs: tokenDoc.expiresInMs,
-          createdAt: tokenDoc.createdAt,
-          revokedAt: tokenDoc.revokedAt
-        }
-      ])
-    );
-
     return {
       id: doc.id,
       startMethods: doc.startMethods,
-      continueToken: doc.continueToken,
+      continueToken: doc.continueToken
+        ? {
+            ...doc.continueToken,
+            activeAt: new Date(doc.continueToken.activeAt)
+          }
+        : undefined,
       state: doc.state,
       client: doc.client,
       subjectIds: doc.subjectIds,
@@ -129,7 +132,11 @@ export class MongoDbGrantRepo implements IGrantRepository {
       finishUri: doc.finishUri,
       interactionNonce: doc.interactionNonce,
       interaction: doc.interaction,
-      accessTokens
+      accessTokens: tokenDocs.map((token) => ({
+        ...token,
+        createdAt: new Date(token.createdAt),
+        revokedAt: token.revokedAt ? new Date(token.revokedAt) : undefined
+      }))
     };
   }
 
@@ -157,7 +164,7 @@ export class MongoDbGrantRepo implements IGrantRepository {
       );
 
       const accessTokenDocs = grants.flatMap((grant) =>
-        [...grant.accessTokens.values()].map((token) => ({
+        grant.accessTokens.map((token) => ({
           grantId: grant.id,
           value: token.value,
           manageToken: token.manageToken,
@@ -174,6 +181,60 @@ export class MongoDbGrantRepo implements IGrantRepository {
       this._logger.error(err);
       throw new Error(
         `Unable to store grants - error: ${(err as Error).message}`
+      );
+    }
+  }
+
+  async storeContinuedGrants(grants: ContinuedGrantUpdate[]): Promise<void> {
+    this._checkInitialisedOrThrow();
+
+    if (grants.length === 0) return;
+
+    try {
+      await this._grantCollection.bulkWrite(
+        grants.map((grant) => ({
+          updateOne: {
+            filter: { id: grant.id },
+            update: {
+              $set: {
+                state: grant.state,
+                continueToken: grant.continueToken
+              }
+            }
+          }
+        }))
+      );
+
+      const accessTokenWrites = grants.flatMap((grant) => {
+        if (!grant.accessToken) return [];
+        const token = grant.accessToken;
+        return [
+          {
+            updateOne: {
+              filter: { value: token.value },
+              update: {
+                $set: {
+                  grantId: grant.id,
+                  value: token.value,
+                  manageToken: token.manageToken,
+                  expiresInMs: token.expiresInMs,
+                  createdAt: token.createdAt,
+                  revokedAt: token.revokedAt
+                }
+              },
+              upsert: true
+            }
+          }
+        ];
+      });
+
+      if (accessTokenWrites.length > 0) {
+        await this._accessTokenCollection.bulkWrite(accessTokenWrites);
+      }
+    } catch (err) {
+      this._logger.error(err);
+      throw new Error(
+        `Unable to store continued grants - error: ${(err as Error).message}`
       );
     }
   }

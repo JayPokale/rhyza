@@ -13,7 +13,7 @@ import {
   GrantState,
   IFinishMethod,
   IGrant,
-  Interaction
+  InteractionState
 } from '../src/grant/interfaces';
 
 function makeCreateGrantInput(
@@ -87,8 +87,13 @@ describe('GrantEntity', () => {
       assert.equal(accessToken.expiresInMs, 10_000); // Default access token expiry
       assert.ok(accessToken.createdAt instanceof Date);
 
-      assert.equal(entity.accessTokens.size, 1);
-      assert.equal(entity.accessTokens.get(accessToken.value), accessToken);
+      assert.equal(entity.accessTokens.length, 1);
+      assert.equal(
+        entity.accessTokens.find(
+          (entityAccessToken) => entityAccessToken.value === accessToken.value
+        ),
+        accessToken
+      );
 
       // Input fields are carried onto the created entity.
       assert.equal(entity.client, client);
@@ -137,7 +142,7 @@ describe('GrantEntity', () => {
       assert.equal(entity.interaction, undefined); // This should not be initalized until startInteraction is called on the entity.
 
       assert.equal(accessToken, undefined);
-      assert.equal(entity.accessTokens.size, 0);
+      assert.equal(entity.accessTokens.length, 0);
 
       // Input fields are carried onto the created entity.
       assert.equal(entity.client, client);
@@ -215,7 +220,7 @@ describe('GrantEntity', () => {
       assert.notEqual(entity.continueToken.value, previous.value);
       assert.notEqual(entity.continueToken.id, previous.id);
       assert.ok(entity.continueToken.activeAt.getTime() > Date.now());
-      assert.equal(entity.accessTokens.size, 0);
+      assert.equal(entity.accessTokens.length, 0);
     });
 
     it('issues an access token and marks the grant issued when approved without an interact ref', () => {
@@ -231,8 +236,13 @@ describe('GrantEntity', () => {
       assert.ok(accessToken);
       assert.ok(accessToken.value);
       assert.ok(accessToken.manageToken.id);
-      assert.equal(entity.accessTokens.size, 1);
-      assert.equal(entity.accessTokens.get(accessToken.value), accessToken);
+      assert.equal(entity.accessTokens.length, 1);
+      assert.equal(
+        entity.accessTokens.find(
+          (entityAccessToken) => entityAccessToken.value === accessToken.value
+        ),
+        accessToken
+      );
     });
 
     it('rejects continuation without an interact ref when the grant is not pending or approved', () => {
@@ -273,8 +283,8 @@ describe('GrantEntity', () => {
 
     it('issues an access token when continued with an approved interact ref', () => {
       const entity = makeContinuableGrant();
-      const interaction = entity.startInteraction();
-      entity.handleInteraction(Interaction.APPROVED);
+      const interaction = entity.startInteraction(randomUUID());
+      entity.handleInteraction(InteractionState.APPROVED);
       const continueToken = entity.continueToken!;
 
       const accessToken = entity.continue(
@@ -285,14 +295,19 @@ describe('GrantEntity', () => {
 
       assert.equal(entity.state, GrantState.ISSUED);
       assert.ok(accessToken);
-      assert.equal(entity.accessTokens.size, 1);
-      assert.equal(entity.accessTokens.get(accessToken.value), accessToken);
+      assert.equal(entity.accessTokens.length, 1);
+      assert.equal(
+        entity.accessTokens.find(
+          (entityAccessToken) => entityAccessToken.value === accessToken.value
+        ),
+        accessToken
+      );
     });
 
     it('finalizes the grant as rejected when continued with a rejected interact ref', () => {
       const entity = makeContinuableGrant();
-      const interaction = entity.startInteraction();
-      entity.handleInteraction(Interaction.REJECTED);
+      const interaction = entity.startInteraction(randomUUID());
+      entity.handleInteraction(InteractionState.REJECTED);
       const continueToken = entity.continueToken!;
 
       const accessToken = entity.continue(
@@ -303,7 +318,7 @@ describe('GrantEntity', () => {
 
       assert.equal(accessToken, undefined);
       assert.equal(entity.state, GrantState.REJECTED);
-      assert.equal(entity.accessTokens.size, 0);
+      assert.equal(entity.accessTokens.length, 0);
     });
 
     it('rejects an unknown or unmatched interact ref', () => {
@@ -320,7 +335,7 @@ describe('GrantEntity', () => {
         InvalidInteractionError
       );
 
-      const interaction = entity.startInteraction();
+      const interaction = entity.startInteraction(randomUUID());
       assert.throws(
         () =>
           entity.continue(

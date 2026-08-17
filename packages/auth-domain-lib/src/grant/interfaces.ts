@@ -11,14 +11,24 @@ export const InteractiveAccessType: AccessType[] = [
   AccessType.OUTGOING_PAYMENT
 ] as const;
 
-export interface IAccessLimit {
+interface IBaseAccessLimit {
   receiver: string;
   assetCode: string;
   assetScale: number;
-  debitAmount?: bigint;
-  sendAmount?: bigint;
   interval?: string;
 }
+
+type IDebitAmountAccessLimit = IBaseAccessLimit & {
+  debitAmount: bigint;
+  receiveAmount?: bigint;
+};
+
+type IReceiveAmountAccessLimit = IBaseAccessLimit & {
+  debitAmount?: bigint;
+  receiveAmount: bigint;
+};
+
+export type IAccessLimit = IDebitAmountAccessLimit | IReceiveAmountAccessLimit;
 
 export const AccessAction = {
   CREATE: 'CREATE',
@@ -42,11 +52,13 @@ export interface ISubjectId {
   id: string;
 }
 
-export const Interaction = {
+export const InteractionState = {
+  PENDING: 'PENDING',
   APPROVED: 'APPROVED',
   REJECTED: 'REJECTED'
 } as const;
-export type Interaction = keyof typeof Interaction;
+export type InteractionState = keyof typeof InteractionState;
+export type InteractionChoice = Exclude<InteractionState, 'PENDING'>;
 
 export interface IGrantContinuation {
   accessToken: {
@@ -96,8 +108,9 @@ export type GrantState = keyof typeof GrantState;
 
 export interface IInteraction {
   interactRef: string;
-  state?: Interaction;
+  state: InteractionState;
   expiresInMs: number;
+  clientNonce: string;
 }
 
 export interface IGrant {
@@ -113,7 +126,7 @@ export interface IGrant {
   finishUri?: string;
   interactionNonce?: string;
   interaction?: IInteraction;
-  accessTokens: Map<string, IAccessToken>;
+  accessTokens: IAccessToken[];
 }
 
 export interface IAccessToken {
@@ -167,8 +180,16 @@ export interface IWalletAddressService {
   getWalletAddressKeys(url: string): Promise<IJsonWebKey[]>;
 }
 
+export interface ContinuedGrantUpdate {
+  id: string;
+  state: GrantState;
+  continueToken?: IContinueToken;
+  accessToken?: IAccessToken;
+}
+
 export interface IGrantRepository {
   storeMany(grants: IGrant[]): Promise<void>;
+  storeContinuedGrants(grants: ContinuedGrantUpdate[]): Promise<void>;
   fetchById(id: string): Promise<IGrant | undefined>;
   fetchByIds(ids: string[]): Promise<IGrant[]>;
 }

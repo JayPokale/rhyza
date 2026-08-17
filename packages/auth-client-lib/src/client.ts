@@ -9,7 +9,6 @@ import {
   GrantRequestFinish,
   SubjectId,
   SignatureData,
-  SignatureHeader,
   RevokeGrantResponse,
   ContinueGrantResponse,
   RotateTokenResponse,
@@ -26,10 +25,7 @@ import {
   RevokeTokenRequest
 } from 'auth-public-types-lib';
 
-export type SignatureRequestData = Omit<
-  SignatureData.AsObject,
-  'headersList'
-> & {
+export type SignatureRequestData = Omit<SignatureData.AsObject, 'headers'> & {
   headers: Record<string, string>;
 };
 
@@ -158,12 +154,7 @@ export class AuthClient {
     msg.setMethod(signatureData.method);
     msg.setBody(signatureData.body);
     msg.setKid(signatureData.kid);
-    for (const [key, value] of Object.entries(signatureData.headers)) {
-      const header = new SignatureHeader();
-      header.setName(key);
-      header.setValue(value);
-      msg.addHeaders(header);
-    }
+    msg.setHeaders(JSON.stringify(signatureData.headers));
     return msg;
   }
 
