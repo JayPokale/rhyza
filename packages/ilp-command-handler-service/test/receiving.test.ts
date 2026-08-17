@@ -491,7 +491,6 @@ describe('IlpCommandHandler — remote quote receiving', () => {
         paymentIntentId: PAYMENT_INTENT_ID,
         receivedPaymentId: 'rp-fail-1',
         requestId: crypto.randomUUID(),
-        rejectCode: 'T00',
         rejectMessage: 'Ledger transfer failed'
       })
     ]);

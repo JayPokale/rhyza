@@ -155,7 +155,6 @@ export class IlpEventHandler {
           paymentIntentId: payload.paymentIntentId,
           receivedPaymentId: payload.receivedPaymentId,
           requestId: message.requestId ?? crypto.randomUUID(),
-          rejectCode: 'T00',
           rejectMessage: payload.message
         });
       }

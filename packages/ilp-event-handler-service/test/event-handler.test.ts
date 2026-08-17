@@ -201,7 +201,7 @@ describe('IlpEventHandler', () => {
     assert.equal(cmd.requestId, 'req-1');
   });
 
-  test('maps a ReceivedPaymentFailedEvent to a RejectInboundPaymentCmd with T00', async () => {
+  test('maps a ReceivedPaymentFailedEvent to a RejectInboundPaymentCmd without a reject code', async () => {
     const producer = new MockProducer();
     const consumer = new MockConsumer();
     const handler = new IlpEventHandler(
@@ -230,7 +230,7 @@ describe('IlpEventHandler', () => {
     assert.equal(cmd.msgName, RejectInboundPaymentCmd.name);
     assert.equal(cmd.msgTopic, 'ilp-commands');
     assert.equal(cmd.msgKey, 'packet-in-1');
-    assert.equal(cmd.payload.rejectCode, 'T00');
+    assert.equal(cmd.payload.rejectCode, undefined);
     assert.equal(cmd.payload.rejectMessage, 'Ledger transfer failed');
     assert.equal(cmd.requestId, 'req-fail-1');
   });
