@@ -63,21 +63,20 @@ export interface InteractionResult {
 
 export interface GetGrantResult {
   id: string;
-  start: string[];
+  startMethods: string[];
   continueToken: string;
   continueId: string;
   interactionNonce: string;
   state: string;
-  finalization: string;
+  finalizationReason: string;
   client: string;
-  subIds: SubjectId[];
+  subjectIds: SubjectId[];
   accesses: AccessItem[];
   finishMethod: string;
   finishUri: string;
   finishNonce: string;
   interaction?: InteractionResult;
   lastContinuedAt: string;
-  accessTokens: AccessTokenResult[];
 }
 
 export interface CreateGrantResult {

@@ -436,21 +436,20 @@ function fromPbInteraction(
 function fromPbGrant(grant: PbGrant): GetGrantResult {
   return {
     id: grant.getId(),
-    start: grant.getStartList(),
+    startMethods: grant.getStartMethodsList(),
     continueToken: grant.getContinueToken(),
     continueId: grant.getContinueId(),
     interactionNonce: grant.getInteractionNonce(),
     state: grant.getState(),
-    finalization: grant.getFinalization(),
+    finalizationReason: grant.getFinalizationReason(),
     client: grant.getClient(),
-    subIds: grant.getSubIdsList().map(fromPbSubjectId),
+    subjectIds: grant.getSubjectIdsList().map(fromPbSubjectId),
     accesses: grant.getAccessesList().map(fromPbAccessItem),
     finishMethod: grant.getFinishMethod(),
     finishUri: grant.getFinishUri(),
     finishNonce: grant.getFinishNonce(),
     interaction: fromPbInteraction(grant.getInteraction()),
-    lastContinuedAt: grant.getLastContinuedAt(),
-    accessTokens: grant.getAccessTokensList().map(fromPbAccessToken)
+    lastContinuedAt: grant.getLastContinuedAt()
   };
 }
 

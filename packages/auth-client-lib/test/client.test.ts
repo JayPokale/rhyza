@@ -187,13 +187,13 @@ describe('Auth Client', () => {
         { access: [access] }
       );
 
-      const result = await authClient.getGrant(createResult.getId());
+      const result = await authClient.getGrant(createResult.id);
 
       assert.ok(result);
-      assert.equal(result.getId(), createResult.getId());
-      assert.equal(result.getState(), 'FINALIZED');
-      assert.equal(result.getClient(), JSON.stringify(keys.publicKey));
-      assert.equal(result.getAccessesList().length, 1);
+      assert.equal(result.id, createResult.id);
+      assert.equal(result.state, 'FINALIZED');
+      assert.equal(result.client, JSON.stringify(keys.publicKey));
+      assert.equal(result.accesses.length, 1);
     });
 
     test('rejects with NOT_FOUND for an id that does not exist', async () => {
