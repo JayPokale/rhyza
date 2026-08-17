@@ -283,7 +283,7 @@ export class GrantEntity implements IGrant {
   }
 
   // Issues a new access token for this grant.
-  createAccessToken(): NewAccessToken {
+  private createAccessToken(): NewAccessToken {
     const newAccessToken: NewAccessToken = {
       managementId: uuid(),
       value: generateAccessToken(),
