@@ -1,10 +1,4 @@
-import {
-  Collection,
-  CollectionInfo,
-  Db,
-  MongoClient,
-  WithId
-} from 'mongodb';
+import { Collection, CollectionInfo, Db, MongoClient, WithId } from 'mongodb';
 import {
   ContinuedGrantUpdate,
   IAccessToken,
