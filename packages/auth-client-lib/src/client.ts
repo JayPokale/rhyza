@@ -6,7 +6,6 @@ import {
   Grant as PbGrant,
   GetGrantRequest as PbGetGrantRequest,
   AccessLimits as PbAccessLimits,
-  AccessToken as PbAccessToken,
   Interaction as PbInteraction,
   GrantRequestFinish as PbGrantRequestFinish,
   SignatureData as PbSignatureData,
@@ -30,7 +29,6 @@ import {
 import {
   AccessItem,
   AccessLimits,
-  AccessTokenResult,
   ContinueGrantResult,
   CreateGrantOptions,
   CreateGrantResult,
@@ -410,15 +408,6 @@ function toPbGrantRequestFinish(input: GrantFinish): PbGrantRequestFinish {
   return finish;
 }
 
-function fromPbAccessToken(accessToken: PbAccessToken): AccessTokenResult {
-  return {
-    value: accessToken.getValue(),
-    managementId: accessToken.getManagementId(),
-    expiresIn: accessToken.getExpiresIn(),
-    revokedAt: accessToken.getRevokedAt()
-  };
-}
-
 function fromPbInteraction(
   interaction?: PbInteraction
 ): InteractionResult | undefined {
@@ -436,21 +425,20 @@ function fromPbInteraction(
 function fromPbGrant(grant: PbGrant): GetGrantResult {
   return {
     id: grant.getId(),
-    start: grant.getStartList(),
+    startMethods: grant.getStartMethodsList(),
     continueToken: grant.getContinueToken(),
     continueId: grant.getContinueId(),
     interactionNonce: grant.getInteractionNonce(),
     state: grant.getState(),
-    finalization: grant.getFinalization(),
+    finalizationReason: grant.getFinalizationReason(),
     client: grant.getClient(),
-    subIds: grant.getSubIdsList().map(fromPbSubjectId),
+    subjectIds: grant.getSubjectIdsList().map(fromPbSubjectId),
     accesses: grant.getAccessesList().map(fromPbAccessItem),
     finishMethod: grant.getFinishMethod(),
     finishUri: grant.getFinishUri(),
     finishNonce: grant.getFinishNonce(),
     interaction: fromPbInteraction(grant.getInteraction()),
-    lastContinuedAt: grant.getLastContinuedAt(),
-    accessTokens: grant.getAccessTokensList().map(fromPbAccessToken)
+    lastContinuedAt: grant.getLastContinuedAt()
   };
 }
 
