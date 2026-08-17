@@ -631,6 +631,31 @@ importers:
         specifier: ^4.19.3
         version: 4.19.3
 
+  packages/open-payments-auth-service:
+    dependencies:
+      ajv:
+        specifier: ^8.20.0
+        version: 8.20.0
+      ajv-formats:
+        specifier: ^3.0.1
+        version: 3.0.1(ajv@8.20.0)
+      auth-client-lib:
+        specifier: workspace:*
+        version: link:../auth-client-lib
+      fastify:
+        specifier: ~5.3.3
+        version: 5.3.3
+      implementations-lib:
+        specifier: workspace:*
+        version: link:../implementations-lib
+    devDependencies:
+      openapi-typescript:
+        specifier: ^7.6.1
+        version: 7.13.0(typescript@5.9.3)
+      tsx:
+        specifier: ^4.19.3
+        version: 4.19.3
+
   packages/open-payments-resource-service:
     dependencies:
       ajv:
@@ -2735,9 +2760,6 @@ packages:
     peerDependenciesMeta:
       ajv:
         optional: true
-
-  ajv@6.12.6:
-    resolution: {integrity: sha512-j3fVLgvTo527anyYyJOGTYJbG+vnnQYvE0m5mmkc1TK+nxAppkCLMIL0aZ4dblVCNoGShhm+kzE4ZUykBoMg4g==}
 
   ajv@6.15.0:
     resolution: {integrity: sha512-fgFx7Hfoq60ytK2c7DhnF8jIvzYgOMxfugjLOSMHjLIPgenqa7S7oaagATUq99mV6IYvN2tRmC0wnTYX6iPbMw==}
@@ -5969,7 +5991,7 @@ snapshots:
 
   '@eslint/eslintrc@3.3.3':
     dependencies:
-      ajv: 6.12.6
+      ajv: 6.15.0
       debug: 4.4.0
       espree: 10.4.0
       globals: 14.0.0
@@ -7324,13 +7346,6 @@ snapshots:
     optionalDependencies:
       ajv: 8.20.0
 
-  ajv@6.12.6:
-    dependencies:
-      fast-deep-equal: 3.1.3
-      fast-json-stable-stringify: 2.1.0
-      json-schema-traverse: 0.4.1
-      uri-js: 4.4.1
-
   ajv@6.15.0:
     dependencies:
       fast-deep-equal: 3.1.3
@@ -8173,7 +8188,7 @@ snapshots:
       '@humanwhocodes/module-importer': 1.0.1
       '@humanwhocodes/retry': 0.4.3
       '@types/estree': 1.0.8
-      ajv: 6.12.6
+      ajv: 6.15.0
       chalk: 4.1.2
       cross-spawn: 7.0.6
       debug: 4.4.0
