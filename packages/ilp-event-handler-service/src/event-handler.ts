@@ -10,6 +10,7 @@ import {
   ActivatePeerCmd,
   DeactivatePeerCmd,
   FulfillInboundPaymentCmd,
+  RejectInboundPaymentCmd,
   RespondToRemoteQuoteCmd,
   StartRemotePaymentCmd,
   StartRemoteQuoteCmd
@@ -19,7 +20,8 @@ import {
   RemoteQuoteCalculationFailedEvent,
   RemoteQuoteRequestedEvent,
   RemotePaymentPreparedEvent,
-  ReceivedPaymentFulfillableEvent
+  ReceivedPaymentFulfillableEvent,
+  ReceivedPaymentFailedEvent
 } from 'payments-public-types-lib';
 import { PeerActivatedEvent, PeerDeactivatedEvent } from 'pal-public-types-lib';
 
@@ -133,6 +135,27 @@ export class IlpEventHandler {
           paymentIntentId: payload.paymentIntentId,
           receivedPaymentId: payload.receivedPaymentId,
           requestId: payload.requestId
+        });
+      }
+      case ReceivedPaymentFailedEvent.name: {
+        const payload =
+          message.payload as ReceivedPaymentFailedEvent['payload'];
+        if (!payload.packetId || !payload.peerId) {
+          this._logger.debug(
+            `ReceivedPaymentFailedEvent for ${payload.receivedPaymentId} missing packet/peer; skipping wire reject`
+          );
+          return undefined;
+        }
+        this._logger.debug(
+          `Received payment failed for packet ${payload.packetId}; dispatching reject`
+        );
+        return new RejectInboundPaymentCmd({
+          peerId: payload.peerId,
+          packetId: payload.packetId,
+          paymentIntentId: payload.paymentIntentId,
+          receivedPaymentId: payload.receivedPaymentId,
+          requestId: message.requestId ?? crypto.randomUUID(),
+          rejectMessage: payload.message
         });
       }
       case PeerActivatedEvent.name: {

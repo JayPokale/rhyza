@@ -116,6 +116,7 @@ export interface IInteraction {
   interactRef: string;
   state: InteractionState;
   expiresInMs: number;
+  clientNonce: string;
 }
 
 export interface IGrant {
@@ -134,7 +135,7 @@ export interface IGrant {
   interactionNonce?: string;
   interaction?: IInteraction;
   lastContinuedAt?: Date;
-  accessTokens: Map<string, IAccessToken>;
+  accessTokens: IAccessToken[];
 }
 
 export type NewAccessToken = Omit<IAccessToken, 'revokedAt'>;
