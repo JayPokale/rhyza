@@ -75,13 +75,18 @@ export class AuthCommandHandler {
       );
     }
 
+    const eventsToPublish: IMessage[] = [];
+
     if (commandMessages.length > 0) {
       const { events } =
         await this._grantAggregate.handleBatch(commandMessages);
+      eventsToPublish.push(...events);
 
-      if (events.length > 0) {
-        await this._msgProducer.send(events);
-      }
+      await this._grantAggregate.flush();
+    }
+
+    if (eventsToPublish.length > 0) {
+      await this._msgProducer.send(eventsToPublish);
     }
   }
 }

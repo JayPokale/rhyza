@@ -115,7 +115,7 @@ export class IlpConnector {
       await this._handleWireResponse({
         kind: 'REJECT',
         packetId,
-        rejectCode: 'T01',
+        rejectCode: 'R00',
         rejectMessage: 'no fulfill/reject callback received before expiry'
       });
     }

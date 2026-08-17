@@ -306,6 +306,8 @@ export type RejectRemotePaymentCmdPayload = {
   paymentIntentId: string;
   paymentId: string;
   reason?: string;
+  rejectCode?: string;
+  rejectMessage?: string;
 };
 
 export class RejectRemotePaymentCmd extends PaymentIntentCommand {

@@ -187,6 +187,32 @@ export class FulfillInboundPaymentCmd extends CommandMsg {
   }
 }
 
+export interface RejectInboundPaymentCmdPayload {
+  peerId: string;
+  packetId: string;
+  paymentIntentId: string;
+  receivedPaymentId: string;
+  requestId: string;
+  rejectCode?: string;
+  rejectMessage?: string;
+}
+
+// Payments BC: received payment failed after prepare was accepted — reject on the wire.
+export class RejectInboundPaymentCmd extends CommandMsg {
+  contextName: string = BOUNDED_CONTEXT_NAME;
+  aggregateName: string = AGGREGATE_NAME;
+  msgKey: string;
+  msgTopic: string = CommandTopics.IlpCommands;
+  payload: RejectInboundPaymentCmdPayload;
+
+  constructor(payload: RejectInboundPaymentCmdPayload) {
+    super(payload.peerId);
+    this.msgKey = payload.packetId;
+    this.payload = payload;
+    this.requestId = payload.requestId;
+  }
+}
+
 export interface ProcessPreparePacketCmdPayload {
   peerId: string;
   packetId: string;
