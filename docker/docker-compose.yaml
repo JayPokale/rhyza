@@ -53,6 +53,22 @@ services:
         aliases:
           - peer-open-payments-svc
 
+  open-payments-auth-service:
+    build:
+      context: ../
+      dockerfile: ./packages/open-payments-auth-service/Dockerfile
+    restart: always
+    environment:
+      AUTH_GRPC_URL: auth-api-service:50054
+      OPEN_PAYMENTS_AUTH_SERVER_URL: http://localhost:3003
+    ports:
+      - '3003:3003'
+    depends_on:
+      auth-api-service:
+        condition: service_started
+    networks:
+      - rafiki-v2
+
   pal-api-service:
     build:
       context: ../
