@@ -1,14 +1,14 @@
 ---
-title: Integrate Rhyza with your ASE
+title: Integrate Rhyza with your FSP
 ---
 
 import { Card, CardGrid, Badge } from '@astrojs/starlight/components'
 
 ## Before you begin
 
-You must be, or be working with, an account servicing entity (ASE). An ASE is an entity that provides and maintains payment accounts for its customers and is regulated in the jurisdictions it operates. Examples of ASEs include banks, digital wallet providers, and mobile money providers. The [account servicing entity](/overview/concepts/account-servicing-entity) page provides examples of an ASE's responsibilities and obligations.
+You must be, or be working with, a financial service provider (FSP). An FSP is an entity that provides and maintains payment accounts for its customers and is regulated in the jurisdictions it operates. Examples of FSPs include banks, digital wallet providers, and mobile money providers. The [financial service provider](/overview/concepts/financial-service-provider) page provides examples of an FSP's responsibilities and obligations.
 
-For testing purposes, you can set up a [mock account servicing entity](/integration/playground/overview) that's deployed Rhyza. However, Rhyza **should not** be used in production environments by non-regulated ASEs.
+For testing purposes, you can set up a [mock financial service provider](/integration/playground/overview) that's deployed Rhyza. However, Rhyza **should not** be used in production environments by non-regulated FSPs.
 
 ## Software components
 
@@ -17,7 +17,7 @@ From an integration perspective, Rhyza is structured around the **core system** 
 Rhyza's API services consist of the following:
 
 <Card title="Admin API Service" icon="setting">
-  The unified REST interface used by the ASE for all administrative tasks,
+  The unified REST interface used by the FSP for all administrative tasks,
   including managing assets, wallet addresses, and initiating payments. **This
   is the primary point of integration.**
   <p></p>
@@ -55,7 +55,7 @@ Rhyza's API services consist of the following:
 </Card>
 
 <Card title="Wallet addresses">
-  <Badge text="Required" variant="danger" /> Each payment account in the ASE's
+  <Badge text="Required" variant="danger" /> Each payment account in the FSP's
   system must be linked to a wallet address. You must have at least one asset in
   Rhyza before creating wallet addresses.<p></p>
   <p>[Create a wallet address >](/integration/requirements/wallet-addresses)</p>
@@ -98,13 +98,13 @@ The following steps illustrate how to make a basic payment between two wallet ad
   {' '}
   Use the Admin API's `POST /payments` to create a payment resource on the
   sender's wallet account. This operations starts the payment. At this point,
-  the sender's ASE must fund/approve the payment before it sends.<p></p>
+  the sender's FSP must fund/approve the payment before it sends.<p></p>
   <p>[Admin API Reference >](/apis/scalar/admin-api)</p>
 </Card>
 
 <Card title="Handle webhook requests">
   {' '}
-  As the payment flow progresses, the ASE is be notified about events that
+  As the payment flow progresses, the FSP is be notified about events that
   happen in the system. Some events are actionable, such as an `payment.created`
   event. Review the webhook events page to learn more about handling each event.
   <p></p>
