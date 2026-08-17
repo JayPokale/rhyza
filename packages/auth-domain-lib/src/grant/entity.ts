@@ -284,11 +284,6 @@ export class GrantEntity implements IGrant {
 
   // Issues a new access token for this grant.
   createAccessToken(): NewAccessToken {
-    if (this.state !== GrantState.APPROVED) {
-      throw new InvalidGrantError(
-        'Cannot create access token for grant that has not been approved'
-      );
-    }
     const newAccessToken: NewAccessToken = {
       managementId: uuid(),
       value: generateAccessToken(),
