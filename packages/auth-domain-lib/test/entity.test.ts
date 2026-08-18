@@ -44,8 +44,8 @@ describe('GrantEntity', () => {
       const { entity, accessToken } = GrantEntity.create(input);
 
       assert.equal(entity.state, 'APPROVED');
-      assert.notEqual(entity.continueToken, undefined);
-      assert.notEqual(entity.continueId, undefined);
+      assert.ok(entity.continueToken);
+      assert.ok(entity.continueId);
 
       assert.equal(entity.interactionNonce, undefined);
       assert.equal(entity.interaction, undefined);
