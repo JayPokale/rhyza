@@ -19,6 +19,8 @@ import {
   HandleInteractionChoiceResponse as PbHandleInteractionChoiceResponse,
   AcceptInteractionRequest as PbAcceptInteractionRequest,
   RejectInteractionRequest as PbRejectInteractionRequest,
+  FinishInteractionRequest as PbFinishInteractionRequest,
+  FinishInteractionResponse as PbFinishInteractionResponse,
   ContinueGrantRequest as PbContinueGrantRequest,
   RevokeGrantRequest as PbRevokeGrantRequest,
   IntrospectTokenResponse as PbIntrospectTokenResponse,
@@ -34,6 +36,7 @@ import {
   ContinueGrantResult,
   CreateGrantOptions,
   CreateGrantResult,
+  FinishInteractionResult,
   GetGrantResult,
   GrantFinish,
   HandleInteractionChoiceResult,
@@ -283,6 +286,33 @@ export class AuthClient {
             reject(error);
           } else {
             resolve({ id: response.getId(), nonce: response.getNonce() });
+          }
+        }
+      );
+    });
+  }
+
+  finishInteraction(
+    id: string,
+    nonce: string
+  ): Promise<FinishInteractionResult> {
+    const request = new PbFinishInteractionRequest();
+    request.setId(id);
+    request.setNonce(nonce);
+
+    return new Promise((resolve, reject) => {
+      this._grpcClient.finishInteraction(
+        request,
+        (error: ServiceError | null, response: PbFinishInteractionResponse) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve({
+              id: response.getId(),
+              interactNonce: response.getInteractNonce(),
+              clientNonce: response.getClientNonce(),
+              interactRef: response.getInteractRef()
+            });
           }
         }
       );

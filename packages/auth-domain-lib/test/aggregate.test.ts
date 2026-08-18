@@ -1,6 +1,6 @@
 import { describe, it, beforeEach, afterEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { KeyObject, randomUUID } from 'node:crypto';
+import { KeyObject, randomBytes, randomUUID } from 'node:crypto';
 import { IMessage } from 'common-types-lib';
 import {
   createHeaders,
@@ -14,16 +14,25 @@ import {
   CreateGrantCmdPayload,
   IntrospectTokenCmd,
   IntrospectTokenCmdPayload,
-  StartInteractionCmd
+  StartInteractionCmd,
+  FinishInteractionCmd
 } from '../src/commands';
 import {
   GrantCreatedEvent,
   GrantCreateFailedEvent,
   TokenIntrospectedEvent,
   GrantInteractionStartedEvent,
-  GrantInteractionStartFailedEvent
+  GrantInteractionStartFailedEvent,
+  GrantInteractionFinishedEvent,
+  GrantInteractionFinishFailedEvent
 } from '../src/grant/events';
-import { AccessAction, AccessType } from '../src/grant/interfaces';
+import {
+  AccessAction,
+  AccessType,
+  GrantState,
+  IGrant,
+  InteractionState
+} from '../src/grant/interfaces';
 import { MockGrantRepo, MockWalletAddressService } from './mocks';
 import { PinoLogger } from 'implementations-lib';
 
@@ -86,6 +95,10 @@ function makeIntrospectTokenCmd(
   requestId: string = randomUUID()
 ): IntrospectTokenCmd {
   return new IntrospectTokenCmd(payload, requestId);
+}
+
+function generateNonce(): string {
+  return randomBytes(16).toString('hex').toUpperCase();
 }
 
 describe('GrantAggregate.handleBatch', () => {
@@ -584,7 +597,117 @@ describe('GrantAggregate.handleBatch', () => {
             assert.equal(storeInteractionsMock.mock.callCount(), 0);
           });
         });
+      })
+
+    describe('handleFinishInteractionCommand', async () => {
+      function makeGrantWithInteraction(
+        interactionOverrides: Partial<{
+          nonce: string;
+          state: InteractionState;
+        }> = {}
+      ): IGrant {
+        const createdAt = Date.now();
+        return {
+          id: randomUUID(),
+          startMethods: ['REDIRECT'],
+          state: GrantState.PROCESSING,
+          interactionNonce: generateNonce(),
+          finishNonce: generateNonce(),
+          accessTokens: [],
+          interaction: {
+            interactRef: randomUUID(),
+            nonce: 'correct-nonce',
+            createdAt,
+            expiresAt: createdAt + 10_000,
+            state: InteractionState.APPROVED,
+            ...interactionOverrides
+          }
+        };
+      }
+
+      it('returns GrantInteractionFinishedEvent when the interaction was approved', async () => {
+        const grant = makeGrantWithInteraction();
+        await repo.storeMany([grant]);
+        const requestId = randomUUID();
+
+        const { events } = await aggregate.handleBatch([
+          new FinishInteractionCmd(
+            { id: grant.id, nonce: 'correct-nonce' },
+            requestId
+          )
+        ]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, GrantInteractionFinishedEvent.name);
+        assert.equal(events[0].requestId, requestId);
+        const payload = (events[0] as GrantInteractionFinishedEvent).payload;
+        assert.equal(payload.id, grant.id);
+        assert.equal(payload.interactNonce, grant.interactionNonce);
+        assert.equal(payload.clientNonce, grant.finishNonce);
+        assert.equal(payload.interactRef, grant.interaction?.interactRef);
+      });
+
+      it('fails with UnknownInteractionError when the nonce does not match', async () => {
+        const grant = makeGrantWithInteraction();
+        await repo.storeMany([grant]);
+        const requestId = randomUUID();
+
+        const { events } = await aggregate.handleBatch([
+          new FinishInteractionCmd(
+            { id: grant.id, nonce: 'wrong-nonce' },
+            requestId
+          )
+        ]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, GrantInteractionFinishFailedEvent.name);
+        assert.equal(events[0].requestId, requestId);
+        const payload = (events[0] as GrantInteractionFinishFailedEvent)
+          .payload;
+        assert.equal(payload.grantId, grant.id);
+        assert.equal(payload.errorName, 'UnknownInteractionError');
+      });
+
+      it('fails with InvalidInteractionError when the interaction is still pending', async () => {
+        const grant = makeGrantWithInteraction({
+          state: InteractionState.PENDING
+        });
+        await repo.storeMany([grant]);
+        const requestId = randomUUID();
+
+        const { events } = await aggregate.handleBatch([
+          new FinishInteractionCmd(
+            { id: grant.id, nonce: 'correct-nonce' },
+            requestId
+          )
+        ]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, GrantInteractionFinishFailedEvent.name);
+        const payload = (events[0] as GrantInteractionFinishFailedEvent)
+          .payload;
+        assert.equal(payload.grantId, grant.id);
+        assert.equal(payload.errorName, 'InvalidInteractionError');
+      });
+
+      it('fails with GrantNotFoundError when the grant does not exist', async () => {
+        const requestId = randomUUID();
+
+        const { events } = await aggregate.handleBatch([
+          new FinishInteractionCmd(
+            { id: randomUUID(), nonce: 'any-nonce' },
+            requestId
+          )
+        ]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, GrantInteractionFinishFailedEvent.name);
+        assert.equal(events[0].requestId, requestId);
+        const payload = (events[0] as GrantInteractionFinishFailedEvent)
+          .payload;
+        assert.equal(payload.errorName, 'GrantNotFoundError');
       });
     });
   });
+});
 });

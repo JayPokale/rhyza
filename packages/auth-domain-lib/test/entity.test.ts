@@ -6,7 +6,8 @@ import { GrantEntity } from '../src/grant/entity';
 import {
   InvalidGrantError,
   NonInteractiveGrantError,
-  InvalidInteractionError
+  InvalidInteractionError,
+  UnknownInteractionError
 } from '../src/grant/errors';
 import {
   AccessAction,
@@ -561,6 +562,149 @@ describe('GrantEntity', () => {
       ]);
 
       assert.deepEqual(result, { active: false });
+    })
+  describe('finishInteraction', () => {
+    function makeGrant(overrides: Partial<IGrant> = {}): GrantEntity {
+      return GrantEntity.fromObject({
+        id: randomUUID(),
+        state: GrantState.PROCESSING,
+        startMethods: ['REDIRECT'],
+        ...overrides
+      } as IGrant);
+    }
+
+    it('transitions the grant to APPROVED when the interaction was approved', () => {
+      const createdAt = Date.now();
+      const entity = makeGrant({
+        interaction: {
+          interactRef: randomUUID(),
+          createdAt,
+          expiresAt: createdAt + 600_000,
+          state: InteractionState.APPROVED
+        }
+      });
+
+      const result = entity.finishInteraction(entity.interactionNonce as string);
+
+      assert.equal(entity.state, GrantState.APPROVED);
+      assert.equal(result.id, entity.id);
+      assert.equal(result.state, GrantState.APPROVED);
+    });
+
+    it('finalizes the grant as REJECTED when the interaction was rejected', () => {
+      const nonce = 'correct-nonce';
+      const createdAt = Date.now();
+      const entity = makeGrant({
+        interaction: {
+          interactRef: randomUUID(),
+          createdAt,
+          expiresAt: createdAt + 600_000,
+          state: InteractionState.REJECTED
+        }
+      });
+
+      const result = entity.finishInteraction(nonce);
+
+      assert.equal(entity.state, GrantState.REJECTED);
+      assert.equal(result.state, GrantState.REJECTED);
+    });
+
+    it('throws InvalidInteractionError when the interaction is still pending', () => {
+      const nonce = 'correct-nonce';
+      const createdAt = Date.now();
+      const entity = makeGrant({
+        interaction: {
+          interactRef: randomUUID(),
+          createdAt,
+          expiresAt: createdAt + 600_000,
+          state: InteractionState.PENDING
+        }
+      });
+
+      assert.throws(
+        () => entity.finishInteraction(nonce),
+        (err: Error) => {
+          assert(err instanceof InvalidInteractionError);
+          return true;
+        }
+      );
+      assert.equal(entity.state, GrantState.PROCESSING);
+    });
+
+    it('throws UnknownInteractionError when there is no interaction on the grant', () => {
+      const entity = makeGrant();
+
+      assert.throws(
+        () => entity.finishInteraction('any-nonce'),
+        (err: Error) => {
+          assert(err instanceof UnknownInteractionError);
+          return true;
+        }
+      );
+    });
+
+    it('throws UnknownInteractionError when the provided nonce does not match', () => {
+      const createdAt = Date.now();
+      const entity = makeGrant({
+        interaction: {
+          interactRef: randomUUID(),
+          createdAt,
+          expiresAt: createdAt + 600_000,
+          state: InteractionState.APPROVED
+        }
+      });
+
+      assert.throws(
+        () => entity.finishInteraction('wrong-nonce'),
+        (err: Error) => {
+          assert(err instanceof UnknownInteractionError);
+          return true;
+        }
+      );
+      assert.equal(entity.state, GrantState.PROCESSING);
+    });
+
+    it('throws InvalidGrantError when the grant is already FINALIZED', () => {
+      const createdAt = Date.now();
+      const entity = makeGrant({
+        state: GrantState.ISSUED,
+        interaction: {
+          interactRef: randomUUID(),
+          createdAt,
+          expiresAt: createdAt + 600_000,
+          state: InteractionState.APPROVED
+        }
+      });
+
+      assert.throws(
+        () => entity.finishInteraction('correct-nonce'),
+        (err: Error) => {
+          assert(err instanceof InvalidGrantError);
+          return true;
+        }
+      );
+    });
+
+    it('throws InvalidGrantError when the grant is already APPROVED', () => {
+      const createdAt = Date.now();
+      const entity = makeGrant({
+        state: GrantState.APPROVED,
+        interaction: {
+          interactRef: randomUUID(),
+          createdAt,
+          expiresAt: createdAt + 600_000,
+          state: InteractionState.APPROVED
+        }
+      });
+
+      assert.throws(
+        () => entity.finishInteraction('correct-nonce'),
+        (err: Error) => {
+          assert(err instanceof InvalidGrantError);
+          return true;
+        }
+      );
     });
   });
+});
 });

@@ -124,3 +124,10 @@ export interface StartInteractionResult {
 export interface HandleInteractionChoiceResult {
   success: boolean;
 }
+
+export interface FinishInteractionResult {
+  id: string;
+  interactNonce: string;
+  clientNonce: string;
+  interactRef: string;
+}

@@ -14,7 +14,6 @@ import {
   SubjectId,
   AccessLimits
 } from '../src/';
-import { randomUUID } from 'node:crypto';
 
 describe('Auth Client', () => {
   const AUTH_GRPC_URL = process.env['AUTH_GRPC_URL'] || '0.0.0.0:50054';
