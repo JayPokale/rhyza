@@ -25,23 +25,27 @@ export function decodeCompoundId(value: string): {
 
 export function createAccessTokenResponse(
   grantId: string,
-  accessTokenValue: string,
   accessTokenManagementId: string,
+  accessTokenValue: string,
   accessTokenExpiresIn: number,
   access: AccessItem[],
   openPaymentsAuthServerUrl: string
 ): components['schemas']['access_token'] {
   return {
-    value: accessTokenValue,
+    value: encodeCompoundId(grantId, accessTokenValue),
     manage: `${openPaymentsAuthServerUrl}/token/${encodeCompoundId(grantId, accessTokenManagementId)}`,
     expires_in: accessTokenExpiresIn,
-    access: access as components['schemas']['access']
+    access: access.map((a) => ({
+      actions: a.actions.map((action) =>
+        action.toLowerCase().replace('_', '-')
+      ),
+      type: a.type.toLowerCase().replace('_', '-')
+    })) as components['schemas']['access']
   };
 }
 
 export function createContinueResponse(
   grantId: string,
-  continueId: string,
   continueTokenValue: string,
   openPaymentsAuthServerUrl: string
 ): components['schemas']['continue'] {
@@ -49,7 +53,7 @@ export function createContinueResponse(
     access_token: {
       value: continueTokenValue
     },
-    uri: `${openPaymentsAuthServerUrl}/continue/${encodeCompoundId(grantId, continueId)}`
+    uri: `${openPaymentsAuthServerUrl}/continue/${grantId}`
     // TODO wait
   };
 }
@@ -60,7 +64,7 @@ export function createInteractResponse(
   openPaymentsAuthServerUrl: string
 ): components['schemas']['interact-response'] {
   return {
-    redirect: `${openPaymentsAuthServerUrl}/interact/${grantId}/${interactionNonce}`,
+    redirect: `${openPaymentsAuthServerUrl}/interact/${grantId}`,
     finish: interactionNonce
   };
 }
