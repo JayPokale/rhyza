@@ -457,7 +457,7 @@ export class IlpPeerAggregate {
         packetId: payload.packetId,
         paymentIntentId: payload.paymentIntentId,
         paymentId,
-        receivedPaymentId: payload.receivedPaymentId,
+        inboundPaymentId: payload.inboundPaymentId,
         failedAt,
         reason,
         requestId: payload.requestId
@@ -466,7 +466,7 @@ export class IlpPeerAggregate {
 
     const stored = await this.peerRepo.fetchPacketById(payload.packetId);
     if (!stored || stored.kind !== 'PAYMENT') {
-      return fail('packet_not_found', payload.receivedPaymentId);
+      return fail('packet_not_found', payload.inboundPaymentId);
     }
 
     if (stored.state !== 'PENDING') {
@@ -515,7 +515,7 @@ export class IlpPeerAggregate {
         packetId: payload.packetId,
         paymentIntentId: payload.paymentIntentId,
         paymentId: stored.paymentId,
-        receivedPaymentId: payload.receivedPaymentId,
+        inboundPaymentId: payload.inboundPaymentId,
         fulfilledAt: new Date().toISOString(),
         requestId: payload.requestId
       })

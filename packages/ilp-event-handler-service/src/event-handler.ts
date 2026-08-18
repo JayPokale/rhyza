@@ -20,8 +20,8 @@ import {
   RemoteQuoteCalculationFailedEvent,
   RemoteQuoteRequestedEvent,
   RemotePaymentPreparedEvent,
-  ReceivedPaymentFulfillableEvent,
-  ReceivedPaymentFailedEvent
+  InboundPaymentFulfillableEvent,
+  InboundPaymentFailedEvent
 } from 'payments-public-types-lib';
 import { PeerActivatedEvent, PeerDeactivatedEvent } from 'pal-public-types-lib';
 
@@ -123,37 +123,36 @@ export class IlpEventHandler {
           payload.requestId
         );
       }
-      case ReceivedPaymentFulfillableEvent.name: {
+      case InboundPaymentFulfillableEvent.name: {
         const payload =
-          message.payload as ReceivedPaymentFulfillableEvent['payload'];
+          message.payload as InboundPaymentFulfillableEvent['payload'];
         this._logger.debug(
-          `Received payment fulfillable for packet ${payload.packetId}; dispatching fulfillment`
+          `Inbound payment fulfillable for packet ${payload.packetId}; dispatching fulfillment`
         );
         return new FulfillInboundPaymentCmd({
           peerId: payload.peerId,
           packetId: payload.packetId,
           paymentIntentId: payload.paymentIntentId,
-          receivedPaymentId: payload.receivedPaymentId,
+          inboundPaymentId: payload.inboundPaymentId,
           requestId: payload.requestId
         });
       }
-      case ReceivedPaymentFailedEvent.name: {
-        const payload =
-          message.payload as ReceivedPaymentFailedEvent['payload'];
+      case InboundPaymentFailedEvent.name: {
+        const payload = message.payload as InboundPaymentFailedEvent['payload'];
         if (!payload.packetId || !payload.peerId) {
           this._logger.debug(
-            `ReceivedPaymentFailedEvent for ${payload.receivedPaymentId} missing packet/peer; skipping wire reject`
+            `InboundPaymentFailedEvent for ${payload.inboundPaymentId} missing packet/peer; skipping wire reject`
           );
           return undefined;
         }
         this._logger.debug(
-          `Received payment failed for packet ${payload.packetId}; dispatching reject`
+          `Inbound payment failed for packet ${payload.packetId}; dispatching reject`
         );
         return new RejectInboundPaymentCmd({
           peerId: payload.peerId,
           packetId: payload.packetId,
           paymentIntentId: payload.paymentIntentId,
-          receivedPaymentId: payload.receivedPaymentId,
+          inboundPaymentId: payload.inboundPaymentId,
           requestId: message.requestId ?? crypto.randomUUID(),
           rejectMessage: payload.message
         });
