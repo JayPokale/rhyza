@@ -40,6 +40,9 @@
       "grpc-tools",
       "@confluentinc/kafka-javascript",
       "protobufjs"
+    ],
+    "ignoredBuiltDependencies": [
+      "sharp"
     ]
   }
 }

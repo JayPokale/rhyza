@@ -1,243 +1,236 @@
-#!/usr/bin/env node
-import blessed from 'blessed';
+import { randomBytes } from 'node:crypto';
+import {
+  Box,
+  Screen,
+  Element,
+  NodeRuntime,
+  setRuntime,
+  Listbar
+} from '@unblessed/node';
+import {
+  SettingsPage
+} from './uiPages/settings';
+
+import { LoadTestsPage } from './uiPages/loadTests';
+import { ISettingsData, IUiPage } from './common';
+import { LoadTests } from './load';
+import process from 'process';
+import { OpenTelemetryService } from 'implementations-lib';
+import crypto from 'crypto';
+import { ILogger, NullLogger } from 'common-types-lib';
+
+// should not have to do this, but it fails without it
+const runtime = new NodeRuntime();
+setRuntime(runtime);
+
+
+const BC_NAME = 'PAL';
+const APP_NAME = `${BC_NAME}_LEDGER_LOAD_TEST`;
+const APP_VERSION = '0.0.1';
+const INSTANCE_ID = `${APP_NAME}_${crypto.randomUUID()}`;
 
 const TITLE = 'Rafiki V2 PAL Ledger Benchmarks';
-
 const MENU_ITEMS = ["Settings", "Create Ledger", "Load Test", "Quit"];
 
-// 1. Create the main screen object (acts as the ncurses canvas)
-const screen = blessed.screen({
+const TRANSACTION_COUNT = process.env['TRANSACTION_COUNT']
+  ? parseInt(process.env['TRANSACTION_COUNT'])
+  : 10;
+
+const KAFKA_URL =
+  process.env['KAFKA_URL'] || '127.0.0.1:19092,127.0.0.1:29092,127.0.0.1:39092';
+const OPEN_TELEMETRY_COLLECTOR_URL =
+  process.env['OPEN_TELEMETRY_COLLECTOR_URL'] || 'http://127.0.0.1:4317';
+
+
+const settingsData: ISettingsData = {
+  testIdPrefix: `${randomBytes(3).toString('hex')}_`,
+  kafkaUrl: KAFKA_URL,
+  assetCode: 'EUR',
+  peerId: 'peerOne',
+  disableConsoleLog: true
+};
+
+const logger: ILogger = new NullLogger();
+
+OpenTelemetryService.Start(
+  BC_NAME,
+  APP_NAME,
+  APP_VERSION,
+  INSTANCE_ID,
+  logger,
+  OPEN_TELEMETRY_COLLECTOR_URL
+);
+
+const loadTests = new LoadTests(
+  settingsData,
+  TRANSACTION_COUNT,
+  logger,
+  INSTANCE_ID,
+  OpenTelemetryService.getInstance()
+);
+
+//1. Create the main screen object (acts as the ncurses canvas)
+const screen = new Screen({
   smartCSR: true,
+  sendFocus: true,
+  autoPadding: true,
   title: TITLE,
   cursor: {
-    artificial: true,
+    artificial: false,
     shape: 'line',
     blink: true,
-    color: 'red',
-  },
+    color: 'red'
+  }
 });
 
-// 2. Add a Header Box
-const header = blessed.box({
+// Header Box
+new Box({
+  parent: screen,
   top: 0,
   left: 0,
   width: '100%',
-  height: 2,
+  height: 3,
+  focusable: false,
+  valign: 'middle',
   content: '{center}{bold}' + TITLE + '{/bold}{/center}',
   tags: true,
   style: {
-    fg: 'white',
-    bg: 'black',
-  },
+    fg: 'black',
+    bg: 'dark-green'
+  }
 });
 
-// 3. Add an interactive List Menu (Left Panel)
-const menu = blessed.list({
-  top: 2,
+// List Menu (Left Panel)
+const menu = new Listbar({
+  parent: screen,
+  top: 3,
   left: 0,
-  width: '100',
-  height: '100%-3',
+  width: '100%',
+  height: 3,
   label: ' Navigation ',
   items: MENU_ITEMS,
   keys: true,
   mouse: true,
   border: {
-    type: 'line',
-  },
-  style: {
-    selected: {
-      bg: 'cyan',
-      fg: 'black',
-      bold: true,
-    },
-    border: {
-      fg: 'blue',
-    },
-  },
-});
-
-// 4. Add a Content Box (Right Panel)
-const settingsBox = blessed.box({
-  top: 2,
-  left: '100',
-  width: '100%-20',
-  height: '100%-3',
-  label: ' Settings',
-  content: 'Select an item from the menu to view details. - SETTINGS',
-  border: {
-    type: 'line',
-  },
-  style: {
-    border: {
-      fg: 'green',
-    },
-  },
-});
-
-var msg = blessed.message({
-  parent: screen,
-  top: 40,
-  left: 5,
-  style: {
-    italic: true,
-    fg: 'green'
-  }
-});
-
-var form = blessed.form({
-  parent: settingsBox,
-  width: '90%',
-  left: 'center',
-  keys: true,
-  vi: true
-});
-var label1 = blessed.text({
-  parent: settingsBox,
-  top: 3,
-  left: 5,
-  content: 'FIRST NAME:'
-});
-var textarea = blessed.textarea({
-  parent: form,
-  name: 'comments',
-  top: 26,
-  left: 5,
-  height: 7,
-  inputOnFocus: true,
-  border: {
     type: 'line'
-  }
-});
-
-// Submit/Cancel buttons
-var submit = blessed.button({
-  parent: form,
-  name: 'submit',
-  content: 'Submit',
-  top: 35,
-  left: 5,
-  shrink: true,
-  padding: {
-    top: 1,
-    right: 2,
-    bottom: 1,
-    left: 2
   },
   style: {
-    bold: true,
-    fg: 'white',
-    bg: 'green',
-    focus: {
-      inverse: true
-    }
-  }
-});
-var reset = blessed.button({
-  parent: form,
-  name: 'reset',
-  content: 'Reset',
-  top: 35,
-  left: 15,
-  shrink: true,
-  padding: {
-    top: 1,
-    right: 2,
-    bottom: 1,
-    left: 2
-  },
-  style: {
-    bold: true,
-    fg: 'white',
-    bg: 'red',
-    focus: {
-      inverse: true
-    }
-  }
-});
-form.on('submit', function (data) {
-  msg.display('Form submitted!', (res)=>{
-    console.log(res);
-  });
-  // var editors = ['Vim', 'Emacs', 'Atom', 'Brackets'].filter(function (item, index) {
-  //   return data.editors[index];
-  // });
-  // msg.display('Form submitted!', function () {
-  //   var summary = '';
-  //   summary += data.firstname + ' ' + data.lastname + '\n';
-  //   summary += '------------------------------\n';
-  //   summary += 'Favorite editors: ' + editors + '\n';
-  //   summary += 'Likes Blessed: ' + data.like[0] + '\n';
-  //   summary += 'Comments: ' + data.comments;
-  //   fs.writeFile('form-data.txt', summary, function (err) {
-  //     if (err) throw err;
-  //   });
-  // });
-});
-
-const loadTestsBox = blessed.box({
-  top: 2,
-  left: '100',
-  width: '100%-20',
-  height: '100%-3',
-  label: ' Load Tests',
-  content: 'Select an item from the menu to view details. - loadTestsBox',
-  border: {
-    type: 'line',
-  },
-  style: {
-    border: {
-      fg: 'green',
+    item: {
+      bg: 'black',
+      fg: 'white',
+      bold: true
     },
-  },
+    selected: {
+      bg: 'red'
+    },
+    border: {
+      fg: 'white'
+    },
+    focus: {
+      border: {
+        fg: 'green'
+      }
+    }
+  }
 });
 
-
-// 5. Add a Footer Status Bar
-const footer = blessed.box({
+// Footer Status Bar
+const footer = new Box({
+  parent: screen,
   bottom: 0,
   left: 0,
   width: '100%',
-  height: 1,
-  content: ' Use [UP]/[DOWN] arrows to navigate | Press [Q] or [Ctrl+C] to quit',
+  height: 3,
+  focusable: false,
+  tags: true,
+  border: { type: 'line' },
+  // content:
+  //   '[UP]/[DOWN]/[ENTER] to navigate and select | [TAB] to change fields | [ESCAPE] to go to the menu | [Q] or [Ctrl+C] to quit',
+  content:
+    '{center}{green-fg}●{/} Connected  {gray-fg}|{/}  {cyan-fg}4 files in context{/}  {gray-fg}|{/}  {yellow-fg}Press Ctrl+C to exit{/}{/center}',
   style: {
     fg: 'yellow',
-    bg: 'black',
-  },
+    bg: 'black'
+  }
 });
 
-// Mount widgets onto the main screen
-screen.append(header);
-screen.append(menu);
-screen.append(settingsBox);
-screen.append(footer);
+function updateFooter(){
+  const separator = " {gray-fg}|{/} ";
+  const connState = loadTests.connected
+    ? '{center}{green-fg}● connected'
+    : '{center}{red-fg}● disconnected';
+  const runState = loadTests.isRunning
+    ? `{green-fg}● ${loadTests.perSecCount}/sec `
+    : '{red-fg}● (not running)';
 
-let currentMainBox = settingsBox;
-function replaceMainBox(newBox: blessed.Widgets.BoxElement){
-  screen.remove(currentMainBox);
-  screen.append(newBox);
-  currentMainBox = newBox;
+  const shortcuts = "{yellow-fg}Press C to setup ledger - Ctrl+C to exit{/}{/center}";
+  footer.content = connState + separator + runState + separator + shortcuts;
+  screen.render();
+}
+updateFooter();
 
-  newBox.focus();
+loadTests.on('stateChanged', ()=>{
+  updateFooter();
+});
+
+
+// Content Box Pages (Right Panel)
+const settingsPage = new SettingsPage(settingsData);
+const loadTestsPage = new LoadTestsPage(settingsData, loadTests);
+
+let currentPage: IUiPage;
+async function navigateToPage(newPage: IUiPage) {
+  if(currentPage) await currentPage.deactivate(screen)
+  await newPage.activate(screen);
+  currentPage = newPage;
+  screen.render();
 }
 
-// 6. Nav Event Handling
-function navHandlerCallback(item: blessed.Widgets.BoxElement, index: number){
-  const selectedText = item.getText();
-
-  if (selectedText === MENU_ITEMS[MENU_ITEMS.length - 1]) {
+// Nav Event Handling
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+async function navHandlerCallback(item: Element, index: number) {
+  const selectedIndex = menu.selected;
+  if (selectedIndex == MENU_ITEMS.length - 1) {
     return process.exit(0);
   }
 
-  if(selectedText === MENU_ITEMS[0]){
-    replaceMainBox(settingsBox);
-  }else if(selectedText === MENU_ITEMS[1]){
-    replaceMainBox(loadTestsBox);
+  if (selectedIndex === 0) {
+    await navigateToPage(settingsPage);
+    //screen.focusOffset(2);
+  } else if (selectedIndex === 2) {
+    await navigateToPage(loadTestsPage);
+    //screen.focusOffset(3);
   }
 
-  screen.render(); // Re-render terminal buffer
+  //screen.render(); // Re-render terminal buffer
 }
+
 menu.on('select', navHandlerCallback);
 menu.on('element click', navHandlerCallback);
+
+screen.key(['1'], () => {
+  menu.selectTab(0);
+});
+screen.key(['2'], () => {
+  menu.selectTab(1);
+});
+screen.key(['3'], () => {
+  // menu.selectTab(2);
+  menu.select(2);
+});
+
+screen.key(['s'], async () => {
+  await loadTests.startOrStop();
+});
+
+screen.key(['c'], async () => {
+  await loadTests.setupLedger();
+});
+
+screen.key(['C-r'], async () => {
+  screen.realloc();
+  screen.render();
+});
 
 
 // Handle quit shortcuts
@@ -245,21 +238,27 @@ screen.key(['q', 'C-c'], () => {
   return process.exit(0);
 });
 
+// escape always focuses navigation
+screen.key(['escape'], () => {
+  menu.focus();
+});
+
 screen.key(['h'], () => {
 // Create a box perfectly centered horizontally and vertically.
-  var box = blessed.box({
+  const box = new Box({
     top: 'center',
     left: 'center',
     width: '50%',
     height: '50%',
-    content: 'Hello {bold}world{/bold}!',
+    content:
+      '{center}{green-fg}Help{/}\n[UP]/[DOWN]/[ENTER] to navigate and select \n[TAB] to change fields\n[ESCAPE] to go to the menu\n[Q] or [Ctrl+C] to quit',
     tags: true,
     border: {
       type: 'line'
     },
     style: {
       fg: 'white',
-      bg: 'magenta',
+      bg: 'black',
       border: {
         fg: '#f0f0f0'
       },
@@ -275,12 +274,20 @@ screen.key(['h'], () => {
   screen.render();
   box.key(['escape'], () => {
     screen.remove(box);
+    screen.render();
   });
 });
 
-
+navigateToPage(settingsPage);
 // Focus the interactive menu initially
 menu.focus();
-
 // Initial screen render
 screen.render();
+
+
+
+process.on('uncaughtException', (err) => {
+  screen.destroy();
+  console.error(err);
+  process.exit(1);
+});

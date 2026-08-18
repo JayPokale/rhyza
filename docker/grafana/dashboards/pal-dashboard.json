@@ -123,12 +123,7 @@
                 "multiLane": false
               },
               "legend": {
-                "calcs": [
-                  "lastNotNull",
-                  "min",
-                  "max",
-                  "mean"
-                ],
+                "calcs": ["lastNotNull", "min", "max", "mean"],
                 "displayMode": "table",
                 "enableFacetedFilter": false,
                 "overflow": "ellipsis",
@@ -146,6 +141,155 @@
             }
           },
           "version": "13.0.2"
+        }
+      }
+    },
+    "panel-10": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "PBFA97CFB590B2093"
+                    },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
+                    "spec": {
+                      "editorMode": "code",
+                      "expr": "avg by (callName) (rate(LoadTestsResponses_histo_sum[$__rate_interval])/rate(LoadTestsResponses_histo_count[$__rate_interval]))>0",
+                      "legendFormat": "{{callName}}",
+                      "range": true
+                    },
+                    "version": "v0"
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "",
+        "id": 10,
+        "links": [],
+        "title": "Ledger LoadTests",
+        "vizConfig": {
+          "group": "timeseries",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "palette-classic",
+                  "seriesBy": "last"
+                },
+                "custom": {
+                  "axisBorderShow": false,
+                  "axisCenteredZero": false,
+                  "axisColorMode": "text",
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "barWidthFactor": 0.6,
+                  "drawStyle": "line",
+                  "fillOpacity": 27,
+                  "gradientMode": "opacity",
+                  "hideFrom": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": false
+                  },
+                  "insertNulls": false,
+                  "lineInterpolation": "linear",
+                  "lineStyle": {
+                    "fill": "solid"
+                  },
+                  "lineWidth": 1,
+                  "pointSize": 4,
+                  "scaleDistribution": {
+                    "type": "linear"
+                  },
+                  "showPoints": "auto",
+                  "showValues": false,
+                  "spanNulls": false,
+                  "stacking": {
+                    "group": "A",
+                    "mode": "none"
+                  },
+                  "thresholdsStyle": {
+                    "mode": "off"
+                  }
+                },
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    },
+                    {
+                      "color": "red",
+                      "value": 80
+                    }
+                  ]
+                },
+                "unit": "ns"
+              },
+              "overrides": [
+                {
+                  "matcher": {
+                    "id": "byFrameRefID",
+                    "options": "C"
+                  },
+                  "properties": [
+                    {
+                      "id": "custom.axisPlacement",
+                      "value": "right"
+                    },
+                    {
+                      "id": "unit",
+                      "value": "none"
+                    },
+                    {
+                      "id": "decimals",
+                      "value": 0
+                    }
+                  ]
+                }
+              ]
+            },
+            "options": {
+              "annotations": {
+                "clustering": -1,
+                "multiLane": false
+              },
+              "legend": {
+                "calcs": ["lastNotNull", "min", "max", "mean"],
+                "displayMode": "table",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
+                "placement": "right",
+                "showLegend": true,
+                "sortBy": "Last *",
+                "sortDesc": true,
+                "width": 600
+              },
+              "tooltip": {
+                "hideZeros": false,
+                "mode": "single",
+                "sort": "none"
+              }
+            }
+          },
+          "version": "13.1.0"
         }
       }
     },
@@ -218,9 +362,7 @@
               "orientation": "auto",
               "percentChangeColorMode": "standard",
               "reduceOptions": {
-                "calcs": [
-                  "lastNotNull"
-                ],
+                "calcs": ["lastNotNull"],
                 "fields": "",
                 "values": false
               },
@@ -229,7 +371,7 @@
               "wideLayout": true
             }
           },
-          "version": "13.0.2"
+          "version": "13.1.0"
         }
       }
     },
@@ -402,12 +544,7 @@
                 "multiLane": false
               },
               "legend": {
-                "calcs": [
-                  "lastNotNull",
-                  "min",
-                  "max",
-                  "mean"
-                ],
+                "calcs": ["lastNotNull", "min", "max", "mean"],
                 "displayMode": "table",
                 "enableFacetedFilter": false,
                 "overflow": "ellipsis",
@@ -448,7 +585,7 @@
                     "spec": {
                       "editorMode": "code",
                       "exemplar": false,
-                      "expr": "avg(rate(PalLedgerCmdHandler_batches_sum[$__rate_interval])>0/rate(PalLedgerCmdHandler_batches_count[$__rate_interval])>0)",
+                      "expr": "avg(rate(PalLedgerCmdHandler_batches_sum[$__rate_interval])/rate(PalLedgerCmdHandler_batches_count[$__rate_interval]))>0",
                       "instant": false,
                       "legendFormat": "BatchProcessing",
                       "range": true
@@ -492,7 +629,7 @@
                     "kind": "DataQuery",
                     "spec": {
                       "editorMode": "code",
-                      "expr": "avg by (callName) (rate(PalLedgerAggregate_Commands_sum[$__rate_interval])>0/rate(PalLedgerAggregate_Commands_count[$__rate_interval])>0)",
+                      "expr": "avg by (callName) (rate(PalLedgerAggregate_Commands_sum[$__rate_interval])/rate(PalLedgerAggregate_Commands_count[$__rate_interval]))>0",
                       "legendFormat": "{{callName}}",
                       "range": true
                     },
@@ -597,12 +734,7 @@
                 "multiLane": false
               },
               "legend": {
-                "calcs": [
-                  "lastNotNull",
-                  "min",
-                  "max",
-                  "mean"
-                ],
+                "calcs": ["lastNotNull", "min", "max", "mean"],
                 "displayMode": "table",
                 "enableFacetedFilter": false,
                 "overflow": "ellipsis",
@@ -619,7 +751,7 @@
               }
             }
           },
-          "version": "13.0.2"
+          "version": "13.1.0"
         }
       }
     },
@@ -692,9 +824,7 @@
               "orientation": "auto",
               "percentChangeColorMode": "standard",
               "reduceOptions": {
-                "calcs": [
-                  "lastNotNull"
-                ],
+                "calcs": ["lastNotNull"],
                 "fields": "",
                 "values": false
               },
@@ -703,7 +833,7 @@
               "wideLayout": true
             }
           },
-          "version": "13.0.2"
+          "version": "13.1.0"
         }
       }
     },
@@ -823,7 +953,7 @@
               }
             }
           },
-          "version": "13.0.2"
+          "version": "13.1.0"
         }
       }
     },
@@ -846,7 +976,7 @@
                     "kind": "DataQuery",
                     "spec": {
                       "editorMode": "code",
-                      "expr": "avg by(callName) (rate(MessageSerializationFactory_histo_sum{callName!=\"LedgerSnapshotEvent_serialize\"}[$__rate_interval])>0 / rate(MessageSerializationFactory_histo_count{callName!=\"LedgerSnapshotEvent_serialize\"}[$__rate_interval])>0)",
+                      "expr": "avg by(callName) (rate(MessageSerializationFactory_histo_sum{callName!=\"LedgerSnapshotEvent_serialize\"}[$__rate_interval]) / rate(MessageSerializationFactory_histo_count{callName!=\"LedgerSnapshotEvent_serialize\"}[$__rate_interval]))>0",
                       "legendFormat": "{{callName}}",
                       "range": true
                     },
@@ -951,12 +1081,7 @@
                 "multiLane": false
               },
               "legend": {
-                "calcs": [
-                  "lastNotNull",
-                  "min",
-                  "max",
-                  "mean"
-                ],
+                "calcs": ["lastNotNull", "min", "max", "mean"],
                 "displayMode": "table",
                 "enableFacetedFilter": false,
                 "overflow": "ellipsis",
@@ -973,7 +1098,7 @@
               }
             }
           },
-          "version": "13.0.2"
+          "version": "13.1.0"
         }
       }
     },
@@ -996,7 +1121,7 @@
                     "kind": "DataQuery",
                     "spec": {
                       "editorMode": "code",
-                      "expr": "avg by(callName) (rate(KafkaLowLevelConsumer_histo_sum[$__rate_interval])>0 / rate(KafkaLowLevelConsumer_histo_count[$__rate_interval])>0)",
+                      "expr": "avg by(callName) (rate(KafkaLowLevelConsumer_histo_sum[$__rate_interval]) / rate(KafkaLowLevelConsumer_histo_count[$__rate_interval]))>0",
                       "legendFormat": "{{callName}}",
                       "range": true
                     },
@@ -1101,12 +1226,7 @@
                 "multiLane": false
               },
               "legend": {
-                "calcs": [
-                  "lastNotNull",
-                  "min",
-                  "max",
-                  "mean"
-                ],
+                "calcs": ["lastNotNull", "min", "max", "mean"],
                 "displayMode": "table",
                 "enableFacetedFilter": false,
                 "overflow": "ellipsis",
@@ -1123,7 +1243,7 @@
               }
             }
           },
-          "version": "13.0.2"
+          "version": "13.1.0"
         }
       }
     },
@@ -1146,7 +1266,7 @@
                     "kind": "DataQuery",
                     "spec": {
                       "editorMode": "code",
-                      "expr": "avg by(callName) (rate(KafkaProducer_histo_sum[$__rate_interval])>0 / rate(KafkaProducer_histo_count[$__rate_interval])>0)",
+                      "expr": "avg by(callName) (rate(KafkaProducer_histo_sum[$__rate_interval]) / rate(KafkaProducer_histo_count[$__rate_interval]))>0",
                       "legendFormat": "{{callName}}",
                       "range": true
                     },
@@ -1251,12 +1371,7 @@
                 "multiLane": false
               },
               "legend": {
-                "calcs": [
-                  "lastNotNull",
-                  "min",
-                  "max",
-                  "mean"
-                ],
+                "calcs": ["lastNotNull", "min", "max", "mean"],
                 "displayMode": "table",
                 "enableFacetedFilter": false,
                 "overflow": "ellipsis",
@@ -1273,7 +1388,7 @@
               }
             }
           },
-          "version": "13.0.2"
+          "version": "13.1.0"
         }
       }
     }
@@ -1401,12 +1516,25 @@
                     "spec": {
                       "element": {
                         "kind": "ElementReference",
+                        "name": "panel-10"
+                      },
+                      "height": 7,
+                      "width": 24,
+                      "x": 0,
+                      "y": 7
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
                         "name": "panel-7"
                       },
                       "height": 6,
                       "width": 24,
                       "x": 0,
-                      "y": 7
+                      "y": 14
                     }
                   },
                   {
@@ -1419,7 +1547,7 @@
                       "height": 5,
                       "width": 24,
                       "x": 0,
-                      "y": 13
+                      "y": 20
                     }
                   },
                   {
@@ -1432,7 +1560,7 @@
                       "height": 6,
                       "width": 24,
                       "x": 0,
-                      "y": 18
+                      "y": 25
                     }
                   }
                 ]
@@ -1471,11 +1599,11 @@
       "1d"
     ],
     "fiscalYearStartMonth": 0,
-    "from": "now-5m",
+    "from": "now-15m",
     "hideTimepicker": false,
     "timezone": "browser",
     "to": "now"
   },
-  "title": "PAL Dashboard NEW",
+  "title": "PAL Dashboard NEW2",
   "variables": []
 }

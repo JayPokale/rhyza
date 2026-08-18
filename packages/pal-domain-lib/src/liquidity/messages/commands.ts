@@ -4,7 +4,7 @@ import {
   MessageDataFormats
 } from 'common-types-lib';
 
-const DATAFORMAT = MessageDataFormats.JSON;
+const DATAFORMAT = MessageDataFormats.PROTOBUF;
 
 export abstract class LedgerCommand extends CommandMsg {
   msgDataFormat: MessageDataFormats = DATAFORMAT;
@@ -117,6 +117,7 @@ export type CheckBalanceAndReserveTransferCmdPayload = {
   transferDirection: 'INCOMING' | 'OUTGOING';
   paymentIntentId: string;
   paymentId: string;
+  // expireBy: number; TODO add expireBy to CheckBalanceAndReserveTransferCmdPayload
 };
 export class CheckBalanceAndReserveTransferCmd extends LedgerCommand {
   payload: CheckBalanceAndReserveTransferCmdPayload;

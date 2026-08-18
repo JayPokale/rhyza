@@ -146,6 +146,8 @@ export class KafkaBuilder implements IKafkaBuilder {
       };
     }
 
+    consumerConfig['log_level'] = 4; // warn;
+
     return new KafkaConsumer(
       this._kafka,
       this._kafka.consumer(consumerConfig),
@@ -200,6 +202,7 @@ export class KafkaBuilder implements IKafkaBuilder {
     if (producerOptions.compressionCodec !== undefined) {
       producerConfig['compression.codec'] = producerOptions.compressionCodec;
     }
+    producerConfig['log_level'] = 4; // warn;
 
     return new KafkaProducer(
       this._kafka,
