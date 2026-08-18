@@ -1019,6 +1019,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           sourceAmount: string;
           peerAssetCode: string;
           peerAssetScale: number;
+          expiresAt: string;
         }> = {}
       ): ValidateReceivedPaymentCmd {
         const peerId = overrides.peerId ?? 'peer-1';
@@ -1033,7 +1034,8 @@ describe('PaymentIntentAggregate.handleBatch', () => {
             paymentIntentId: overrides.paymentIntentId ?? crypto.randomUUID(),
             packetId: overrides.packetId ?? crypto.randomUUID(),
             peerId,
-            sourceAmount: overrides.sourceAmount ?? '100'
+            sourceAmount: overrides.sourceAmount ?? '100',
+            expiresAt: overrides.expiresAt
           },
           crypto.randomUUID()
         );
@@ -1062,6 +1064,28 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         assert.equal(payload.receiveAssetScale, 2);
         assert.equal(payload.receiverWalletAddressId, 'wallet-1');
         assert.equal(payload.state, 'VALIDATED');
+      });
+
+      it('stores expiresAt on the received payment', async () => {
+        const intent = makeLocalIntent({ assetCode: 'USD', assetScale: 2 });
+        await repo.storeMany([intent]);
+        const expiresAt = new Date(Date.now() + 30_000).toISOString();
+
+        const cmd = makeValidateReceivedPaymentCmd({
+          paymentIntentId: intent.id,
+          expiresAt
+        });
+        const { events } = await aggregate.handleBatch([cmd]);
+        await aggregate.flush();
+
+        assert.equal(events[0].msgName, ReceivedPaymentValidatedEvent.name);
+        const stored = await repo.fetchByIdsWithPayments([intent.id]);
+        assert.equal(stored.length, 1);
+        assert.equal(stored[0].receivedPayments.length, 1);
+        assert.equal(
+          stored[0].receivedPayments[0].expiresAt?.toISOString(),
+          expiresAt
+        );
       });
 
       it('cross-asset: converts sourceAmount using FX rate and scale diff', async () => {

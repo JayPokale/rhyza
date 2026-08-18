@@ -83,6 +83,7 @@ export interface IReceivedPayment {
   sourceAmount: bigint;
   receiveAmount: bigint;
   createdAt: Date;
+  expiresAt?: Date;
   ledgerTransferId?: string;
   failReason?: string;
 }

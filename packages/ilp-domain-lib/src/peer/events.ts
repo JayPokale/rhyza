@@ -212,6 +212,7 @@ export interface ILPPaymentReceivedPayload {
   paymentId: string;
   sourceAmount: string;
   requestId: string;
+  expiresAt: string;
 }
 
 export class ILPPaymentReceivedEvent extends DomainEvent {

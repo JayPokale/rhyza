@@ -247,6 +247,7 @@ export interface ProcessFulfillPacketCmdPayload {
   paymentIntentId: string;
   packetId: string;
   fulfilledAt: string;
+  fulfillment: string;
 }
 
 export class ProcessFulfillPacketCmd extends CommandMsg {

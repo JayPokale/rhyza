@@ -133,7 +133,8 @@ export class PaymentsEventHandler {
             paymentIntentId: payload.paymentIntentId,
             packetId: payload.packetId,
             peerId: payload.peerId,
-            sourceAmount: payload.sourceAmount
+            sourceAmount: payload.sourceAmount,
+            expiresAt: payload.expiresAt
           },
           payload.requestId
         );
