@@ -94,7 +94,6 @@ export async function grantRoutes(
 
       const continueResponse = createContinueResponse(
         result.id,
-        result.continueId,
         result.continueToken,
         openPaymentsAuthServerUrl
       );
@@ -156,7 +155,6 @@ export async function grantRoutes(
 
       const continueResponse = createContinueResponse(
         result.id,
-        result.continueId,
         result.continueToken,
         openPaymentsAuthServerUrl
       );
