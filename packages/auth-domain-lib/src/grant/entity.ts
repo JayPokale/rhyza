@@ -83,7 +83,10 @@ export class GrantEntity implements IGrant {
   private _interactionNonce?: string;
   private _interaction?: IInteraction;
   // Map is indexed by the value of the access token.
-  private _accessTokens: Map<string, IAccessToken>;
+  private _accessTokens: Map<string, IAccessToken> = new Map<
+    string,
+    IAccessToken
+  >();
 
   private constructor(input: IGrant) {
     this._id = input.id;
