@@ -4,7 +4,7 @@ import {
   MessageDataFormats
 } from 'common-types-lib';
 
-const DATAFORMAT = MessageDataFormats.JSON;
+const DATAFORMAT = MessageDataFormats.PROTOBUF;
 
 export abstract class LedgerCommand extends CommandMsg {
   msgDataFormat: MessageDataFormats = DATAFORMAT;
@@ -131,19 +131,13 @@ export class PostTransactionCmd extends LedgerCommand {
 export type CheckBalanceAndReserveTransferCmdPayload = {
   requestId: string;
   transferId: string;
-
   peerId: string;
-
-  // payerClearingAccountId: string;
-  // payerLiquidityAccountId: string;
-  // suspenseAccountId: string;
-
   amount: string;
   amountScale: number;
-
   transferDirection: 'INCOMING' | 'OUTGOING';
   paymentIntentId: string;
   paymentId: string;
+  // expireBy: number; TODO add expireBy to CheckBalanceAndReserveTransferCmdPayload
 };
 export class CheckBalanceAndReserveTransferCmd extends LedgerCommand {
   payload: CheckBalanceAndReserveTransferCmdPayload;
