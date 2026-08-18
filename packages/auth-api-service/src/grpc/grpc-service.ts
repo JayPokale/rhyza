@@ -36,7 +36,9 @@ import {
   RevokeTokenResponse,
   IntrospectTokenResponse,
   RotateTokenResponse,
-  Grant
+  Grant,
+  FinishInteractionRequest,
+  FinishInteractionResponse
 } from 'auth-public-types-lib';
 
 import { IMessage, IMessageConsumer, IMessageProducer } from 'common-types-lib';
@@ -64,7 +66,10 @@ import {
   IAccessItem,
   StartInteractionCmd,
   GrantInteractionStartedEvent,
-  GrantInteractionStartFailedEvent
+  GrantInteractionStartFailedEvent,
+  FinishInteractionCmd,
+  GrantInteractionFinishedEvent,
+  GrantInteractionFinishFailedEvent
 } from 'auth-domain-lib';
 import crypto from 'crypto';
 import { IGrantRepository } from 'auth-domain-lib/src';
@@ -373,7 +378,19 @@ export class AuthServiceServer {
 
       const cmd = new StartInteractionCmd(
         {
-          id: call.request.getId()
+          id: call.request.getId(),
+        },
+        commandId
+      )
+      await this._msgProducer.send(cmd);
+    } else if (call.request instanceof FinishInteractionRequest) {
+      const commandId = call.request.getId();
+      this._storePendingResponse(commandId, call, callback);
+
+      const cmd = new FinishInteractionCmd(
+        {
+          id: call.request.getId(),
+          nonce: call.request.getNonce()
         },
         commandId
       );
@@ -689,6 +706,27 @@ export class AuthServiceServer {
         name:
           (event.payload as GrantRevokeFailedEvent['payload']).errorName ||
           'CommandError',
+        metadata: new grpc.Metadata()
+      });
+    } else if (AuthDomainEvent.isGrantInteractionFinishedEvent(event)) {
+      const response = new FinishInteractionResponse();
+      const payload: GrantInteractionFinishedEvent['payload'] = event.payload;
+      response.setId(payload.id);
+      response.setInteractNonce(payload.interactNonce);
+      response.setClientNonce(payload.clientNonce);
+      response.setInteractRef(payload.interactRef);
+      this._resolvePendingResponse(pending, requestId, null, response);
+    } else if (AuthDomainEvent.isGrantInteractionFinishFailedEvent(event)) {
+      this._resolvePendingResponse(pending, requestId, {
+        code: grpc.status.INTERNAL,
+        message:
+          (event.payload as GrantInteractionFinishFailedEvent['payload'])
+            .message || 'Command processing failed',
+        details: (event.payload as GrantInteractionFinishFailedEvent['payload'])
+          .message,
+        name:
+          (event.payload as GrantInteractionFinishFailedEvent['payload'])
+            .errorName || 'CommandError',
         metadata: new grpc.Metadata()
       });
     } else if (AuthDomainEvent.isTokenIntrospectedEvent(event)) {

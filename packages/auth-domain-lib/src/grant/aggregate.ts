@@ -8,7 +8,8 @@ import {
   IntrospectTokenCmd,
   RotateTokenCmd,
   RevokeTokenCmd,
-  StartInteractionCmd
+  StartInteractionCmd,
+  FinishInteractionCmd
 } from '../commands';
 import {
   DuplicateGrantError,
@@ -30,7 +31,9 @@ import {
   TokenRevokedEvent,
   TokenRevokeFailedEvent,
   GrantInteractionStartedEvent,
-  GrantInteractionStartFailedEvent
+  GrantInteractionStartFailedEvent,
+  GrantInteractionFinishedEvent,
+  GrantInteractionFinishFailedEvent
 } from './events';
 import {
   AccessAction,
@@ -118,7 +121,8 @@ export class GrantAggregate {
         cmd.msgName === RevokeTokenCmd.name ||
         cmd.msgName === StartInteractionCmd.name ||
         cmd.msgName === AcceptInteractionCommand.name ||
-        cmd.msgName === RejectInteractionCommand.name
+        cmd.msgName === RejectInteractionCommand.name ||
+        cmd.msgName === FinishInteractionCmd.name
       ) {
         grantIdSet.add(
           (
@@ -131,6 +135,7 @@ export class GrantAggregate {
               | StartInteractionCmd
               | AcceptInteractionCommand
               | RejectInteractionCommand
+              | FinishInteractionCmd
           ).payload.id
         );
       }
@@ -179,6 +184,10 @@ export class GrantAggregate {
       } else if (cmd.msgName === RejectInteractionCommand.name) {
         event = this.handleRejectInteractionCommand(
           cmd as RejectInteractionCommand
+        );
+      } else if (cmd.msgName === FinishInteractionCmd.name) {
+        event = this.handleFinishInteractionCommand(
+          cmd as FinishInteractionCmd
         );
       } else {
         this._logger.error(`Received unexpected command: ${cmd.msgName}`);
@@ -587,6 +596,41 @@ export class GrantAggregate {
       return new GrantInteractionStartedEvent({ id, nonce }, cmd.requestId);
     } catch (error) {
       return new GrantInteractionStartFailedEvent(
+        {
+          grantId: id,
+          errorName: (error as Error).constructor.name,
+          message: (error as Error).message
+        },
+        cmd.requestId
+      );
+    }
+  }
+
+  private handleFinishInteractionCommand(cmd: FinishInteractionCmd) {
+    const { id, nonce } = cmd.payload;
+
+    try {
+      const grant = this.grantMap.get(id);
+      if (!grant) {
+        throw new GrantNotFoundError(
+          `Grant ${id} not found - command: ${FinishInteractionCmd.name}`
+        );
+      }
+
+      grant.finishInteraction(nonce);
+      this.grantMap.set(id, grant);
+
+      return new GrantInteractionFinishedEvent(
+        {
+          id,
+          interactNonce: grant.interactionNonce as string,
+          clientNonce: grant.finishNonce as string,
+          interactRef: (grant.interaction as IInteraction).interactRef
+        },
+        cmd.requestId
+      );
+    } catch (error) {
+      return new GrantInteractionFinishFailedEvent(
         {
           grantId: id,
           errorName: (error as Error).constructor.name,

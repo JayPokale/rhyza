@@ -185,7 +185,7 @@ export class GrantEntity implements IGrant {
 
   // Generates an interaction for the grant.
   startInteraction(): IInteraction & { nonce: string } {
-    if (!this._interactionNonce || !this._startMethods) {
+    if (!this._startMethods || !this._interactionNonce) {
       throw new NonInteractiveGrantError();
     }
 
@@ -222,6 +222,33 @@ export class GrantEntity implements IGrant {
     }
 
     this._interaction.state = choice;
+  }
+
+  finishInteraction(nonce: string): IGrant {
+    if (
+      this._state === GrantState.ISSUED ||
+      this._state === GrantState.REVOKED ||
+      this._state === GrantState.REJECTED ||
+      this._state === GrantState.APPROVED
+    ) {
+      throw new InvalidGrantError();
+    }
+
+    if (!this._interaction || this._interactionNonce !== nonce) {
+      throw new UnknownInteractionError();
+    }
+
+    if (this._interaction.state === InteractionState.PENDING) {
+      throw new InvalidInteractionError();
+    }
+
+    if (this._interaction.state === InteractionState.APPROVED) {
+      this._state = GrantState.APPROVED;
+    } else {
+      this._state = GrantState.REJECTED;
+    }
+
+    return this.toObject();
   }
 
   // Continues the grant, if an interaction was required.
@@ -441,6 +468,10 @@ export class GrantEntity implements IGrant {
 
   get finishMethod(): IFinishMethod | undefined {
     return this._finishMethod;
+  }
+
+  get finishNonce(): string | undefined {
+    return this._finishNonce;
   }
 
   get interactionNonce(): string | undefined {
