@@ -5,14 +5,16 @@ import { components } from './types/generated/auth-server-types';
 const DELIMITER = '_';
 
 function encodeCompoundId(grantId: string, otherId: string): string {
-  return `${grantId}${DELIMITER}${otherId}`;
+  return Buffer.from(`${grantId}${DELIMITER}${otherId}`).toString('base64url');
 }
 
 export function decodeCompoundId(value: string): {
   grantId: string;
   otherId: string;
 } {
-  const [grantId, otherId] = value.split(DELIMITER);
+  const [grantId, otherId] = Buffer.from(value, 'base64url')
+    .toString('utf-8')
+    .split(DELIMITER);
   if (!grantId || !otherId) {
     throw new OpenPaymentsAuthServerRouteError(
       404,
