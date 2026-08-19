@@ -9,7 +9,7 @@ import {
   createHeaders,
   generateTestKeys
 } from '@interledger/http-signature-utils';
-import { AuthClient, AccessItem, GrantFinish, SubjectId } from '../src/client';
+import { AuthClient, AccessItem, GrantFinish, SubjectId } from '../src/';
 
 describe('Auth Client', () => {
   const AUTH_GRPC_URL = process.env['AUTH_GRPC_URL'] || '0.0.0.0:50054';
@@ -191,7 +191,7 @@ describe('Auth Client', () => {
 
       assert.ok(result);
       assert.equal(result.id, createResult.id);
-      assert.equal(result.state, 'FINALIZED');
+      assert.equal(result.state, 'APPROVED');
       assert.equal(result.client, JSON.stringify(keys.publicKey));
       assert.equal(result.accesses.length, 1);
     });
