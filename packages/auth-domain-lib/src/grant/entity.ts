@@ -362,14 +362,18 @@ export class GrantEntity implements IGrant {
 
   rotateAccessToken(value: string, managementId: string): NewAccessToken {
     if (
-      this.state !== GrantState.FINALIZED &&
+      this.state !== GrantState.FINALIZED ||
       this.finalizationReason !== GrantFinalization.ISSUED
     ) {
       throw new InvalidGrantError();
     }
 
     const accessToken = this._accessTokens.get(value);
-    if (!accessToken) {
+    if (
+      !accessToken ||
+      accessToken.revokedAt ||
+      accessToken.createdAt.getTime() + accessToken.expiresInMs < Date.now()
+    ) {
       throw new UnknownAccessTokenError();
     }
 

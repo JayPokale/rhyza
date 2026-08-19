@@ -1,4 +1,8 @@
-import { IGrant, IGrantRepository } from '../../src/grant/interfaces';
+import {
+  IGrant,
+  IGrantRepository,
+  IRotatedGrantUpdate
+} from '../../src/grant/interfaces';
 
 export class MockGrantRepo implements IGrantRepository {
   private _store: Map<string, IGrant> = new Map();
@@ -7,6 +11,10 @@ export class MockGrantRepo implements IGrantRepository {
     for (const grant of grants) {
       this._store.set(grant.id, grant);
     }
+  }
+
+  async storeRotatedGrants(_updates: IRotatedGrantUpdate[]): Promise<void> {
+    // No-op in tests: rotation state is already reflected on the in-memory grant.
   }
 
   async fetchById(id: string): Promise<IGrant | undefined> {
