@@ -506,7 +506,6 @@ describe('GrantAggregate.handleBatch', () => {
         describe('handleStartInteractionCommand', async () => {
           async function createInteractiveGrant(): Promise<{
             id: string;
-            interactionNonce: string;
           }> {
             const keys = generateTestKeys();
             const cmd = makeCreateGrantCmd({
@@ -526,15 +525,14 @@ describe('GrantAggregate.handleBatch', () => {
             const { events } = await aggregate.handleBatch([cmd]);
             const payload = (events[0] as GrantCreatedEvent).payload;
             return {
-              id: payload.id,
-              interactionNonce: payload.interactionNonce as string
+              id: payload.id
             };
           }
 
           it('starts the interaction and returns GrantInteractionStartedEvent when the nonce matches', async () => {
             const storeInteractionsMock = mock.method(repo, 'storeInteractions');
 
-            const { id, interactionNonce } = await createInteractiveGrant();
+            const { id } = await createInteractiveGrant();
             const requestId = randomUUID();
 
             const { events } = await aggregate.handleBatch([
