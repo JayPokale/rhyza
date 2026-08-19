@@ -36,7 +36,7 @@ export class MockWebhookIntegrationService {
     this.adminClient = createAdminClient(ADMIN_URL);
     this.server = Fastify({ logger: true });
 
-    this.server.get('/healthz', async (_request, _reply) => {
+    this.server.get('/healthz', async () => {
       return { status: 'ok', timestamp: new Date().toISOString() };
     });
 
