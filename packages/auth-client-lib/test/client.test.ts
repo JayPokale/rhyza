@@ -9,7 +9,7 @@ import {
   createHeaders,
   generateTestKeys
 } from '@interledger/http-signature-utils';
-import { AuthClient, AccessItem, GrantFinish, SubjectId } from '../src/client';
+import { AuthClient, AccessItem, GrantFinish, SubjectId } from '../src/';
 
 describe('Auth Client', () => {
   const AUTH_GRPC_URL = process.env['AUTH_GRPC_URL'] || '0.0.0.0:50054';
