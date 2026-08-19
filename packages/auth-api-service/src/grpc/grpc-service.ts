@@ -376,11 +376,25 @@ export class AuthServiceServer {
       const commandId = call.request.getId();
       this._storePendingResponse(commandId, call, callback);
 
+      const signatureDataMsg = call.request.getSignatureData();
+      if (!signatureDataMsg) {
+        callback(new Error('Missing signature data'));
+        return;
+      }
+      const signatureData = {
+        url: signatureDataMsg.getUrl(),
+        method: signatureDataMsg.getMethod(),
+        body: signatureDataMsg.getBody(),
+        headers: JSON.parse(signatureDataMsg.getHeaders()),
+        kid: signatureDataMsg.getKid()
+      };
+
       const cmd = new RotateTokenCmd(
         {
           id: call.request.getId(),
           value: call.request.getTokenValue(),
-          managementId: call.request.getManagementId()
+          managementId: call.request.getManagementId(),
+          signatureData
         },
         commandId
       );

@@ -25,10 +25,7 @@ import {
   RevokeTokenRequest
 } from 'auth-public-types-lib';
 
-export type SignatureRequestData = Omit<
-  SignatureData.AsObject,
-  'headersMap'
-> & {
+export type SignatureRequestData = Omit<SignatureData.AsObject, 'headers'> & {
   headers: Record<string, string>;
 };
 
@@ -77,6 +74,16 @@ export class AuthClient {
   async disconnect(): Promise<void> {
     this._grpcClient.close();
     return Promise.resolve();
+  }
+
+  private _toSignatureData(signatureData: SignatureRequestData): SignatureData {
+    const msg = new SignatureData();
+    msg.setUrl(signatureData.url);
+    msg.setMethod(signatureData.method);
+    msg.setBody(signatureData.body);
+    msg.setKid(signatureData.kid);
+    msg.setHeaders(JSON.stringify(signatureData.headers));
+    return msg;
   }
 
   getGrant(id: string): Promise<Grant> {
@@ -206,6 +213,7 @@ export class AuthClient {
 
   rotateToken(
     id: string,
+    signatureData: SignatureRequestData,
     tokenValue: string,
     managementId: string
   ): Promise<RotateTokenResponse> {
@@ -213,6 +221,7 @@ export class AuthClient {
     request.setId(id);
     request.setTokenValue(tokenValue);
     request.setManagementId(managementId);
+    request.setSignatureData(this._toSignatureData(signatureData));
 
     return new Promise((resolve, reject) => {
       this._grpcClient.rotateToken(

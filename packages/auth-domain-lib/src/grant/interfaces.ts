@@ -184,8 +184,15 @@ export interface IWalletAddressService {
   getWalletAddressKeys(url: string): Promise<IJsonWebKey[]>;
 }
 
+export interface IRotatedGrantUpdate {
+  id: string;
+  revokedToken: RevokedAccessToken;
+  newToken: NewAccessToken;
+}
+
 export interface IGrantRepository {
   storeMany(grants: IGrant[]): Promise<void>;
+  storeRotatedGrants(updates: IRotatedGrantUpdate[]): Promise<void>;
   fetchById(id: string): Promise<IGrant | undefined>;
   fetchByIds(ids: string[]): Promise<IGrant[]>;
 }
