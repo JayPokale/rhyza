@@ -105,7 +105,8 @@ jobs:
 
           if generated not in actual:
               print(f'ERROR: The changelog is incomplete. Please generate it using oasdiff')
+              print(generated)
               sys.exit(1)
-
+              
           print(f'OpenAPI changes successfully found in {changelog_file}.')
           "
