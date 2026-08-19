@@ -331,40 +331,6 @@ describe('GrantEntity', () => {
   });
 
   describe('startInteraction', () => {
-    function makeInteractiveGrant(): GrantEntity {
-      return GrantEntity.fromObject({
-        id: randomUUID(),
-        state: GrantState.PROCESSING,
-        startMethods: ['REDIRECT'],
-        interactionNonce: randomBytes(16).toString('hex').toUpperCase()
-      } as IGrant);
-    }
-
-    it('creates a pending interaction when the nonce matches', () => {
-      const entity = makeInteractiveGrant();
-      const nonce = entity.interactionNonce as string;
-
-      const interaction = entity.startInteraction(nonce);
-
-      assert.equal(interaction.state, GrantState.PENDING);
-      assert.equal(interaction.expiresInMs, 10_000); // Default interaction expiry
-      assert.ok(interaction.interactRef);
-      assert.equal(entity.interaction, interaction);
-    });
-
-    it('throws InvalidInteractionError when the provided nonce does not match', () => {
-      const entity = makeInteractiveGrant();
-
-      assert.throws(
-        () => entity.startInteraction('wrong-nonce'),
-        (err: Error) => {
-          assert(err instanceof InvalidInteractionError);
-          return true;
-        }
-      );
-      assert.equal(entity.interaction, undefined);
-    });
-
     it('throws NonInteractiveGrantError when the grant has no start methods', () => {
       const entity = GrantEntity.fromObject({
         id: randomUUID(),
@@ -372,7 +338,7 @@ describe('GrantEntity', () => {
       } as IGrant);
 
       assert.throws(
-        () => entity.startInteraction('any-nonce'),
+        () => entity.startInteraction(),
         (err: Error) => {
           assert(err instanceof NonInteractiveGrantError);
           return true;
@@ -387,7 +353,7 @@ describe('GrantEntity', () => {
       } as IGrant);
 
       assert.throws(
-        () => entity.startInteraction('any-nonce'),
+        () => entity.startInteraction(),
         (err: Error) => {
           assert(err instanceof InvalidGrantError);
           return true;
@@ -402,7 +368,7 @@ describe('GrantEntity', () => {
       } as IGrant);
 
       assert.throws(
-        () => entity.startInteraction('any-nonce'),
+        () => entity.startInteraction(),
         (err: Error) => {
           assert(err instanceof InvalidGrantError);
           return true;

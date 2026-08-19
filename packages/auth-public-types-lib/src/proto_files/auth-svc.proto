@@ -176,7 +176,6 @@ message RevokeTokenResponse {
 
 message StartInteractionRequest {
 	string id = 1;
-	string nonce = 2;
 }
 
 message StartInteractionResponse {

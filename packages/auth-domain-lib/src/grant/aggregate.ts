@@ -495,7 +495,7 @@ export class GrantAggregate {
   }
 
   private handleStartInteractionCommand(cmd: StartInteractionCmd) {
-    const { id, interactionNonce } = cmd.payload;
+    const { id } = cmd.payload;
 
     try {
       const grant = this.grantMap.get(id);
@@ -503,7 +503,7 @@ export class GrantAggregate {
         throw new GrantNotFoundError(`Grant ${id} not found`);
       }
 
-      grant.startInteraction(interactionNonce);
+      grant.startInteraction();
       this.grantMap.set(id, grant);
       this.newGrantInteractions.add(grant.id);
 

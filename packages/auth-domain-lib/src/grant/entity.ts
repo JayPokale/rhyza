@@ -187,7 +187,7 @@ export class GrantEntity implements IGrant {
   }
 
   // Generates an interaction for the grant.
-  startInteraction(interactionNonce: string): IInteraction {
+  startInteraction(): IInteraction {
     if (this._state === GrantState.APPROVED || this._state === GrantState.ISSUED || this._state === GrantState.REVOKED || this._state === GrantState.REJECTED) {
       throw new InvalidGrantError();
     }
@@ -196,11 +196,8 @@ export class GrantEntity implements IGrant {
       throw new NonInteractiveGrantError();
     }
 
-    if (interactionNonce !== this._interactionNonce) {
-      throw new InvalidInteractionError();
-    }
-
     this._interaction = {
+      interactionNonce: generateNonce(),
       interactRef: uuid(),
       createdAt: Date.now(),
       expiresInMs: INTERACTION_EXPIRY_MS,

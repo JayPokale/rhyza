@@ -370,8 +370,7 @@ export class AuthServiceServer {
 
       const cmd = new StartInteractionCmd(
         {
-          id: call.request.getId(),
-          interactionNonce: call.request.getNonce()
+          id: call.request.getId()
         },
         commandId
       );

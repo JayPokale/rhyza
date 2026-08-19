@@ -160,7 +160,6 @@ export class RevokeTokenCmd extends AuthCmd {
 
 export interface StartInteractionCmdPayload {
   id: string;
-  interactionNonce: string;
 }
 
 export class StartInteractionCmd extends AuthCmd {

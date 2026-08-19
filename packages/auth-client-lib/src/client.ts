@@ -271,13 +271,9 @@ export class AuthClient {
     });
   }
 
-  startInteraction(
-    id: string,
-    interactionNonce: string
-  ): Promise<StartInteractionResult> {
+  startInteraction(id: string): Promise<StartInteractionResult> {
     const request = new PbStartInteractionRequest();
     request.setId(id);
-    request.setNonce(interactionNonce);
 
     return new Promise((resolve, reject) => {
       this._grpcClient.startInteraction(
