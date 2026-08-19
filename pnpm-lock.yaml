@@ -148,6 +148,9 @@ importers:
 
   packages/ase-mock-service:
     dependencies:
+      admin-client-lib:
+        specifier: workspace:*
+        version: link:../admin-client-lib
       fastify:
         specifier: ~5.3.3
         version: 5.3.3

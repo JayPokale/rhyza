@@ -1,3 +1,4 @@
+import { AdminApiClient, createAdminClient } from 'admin-client-lib';
 import Fastify, {
   FastifyInstance,
   FastifyReply,
@@ -30,8 +31,14 @@ class WebhookServiceError extends Error {
 
 export class MockWebhookIntegrationService {
   private static server: FastifyInstance;
+  private static adminClient: AdminApiClient;
   public static async start() {
+    this.adminClient = createAdminClient(ADMIN_URL);
     this.server = Fastify({ logger: true });
+
+    this.server.get('/healthz', async (_request, _reply) => {
+      return { status: 'ok', timestamp: new Date().toISOString() };
+    });
 
     this.server.post<{ Body: Webhook }>('/webhooks', async (request, reply) => {
       try {
@@ -81,17 +88,19 @@ export class MockWebhookIntegrationService {
       throw new WebhookServiceError('Payment intent id is missing', 400);
     }
 
-    const response = await fetch(
-      `${ADMIN_URL}/payment-intents/${payload.paymentIntentId}/payments/${payload.id}/approve`,
-      {
-        method: 'POST'
+    const response = await this.adminClient.payments.approvePaymentRaw({
+      id: payload.id,
+      paymentApprove: {
+        intentId: payload.paymentIntentId
       }
-    );
-    if (!response.ok) {
-      const detail = await response.text().catch(() => response.statusText);
+    });
+    if (!response.raw.ok) {
+      const detail = await response
+        .value()
+        .catch(() => response.raw.statusText);
       throw new WebhookServiceError(
         `Failed to approve payment ${payload.id}: ${detail}`,
-        response.status
+        response.raw.status
       );
     }
   }

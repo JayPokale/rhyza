@@ -4,7 +4,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "pnpm generate && tsc --build",
+    "build": "tsc --build",
     "generate": "node scripts/generate-client.js"
   },
   "keywords": [],

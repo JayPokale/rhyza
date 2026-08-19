@@ -1,31 +1,39 @@
 import assert from 'assert';
 import { test, describe, before, after } from 'node:test';
+import { setTimeout } from 'node:timers/promises';
 import path from 'path';
 import {
   DockerComposeEnvironment,
-  StartedDockerComposeEnvironment
+  StartedDockerComposeEnvironment,
+  Wait
 } from 'testcontainers';
 import { AdminApiClient, createAdminClient } from 'admin-client-lib';
 
-const ADMIN_API_URL = 'http://localhost:3001';
+const ADMIN_API_PORT = 3001;
+const ADMIN_API_URL = 'http://localhost:' + ADMIN_API_PORT;
 const COMPOSE_FILE = 'docker-compose.yaml';
 
 describe('E2E tests', () => {
   let environment: StartedDockerComposeEnvironment;
-  let client: AdminApiClient;
+  let adminClient: AdminApiClient;
   before(async () => {
     const composeDir = path.resolve(__dirname, '../../docker');
-    environment = await new DockerComposeEnvironment(
-      composeDir,
-      COMPOSE_FILE
-    ).up();
+    environment = await new DockerComposeEnvironment(composeDir, COMPOSE_FILE)
+      .withEnvironment({
+        WEBHOOK_URL: 'http://ase-mock-service:3000/webhooks'
+      })
+      .withWaitStrategy(
+        'ase-mock-service',
+        Wait.forHttp('/healthz', ADMIN_API_PORT)
+      )
+      .up();
 
-    client = createAdminClient(ADMIN_API_URL);
+    adminClient = createAdminClient(ADMIN_API_URL);
   });
 
   test('Local', async () => {
     const assetCode = 'USD';
-    const asset = await client.assets.createAsset({
+    const asset = await adminClient.assets.createAsset({
       code: assetCode,
       scale: 2
     });
@@ -37,7 +45,7 @@ describe('E2E tests', () => {
     const receiverAddress = 'test.com/receiver';
     await createWalletAddress(assetCode, receiverAddress, 'test receiver');
 
-    const paymentIntent = await client.paymentIntents.createPaymentIntent({
+    const paymentIntent = await adminClient.paymentIntents.createPaymentIntent({
       walletAddress: receiverAddress,
       incomingAmount: 100
     });
@@ -45,7 +53,7 @@ describe('E2E tests', () => {
     assert.ok(paymentIntent.id);
     const paymentIntentId = paymentIntent.id;
 
-    const quote = await client.quotes.createQuote({
+    const quote = await adminClient.quotes.createQuote({
       paymentIntentId,
       walletAddress: senderAddress
     });
@@ -53,7 +61,7 @@ describe('E2E tests', () => {
     assert.ok(quote.id);
     const quoteId = quote.id;
 
-    const payment = await client.payments.createPayment({
+    const payment = await adminClient.payments.createPayment({
       quoteId,
       walletAddress: senderAddress,
       paymentIntentId
@@ -62,13 +70,10 @@ describe('E2E tests', () => {
     assert.ok(payment.id);
     const paymentId = payment.id;
 
-    const approvedPayment = await client.payments.approvePayment(paymentId, {
-      intentId: paymentIntentId
-    });
+    // Wait 2 seconds for ase-mock-service to receive the webhook and approve payment
+    await setTimeout(2000);
 
-    assert.equal(approvedPayment.id, paymentId);
-
-    const paymentFound = await client.payments.getPayment(
+    const paymentFound = await adminClient.payments.getPayment(
       paymentIntentId,
       paymentId
     );
@@ -81,15 +86,15 @@ describe('E2E tests', () => {
     address: string,
     publicName: string
   ) => {
-    const walletAddress = await client.walletAddresses.createWalletAddress({
-      assetCode,
-      address,
-      publicName
-    });
+    const walletAddress = await adminClient.walletAddresses.createWalletAddress(
+      {
+        assetCode,
+        address,
+        publicName
+      }
+    );
     assert.equal(walletAddress.address, address);
   };
-
-  // test('Remote', async () => {});
 
   after(async () => {
     await environment?.down();

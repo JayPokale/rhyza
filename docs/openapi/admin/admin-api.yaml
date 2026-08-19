@@ -1,5 +1,3 @@
-# Source of truth for the Rafiki Admin API OpenAPI spec.
-# TypeScript types are generated from this file via: pnpm --filter admin-api-service generate:types
 openapi: 3.1.0
 info:
   title: Rafiki Admin API
@@ -31,7 +29,9 @@ paths:
     post:
       summary: Create Peer
       description: >-
-        Create a new ILP peer. Creates the peer in both PAL (asset, settlement, static ILP address) and ILP (connector transport config) with the same peer id.
+        Create a new ILP peer. Creates the peer in both PAL (asset,
+        settlement, static ILP address) and ILP (connector transport config)
+        with the same peer id.      
       tags:
         - peers
       operationId: createPeer
@@ -51,7 +51,8 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '502':
           description: >-
-            Peer was created in PAL but ILP connector configuration failed; the PAL peer has been deactivated. Retry the request.
+            Peer was created in PAL but ILP connector configuration failed;
+            the PAL peer has been deactivated. Retry the request.
           content:
             application/json:
               schema:
@@ -412,7 +413,6 @@ components:
         error:
           type: string
           description: A descriptive message explaining the error that occurred.
-          x-ms-primary-error-message: true
     AssetCreate:
       type: object
       description: Schema for creating a new asset.
@@ -525,7 +525,9 @@ components:
         isActive:
           type: boolean
           description: >-
-            Whether the wallet address is active. True by default. While inactive, no resources (payment intents, quotes, or payments) can be created against it, whether as sender or receiver.
+            Whether the wallet address is active. True by default. While
+            inactive, no resources (payment intents, quotes, or payments) can
+            be created against it, whether as sender or receiver.
     WalletAddressCreateResponse:
       type: object
       description: Response schema after creating a wallet address.
