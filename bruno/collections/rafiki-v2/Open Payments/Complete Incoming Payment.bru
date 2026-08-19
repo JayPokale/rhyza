@@ -1,0 +1,15 @@
+meta {
+  name: Complete Incoming Payment
+  type: http
+  seq: 5
+}
+
+post {
+  url: http://{{openPaymentsResourceServerUrl}}/incoming-payments/{{incomingPaymentId}}/complete
+  body: json
+  auth: none
+}
+
+body:json {
+  {}
+}

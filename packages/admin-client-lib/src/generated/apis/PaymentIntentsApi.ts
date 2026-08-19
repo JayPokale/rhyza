@@ -24,6 +24,11 @@ import {
     PaymentIntentToJSON,
 } from '../models/PaymentIntent';
 import {
+    type PaymentIntentCompleteResponse,
+    PaymentIntentCompleteResponseFromJSON,
+    PaymentIntentCompleteResponseToJSON,
+} from '../models/PaymentIntentCompleteResponse';
+import {
     type PaymentIntentCreate,
     PaymentIntentCreateFromJSON,
     PaymentIntentCreateToJSON,
@@ -33,6 +38,10 @@ import {
     PaymentIntentCreateResponseFromJSON,
     PaymentIntentCreateResponseToJSON,
 } from '../models/PaymentIntentCreateResponse';
+
+export interface CompletePaymentIntentRequest {
+    id: string;
+}
 
 export interface CreatePaymentIntentRequest {
     paymentIntentCreate: PaymentIntentCreate;
@@ -46,6 +55,53 @@ export interface GetPaymentIntentRequest {
  * 
  */
 export class PaymentIntentsApi extends runtime.BaseAPI {
+
+    /**
+     * Creates request options for completePaymentIntent without sending the request
+     */
+    async completePaymentIntentRequestOpts(requestParameters: CompletePaymentIntentRequest): Promise<runtime.RequestOpts> {
+        if (requestParameters['id'] == null) {
+            throw new runtime.RequiredError(
+                'id',
+                'Required parameter "id" was null or undefined when calling completePaymentIntent().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+
+        let urlPath = `/payment-intents/{id}/complete`;
+        urlPath = urlPath.replace('{id}', encodeURIComponent(String(requestParameters['id'])));
+
+        return {
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+        };
+    }
+
+    /**
+     * Complete a payment intent by its unique identifier.
+     * Complete Payment Intent
+     */
+    async completePaymentIntentRaw(requestParameters: CompletePaymentIntentRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<PaymentIntentCompleteResponse>> {
+        const requestOptions = await this.completePaymentIntentRequestOpts(requestParameters);
+        const response = await this.request(requestOptions, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => PaymentIntentCompleteResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Complete a payment intent by its unique identifier.
+     * Complete Payment Intent
+     */
+    async completePaymentIntent(id: string, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<PaymentIntentCompleteResponse> {
+        const response = await this.completePaymentIntentRaw({ id: id }, initOverrides);
+        return await response.value();
+    }
 
     /**
      * Creates request options for createPaymentIntent without sending the request

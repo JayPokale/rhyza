@@ -1,3 +1,5 @@
+import { JWK } from '@interledger/http-signature-utils';
+
 export const AccessType = {
   INCOMING_PAYMENT: 'INCOMING_PAYMENT',
   OUTGOING_PAYMENT: 'OUTGOING_PAYMENT',
@@ -9,14 +11,24 @@ export const InteractiveAccessType: AccessType[] = [
   AccessType.OUTGOING_PAYMENT
 ] as const;
 
-export interface IAccessLimit {
+interface IBaseAccessLimit {
   receiver: string;
   assetCode: string;
   assetScale: number;
-  debitAmount?: bigint;
-  sendAmount?: bigint;
   interval?: string;
 }
+
+type IDebitAmountAccessLimit = IBaseAccessLimit & {
+  debitAmount: bigint;
+  receiveAmount?: bigint;
+};
+
+type IReceiveAmountAccessLimit = IBaseAccessLimit & {
+  debitAmount?: bigint;
+  receiveAmount: bigint;
+};
+
+export type IAccessLimit = IDebitAmountAccessLimit | IReceiveAmountAccessLimit;
 
 export const AccessAction = {
   CREATE: 'CREATE',
@@ -102,28 +114,28 @@ export type GrantFinalization = keyof typeof GrantFinalization;
 
 export interface IInteraction {
   interactRef: string;
-  clientNonce: string;
   state: InteractionState;
   expiresInMs: number;
+  clientNonce: string;
 }
-
-export type IGrantEntity = Omit<IGrant, 'id'>;
 
 export interface IGrant {
   id: string;
   startMethods: IStartMethod[];
-  continueToken?: string;
-  continueId?: string;
+  continueToken: string;
+  continueId: string;
   state: GrantState;
   finalizationReason?: GrantFinalization;
   client?: string | IJsonWebKey;
   subjectIds?: ISubjectId[];
   accesses?: IAccessItem[];
+  finishNonce?: string;
   finishMethod?: IFinishMethod;
   finishUri?: string;
+  interactionNonce?: string;
   interaction?: IInteraction;
   lastContinuedAt?: Date;
-  accessTokens: Map<string, IAccessToken>;
+  accessTokens: IAccessToken[];
 }
 
 export type NewAccessToken = Omit<IAccessToken, 'revokedAt'>;
@@ -149,7 +161,31 @@ export interface IJsonWebKey {
   x: string;
 }
 
+export function isJWK(obj: unknown): obj is JWK {
+  return (
+    typeof obj === 'object' &&
+    obj !== null &&
+    typeof (obj as Record<string, unknown>).kid === 'string' &&
+    (obj as Record<string, unknown>).alg === 'EdDSA' &&
+    (typeof (obj as Record<string, unknown>).use === 'string' ||
+      typeof (obj as Record<string, unknown>).use === 'undefined') &&
+    (obj as Record<string, unknown>).kty === 'OKP' &&
+    (obj as Record<string, unknown>).crv === 'Ed25519' &&
+    typeof (obj as Record<string, unknown>).x === 'string'
+  );
+}
+
 export interface IAccessRequest {
   actions: AccessAction[];
   identifier?: string;
+}
+
+export interface IWalletAddressService {
+  getWalletAddressKeys(url: string): Promise<IJsonWebKey[]>;
+}
+
+export interface IGrantRepository {
+  storeMany(grants: IGrant[]): Promise<void>;
+  fetchById(id: string): Promise<IGrant | undefined>;
+  fetchByIds(ids: string[]): Promise<IGrant[]>;
 }

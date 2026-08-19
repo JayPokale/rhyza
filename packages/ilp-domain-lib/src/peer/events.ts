@@ -185,6 +185,8 @@ export interface ILPPaymentFailedPayload {
   paymentId: string;
   failedAt: string;
   reason: ILPPaymentFailureReason;
+  rejectCode?: string;
+  rejectMessage?: string;
 }
 
 export class ILPPaymentFailedEvent extends DomainEvent {
@@ -226,7 +228,7 @@ export class ILPPaymentReceivedEvent extends DomainEvent {
   }
 }
 
-/** Fulfillment successfully dispatched back to the source peer. */
+// Fulfillment successfully dispatched back to the source peer.
 export interface ILPPaymentFulfillmentSentPayload {
   peerId: string;
   packetId: string;

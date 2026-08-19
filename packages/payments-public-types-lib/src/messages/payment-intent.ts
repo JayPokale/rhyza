@@ -1,4 +1,4 @@
-import { DomainEvent, DomainEventTopics } from 'common-types-lib';
+import { AppErrorType, DomainEvent, DomainEventTopics } from 'common-types-lib';
 import {
   PaymentIntentState,
   SentPaymentState,
@@ -24,6 +24,18 @@ export abstract class PaymentIntentDomainEvent extends DomainEvent {
     evt: DomainEvent
   ): evt is PaymentIntentCreateFailedEvent {
     return evt.msgName === PaymentIntentCreateFailedEvent.name;
+  }
+
+  static isPaymentIntentCompletedEvent(
+    evt: DomainEvent
+  ): evt is PaymentIntentCompletedEvent {
+    return evt.msgName === PaymentIntentCompletedEvent.name;
+  }
+
+  static isPaymentIntentCompleteFailedEvent(
+    evt: DomainEvent
+  ): evt is PaymentIntentCompleteFailedEvent {
+    return evt.msgName === PaymentIntentCompleteFailedEvent.name;
   }
 
   static isQuoteCompletedEvent(evt: DomainEvent): evt is QuoteCompletedEvent {
@@ -153,6 +165,12 @@ export abstract class PaymentIntentDomainEvent extends DomainEvent {
   }
 }
 
+export type FailedMessagePayload = {
+  errorName: string;
+  errorType: AppErrorType;
+  message: string;
+};
+
 export type PaymentIntentCreatedPayload = {
   id: string;
   createdAt: Date;
@@ -177,9 +195,7 @@ export class PaymentIntentCreatedEvent extends PaymentIntentDomainEvent {
 
 export type PaymentIntentCreateFailedPayload = {
   paymentIntentId: string;
-  errorName: string;
-  message: string;
-};
+} & FailedMessagePayload;
 
 export class PaymentIntentCreateFailedEvent extends PaymentIntentDomainEvent {
   payload: PaymentIntentCreateFailedPayload;
@@ -214,6 +230,21 @@ export class PaymentIntentCompletedEvent extends PaymentIntentDomainEvent {
   }
 }
 
+export type PaymentIntentCompleteFailedPayload = {
+  id: string;
+} & FailedMessagePayload;
+
+export class PaymentIntentCompleteFailedEvent extends PaymentIntentDomainEvent {
+  payload: PaymentIntentCompleteFailedPayload;
+  isErrorEvent = true;
+
+  constructor(payload: PaymentIntentCompleteFailedPayload, requestId?: string) {
+    super(payload.id);
+    this.payload = payload;
+    this.requestId = requestId;
+  }
+}
+
 export type QuoteCompletedPayload = {
   id: string;
   paymentIntentId: string;
@@ -237,9 +268,7 @@ export class QuoteCompletedEvent extends PaymentIntentDomainEvent {
 
 export type QuoteCreateFailedPayload = {
   paymentIntentId: string;
-  errorName: string;
-  message: string;
-};
+} & FailedMessagePayload;
 
 export class QuoteCreateFailedEvent extends PaymentIntentDomainEvent {
   payload: QuoteCreateFailedPayload;
@@ -279,9 +308,7 @@ export class PaymentCreatedEvent extends PaymentIntentDomainEvent {
 
 export type PaymentCreateFailedPayload = {
   paymentIntentId: string;
-  errorName: string;
-  message: string;
-};
+} & FailedMessagePayload;
 
 export class PaymentCreateFailedEvent extends PaymentIntentDomainEvent {
   payload: PaymentCreateFailedPayload;
@@ -313,7 +340,7 @@ export class PaymentCompletedEvent extends PaymentIntentDomainEvent {
   payload: PaymentCompletedPayload;
 
   constructor(payload: PaymentCompletedPayload, requestId?: string) {
-    super(payload.id);
+    super(payload.paymentIntentId);
     this.payload = payload;
     this.requestId = requestId;
   }
@@ -322,9 +349,7 @@ export class PaymentCompletedEvent extends PaymentIntentDomainEvent {
 export type PaymentCompleteFailedPayload = {
   id: string;
   paymentIntentId: string;
-  errorName: string;
-  message: string;
-};
+} & FailedMessagePayload;
 
 export class PaymentCompleteFailedEvent extends PaymentIntentDomainEvent {
   payload: PaymentCompleteFailedPayload;
@@ -353,9 +378,7 @@ export class PaymentCancelledEvent extends PaymentIntentDomainEvent {
 
 export type PaymentCancelFailedPayload = {
   paymentIntentId: string;
-  errorName: string;
-  message: string;
-};
+} & FailedMessagePayload;
 
 export class PaymentCancelFailedEvent extends PaymentIntentDomainEvent {
   payload: PaymentCancelFailedPayload;
@@ -420,9 +443,7 @@ export type RemoteQuoteCalculationFailedPayload = {
   packetId: string;
   peerId: string;
   paymentIntentId: string;
-  errorName: string;
-  message: string;
-};
+} & FailedMessagePayload;
 
 export class RemoteQuoteCalculationFailedEvent extends PaymentIntentDomainEvent {
   payload: RemoteQuoteCalculationFailedPayload;
@@ -542,6 +563,8 @@ export type RemotePaymentSendRejectedPayload = {
   paymentId: string;
   ledgerTransferId: string;
   reason?: string;
+  rejectCode?: string;
+  rejectMessage?: string;
   destinationIlpAddress: string;
   peerId: string;
   requestId: string;
@@ -592,9 +615,7 @@ export type ReceivedPaymentValidationFailedPayload = {
   receivedPaymentId: string;
   packetId: string;
   peerId: string;
-  errorName: string;
-  message: string;
-};
+} & FailedMessagePayload;
 
 export class ReceivedPaymentValidationFailedEvent extends PaymentIntentDomainEvent {
   payload: ReceivedPaymentValidationFailedPayload;
@@ -638,9 +659,7 @@ export type ReceivedPaymentFailedPayload = {
   receivedPaymentId: string;
   packetId?: string;
   peerId?: string;
-  errorName: string;
-  message: string;
-};
+} & FailedMessagePayload;
 
 export class ReceivedPaymentFailedEvent extends PaymentIntentDomainEvent {
   payload: ReceivedPaymentFailedPayload;

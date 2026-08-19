@@ -14,6 +14,7 @@ export * from './PaymentCancel';
 export * from './PaymentCreate';
 export * from './PaymentCreateResponse';
 export * from './PaymentIntent';
+export * from './PaymentIntentCompleteResponse';
 export * from './PaymentIntentCreate';
 export * from './PaymentIntentCreateResponse';
 export * from './PaymentIntentState';

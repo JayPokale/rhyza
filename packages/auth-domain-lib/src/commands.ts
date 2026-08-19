@@ -4,30 +4,42 @@ import { IAccessItem } from './grant/interfaces';
 const BOUNDED_CONTEXT_NAME = 'auth';
 const GRANT_AGGREGATE_NAME = 'grant';
 
-interface LimitPayload {
+interface BaseLimitPayload {
   receiver: string;
   assetCode: string;
   assetScale: number;
-  debitAmount?: bigint;
-  sendAmount?: bigint;
   interval?: string;
 }
+
+type ReceiveAmountLimitPayload = BaseLimitPayload & {
+  debitAmount?: bigint;
+  receiveAmount: bigint;
+};
+
+type DebitAmountLimitPayload = BaseLimitPayload & {
+  debitAmount: bigint;
+  receiveAmount?: bigint;
+};
+
+type LimitPayload = ReceiveAmountLimitPayload | DebitAmountLimitPayload;
 
 interface SubjectId {
   format: string;
   id: string;
 }
 
-interface JsonWebKey {
-  kty: string;
-  kid: string;
-  use?: string;
-  alg: string;
-  crv: string;
-  x: string;
+export interface SignedCommandPayload {
+  client: string;
+  signatureData: {
+    url: string;
+    method: string;
+    body: string;
+    headers: Record<string, string>;
+    kid: string;
+  };
 }
 
-export interface CreateGrantCmdPayload {
+export interface CreateGrantCmdPayload extends SignedCommandPayload {
   id: string;
   access: {
     identifier?: string;
@@ -35,7 +47,6 @@ export interface CreateGrantCmdPayload {
     actions: string[];
     limits?: LimitPayload;
   }[];
-  client?: string | JsonWebKey;
   interact?: {
     start: string[];
     finish?: {
@@ -55,25 +66,6 @@ export class CreateGrantCmd extends CommandMsg {
   payload: CreateGrantCmdPayload;
 
   constructor(payload: CreateGrantCmdPayload, requestId: string) {
-    super(payload.id);
-    this.requestId = requestId;
-    this.msgKey = payload.id;
-    this.payload = payload;
-  }
-}
-
-export interface GetGrantCmdPayload {
-  id: string;
-}
-
-export class GetGrantCmd extends CommandMsg {
-  contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateName: string = GRANT_AGGREGATE_NAME;
-  msgKey: string;
-  msgTopic: string = CommandTopics.AuthCommands;
-  payload: GetGrantCmdPayload;
-
-  constructor(payload: GetGrantCmdPayload, requestId: string) {
     super(payload.id);
     this.requestId = requestId;
     this.msgKey = payload.id;

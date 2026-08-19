@@ -128,6 +128,108 @@ describe('PaymentIntent Entity', () => {
     });
   });
 
+  describe('complete', () => {
+    it('completes a local payment intent successfully', () => {
+      const paymentIntent = PaymentIntent.create(
+        crypto.randomUUID(),
+        crypto.randomUUID(),
+        'receiver',
+        PaymentIntentDestination.LOCAL,
+        'USD',
+        2,
+        null
+      );
+
+      paymentIntent.complete();
+
+      assert.equal(paymentIntent.state, 'COMPLETED');
+    });
+
+    it('throws PaymentIntentInvalidState if destination is REMOTE', () => {
+      const paymentIntent = PaymentIntent.fromObject({
+        id: crypto.randomUUID(),
+        receiverWalletAddressId: crypto.randomUUID(),
+        receiverWalletAddress: 'receiver',
+        destination: PaymentIntentDestination.REMOTE,
+        assetCode: 'USD',
+        assetScale: 2,
+        incomingAmount: null,
+        receivedAmount: 0n,
+        state: 'CREATED',
+        createdAt: new Date(),
+        expiresAt: new Date(Date.now() + 60_000),
+        quotes: [],
+        sentPayments: [],
+        receivedPayments: []
+      });
+
+      assert.throws(
+        () => paymentIntent.complete(),
+        (err: Error) => {
+          assert(err instanceof PaymentIntentInvalidState);
+          assert.match(err.message, /destination must be local/);
+          return true;
+        }
+      );
+    });
+
+    it('throws PaymentIntentInvalidState if not in CREATED state', () => {
+      const paymentIntent = PaymentIntent.fromObject({
+        id: crypto.randomUUID(),
+        receiverWalletAddressId: crypto.randomUUID(),
+        receiverWalletAddress: 'receiver',
+        destination: PaymentIntentDestination.LOCAL,
+        assetCode: 'USD',
+        assetScale: 2,
+        incomingAmount: null,
+        receivedAmount: 0n,
+        state: 'COMPLETED',
+        createdAt: new Date(),
+        expiresAt: new Date(Date.now() + 60_000),
+        quotes: [],
+        sentPayments: [],
+        receivedPayments: []
+      });
+
+      assert.throws(
+        () => paymentIntent.complete(),
+        (err: Error) => {
+          assert(err instanceof PaymentIntentInvalidState);
+          assert.match(err.message, /invalid state for completion/);
+          return true;
+        }
+      );
+    });
+
+    it('throws PaymentIntentExpired if payment intent is expired', () => {
+      const paymentIntent = PaymentIntent.fromObject({
+        id: crypto.randomUUID(),
+        receiverWalletAddressId: crypto.randomUUID(),
+        receiverWalletAddress: 'receiver',
+        destination: PaymentIntentDestination.LOCAL,
+        assetCode: 'USD',
+        assetScale: 2,
+        incomingAmount: null,
+        receivedAmount: 0n,
+        state: 'CREATED',
+        createdAt: new Date(),
+        expiresAt: new Date(Date.now() - 1000),
+        quotes: [],
+        sentPayments: [],
+        receivedPayments: []
+      });
+
+      assert.throws(
+        () => paymentIntent.complete(),
+        (err: Error) => {
+          assert(err instanceof PaymentIntentExpired);
+          assert.match(err.message, /expired/);
+          return true;
+        }
+      );
+    });
+  });
+
   describe('addLocalQuote', () => {
     it('adds a quote', (context) => {
       const now = Date.now();

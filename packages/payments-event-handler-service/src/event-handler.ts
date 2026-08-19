@@ -294,7 +294,9 @@ export class PaymentsEventHandler {
           {
             paymentIntentId: payload.paymentIntentId,
             paymentId: payload.paymentId,
-            reason: payload.reason
+            reason: payload.reason,
+            rejectCode: payload.rejectCode,
+            rejectMessage: payload.rejectMessage
           },
           message.requestId ?? ''
         );

@@ -6,6 +6,9 @@ service PaymentsGrpc {
   // Creates a new payment intent.
   rpc CreatePaymentIntent(CreatePaymentIntentRequest) returns (CreatePaymentIntentResponse);
 
+  // Completes a payment intent.
+  rpc CompletePaymentIntent(CompletePaymentIntentRequest) returns (CompletePaymentIntentResponse);
+
   // Creates a new quote.
   rpc CreateQuote(CreateQuoteRequest) returns (CreateQuoteResponse);
 
@@ -42,6 +45,16 @@ message CreatePaymentIntentRequest {
 // Response containing the ID of the created payment intent.
 message CreatePaymentIntentResponse {
   string id = 1;
+}
+
+// Request to complete a payment intent.
+message CompletePaymentIntentRequest{
+  string id = 1;
+}
+
+message CompletePaymentIntentResponse {
+  string id = 1;
+  string state = 2;
 }
 
 /*
@@ -126,7 +139,7 @@ message GetPaymentIntentRequest {
 // Response containing the payment intent details.
 message GetPaymentIntentResponse {
   string id = 1;
-  string wallet_address = 2;
+  string receiver_wallet_address = 2;
   string state = 3;
   string destination = 4;
   optional uint64 incoming_amount = 5;

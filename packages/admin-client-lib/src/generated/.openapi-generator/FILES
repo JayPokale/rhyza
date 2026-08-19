@@ -21,6 +21,7 @@ models/PaymentCancel.ts
 models/PaymentCreate.ts
 models/PaymentCreateResponse.ts
 models/PaymentIntent.ts
+models/PaymentIntentCompleteResponse.ts
 models/PaymentIntentCreate.ts
 models/PaymentIntentCreateResponse.ts
 models/PaymentIntentState.ts

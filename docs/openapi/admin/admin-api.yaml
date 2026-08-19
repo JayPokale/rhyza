@@ -31,7 +31,7 @@ paths:
       description: >-
         Create a new ILP peer. Creates the peer in both PAL (asset,
         settlement, static ILP address) and ILP (connector transport config)
-        with the same peer id.      
+        with the same peer id.
       tags:
         - peers
       operationId: createPeer
@@ -172,6 +172,39 @@ paths:
                 $ref: '#/components/schemas/PaymentIntent'
         '404':
           description: Payment intent not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /payment-intents/{id}/complete:
+    post:
+      summary: Complete Payment Intent
+      description: Complete a payment intent by its unique identifier.
+      tags:
+        - payment-intents
+      operationId: completePaymentIntent
+      parameters:
+        - name: id
+          in: path
+          description: Unique identifier for the payment intent
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentIntentCompleteResponse'
+        '404':
+          description: Payment intent not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Payment intent cannot be completed in its current state.
           content:
             application/json:
               schema:
@@ -571,6 +604,19 @@ components:
         openPaymentsUrl:
           type: string
           description: The Open Payments URL for this payment intent.
+    PaymentIntentCompleteResponse:
+      type: object
+      description: Response schema after completing a payment intent.
+      required:
+        - id
+        - state
+      properties:
+        id:
+          type: string
+          description: The unique identifier for the completed payment intent.
+        state:
+          type: string
+          description: The resulting state of the payment intent.
     Amount:
       type: object
       description: Represents an amount of money with its currency and scale.

@@ -3,7 +3,6 @@
 import { randomUUID } from 'crypto';
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { PalClient, parseAddressToDomainAndPathName } from 'pal-client-lib';
-import { PaymentsClient, PaymentNotFoundError } from 'payments-client-lib';
 import {
   ApprovePaymentRequest,
   CancelPaymentRequest,
@@ -12,6 +11,11 @@ import {
   PaymentCancel,
   PaymentCreate
 } from 'admin-client-lib';
+import {
+  PaymentsClient,
+  httpStatusFromGrpcError,
+  toClientApiErrorResponse
+} from 'payments-client-lib';
 
 interface PaymentRouteOptions extends FastifyPluginOptions {
   palClient: PalClient;
@@ -40,16 +44,23 @@ export async function paymentRoutes(
         .send({ error: `Wallet address '${walletAddress}' not found` });
     }
 
-    const result = await paymentsClient.createPayment(
-      id,
-      alias.walletAddressId,
-      walletAddress,
-      paymentIntentId,
-      quoteId,
-      debitAmount ? Number(debitAmount) : undefined
-    );
+    try {
+      const result = await paymentsClient.createPayment(
+        id,
+        alias.walletAddressId,
+        walletAddress,
+        paymentIntentId,
+        quoteId,
+        debitAmount ? Number(debitAmount) : undefined
+      );
 
-    return reply.status(201).send({ id: result.id, paymentIntentId });
+      return reply.status(201).send({ id: result.id, paymentIntentId });
+    } catch (err) {
+      server.log.error(err);
+      const httpStatus = httpStatusFromGrpcError(err);
+      const { error } = toClientApiErrorResponse(err);
+      return reply.status(httpStatus).send({ error: error.description });
+    }
   });
 
   server.get<{
@@ -61,10 +72,10 @@ export async function paymentRoutes(
     try {
       payment = await paymentsClient.getPayment(intentId, id);
     } catch (err) {
-      if (err instanceof PaymentNotFoundError) {
-        return reply.status(404).send({ error: `Payment '${id}' not found` });
-      }
-      throw err;
+      server.log.error(err);
+      const httpStatus = httpStatusFromGrpcError(err);
+      const { error } = toClientApiErrorResponse(err);
+      return reply.status(httpStatus).send({ error: error.description });
     }
 
     return reply.status(200).send({
@@ -92,7 +103,9 @@ export async function paymentRoutes(
       return reply.status(200).send({ id: result.id, state: result.state });
     } catch (err) {
       server.log.error(err);
-      return reply.status(500).send({ error: (err as Error).message });
+      const httpStatus = httpStatusFromGrpcError(err);
+      const { error } = toClientApiErrorResponse(err);
+      return reply.status(httpStatus).send({ error: error.description });
     }
   });
 
@@ -108,7 +121,9 @@ export async function paymentRoutes(
       return reply.status(200).send({ id });
     } catch (err) {
       server.log.error(err);
-      return reply.status(500).send({ error: (err as Error).message });
+      const httpStatus = httpStatusFromGrpcError(err);
+      const { error } = toClientApiErrorResponse(err);
+      return reply.status(httpStatus).send({ error: error.description });
     }
   });
 }

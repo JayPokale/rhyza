@@ -13,6 +13,7 @@ import {
   ActivatePeerCmd,
   DeactivatePeerCmd,
   FulfillInboundPaymentCmd,
+  RejectInboundPaymentCmd,
   ILPQuoteRequestReceivedEvent,
   RespondToRemoteQuoteCmd,
   StartRemotePaymentCmd
@@ -21,6 +22,7 @@ import {
   RemoteQuoteCalculatedEvent,
   RemoteQuoteCalculationFailedEvent,
   ReceivedPaymentFulfillableEvent,
+  ReceivedPaymentFailedEvent,
   RemotePaymentPreparedEvent
 } from 'payments-public-types-lib';
 import { PeerActivatedEvent, PeerDeactivatedEvent } from 'pal-public-types-lib';
@@ -197,6 +199,62 @@ describe('IlpEventHandler', () => {
     assert.equal(cmd.payload.receivedPaymentId, 'rp-1');
     assert.equal(cmd.payload.paymentIntentId, 'intent-1');
     assert.equal(cmd.requestId, 'req-1');
+  });
+
+  test('maps a ReceivedPaymentFailedEvent to a RejectInboundPaymentCmd without a reject code', async () => {
+    const producer = new MockProducer();
+    const consumer = new MockConsumer();
+    const handler = new IlpEventHandler(
+      consumer,
+      producer,
+      new ConsoleLogger()
+    );
+    await handler.start();
+
+    await consumer.deliver([
+      new ReceivedPaymentFailedEvent(
+        {
+          paymentIntentId: 'intent-1',
+          receivedPaymentId: 'rp-1',
+          packetId: 'packet-in-1',
+          peerId: 'peer-1',
+          errorName: 'ReceivedPaymentFailed',
+          message: 'Ledger transfer failed'
+        },
+        'req-fail-1'
+      )
+    ]);
+
+    assert.equal(producer.sent.length, 1);
+    const cmd = producer.sent[0] as RejectInboundPaymentCmd;
+    assert.equal(cmd.msgName, RejectInboundPaymentCmd.name);
+    assert.equal(cmd.msgTopic, 'ilp-commands');
+    assert.equal(cmd.msgKey, 'packet-in-1');
+    assert.equal(cmd.payload.rejectCode, undefined);
+    assert.equal(cmd.payload.rejectMessage, 'Ledger transfer failed');
+    assert.equal(cmd.requestId, 'req-fail-1');
+  });
+
+  test('skips ReceivedPaymentFailedEvent without packet/peer correlation', async () => {
+    const producer = new MockProducer();
+    const consumer = new MockConsumer();
+    const handler = new IlpEventHandler(
+      consumer,
+      producer,
+      new ConsoleLogger()
+    );
+    await handler.start();
+
+    await consumer.deliver([
+      new ReceivedPaymentFailedEvent({
+        paymentIntentId: 'intent-1',
+        receivedPaymentId: 'rp-1',
+        errorName: 'PaymentIntentNotFoundError',
+        message: 'not found'
+      })
+    ]);
+
+    assert.equal(producer.sent.length, 0);
   });
 
   test('maps a PAL PeerActivatedEvent to an ActivatePeerCmd', async () => {

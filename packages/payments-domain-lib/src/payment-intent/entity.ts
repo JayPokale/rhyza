@@ -1378,6 +1378,28 @@ export class PaymentIntent implements IPaymentIntent {
     return payment.toObject();
   }
 
+  complete(): void {
+    if (this.state !== 'CREATED') {
+      throw new PaymentIntentInvalidState(
+        `Payment intent is in an invalid state for completion: ${this.state}`
+      );
+    }
+
+    if (this.isExpired) {
+      throw new PaymentIntentExpired(
+        `Payment intent is expired at: ${this.expiresAt.toISOString()}`
+      );
+    }
+
+    if (this._destination !== 'LOCAL') {
+      throw new PaymentIntentInvalidState(
+        'Payment intent destination must be local to complete it'
+      );
+    }
+
+    this._state = 'COMPLETED';
+  }
+
   completeRemotePayment(args: { id: string }): ISentPayment {
     const { id } = args;
 

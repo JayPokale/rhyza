@@ -10,10 +10,12 @@ import {
   PaymentCreateFailedEvent,
   PaymentIntentCreatedEvent,
   PaymentIntentCreateFailedEvent,
-  PaymentIntentCompletedEvent
+  PaymentIntentCompletedEvent,
+  PaymentIntentCompleteFailedEvent
 } from 'payments-public-types-lib';
 import {
   CompleteRemoteQuoteCmd,
+  CompletePaymentIntentCmd,
   CreatePaymentCmd,
   CreatePaymentIntentCmd,
   FailRemoteQuoteCmd,
@@ -115,6 +117,17 @@ function makeCreatePaymentIntentCmd(
         overrides.receiverWalletAddress ?? 'domain.com/alice',
       expiresAt: overrides.expiresAt,
       incomingAmount: overrides.incomingAmount
+    },
+    crypto.randomUUID()
+  );
+}
+
+function makeCompletePaymentIntentCmd(
+  overrides: Partial<{ id: string }> = {}
+): CompletePaymentIntentCmd {
+  return new CompletePaymentIntentCmd(
+    {
+      id: overrides.id ?? crypto.randomUUID()
     },
     crypto.randomUUID()
   );
@@ -283,6 +296,107 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         assert.equal(events[0].msgName, PaymentIntentCreateFailedEvent.name);
         const payload = (events[0] as PaymentIntentCreateFailedEvent).payload;
         assert.equal(payload.errorName, 'WalletAddressInactiveError');
+      });
+    });
+
+    describe('handleCompletePaymentIntentCommand', () => {
+      function makeLocalIntent(
+        overrides: Partial<{
+          state: IPaymentIntent['state'];
+          destination: IPaymentIntent['destination'];
+          expiresAt: Date;
+        }> = {}
+      ): IPaymentIntent {
+        return {
+          id: crypto.randomUUID(),
+          receivedAmount: 0n,
+          receiverWalletAddress: 'domain.com/alice',
+          receiverWalletAddressId: 'wallet-1',
+          assetCode: 'USD',
+          assetScale: 2,
+          state: overrides.state ?? 'CREATED',
+          destination: overrides.destination ?? 'LOCAL',
+          createdAt: new Date(),
+          expiresAt: overrides.expiresAt ?? new Date(Date.now() + 60_000),
+          incomingAmount: null,
+          quotes: [],
+          sentPayments: [],
+          receivedPayments: []
+        };
+      }
+
+      it('completes a local payment intent', async () => {
+        const intent = makeLocalIntent();
+        await repo.storeMany([intent]);
+
+        const cmd = makeCompletePaymentIntentCmd({ id: intent.id });
+        const { events } = await aggregate.handleBatch([cmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, PaymentIntentCompletedEvent.name);
+        const payload = (events[0] as PaymentIntentCompletedEvent).payload;
+        assert.equal(payload.id, intent.id);
+        assert.equal(payload.state, 'COMPLETED');
+        assert.equal(payload.assetCode, 'USD');
+        assert.equal(payload.assetScale, 2);
+
+        await aggregate.flush();
+        const stored = repo.getAll().find((p) => p.id === intent.id);
+        assert(stored);
+        assert.equal(stored.state, 'COMPLETED');
+      });
+
+      it('fails when payment intent not found', async () => {
+        const cmd = makeCompletePaymentIntentCmd({ id: 'nonexistent' });
+        const { events } = await aggregate.handleBatch([cmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, PaymentIntentCompleteFailedEvent.name);
+        const payload = (events[0] as PaymentIntentCompleteFailedEvent).payload;
+        assert.equal(payload.errorName, 'PaymentIntentNotFoundError');
+        assert.equal(payload.id, 'nonexistent');
+      });
+
+      it('fails when payment intent destination is REMOTE', async () => {
+        const intent = makeLocalIntent({ destination: 'REMOTE' });
+        await repo.storeMany([intent]);
+
+        const cmd = makeCompletePaymentIntentCmd({ id: intent.id });
+        const { events } = await aggregate.handleBatch([cmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, PaymentIntentCompleteFailedEvent.name);
+        const payload = (events[0] as PaymentIntentCompleteFailedEvent).payload;
+        assert.equal(payload.errorName, 'PaymentIntentInvalidState');
+        assert.match(payload.message, /destination must be local/);
+      });
+
+      it('fails when payment intent is already COMPLETED', async () => {
+        const intent = makeLocalIntent({ state: 'COMPLETED' });
+        await repo.storeMany([intent]);
+
+        const cmd = makeCompletePaymentIntentCmd({ id: intent.id });
+        const { events } = await aggregate.handleBatch([cmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, PaymentIntentCompleteFailedEvent.name);
+        const payload = (events[0] as PaymentIntentCompleteFailedEvent).payload;
+        assert.equal(payload.errorName, 'PaymentIntentInvalidState');
+      });
+
+      it('fails when payment intent is expired', async () => {
+        const intent = makeLocalIntent({
+          expiresAt: new Date(Date.now() - 1000)
+        });
+        await repo.storeMany([intent]);
+
+        const cmd = makeCompletePaymentIntentCmd({ id: intent.id });
+        const { events } = await aggregate.handleBatch([cmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, PaymentIntentCompleteFailedEvent.name);
+        const payload = (events[0] as PaymentIntentCompleteFailedEvent).payload;
+        assert.equal(payload.errorName, 'PaymentIntentExpired');
       });
     });
 
