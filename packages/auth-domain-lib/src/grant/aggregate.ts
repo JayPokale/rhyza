@@ -76,6 +76,7 @@ export class GrantAggregate {
 
     const grantIdSet = new Set<string>();
     const walletAddressSet = new Set<string>();
+
     for (const cmd of cmds) {
       if (cmd.msgName === CreateGrantCmd.name) {
         const payload = (cmd as CreateGrantCmd).payload;
@@ -101,72 +102,72 @@ export class GrantAggregate {
             this.parseJWKJson(payload.client) as JWK
           );
         }
-      } else if (cmd.msgName === ContinueGrantCmd.name) {
-        const payload = (cmd as ContinueGrantCmd).payload;
-        grantIdSet.add(payload.id);
       } else if (
+        cmd.msgName === ContinueGrantCmd.name ||
+        cmd.msgName === RevokeGrantCmd.name ||
+        cmd.msgName === IntrospectTokenCmd.name ||
+        cmd.msgName === RotateTokenCmd.name ||
+        cmd.msgName === RevokeTokenCmd.name ||
         cmd.msgName === AcceptInteractionCommand.name ||
         cmd.msgName === RejectInteractionCommand.name
       ) {
-        const payload = (
-          cmd as AcceptInteractionCommand | RejectInteractionCommand
-        ).payload;
+        const payload = (cmd as ContinueGrantCmd).payload;
         grantIdSet.add(payload.id);
       }
+    }
 
-      const grants = await this._repo.fetchByIds([...grantIdSet]);
-      const findKeys = async (walletAddress: string): Promise<void> => {
-        const keys =
-          await this._walletAddressService.getWalletAddressKeys(walletAddress);
-        const requestIdAndKid =
-          this.walletAddressRequestMap.get(walletAddress) ?? [];
+    const grants = await this._repo.fetchByIds([...grantIdSet]);
+    const findKeys = async (walletAddress: string): Promise<void> => {
+      const keys =
+        await this._walletAddressService.getWalletAddressKeys(walletAddress);
+      const requestIdAndKid =
+        this.walletAddressRequestMap.get(walletAddress) ?? [];
 
-        for (const requested of requestIdAndKid) {
-          const key = keys.find((key) => key.kid === requested.kid);
-          if (key) this.requestIdToClientKeyMap.set(requested.requestId, key);
-        }
-      };
+      for (const requested of requestIdAndKid) {
+        const key = keys.find((key) => key.kid === requested.kid);
+        if (key) this.requestIdToClientKeyMap.set(requested.requestId, key);
+      }
+    };
 
-      const waRequests = [];
-      for (const walletAddress of walletAddressSet) {
-        waRequests.push(findKeys(walletAddress));
+    const waRequests = [];
+    for (const walletAddress of walletAddressSet) {
+      waRequests.push(findKeys(walletAddress));
+    }
+
+    await Promise.all(waRequests);
+
+    for (const grant of grants) {
+      this.grantMap.set(grant.id, GrantEntity.fromObject(grant));
+    }
+
+    for (const cmd of cmds) {
+      let event: IMessage;
+      if (cmd.msgName == CreateGrantCmd.name) {
+        event = await this.handleCreateGrantCommand(cmd as CreateGrantCmd);
+      } else if (cmd.msgName === ContinueGrantCmd.name) {
+        event = this.handleContinueGrantCommand(cmd as ContinueGrantCmd);
+      } else if (cmd.msgName === RevokeGrantCmd.name) {
+        event = this.handleRevokeGrantCommand(cmd as RevokeGrantCmd);
+      } else if (cmd.msgName === IntrospectTokenCmd.name) {
+        event = this.handleIntrospectTokenCommand(cmd as IntrospectTokenCmd);
+      } else if (cmd.msgName === RotateTokenCmd.name) {
+        event = await this.handleRotateTokenCommand(cmd as RotateTokenCmd);
+      } else if (cmd.msgName === RevokeTokenCmd.name) {
+        event = this.handleRevokeTokenCommand(cmd as RevokeTokenCmd);
+      } else if (cmd.msgName === AcceptInteractionCommand.name) {
+        event = this.handleAcceptInteractionCommand(
+          cmd as AcceptInteractionCommand
+        );
+      } else if (cmd.msgName === RejectInteractionCommand.name) {
+        event = this.handleRejectInteractionCommand(
+          cmd as RejectInteractionCommand
+        );
+      } else {
+        this._logger.error(`Received unexpected command: ${cmd.msgName}`);
+        continue;
       }
 
-      await Promise.all(waRequests);
-
-      for (const grant of grants) {
-        this.grantMap.set(grant.id, GrantEntity.fromObject(grant));
-      }
-
-      for (const cmd of cmds) {
-        let event: IMessage;
-        if (cmd.msgName == CreateGrantCmd.name) {
-          event = await this.handleCreateGrantCommand(cmd as CreateGrantCmd);
-        } else if (cmd.msgName === ContinueGrantCmd.name) {
-          event = this.handleContinueGrantCommand(cmd as ContinueGrantCmd);
-        } else if (cmd.msgName === RevokeGrantCmd.name) {
-          event = this.handleRevokeGrantCommand(cmd as RevokeGrantCmd);
-        } else if (cmd.msgName === IntrospectTokenCmd.name) {
-          event = this.handleIntrospectTokenCommand(cmd as IntrospectTokenCmd);
-        } else if (cmd.msgName === RotateTokenCmd.name) {
-          event = await this.handleRotateTokenCommand(cmd as RotateTokenCmd);
-        } else if (cmd.msgName === RevokeTokenCmd.name) {
-          event = this.handleRevokeTokenCommand(cmd as RevokeTokenCmd);
-        } else if (cmd.msgName === AcceptInteractionCommand.name) {
-          event = this.handleAcceptInteractionCommand(
-            cmd as AcceptInteractionCommand
-          );
-        } else if (cmd.msgName === RejectInteractionCommand.name) {
-          event = this.handleRejectInteractionCommand(
-            cmd as RejectInteractionCommand
-          );
-        } else {
-          this._logger.error(`Received unexpected command: ${cmd.msgName}`);
-          continue;
-        }
-
-        outputEvents.push(event);
-      }
+      outputEvents.push(event);
     }
     return { events: outputEvents };
   }
@@ -414,19 +415,25 @@ export class GrantAggregate {
         newToken: accessToken
       });
 
-      return new TokenRotatedEvent({
-        id,
-        newAccessTokenValue: accessToken.value,
-        newAccessTokenManagementId: accessToken.managementId,
-        newAccessTokenExpiresIn: accessToken.expiresInMs,
-        access: grant.accesses
-      });
+      return new TokenRotatedEvent(
+        {
+          id,
+          newAccessTokenValue: accessToken.value,
+          newAccessTokenManagementId: accessToken.managementId,
+          newAccessTokenExpiresIn: accessToken.expiresInMs,
+          access: grant.accesses
+        },
+        cmd.requestId
+      );
     } catch (err) {
-      return new TokenRotationFailedEvent({
-        grantId: cmd.payload.id,
-        errorName: (err as Error).name,
-        message: (err as Error).message
-      });
+      return new TokenRotationFailedEvent(
+        {
+          grantId: cmd.payload.id,
+          errorName: (err as Error).constructor.name,
+          message: (err as Error).message
+        },
+        cmd.requestId
+      );
     }
   }
 
@@ -529,6 +536,7 @@ export class GrantAggregate {
     try {
       await Promise.all(promises);
     } finally {
+      this.newGrantIds = [];
       this.grantMap.clear();
       this.rotatedGrantIds.clear();
     }

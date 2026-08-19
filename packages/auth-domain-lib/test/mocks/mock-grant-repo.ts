@@ -13,8 +13,16 @@ export class MockGrantRepo implements IGrantRepository {
     }
   }
 
-  async storeRotatedGrants(_updates: IRotatedGrantUpdate[]): Promise<void> {
-    // No-op in tests: rotation state is already reflected on the in-memory grant.
+  async storeRotatedGrants(updates: IRotatedGrantUpdate[]): Promise<void> {
+    for (const update of updates) {
+      const grant = this._store.get(update.id);
+      if (!grant) continue;
+      const tokens = grant.accessTokens.map((t) =>
+        t.value === update.revokedToken.value ? update.revokedToken : t
+      );
+      tokens.push(update.newToken);
+      this._store.set(update.id, { ...grant, accessTokens: tokens });
+    }
   }
 
   async fetchById(id: string): Promise<IGrant | undefined> {
