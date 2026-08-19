@@ -894,7 +894,7 @@ describe('GrantAggregate.handleBatch', () => {
 
             const { events } = await aggregate.handleBatch([
               new StartInteractionCmd(
-                { id, interactionNonce: interactionNonce },
+                { id },
                 requestId
               )
             ]);
@@ -924,7 +924,7 @@ describe('GrantAggregate.handleBatch', () => {
 
             const { events } = await aggregate.handleBatch([
               new StartInteractionCmd(
-                { id, interactionNonce: 'wrong-nonce' },
+                { id },
                 requestId
               )
             ]);
@@ -951,7 +951,7 @@ describe('GrantAggregate.handleBatch', () => {
 
             const { events } = await aggregate.handleBatch([
               new StartInteractionCmd(
-                { id: randomUUID(), interactionNonce: 'any-nonce' },
+                { id: randomUUID() },
                 requestId
               )
             ]);
