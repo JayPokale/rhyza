@@ -54,7 +54,6 @@ import {
   GrantRevokedEvent,
   GrantRevokeFailedEvent,
   TokenIntrospectedEvent,
-  TokenIntrospectionFailedEvent,
   TokenRotatedEvent,
   TokenRotationFailedEvent,
   IAccessItem
@@ -657,19 +656,6 @@ export class AuthServiceServer {
         response.addAccess(this.getAccessListResponse(access));
       }
       this._resolvePendingResponse(pending, requestId, null, response);
-    } else if (GrantDomainEvent.isTokenIntrospectionFailedEvent(event)) {
-      this._resolvePendingResponse(pending, requestId, {
-        code: grpc.status.INTERNAL,
-        message:
-          (event.payload as TokenIntrospectionFailedEvent['payload']).message ||
-          'Command processing failed',
-        details: (event.payload as TokenIntrospectionFailedEvent['payload'])
-          .message,
-        name:
-          (event.payload as TokenIntrospectionFailedEvent['payload'])
-            .errorName || 'CommandError',
-        metadata: new grpc.Metadata()
-      });
     } else if (GrantDomainEvent.isTokenRotatedEvent(event)) {
       const response = new RotateTokenResponse();
       const payload: TokenRotatedEvent['payload'] = event.payload;

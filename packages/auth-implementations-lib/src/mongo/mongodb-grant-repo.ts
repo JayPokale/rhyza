@@ -294,20 +294,4 @@ export class MongoDbGrantRepo implements IGrantRepository {
       );
     }
   }
-
-  async fetchByAccessToken(value: string): Promise<IGrant | undefined> {
-    this._checkInitialisedOrThrow();
-
-    try {
-      const tokenDoc = await this._accessTokenCollection.findOne({ value });
-      if (!tokenDoc) return undefined;
-
-      return this.fetchById(tokenDoc.grantId);
-    } catch (err) {
-      this._logger.error(err);
-      throw new Error(
-        `Unable to fetch grant by access token ${value} - error: ${(err as Error).message}`
-      );
-    }
-  }
 }

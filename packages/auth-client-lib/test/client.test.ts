@@ -338,4 +338,100 @@ describe('Auth Client', () => {
       }
     });
   });
+
+  describe('introspectToken', () => {
+    async function createIssuedGrant(
+      access: AccessItem[]
+    ): Promise<{ id: string; tokenValue: string }> {
+      const keys = generateTestKeys();
+      const signatureData = await signedSignatureData(
+        keys.privateKey,
+        keys.publicKey.kid
+      );
+      const createResult = await authClient.createGrant(
+        JSON.stringify(keys.publicKey),
+        signatureData,
+        { access }
+      );
+
+      return {
+        id: createResult.getId(),
+        tokenValue: createResult.getAccessTokenValue()
+      };
+    }
+
+    test('returns active: true for a valid access token', async () => {
+      const access = [
+        makeAccessItem({ type: 'INCOMING_PAYMENT', actions: ['READ'] })
+      ];
+      const { id, tokenValue } = await createIssuedGrant(access);
+
+      const result = await authClient.introspectToken(id, tokenValue, access);
+
+      assert.equal(result.getActive(), true);
+      assert.equal(result.getGrantId(), id);
+      assert.deepStrictEqual(
+        result.getAccessList().map((a) => a.toObject()),
+        access.map((a) => a.toObject())
+      );
+    });
+
+    test('returns active: false for a token value that does not match', async () => {
+      const access = [
+        makeAccessItem({ type: 'INCOMING_PAYMENT', actions: ['READ'] })
+      ];
+      const { id } = await createIssuedGrant(access);
+
+      const result = await authClient.introspectToken(
+        id,
+        'unknown-token-value',
+        []
+      );
+
+      assert.equal(result.getActive(), false);
+      assert.equal(result.getAccessList().length, 0);
+    });
+
+    test('restricts the returned access to the requested access items', async () => {
+      const access = [
+        makeAccessItem({ type: 'INCOMING_PAYMENT', actions: ['READ'] }),
+        makeAccessItem({ type: 'QUOTE', actions: ['CREATE'] })
+      ];
+      const { id, tokenValue } = await createIssuedGrant(access);
+
+      const result = await authClient.introspectToken(id, tokenValue, [
+        access[0]
+      ]);
+
+      assert.equal(result.getActive(), true);
+      assert.deepStrictEqual(
+        result.getAccessList().map((a) => a.toObject()),
+        [access[0]].map((a) => a.toObject())
+      );
+    });
+
+    test('returns active: false when the requested access items are not fully covered by the grant', async () => {
+      const access = [
+        makeAccessItem({ type: 'INCOMING_PAYMENT', actions: ['READ'] })
+      ];
+      const { id, tokenValue } = await createIssuedGrant(access);
+
+      const result = await authClient.introspectToken(id, tokenValue, [
+        ...access,
+        makeAccessItem({ type: 'QUOTE', actions: ['CREATE'] })
+      ]);
+
+      assert.equal(result.getActive(), false);
+    });
+
+    test('returns active: false when the grant does not exist', async () => {
+      const result = await authClient.introspectToken(
+        randomUUID(),
+        'some-token-value',
+        []
+      );
+
+      assert.equal(result.getActive(), false);
+    });
+  });
 });

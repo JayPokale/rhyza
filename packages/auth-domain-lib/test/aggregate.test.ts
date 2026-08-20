@@ -8,6 +8,7 @@ import {
 } from '@interledger/http-signature-utils';
 
 import { GrantAggregate } from '../src/grant/aggregate';
+import { GrantEntity } from '../src/grant/entity';
 import {
   CreateGrantCmd,
   CreateGrantCmdPayload,
@@ -17,8 +18,7 @@ import {
 import {
   GrantCreatedEvent,
   GrantCreateFailedEvent,
-  TokenIntrospectedEvent,
-  TokenIntrospectionFailedEvent
+  TokenIntrospectedEvent
 } from '../src/grant/events';
 import { AccessAction, AccessType } from '../src/grant/interfaces';
 import { MockGrantRepo, MockWalletAddressService } from './mocks';
@@ -459,18 +459,46 @@ describe('GrantAggregate.handleBatch', () => {
         assert.equal(payload.active, false);
       });
 
-      it('fails with GrantNotFoundError when the grant does not exist', async () => {
+      it('returns active: false when the grant does not exist', async () => {
         const id = randomUUID();
+        const debugMock = mock.method(logger, 'debug', () => {});
 
         const { events } = await aggregate.handleBatch([
           makeIntrospectTokenCmd({ id, tokenValue: 'some-token-value' })
         ]);
 
         assert.equal(events.length, 1);
-        assert.equal(events[0].msgName, TokenIntrospectionFailedEvent.name);
-        const payload = (events[0] as TokenIntrospectionFailedEvent).payload;
-        assert.equal(payload.errorName, 'GrantNotFoundError');
-        assert.equal(payload.grantId, id);
+        assert.equal(events[0].msgName, TokenIntrospectedEvent.name);
+        const payload = (events[0] as TokenIntrospectedEvent).payload;
+        assert.equal(payload.id, id);
+        assert.equal(payload.active, false);
+        assert.equal(
+          debugMock.mock.calls.some(
+            (call) =>
+              call.arguments[0] ===
+              `Grant ${id} not found - command: IntrospectTokenCmd`
+          ),
+          true
+        );
+      });
+
+      it('returns active: false and logs the error when introspection fails unexpectedly', async () => {
+        const { id, tokenValue } = await createAndFlushIssuedGrant();
+        const errorMock = mock.method(logger, 'error', () => {});
+        mock.method(GrantEntity.prototype, 'introspectAccessToken', () => {
+          throw new Error('unexpected failure');
+        });
+
+        const { events } = await aggregate.handleBatch([
+          makeIntrospectTokenCmd({ id, tokenValue })
+        ]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, TokenIntrospectedEvent.name);
+        const payload = (events[0] as TokenIntrospectedEvent).payload;
+        assert.equal(payload.id, id);
+        assert.equal(payload.active, false);
+        assert.equal(errorMock.mock.callCount(), 1);
       });
     });
   });

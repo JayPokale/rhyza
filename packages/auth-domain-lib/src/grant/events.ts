@@ -49,12 +49,6 @@ export abstract class GrantDomainEvent extends DomainEvent {
     return evt.msgName === TokenIntrospectedEvent.name;
   }
 
-  static isTokenIntrospectionFailedEvent(
-    evt: DomainEvent
-  ): evt is TokenIntrospectionFailedEvent {
-    return evt.msgName === TokenIntrospectionFailedEvent.name;
-  }
-
   static isTokenRotatedEvent(evt: DomainEvent): evt is TokenRotatedEvent {
     return evt.msgName === TokenRotatedEvent.name;
   }
@@ -233,32 +227,13 @@ export class TokenIntrospectedEvent extends DomainEvent {
   msgKey: string;
   msgTopic: string = DomainEventTopics.AuthEvents;
   payload: TokenIntrospectedPayload;
+  requestId: string;
 
-  constructor(payload: TokenIntrospectedPayload) {
+  constructor(payload: TokenIntrospectedPayload, requestId: string) {
     super(payload.id);
     this.aggregateId = this.msgKey = payload.id;
     this.payload = payload;
-  }
-}
-
-export interface TokenIntrospectionFailedPayload {
-  grantId: string;
-  errorName: string;
-  message: string;
-}
-
-export class TokenIntrospectionFailedEvent extends DomainEvent {
-  contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
-  aggregateName: string = AGGREGATE_NAME;
-  msgKey: string;
-  msgTopic: string = DomainEventTopics.AuthEvents;
-  payload: TokenIntrospectionFailedPayload;
-
-  constructor(payload: TokenIntrospectionFailedPayload) {
-    super(payload.grantId);
-    this.aggregateId = this.msgKey = payload.grantId;
-    this.payload = payload;
+    this.requestId = requestId;
   }
 }
 
