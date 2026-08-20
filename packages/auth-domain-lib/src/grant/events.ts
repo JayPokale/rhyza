@@ -82,6 +82,7 @@ export interface GrantCreatedPayload {
   id: string;
   continueId?: string;
   continueToken?: string;
+  continueWaitMs?: number;
   interactionNonce?: string;
   accessTokenValue?: string;
   accessTokenManagementId?: string;
@@ -137,6 +138,7 @@ export interface GrantContinuedPayload {
   access?: IAccessItem[];
   continueId?: string;
   continueToken?: string;
+  continueWaitMs?: number;
 }
 
 export class GrantContinuedEvent extends DomainEvent {

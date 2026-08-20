@@ -1,6 +1,6 @@
 import { Collection, CollectionInfo, Db, MongoClient, WithId } from 'mongodb';
 import {
-  ContinuedGrantUpdate,
+  IContinuedGrantUpdate,
   IAccessToken,
   IGrant,
   IGrantRepository
@@ -111,11 +111,10 @@ export class MongoDbGrantRepo implements IGrantRepository {
     return {
       id: doc.id,
       startMethods: doc.startMethods,
-      continueToken: doc.continueToken
-        ? {
-            ...doc.continueToken,
-            activeAt: new Date(doc.continueToken.activeAt)
-          }
+      continueToken: doc.continueToken,
+      continueId: doc.continueId,
+      lastContinuedAt: doc.lastContinuedAt
+        ? new Date(doc.lastContinuedAt)
         : undefined,
       state: doc.state,
       client: doc.client,
@@ -128,6 +127,8 @@ export class MongoDbGrantRepo implements IGrantRepository {
       interaction: doc.interaction,
       accessTokens: tokenDocs.map((token) => ({
         ...token,
+        expiresInMs: token.expiresInMs,
+        expiresAt: new Date(token.expiresAt),
         createdAt: new Date(token.createdAt),
         revokedAt: token.revokedAt ? new Date(token.revokedAt) : undefined
       }))
@@ -145,6 +146,8 @@ export class MongoDbGrantRepo implements IGrantRepository {
           id: grant.id,
           startMethods: grant.startMethods,
           continueToken: grant.continueToken,
+          continueId: grant.continueId,
+          lastContinuedAt: grant.lastContinuedAt,
           state: grant.state,
           client: grant.client,
           subjectIds: grant.subjectIds,
@@ -161,8 +164,9 @@ export class MongoDbGrantRepo implements IGrantRepository {
         grant.accessTokens.map((token) => ({
           grantId: grant.id,
           value: token.value,
-          manageToken: token.manageToken,
+          managementId: token.managementId,
           expiresInMs: token.expiresInMs,
+          expiresAt: token.expiresAt,
           createdAt: token.createdAt,
           revokedAt: token.revokedAt
         }))
@@ -179,7 +183,7 @@ export class MongoDbGrantRepo implements IGrantRepository {
     }
   }
 
-  async storeContinuedGrants(grants: ContinuedGrantUpdate[]): Promise<void> {
+  async storeContinuedGrants(grants: IContinuedGrantUpdate[]): Promise<void> {
     this._checkInitialisedOrThrow();
 
     if (grants.length === 0) return;
@@ -192,7 +196,9 @@ export class MongoDbGrantRepo implements IGrantRepository {
             update: {
               $set: {
                 state: grant.state,
-                continueToken: grant.continueToken
+                continueToken: grant.continueToken,
+                continueId: grant.continueId,
+                lastContinuedAt: grant.lastContinuedAt
               }
             }
           }
@@ -210,8 +216,9 @@ export class MongoDbGrantRepo implements IGrantRepository {
                 $set: {
                   grantId: grant.id,
                   value: token.value,
-                  manageToken: token.manageToken,
+                  managementId: token.managementId,
                   expiresInMs: token.expiresInMs,
+                  expiresAt: token.expiresAt,
                   createdAt: token.createdAt,
                   revokedAt: token.revokedAt
                 }

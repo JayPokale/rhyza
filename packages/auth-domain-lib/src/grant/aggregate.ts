@@ -45,7 +45,7 @@ import {
   ISubjectId,
   IWalletAddressService
 } from './interfaces';
-import { GrantEntity } from './entity';
+import { GRANT_POLL_MS, GrantEntity } from './entity';
 import { JWK, validateSignature } from '@interledger/http-signature-utils';
 
 export interface IGrantService {
@@ -261,11 +261,12 @@ export class GrantAggregate {
       return new GrantCreatedEvent(
         {
           id,
-          continueId: entity.continueToken?.id,
-          continueToken: entity.continueToken?.value,
+          continueId: entity.continueId,
+          continueToken: entity.continueToken,
+          continueWaitMs: entity.continueToken ? GRANT_POLL_MS : undefined,
           interactionNonce: entity.interactionNonce,
           accessTokenValue: accessToken?.value,
-          accessTokenManagementId: accessToken?.manageToken.id,
+          accessTokenManagementId: accessToken?.managementId,
           accessTokenExpiresIn: accessToken?.expiresInMs,
           access: entity.accesses,
           subjectIds: entity.subjectIds
@@ -341,11 +342,12 @@ export class GrantAggregate {
           id,
           state: grant.state,
           accessTokenValue: accessToken?.value,
-          accessTokenManagementId: accessToken?.manageToken.id,
+          accessTokenManagementId: accessToken?.managementId,
           accessTokenExpiresIn: accessToken?.expiresInMs,
           access: grant.accesses,
-          continueId: grant.continueToken?.id,
-          continueToken: grant.continueToken?.value
+          continueId: grant.continueId,
+          continueToken: grant.continueToken,
+          continueWaitMs: grant.continueToken ? GRANT_POLL_MS : undefined
         },
         cmd.requestId
       );
@@ -424,7 +426,7 @@ export class GrantAggregate {
       return new TokenRotatedEvent({
         id,
         newAccessTokenValue: accessToken.value,
-        newAccessTokenManagementId: accessToken.manageToken.id,
+        newAccessTokenManagementId: accessToken.managementId,
         newAccessTokenExpiresIn: accessToken.expiresInMs,
         access: grant.accesses
       });
@@ -541,6 +543,8 @@ export class GrantAggregate {
           id: grant.id,
           state: grant.state,
           continueToken: grant.continueToken,
+          continueId: grant.continueId,
+          lastContinuedAt: grant.lastContinuedAt,
           accessToken: this.continuedGrantAccessTokens.get(id)
         });
       }

@@ -47,10 +47,7 @@ function makeContinuableGrant(overrides: Partial<IGrant> = {}): GrantEntity {
   const obj = entity.toObject();
   return GrantEntity.fromObject({
     ...obj,
-    continueToken: {
-      ...obj.continueToken!,
-      activeAt: new Date(0)
-    },
+    lastContinuedAt: new Date(0),
     ...overrides
   });
 }
@@ -83,8 +80,13 @@ describe('GrantEntity', () => {
 
       assert.ok(accessToken);
       assert.ok(accessToken.value);
-      assert.ok(accessToken.manageToken.id);
+      assert.ok(accessToken.managementId);
       assert.equal(accessToken.expiresInMs, 10_000); // Default access token expiry
+      assert.ok(accessToken.expiresAt instanceof Date);
+      assert.equal(
+        accessToken.expiresAt.getTime() - accessToken.createdAt.getTime(),
+        10_000
+      ); // Default access token expiry
       assert.ok(accessToken.createdAt instanceof Date);
 
       assert.equal(entity.accessTokens.length, 1);
@@ -133,10 +135,9 @@ describe('GrantEntity', () => {
 
       assert.equal(entity.state, 'PENDING');
       assert.ok(entity.continueToken);
-      assert.ok(entity.continueToken.id);
-      assert.ok(entity.continueToken.value);
-      assert.ok(entity.continueToken.activeAt instanceof Date);
-      assert.ok(entity.continueToken.activeAt.getTime() > Date.now());
+      assert.ok(entity.continueId);
+      assert.ok(entity.lastContinuedAt instanceof Date);
+      assert.ok(entity.lastContinuedAt!.getTime() <= Date.now());
 
       assert.ok(entity.interactionNonce);
       assert.equal(entity.interaction, undefined); // This should not be initalized until startInteraction is called on the entity.
@@ -171,8 +172,8 @@ describe('GrantEntity', () => {
 
       assert.equal(entity.state, 'PENDING');
       assert.ok(entity.continueToken);
-      assert.ok(entity.continueToken.id);
-      assert.ok(entity.continueToken.activeAt instanceof Date);
+      assert.ok(entity.continueId);
+      assert.ok(entity.lastContinuedAt instanceof Date);
       assert.ok(entity.interactionNonce);
       assert.equal(entity.interaction, undefined); // This should not be initialized at this point.
       assert.equal(accessToken, undefined);
@@ -184,24 +185,20 @@ describe('GrantEntity', () => {
       const entity = makeContinuableGrant();
 
       assert.throws(
-        () => entity.continue('wrong-token', entity.continueToken!.id),
+        () => entity.continue('wrong-token', entity.continueId!),
         InvalidGrantError
       );
       assert.throws(
-        () => entity.continue(entity.continueToken!.value, 'wrong-id'),
+        () => entity.continue(entity.continueToken!, 'wrong-id'),
         InvalidGrantError
       );
     });
 
-    it('rejects continuation before activeAt', () => {
+    it('rejects continuation within the poll window after lastContinuedAt', () => {
       const { entity } = GrantEntity.create(makeInteractiveCreateInput());
 
       assert.throws(
-        () =>
-          entity.continue(
-            entity.continueToken!.value,
-            entity.continueToken!.id
-          ),
+        () => entity.continue(entity.continueToken!, entity.continueId!),
         (err: Error) =>
           err instanceof InvalidGrantError &&
           err.message === 'Cannot continue grant too soon'
@@ -210,32 +207,31 @@ describe('GrantEntity', () => {
 
     it('rotates the continue token when the grant is pending and no interact ref is provided', () => {
       const entity = makeContinuableGrant();
-      const previous = entity.continueToken!;
+      const prevToken = entity.continueToken!;
+      const prevId = entity.continueId!;
 
-      const accessToken = entity.continue(previous.value, previous.id);
+      const accessToken = entity.continue(prevToken, prevId);
 
       assert.equal(accessToken, undefined);
       assert.equal(entity.state, GrantState.PENDING);
       assert.ok(entity.continueToken);
-      assert.notEqual(entity.continueToken.value, previous.value);
-      assert.notEqual(entity.continueToken.id, previous.id);
-      assert.ok(entity.continueToken.activeAt.getTime() > Date.now());
+      assert.notEqual(entity.continueToken, prevToken);
+      assert.notEqual(entity.continueId, prevId);
+      assert.ok(entity.lastContinuedAt!.getTime() <= Date.now());
       assert.equal(entity.accessTokens.length, 0);
     });
 
     it('issues an access token and marks the grant issued when approved without an interact ref', () => {
       const entity = makeContinuableGrant({ state: GrantState.APPROVED });
-      const continueToken = entity.continueToken!;
+      const token = entity.continueToken!;
+      const id = entity.continueId!;
 
-      const accessToken = entity.continue(
-        continueToken.value,
-        continueToken.id
-      );
+      const accessToken = entity.continue(token, id);
 
       assert.equal(entity.state, GrantState.ISSUED);
       assert.ok(accessToken);
       assert.ok(accessToken.value);
-      assert.ok(accessToken.manageToken.id);
+      assert.ok(accessToken.managementId);
       assert.equal(entity.accessTokens.length, 1);
       assert.equal(
         entity.accessTokens.find(
@@ -247,10 +243,9 @@ describe('GrantEntity', () => {
 
     it('rejects continuation without an interact ref when the grant is not pending or approved', () => {
       const entity = makeContinuableGrant({ state: GrantState.ISSUED });
-      const continueToken = entity.continueToken!;
 
       assert.throws(
-        () => entity.continue(continueToken.value, continueToken.id),
+        () => entity.continue(entity.continueToken!, entity.continueId!),
         (err: Error) =>
           err instanceof InvalidGrantError &&
           err.message === 'Grant is not in a state that can be continued'
@@ -266,15 +261,11 @@ describe('GrantEntity', () => {
       );
       const entity = GrantEntity.fromObject({
         ...created.toObject(),
-        continueToken: {
-          ...created.continueToken!,
-          activeAt: new Date(0)
-        }
+        lastContinuedAt: new Date(0)
       });
-      const continueToken = entity.continueToken!;
 
       assert.throws(
-        () => entity.continue(continueToken.value, continueToken.id),
+        () => entity.continue(entity.continueToken!, entity.continueId!),
         (err: Error) =>
           err instanceof InvalidGrantError &&
           err.message === 'Grant requires an interaction reference to continue'
@@ -285,11 +276,10 @@ describe('GrantEntity', () => {
       const entity = makeContinuableGrant();
       const interaction = entity.startInteraction(randomUUID());
       entity.handleInteraction(InteractionState.APPROVED);
-      const continueToken = entity.continueToken!;
 
       const accessToken = entity.continue(
-        continueToken.value,
-        continueToken.id,
+        entity.continueToken!,
+        entity.continueId!,
         interaction.interactRef
       );
 
@@ -308,11 +298,10 @@ describe('GrantEntity', () => {
       const entity = makeContinuableGrant();
       const interaction = entity.startInteraction(randomUUID());
       entity.handleInteraction(InteractionState.REJECTED);
-      const continueToken = entity.continueToken!;
 
       const accessToken = entity.continue(
-        continueToken.value,
-        continueToken.id,
+        entity.continueToken!,
+        entity.continueId!,
         interaction.interactRef
       );
 
@@ -323,26 +312,17 @@ describe('GrantEntity', () => {
 
     it('rejects an unknown or unmatched interact ref', () => {
       const entity = makeContinuableGrant();
-      const continueToken = entity.continueToken!;
+      const token = entity.continueToken!;
+      const id = entity.continueId!;
 
       assert.throws(
-        () =>
-          entity.continue(
-            continueToken.value,
-            continueToken.id,
-            'missing-interact-ref'
-          ),
+        () => entity.continue(token, id, 'missing-interact-ref'),
         InvalidInteractionError
       );
 
       const interaction = entity.startInteraction(randomUUID());
       assert.throws(
-        () =>
-          entity.continue(
-            continueToken.value,
-            continueToken.id,
-            interaction.interactRef
-          ),
+        () => entity.continue(token, id, interaction.interactRef),
         InvalidInteractionError
       );
     });

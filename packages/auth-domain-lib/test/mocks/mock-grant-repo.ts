@@ -1,5 +1,5 @@
 import {
-  ContinuedGrantUpdate,
+  IContinuedGrantUpdate,
   IGrant,
   IGrantRepository
 } from '../../src/grant/interfaces';
@@ -13,7 +13,7 @@ export class MockGrantRepo implements IGrantRepository {
     }
   }
 
-  async storeContinuedGrants(grants: ContinuedGrantUpdate[]): Promise<void> {
+  async storeContinuedGrants(grants: IContinuedGrantUpdate[]): Promise<void> {
     for (const update of grants) {
       const existing = this._store.get(update.id);
       if (!existing) continue;
@@ -27,6 +27,8 @@ export class MockGrantRepo implements IGrantRepository {
         ...existing,
         state: update.state,
         continueToken: update.continueToken,
+        continueId: update.continueId,
+        lastContinuedAt: update.lastContinuedAt,
         accessTokens
       });
     }

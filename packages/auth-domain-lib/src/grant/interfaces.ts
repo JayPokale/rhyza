@@ -116,7 +116,9 @@ export interface IInteraction {
 export interface IGrant {
   id: string;
   startMethods: IStartMethod[];
-  continueToken?: IContinueToken;
+  continueToken?: string;
+  continueId?: string;
+  lastContinuedAt?: Date;
   state: GrantState;
   client?: string | IJsonWebKey;
   subjectIds?: ISubjectId[];
@@ -131,21 +133,11 @@ export interface IGrant {
 
 export interface IAccessToken {
   value: string;
-  manageToken: IManageToken;
+  managementId: string;
   expiresInMs: number;
+  expiresAt: Date;
   createdAt: Date;
   revokedAt?: Date;
-}
-
-export interface IContinueToken {
-  id: string;
-  value: string;
-  activeAt: Date;
-}
-
-export interface IManageToken {
-  id: string;
-  value: string;
 }
 
 export interface IJsonWebKey {
@@ -180,16 +172,18 @@ export interface IWalletAddressService {
   getWalletAddressKeys(url: string): Promise<IJsonWebKey[]>;
 }
 
-export interface ContinuedGrantUpdate {
+export interface IContinuedGrantUpdate {
   id: string;
   state: GrantState;
-  continueToken?: IContinueToken;
+  continueToken?: string;
+  continueId?: string;
+  lastContinuedAt?: Date;
   accessToken?: IAccessToken;
 }
 
 export interface IGrantRepository {
   storeMany(grants: IGrant[]): Promise<void>;
-  storeContinuedGrants(grants: ContinuedGrantUpdate[]): Promise<void>;
+  storeContinuedGrants(grants: IContinuedGrantUpdate[]): Promise<void>;
   fetchById(id: string): Promise<IGrant | undefined>;
   fetchByIds(ids: string[]): Promise<IGrant[]>;
 }

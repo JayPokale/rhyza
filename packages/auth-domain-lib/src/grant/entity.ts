@@ -22,24 +22,15 @@ import {
   InteractiveAccessType,
   IJsonWebKey,
   AccessAction,
-  ISubjectId,
-  IContinueToken
+  ISubjectId
 } from './interfaces';
 
-const GRANT_POLL_MS = 5_000; // 5 seconds
+export const GRANT_POLL_MS = 5_000; // 5 seconds
 const INTERACTION_EXPIRY_MS = 10_000; // 10 seconds
 const ACCESS_TOKEN_EXPIRY_MS = 10_000; // 10 seconds
 
 function generateContinueToken(): string {
   return crypto.randomBytes(16).toString('hex').toUpperCase();
-}
-
-function createContinueToken(): IContinueToken {
-  return {
-    id: uuid(),
-    value: generateContinueToken(),
-    activeAt: new Date(Date.now() + GRANT_POLL_MS)
-  };
 }
 
 function generateAccessToken(): string {
@@ -79,7 +70,9 @@ function compareAccessItems(
 export class GrantEntity implements IGrant {
   private _id: string;
   private _startMethods: IStartMethod[];
-  private _continueToken?: IContinueToken;
+  private _continueToken?: string;
+  private _continueId?: string;
+  private _lastContinuedAt?: Date;
   private _state: GrantState;
   private _client?: string | IJsonWebKey;
   private _subjectIds?: ISubjectId[];
@@ -99,6 +92,8 @@ export class GrantEntity implements IGrant {
     this._id = input.id;
     this._startMethods = input.startMethods;
     this._continueToken = input.continueToken;
+    this._continueId = input.continueId;
+    this._lastContinuedAt = input.lastContinuedAt;
     this._state = input.state;
     this._client = input.client;
     this._subjectIds = input.subjectIds;
@@ -123,7 +118,14 @@ export class GrantEntity implements IGrant {
   // Computes the state of the grant as well as any continuation information
   // depending on the access types requested.
   static create(
-    input: Omit<IGrant, 'state' | 'continueToken' | 'accessTokens'>
+    input: Omit<
+      IGrant,
+      | 'state'
+      | 'continueToken'
+      | 'continueId'
+      | 'lastContinuedAt'
+      | 'accessTokens'
+    >
   ): {
     entity: GrantEntity;
     accessToken?: IAccessToken;
@@ -136,7 +138,9 @@ export class GrantEntity implements IGrant {
       const entity = new GrantEntity({
         ...input,
         state: GrantState.PENDING,
-        continueToken: createContinueToken(),
+        continueToken: generateContinueToken(),
+        continueId: uuid(),
+        lastContinuedAt: new Date(),
         interactionNonce: crypto.randomBytes(16).toString('hex').toUpperCase(),
         accessTokens: []
       });
@@ -163,6 +167,8 @@ export class GrantEntity implements IGrant {
       interaction: this._interaction,
       startMethods: this._startMethods,
       continueToken: this._continueToken,
+      continueId: this._continueId,
+      lastContinuedAt: this._lastContinuedAt,
       state: this._state,
       client: this._client,
       subjectIds: this._subjectIds,
@@ -210,13 +216,16 @@ export class GrantEntity implements IGrant {
     interactRef?: string
   ): IAccessToken | undefined {
     if (
-      continueToken !== this._continueToken?.value ||
-      continueId !== this._continueToken?.id
+      continueToken !== this._continueToken ||
+      continueId !== this._continueId
     ) {
       throw new InvalidGrantError();
     }
 
-    if (Date.now() < this._continueToken.activeAt.getTime()) {
+    if (
+      this._lastContinuedAt &&
+      Date.now() < this._lastContinuedAt.getTime() + GRANT_POLL_MS
+    ) {
       throw new InvalidGrantError('Cannot continue grant too soon');
     }
 
@@ -227,8 +236,11 @@ export class GrantEntity implements IGrant {
         );
       }
 
+      this._lastContinuedAt = new Date();
+
       if (this._state === GrantState.PENDING) {
-        this._continueToken = createContinueToken();
+        this._continueToken = generateContinueToken();
+        this._continueId = uuid();
         return;
       }
 
@@ -268,8 +280,8 @@ export class GrantEntity implements IGrant {
 
   revoke(continueToken: string, continueId: string) {
     if (
-      continueToken !== this._continueToken?.value ||
-      continueId !== this._continueToken?.id
+      continueToken !== this._continueToken ||
+      continueId !== this._continueId
     )
       throw new InvalidGrantError('Invalid continue token or continue id');
 
@@ -292,14 +304,13 @@ export class GrantEntity implements IGrant {
         'Cannot create access token for grant that has not been issued'
       );
     }
+    const createdAt = new Date();
     const newAccessToken: IAccessToken = {
       value: generateAccessToken(),
-      manageToken: {
-        id: uuid(),
-        value: generateAccessToken()
-      },
-      createdAt: new Date(),
-      expiresInMs: ACCESS_TOKEN_EXPIRY_MS
+      managementId: uuid(),
+      expiresInMs: ACCESS_TOKEN_EXPIRY_MS,
+      createdAt,
+      expiresAt: new Date(createdAt.getTime() + ACCESS_TOKEN_EXPIRY_MS)
     };
     this._accessTokens.set(newAccessToken.value, newAccessToken);
     return newAccessToken;
@@ -316,7 +327,7 @@ export class GrantEntity implements IGrant {
     if (
       !accessToken ||
       accessToken.revokedAt ||
-      accessToken.createdAt.getTime() + accessToken.expiresInMs < Date.now()
+      accessToken.expiresAt.getTime() < Date.now()
     ) {
       return { active: false };
     }
@@ -350,7 +361,7 @@ export class GrantEntity implements IGrant {
       throw new UnknownAccessTokenError();
     }
 
-    if (accessToken.manageToken.id !== managementId) {
+    if (accessToken.managementId !== managementId) {
       throw new UnknownAccessTokenError();
     }
 
@@ -369,7 +380,7 @@ export class GrantEntity implements IGrant {
       throw new UnknownAccessTokenError();
     }
 
-    if (accessToken.manageToken.id !== managementId) {
+    if (accessToken.managementId !== managementId) {
       throw new UnknownAccessTokenError();
     }
 
@@ -385,8 +396,16 @@ export class GrantEntity implements IGrant {
     return this._startMethods;
   }
 
-  get continueToken(): IContinueToken | undefined {
+  get continueToken(): string | undefined {
     return this._continueToken;
+  }
+
+  get continueId(): string | undefined {
+    return this._continueId;
+  }
+
+  get lastContinuedAt(): Date | undefined {
+    return this._lastContinuedAt;
   }
 
   get state(): GrantState {

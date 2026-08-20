@@ -440,7 +440,7 @@ export class AuthServiceServer {
       response.setState(grant.state);
 
       if (grant.continueToken) {
-        response.setContinueToken(grant.continueToken.value);
+        response.setContinueToken(grant.continueToken);
         response.setContinueId(grant.id);
       }
 
