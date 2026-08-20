@@ -78,35 +78,17 @@ jobs:
 
       - name: Check CHANGELOG.md Update
         run: |
-          python -c "
-          import sys
-          import os
+          CHANGES_FILE=$(cat oasdiff-changes.txt| tr -d '[:space:]')
+          CHANGELOG_FILE=$(cat ${{ env.OPENAPI_CHANGELOG_PATH }}| tr -d '[:space:]')
 
-          changes_file = 'oasdiff-changes.txt'
-          changelog_file = '${{ env.OPENAPI_CHANGELOG_PATH }}'
+          if [ -z "$CHANGES_FILE" ]; then
+            echo "No changes detected. The changelog is up to date."
+            exit 0
+          fi
 
-          if not os.path.exists(changes_file) or os.path.getsize(changes_file) == 0:
-              print('No meaningful OpenAPI changes detected. Exiting.')
-              sys.exit(0)
-
-          with open(changes_file, 'r') as f:
-              generated = f.read().strip()
-              
-          if not generated:
-              print('No meaningful OpenAPI changes detected. Exiting.')
-              sys.exit(0)
-
-          try:
-              with open(changelog_file, 'r') as f:
-                  actual = f.read()
-          except FileNotFoundError:
-              print(f'ERROR: {changelog_file} not found!')
-              sys.exit(1)
-
-          if generated not in actual:
-              print(f'ERROR: The changelog is incomplete. Please generate it using oasdiff')
-              print(generated)
-              sys.exit(1)
-              
-          print(f'OpenAPI changes successfully found in {changelog_file}.')
-          "
+          if [[ "$CHANGELOG_FILE" == *"$CHANGES_FILE"* ]]; then
+            echo "Success: The changelog is up to date."
+          else
+            echo "Error: The changelog is incomplete. Please generate it using oasdiff."
+            exit 1
+          fi
