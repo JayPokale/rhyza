@@ -492,7 +492,7 @@ export type RemotePaymentPreparedPayload = {
   peerId: string;
   requestId: string;
   debitAmount: string;
-  receiveAmount: string;
+  receiveAmount: string | null;
   assetCode: string;
   assetScale: number;
   sharedSecret: string;

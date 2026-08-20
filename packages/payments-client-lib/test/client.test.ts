@@ -383,14 +383,15 @@ describe('Payments Client', () => {
       const paymentId = randomUUID();
       const result = await paymentsClient.createPayment(
         paymentId,
+        { incomingPaymentId: paymentIntentId },
         senderWalletAddressId,
         SENDER_WALLET_ADDRESS,
-        paymentIntentId,
         quoteId
       );
 
       assert.ok(result);
       assert.equal(result.id, paymentId);
+      assert.equal(result.paymentIntentId, paymentIntentId);
     });
 
     test('create payment with debitAmount', async () => {
@@ -398,15 +399,16 @@ describe('Payments Client', () => {
       const paymentId = randomUUID();
       const result = await paymentsClient.createPayment(
         paymentId,
+        { incomingPaymentId: paymentIntentId },
         senderWalletAddressId,
         SENDER_WALLET_ADDRESS,
-        paymentIntentId,
         undefined,
         100
       );
 
       assert.ok(result);
       assert.equal(result.id, paymentId);
+      assert.equal(result.paymentIntentId, paymentIntentId);
     });
 
     test('duplicate id is rejected', async () => {
@@ -414,9 +416,9 @@ describe('Payments Client', () => {
       const paymentId = randomUUID();
       await paymentsClient.createPayment(
         paymentId,
+        { incomingPaymentId: paymentIntentId },
         senderWalletAddressId,
         SENDER_WALLET_ADDRESS,
-        paymentIntentId,
         undefined,
         100
       );
@@ -424,9 +426,9 @@ describe('Payments Client', () => {
       try {
         await paymentsClient.createPayment(
           paymentId,
+          { incomingPaymentId: paymentIntentId },
           senderWalletAddressId,
           SENDER_WALLET_ADDRESS,
-          paymentIntentId,
           undefined,
           100
         );
@@ -440,9 +442,9 @@ describe('Payments Client', () => {
       try {
         await paymentsClient.createPayment(
           randomUUID(),
+          { incomingPaymentId: randomUUID() },
           senderWalletAddressId,
           SENDER_WALLET_ADDRESS,
-          randomUUID(),
           undefined,
           100
         );
@@ -457,15 +459,32 @@ describe('Payments Client', () => {
       try {
         await paymentsClient.createPayment(
           randomUUID(),
+          { incomingPaymentId: paymentIntentId },
           randomUUID(),
           SENDER_WALLET_ADDRESS,
-          paymentIntentId,
           undefined,
           100
         );
         assert.fail('expected error for unknown wallet address');
       } catch (e) {
         assertGrpcServiceError(e, status.NOT_FOUND);
+      }
+    });
+
+    test('remote url without configured openPaymentsUrl is rejected', async () => {
+      const clientWithoutUrl = new PaymentsClient(PAYMENTS_GRPC_URL);
+      try {
+        await clientWithoutUrl.createPayment(
+          randomUUID(),
+          { incomingPaymentUrl: 'https://other.example.com/incoming/abc' },
+          senderWalletAddressId,
+          SENDER_WALLET_ADDRESS,
+          undefined,
+          100
+        );
+        assert.fail('expected error for unconfigured remote payments');
+      } catch (e) {
+        assertGrpcServiceError(e, status.FAILED_PRECONDITION);
       }
     });
   });
@@ -476,9 +495,9 @@ describe('Payments Client', () => {
       const paymentId = randomUUID();
       await paymentsClient.createPayment(
         paymentId,
+        { incomingPaymentId: paymentIntentId },
         senderWalletAddressId,
         SENDER_WALLET_ADDRESS,
-        paymentIntentId,
         undefined,
         100
       );
@@ -497,9 +516,9 @@ describe('Payments Client', () => {
       const paymentId = randomUUID();
       await paymentsClient.createPayment(
         paymentId,
+        { incomingPaymentId: paymentIntentId },
         senderWalletAddressId,
         SENDER_WALLET_ADDRESS,
-        paymentIntentId,
         undefined,
         100
       );
@@ -529,9 +548,9 @@ describe('Payments Client', () => {
       const paymentId = randomUUID();
       await paymentsClient.createPayment(
         paymentId,
+        { incomingPaymentId: paymentIntentId },
         senderWalletAddressId,
         SENDER_WALLET_ADDRESS,
-        paymentIntentId,
         undefined,
         100
       );

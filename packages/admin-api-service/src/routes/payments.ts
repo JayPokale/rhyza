@@ -23,14 +23,33 @@ export async function paymentRoutes(
   server.post<{
     Body: {
       walletAddress: string;
-      paymentIntentId: string;
       id?: string;
+      paymentIntentId?: string;
+      paymentIntentUrl?: string;
       quoteId?: string;
       debitAmount?: number;
     };
   }>('/payments', async (request, reply) => {
-    const { walletAddress, paymentIntentId, quoteId, debitAmount } =
-      request.body;
+    const {
+      walletAddress,
+      paymentIntentId,
+      paymentIntentUrl,
+      quoteId,
+      debitAmount
+    } = request.body;
+
+    let incomingPayment:
+      | { incomingPaymentUrl: string }
+      | { incomingPaymentId: string };
+    if (paymentIntentUrl) {
+      incomingPayment = { incomingPaymentUrl: paymentIntentUrl };
+    } else if (paymentIntentId) {
+      incomingPayment = { incomingPaymentId: paymentIntentId };
+    } else {
+      return reply.status(400).send({
+        error: 'Either paymentIntentId or paymentIntentUrl is required'
+      });
+    }
 
     const id = request.body.id ?? randomUUID();
 
@@ -45,14 +64,16 @@ export async function paymentRoutes(
     try {
       const result = await paymentsClient.createPayment(
         id,
+        incomingPayment,
         alias.walletAddressId,
         walletAddress,
-        paymentIntentId,
         quoteId,
         debitAmount ? Number(debitAmount) : undefined
       );
 
-      return reply.status(201).send({ id: result.id, paymentIntentId });
+      return reply
+        .status(201)
+        .send({ id: result.id, paymentIntentId: result.paymentIntentId });
     } catch (err) {
       server.log.error(err);
       const httpStatus = httpStatusFromGrpcError(err);
@@ -84,7 +105,8 @@ export async function paymentRoutes(
         assetScale: payment.assetScale,
         quoteId: payment.quoteId,
         debitAmount: String(payment.debitAmount),
-        receiveAmount: String(payment.receiveAmount),
+        receiveAmount:
+          payment.receiveAmount === null ? null : String(payment.receiveAmount),
         sentAmount: String(payment.sentAmount)
       });
     }

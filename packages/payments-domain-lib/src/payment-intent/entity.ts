@@ -322,7 +322,7 @@ class SentPayment {
   private _assetScale: number;
   private _createdAt: Date;
   private _debitAmount: bigint;
-  private _receiveAmount: bigint;
+  private _receiveAmount: bigint | null;
   private _quoteId?: string;
   private _state: SentPaymentState;
   private _sentAmount: bigint;
@@ -341,7 +341,7 @@ class SentPayment {
     assetScale: number;
     createdAt: Date;
     debitAmount: bigint;
-    receiveAmount: bigint;
+    receiveAmount: bigint | null;
     sentAmount: bigint;
     quoteId?: string;
     cancelledAt?: Date;
@@ -375,7 +375,7 @@ class SentPayment {
     assetCode: string;
     assetScale: number;
     debitAmount: bigint;
-    receiveAmount: bigint;
+    receiveAmount: bigint | null;
     quoteId?: string;
   }): SentPayment {
     return new SentPayment({
@@ -437,6 +437,13 @@ class SentPayment {
         `Payment ${this._id} is already completed`
       );
     }
+    // Only remote payments can be quoteless. Local payment always has its
+    // receiveAmount computed at creation.
+    if (this._receiveAmount === null) {
+      throw new PaymentInvalidStateError(
+        `Payment ${this._id} has no receiveAmount; cannot complete as local`
+      );
+    }
     this._sentAmount += this._debitAmount;
     this._state = 'COMPLETED';
     return {
@@ -476,7 +483,7 @@ class SentPayment {
     }
   }
 
-  completeRemote(): { debitAmount: bigint; receiveAmount: bigint } {
+  completeRemote(): { debitAmount: bigint; receiveAmount: bigint | null } {
     if (this._state !== 'CONFIRMED') {
       throw new PaymentInvalidStateError(
         `Payment ${this._id} cannot complete from state ${this._state}`
@@ -561,7 +568,7 @@ class SentPayment {
     return this._debitAmount;
   }
 
-  get receiveAmount(): bigint {
+  get receiveAmount(): bigint | null {
     return this._receiveAmount;
   }
 
@@ -1199,18 +1206,8 @@ export class PaymentIntent implements IPaymentIntent {
     return payment.toObject();
   }
 
-  addRemotePayment(args: {
-    id: string;
-    quoteId: string;
-    senderWalletAddress: {
-      id: string;
-      address: string;
-      assetCode: string;
-      assetScale: number;
-    };
-  }): ISentPayment {
-    const { id, quoteId, senderWalletAddress } = args;
-
+  /** Shared invariants for adding any remote payment to this intent. */
+  private _assertCanAddRemotePayment(paymentId: string): void {
     if (this._destination !== 'REMOTE') {
       throw new PaymentIntentInvalidState(
         'Payment intent destination must be remote'
@@ -1229,11 +1226,66 @@ export class PaymentIntent implements IPaymentIntent {
       );
     }
 
-    if (this._sentPayments.find((payment) => payment.id === id)) {
+    if (this._sentPayments.find((payment) => payment.id === paymentId)) {
       throw new InvalidPaymentIdError(
-        `Duplicate payment id ${id} exists for ${this.id} payment intent`
+        `Duplicate payment id ${paymentId} exists for ${this.id} payment intent`
       );
     }
+  }
+
+  /**
+   * Adds a remote payment without a quote (fixed-send). The caller provides
+   * the debit amount and the peer resolved from the intent's destination ILP
+   * address (a quote would otherwise have bound the peer). The receive amount
+   * remains unknown (`null`) because the receiver's conversion rate cannot be
+   * known without a quote probe.
+   */
+  addRemotePayment(args: {
+    id: string;
+    senderWalletAddress: {
+      id: string;
+      address: string;
+      assetCode: string;
+      assetScale: number;
+    };
+    debitAmount: bigint;
+    peerId: string;
+  }): ISentPayment {
+    const { id, senderWalletAddress, debitAmount, peerId } = args;
+
+    this._assertCanAddRemotePayment(id);
+
+    this._peerId = peerId;
+
+    const payment = SentPayment.create({
+      id,
+      senderWalletAddress: senderWalletAddress.address,
+      senderWalletAddressId: senderWalletAddress.id,
+      paymentIntentId: this.id,
+      assetCode: senderWalletAddress.assetCode,
+      assetScale: senderWalletAddress.assetScale,
+      debitAmount,
+      receiveAmount: null
+    });
+
+    this._sentPayments.push(payment);
+    return payment.toObject();
+  }
+
+  /** Adds a remote payment whose amounts come from a completed quote. */
+  addRemotePaymentFromQuote(args: {
+    id: string;
+    quoteId: string;
+    senderWalletAddress: {
+      id: string;
+      address: string;
+      assetCode: string;
+      assetScale: number;
+    };
+  }): ISentPayment {
+    const { id, quoteId, senderWalletAddress } = args;
+
+    this._assertCanAddRemotePayment(id);
 
     const quote = this.quotes.find((q) => q.id === quoteId);
     if (!quote) {
@@ -1411,7 +1463,10 @@ export class PaymentIntent implements IPaymentIntent {
     }
 
     const { receiveAmount } = payment.completeRemote();
-    this._receivedAmount += receiveAmount;
+    // Quoteless payments have no receiveAmount. The receiver's ASE must determine that.
+    if (receiveAmount !== null) {
+      this._receivedAmount += receiveAmount;
+    }
 
     if (this.isIncomingAmountMet) {
       this._state = 'COMPLETED';

@@ -282,7 +282,8 @@ export class PaymentsServiceServer {
           senderWalletAddress: call.request.getWalletAddress(),
           paymentIntentId: call.request.getPaymentIntentId(),
           quoteId: call.request.getQuoteId(),
-          debitAmount: call.request.getDebitAmount() || undefined
+          debitAmount: call.request.getDebitAmount() || undefined,
+          remoteUrl: call.request.getRemoteUrl() || undefined
         },
         commandId
       );
@@ -394,7 +395,9 @@ export class PaymentsServiceServer {
       response.setAssetCode(payment.assetCode);
       response.setAssetScale(payment.assetScale);
       response.setDebitAmount(Number(payment.debitAmount));
-      response.setReceiveAmount(Number(payment.receiveAmount));
+      if (payment.receiveAmount !== null) {
+        response.setReceiveAmount(Number(payment.receiveAmount));
+      }
       response.setSentAmount(Number(payment.sentAmount));
       if (payment.quoteId) {
         response.setQuoteId(payment.quoteId);
@@ -495,7 +498,9 @@ export class PaymentsServiceServer {
         this._toServiceError(evt.payload)
       );
     } else if (PaymentIntentDomainEvent.isPaymentCreatedEvent(evt)) {
-      const response = new CreatePaymentResponse().setId(evt.payload.id);
+      const response = new CreatePaymentResponse()
+        .setId(evt.payload.id)
+        .setPaymentIntentId(evt.payload.paymentIntentId);
       this._resolvePendingResponse(pending, requestId, null, response);
     } else if (PaymentIntentDomainEvent.isPaymentCreateFailedEvent(evt)) {
       this._resolvePendingResponse(

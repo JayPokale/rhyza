@@ -216,14 +216,48 @@ export class PaymentsClient {
     });
   }
 
+  /**
+   * Creates a payment against a payment intent, identified by its local id
+   * or its incoming payment URL (as with `createQuote`).
+   *
+   * `quoteId` is optional. Without one, a payment against a remote intent
+   * requires `debitAmount`, and `getPayment` reports `receiveAmount: null`
+   * for it. A payment against a local intent needs `debitAmount` only if the
+   * intent has no `incomingAmount`. The response's `paymentIntentId` is the
+   * canonical local id — use it for subsequent calls when the intent was
+   * identified by URL.
+   */
   async createPayment(
     id: string,
+    incomingPayment: IncomingPaymentInput,
     walletAddressId: string,
     walletAddress: string,
-    paymentIntentId: string,
     quoteId?: string,
     debitAmount?: number
   ): Promise<CreatePaymentResponse.AsObject> {
+    let paymentIntentId: string;
+    let remoteUrl: string | undefined;
+
+    if ('incomingPaymentUrl' in incomingPayment) {
+      if (!this._openPaymentsUrl) {
+        throw createServiceError(
+          status.FAILED_PRECONDITION,
+          'Remote payments are currently not configured',
+          'RemotePaymentsNotConfigured'
+        );
+      }
+      if (
+        incomingPayment.incomingPaymentUrl.startsWith(this._openPaymentsUrl)
+      ) {
+        paymentIntentId = incomingPayment.incomingPaymentUrl.split('/').at(-1)!;
+      } else {
+        paymentIntentId = randomUUID();
+        remoteUrl = incomingPayment.incomingPaymentUrl;
+      }
+    } else {
+      paymentIntentId = incomingPayment.incomingPaymentId;
+    }
+
     const request = new CreatePaymentRequest();
     request.setId(id);
     request.setWalletAddressId(walletAddressId);
@@ -238,6 +272,10 @@ export class PaymentsClient {
       request.setDebitAmount(debitAmount);
     }
 
+    if (remoteUrl) {
+      request.setRemoteUrl(remoteUrl);
+    }
+
     return new Promise((resolve, reject) => {
       this._grpcClient.createPayment(
         request,
@@ -248,7 +286,8 @@ export class PaymentsClient {
           }
 
           return resolve({
-            id: response.getId()
+            id: response.getId(),
+            paymentIntentId: response.getPaymentIntentId()
           });
         }
       );
@@ -359,7 +398,11 @@ export class PaymentsClient {
     Omit<
       GetPaymentResponse.AsObject,
       'debitAmount' | 'receiveAmount' | 'sentAmount'
-    > & { debitAmount: bigint; receiveAmount: bigint; sentAmount: bigint }
+    > & {
+      debitAmount: bigint;
+      receiveAmount: bigint | null;
+      sentAmount: bigint;
+    }
   > {
     const request = new GetPaymentRequest();
     request.setId(id);
@@ -386,7 +429,9 @@ export class PaymentsClient {
             assetScale: response.getAssetScale(),
             quoteId: quoteId || undefined,
             debitAmount: BigInt(response.getDebitAmount()),
-            receiveAmount: BigInt(response.getReceiveAmount()),
+            receiveAmount: response.hasReceiveAmount()
+              ? BigInt(response.getReceiveAmount()!)
+              : null,
             sentAmount: BigInt(response.getSentAmount())
           });
         }

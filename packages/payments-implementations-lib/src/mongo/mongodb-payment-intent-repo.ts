@@ -409,9 +409,22 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
         });
       }
     }
+    const peerIdUpdates = paymentUpdates.filter(
+      (update) => update.paymentIntent.peerId
+    );
 
     try {
       await this._sentPaymentCollection.insertMany(newPaymentEntities);
+      if (peerIdUpdates.length > 0) {
+        await this._paymentIntentCollection.bulkWrite(
+          peerIdUpdates.map((update) => ({
+            updateOne: {
+              filter: { id: update.paymentIntent.id },
+              update: { $set: { peerId: update.paymentIntent.peerId } }
+            }
+          }))
+        );
+      }
     } catch (e) {
       this._logger.error(e);
       throw new Error(

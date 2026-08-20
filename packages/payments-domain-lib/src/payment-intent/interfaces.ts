@@ -66,7 +66,7 @@ export interface ISentPayment {
   cancelReason?: string;
   quoteId?: string;
   debitAmount: bigint;
-  receiveAmount: bigint;
+  receiveAmount: bigint | null;
   sentAmount: bigint;
   ledgerTransferId?: string;
   failReason?: string;

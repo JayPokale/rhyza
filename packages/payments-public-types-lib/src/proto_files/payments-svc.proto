@@ -96,11 +96,13 @@ message CreatePaymentRequest {
   string payment_intent_id = 4;
   optional string quote_id = 5;
   optional uint64 debit_amount = 6;
+  optional string remote_url = 7;
 }
 
 // Response containing the ID of the created payment.
 message CreatePaymentResponse {
   string id = 1;
+  string payment_intent_id = 2;
 }
 
 // Request to approve a payment.
@@ -171,6 +173,6 @@ message GetPaymentResponse {
   uint32 asset_scale = 7;
   optional string quote_id = 8;
   uint64 debit_amount = 9;
-  uint64 receive_amount = 10;
+  optional uint64 receive_amount = 10;
   uint64 sent_amount = 11;
 }
