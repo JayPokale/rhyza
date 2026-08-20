@@ -130,11 +130,11 @@ export class GrantEntity implements IGrant {
     entity: GrantEntity;
     accessToken?: IAccessToken;
   } {
-    const isContinuableGrant = input.accesses?.some((access) =>
+    const isInteractiveGrant = input.accesses?.some((access) =>
       InteractiveAccessType.includes(access.type)
     );
 
-    if (isContinuableGrant) {
+    if (isInteractiveGrant) {
       const entity = new GrantEntity({
         ...input,
         state: GrantState.PENDING,

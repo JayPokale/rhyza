@@ -74,6 +74,7 @@ describe('GrantEntity', () => {
 
       assert.equal(entity.state, 'ISSUED');
       assert.equal(entity.continueToken, undefined);
+      assert.equal(entity.continueId, undefined);
 
       assert.equal(entity.interactionNonce, undefined);
       assert.equal(entity.interaction, undefined);
