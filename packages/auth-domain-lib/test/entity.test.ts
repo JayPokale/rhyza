@@ -2,10 +2,11 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 
-import { GrantEntity,  } from '../src/grant/entity';
+import { GrantEntity } from '../src/grant/entity';
 import {
   InvalidGrantError,
-  NonInteractiveGrantError
+  NonInteractiveGrantError,
+  InvalidInteractionError
 } from '../src/grant/errors';
 import {
   AccessAction,
@@ -275,7 +276,7 @@ describe('GrantEntity', () => {
 
     it('issues an access token when continued with an approved interact ref', () => {
       const entity = makeContinuableGrant();
-      const interaction = entity.startInteraction(randomUUID());
+      const interaction = entity.startInteraction();
       entity.handleInteraction(InteractionState.APPROVED);
 
       const accessToken = entity.continue(
@@ -297,7 +298,7 @@ describe('GrantEntity', () => {
 
     it('finalizes the grant as rejected when continued with a rejected interact ref', () => {
       const entity = makeContinuableGrant();
-      const interaction = entity.startInteraction(randomUUID());
+      const interaction = entity.startInteraction();
       entity.handleInteraction(InteractionState.REJECTED);
 
       const accessToken = entity.continue(
@@ -321,7 +322,7 @@ describe('GrantEntity', () => {
         InvalidInteractionError
       );
 
-      const interaction = entity.startInteraction(randomUUID());
+      const interaction = entity.startInteraction();
       assert.throws(
         () => entity.continue(token, id, interaction.interactRef),
         InvalidInteractionError

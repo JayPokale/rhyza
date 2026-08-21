@@ -163,6 +163,8 @@ export class GrantAggregate {
         event = this.handleRotateTokenCommand(cmd as RotateTokenCmd);
       } else if (cmd.msgName === RevokeTokenCmd.name) {
         event = this.handleRevokeTokenCommand(cmd as RevokeTokenCmd);
+      } else if (cmd.msgName === StartInteractionCmd.name) {
+        event = this.handleStartInteractionCommand(cmd as StartInteractionCmd);
       } else if (cmd.msgName === AcceptInteractionCommand.name) {
         event = this.handleAcceptInteractionCommand(
           cmd as AcceptInteractionCommand
@@ -592,22 +594,22 @@ export class GrantAggregate {
         if (!grant) {
           this._logger.error(
             `Grant ${id} missing from grantMap during continue flush`
-          )
+          );
           continue;
         }
         continuedEntities.push({
-            id: grant.id,
-            state: grant.state,
-            continueToken: grant.continueToken,
-            continueId: grant.continueId,
-            lastContinuedAt: grant.lastContinuedAt,
-            accessToken: this.continuedGrantAccessTokens.get(id)
-          });
+          id: grant.id,
+          state: grant.state,
+          continueToken: grant.continueToken,
+          continueId: grant.continueId,
+          lastContinuedAt: grant.lastContinuedAt,
+          accessToken: this.continuedGrantAccessTokens.get(id)
+        });
       }
 
       promises.push(this._repo.storeContinuedGrants(continuedEntities));
     }
-    
+
     if (this.newGrantInteractions.size > 0) {
       const updates: IGrant[] = [];
       for (const id of this.newGrantInteractions) {
@@ -620,7 +622,7 @@ export class GrantAggregate {
         }
         updates.push(grant);
       }
-      
+
       promises.push(this._repo.storeInteractions(updates));
     }
 

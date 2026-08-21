@@ -188,7 +188,12 @@ export class GrantEntity implements IGrant {
 
   // Generates an interaction for the grant.
   startInteraction(): IInteraction {
-    if (this._state === GrantState.APPROVED || this._state === GrantState.ISSUED || this._state === GrantState.REVOKED || this._state === GrantState.REJECTED) {
+    if (
+      this._state === GrantState.APPROVED ||
+      this._state === GrantState.ISSUED ||
+      this._state === GrantState.REVOKED ||
+      this._state === GrantState.REJECTED
+    ) {
       throw new InvalidGrantError();
     }
 
