@@ -520,7 +520,7 @@ export class GrantAggregate {
           continue;
         }
 
-        newEntities.push(grant);
+        newEntities.push(grant.toObject());
       }
 
       promises.push(this._repo.storeMany(newEntities));
