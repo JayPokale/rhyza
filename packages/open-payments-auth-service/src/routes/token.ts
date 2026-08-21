@@ -47,14 +47,14 @@ export async function tokenRoutes(
       );
 
       return reply.status(200).send({
-        access_token: createAccessTokenResponse(
-          grantId,
-          result.newAccessTokenManagementId,
-          result.newAccessTokenValue,
-          result.newAccessTokenExpiresIn,
-          result.access,
+        access_token: createAccessTokenResponse({
+          grantId: result.grantId,
+          accessTokenExpiresIn: result.newAccessTokenExpiresIn,
+          accessTokenManagementId: result.newAccessTokenManagementId,
+          accessTokenValue: result.newAccessTokenValue,
+          access: result.access,
           openPaymentsAuthServerUrl
-        )
+        })
       });
     }
   );

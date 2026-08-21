@@ -96,6 +96,7 @@ export async function grantRoutes(
 
       const continueResponse = createContinueResponse(
         result.id,
+        result.continueId,
         result.continueToken,
         openPaymentsAuthServerUrl
       );
@@ -124,14 +125,14 @@ export async function grantRoutes(
       }
 
       return reply.status(200).send({
-        access_token: createAccessTokenResponse(
-          result.id,
-          result.accessTokenManagementId,
-          result.accessTokenValue,
-          result.accessTokenExpiresIn,
-          result.access,
+        access_token: createAccessTokenResponse({
+          grantId: result.id,
+          accessTokenExpiresIn: result.accessTokenExpiresIn,
+          accessTokenManagementId: result.accessTokenManagementId,
+          accessTokenValue: result.accessTokenValue,
+          access: result.access,
           openPaymentsAuthServerUrl
-        ),
+        }),
         continue: continueResponse
       });
     }
@@ -161,31 +162,36 @@ export async function grantRoutes(
 
       const result = await authClient.continueGrant(
         grantId,
+        extractSignatureData(request),
         continueId,
         continueToken,
-        request.body.interact_ref ?? ''
-        //TODO pass in http signature data
+        request.body.interact_ref
       );
 
       const continueResponse = createContinueResponse(
         result.id,
+        result.continueId,
         result.continueToken,
         openPaymentsAuthServerUrl
       );
 
-      if (!result.accessTokenValue) {
+      if (
+        !result.accessTokenValue ||
+        !result.accessTokenManagementId ||
+        !result.accessTokenExpiresIn
+      ) {
         return reply.status(200).send({ continue: continueResponse });
       }
 
       return reply.status(200).send({
-        access_token: createAccessTokenResponse(
-          result.id,
-          result.accessTokenValue,
-          result.accessTokenManagementId,
-          result.accessTokenExpiresIn,
-          result.access,
+        access_token: createAccessTokenResponse({
+          grantId: result.id,
+          accessTokenExpiresIn: result.accessTokenExpiresIn,
+          accessTokenManagementId: result.accessTokenManagementId,
+          accessTokenValue: result.accessTokenValue,
+          access: result.access,
           openPaymentsAuthServerUrl
-        ),
+        }),
         continue: continueResponse
       });
     }
