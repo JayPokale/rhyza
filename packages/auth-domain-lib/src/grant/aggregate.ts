@@ -677,17 +677,17 @@ export class GrantAggregate {
         if (!grant) {
           this._logger.error(
             `Grant ${id} missing from grantMap during continue flush`
-          )
+          );
           continue;
         }
         continuedEntities.push({
-            id: grant.id,
-            state: grant.state,
-            continueToken: grant.continueToken,
-            continueId: grant.continueId,
-            lastContinuedAt: grant.lastContinuedAt,
-            accessToken: this.continuedGrantAccessTokens.get(id)
-          });
+          id: grant.id,
+          state: grant.state,
+          continueToken: grant.continueToken,
+          continueId: grant.continueId,
+          lastContinuedAt: grant.lastContinuedAt,
+          accessToken: this.continuedGrantAccessTokens.get(id)
+        });
       }
 
       promises.push(this._repo.storeContinuedGrants(continuedEntities));
