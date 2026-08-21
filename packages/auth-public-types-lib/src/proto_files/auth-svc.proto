@@ -112,15 +112,16 @@ message ContinueGrantRequest {
 	string id = 1;
 	string continue_id = 2;
 	string continue_token = 3;
-	string interact_ref = 4;
+	optional string interact_ref = 4;
+	SignatureData signature_data = 5;
 }
 
 message ContinueGrantResponse {
 	string id = 1;
-	string finalization_reason = 2;
-	string access_token_value = 3;
-	string access_token_management_id = 4;
-	int32 access_token_expires_in = 5;
+	string state = 2;
+	optional string access_token_value = 3;
+	optional string access_token_management_id = 4;
+	optional int32 access_token_expires_in = 5;
 	repeated AccessItem access = 6;
 	string continue_id = 7;
 	string continue_token = 8;

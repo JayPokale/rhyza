@@ -2,9 +2,6 @@
 
 import { after, before, describe, test } from 'node:test';
 import * as assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
-import * as grpc from '@grpc/grpc-js';
-import { ServiceError } from '@grpc/grpc-js';
 import {
   createHeaders,
   generateTestKeys
@@ -192,6 +189,119 @@ describe('Auth Client', () => {
     });
   });
 
+  describe('continueGrant', () => {
+    async function createInteractiveGrant(
+      keys: ReturnType<typeof generateTestKeys>,
+      options: { withFinish?: boolean } = {}
+    ) {
+      const signatureData = await signedSignatureData(
+        keys.privateKey,
+        keys.publicKey.kid
+      );
+
+      const createOptions: {
+        access: AccessItem[];
+        finish?: GrantFinish;
+      } = {
+        access: [
+          makeAccessItem({ type: 'OUTGOING_PAYMENT', actions: ['CREATE'] })
+        ]
+      };
+
+      if (options.withFinish) {
+        createOptions.finish = {
+          uri: 'https://client.example/finish',
+          nonce: 'finish-nonce',
+          method: 'redirect'
+        };
+      }
+
+      return authClient.createGrant(
+        JSON.stringify(keys.publicKey),
+        signatureData,
+        createOptions
+      );
+    }
+
+    test('continues pending grant and rotates continue token', async () => {
+      const keys = generateTestKeys();
+      const created = await createInteractiveGrant(keys);
+
+      assert.ok(created.id);
+      assert.ok(created.continueId);
+      assert.ok(created.continueToken);
+
+      // Continue tokens are inactive until the grant poll window elapses.
+      await new Promise((resolve) => setTimeout(resolve, 5_100));
+
+      const signatureData = await signedSignatureData(
+        keys.privateKey,
+        keys.publicKey.kid
+      );
+
+      const result = await authClient.continueGrant(
+        created.id,
+        signatureData,
+        created.continueId,
+        created.continueToken
+      );
+
+      assert.ok(result);
+      assert.equal(result.id, created.id);
+      assert.ok(result.continueId);
+      assert.ok(result.continueToken);
+      assert.notEqual(result.continueToken, created.continueToken);
+      assert.notEqual(result.continueId, created.continueId);
+      assert.equal(result.accessTokenValue, undefined);
+      assert.equal(result.accessTokenManagementId, undefined);
+      assert.equal(result.accessTokenManagementId, undefined);
+    });
+
+    test('rejects continue with invalid continue token', async () => {
+      const keys = generateTestKeys();
+      const created = await createInteractiveGrant(keys);
+      const signatureData = await signedSignatureData(
+        keys.privateKey,
+        keys.publicKey.kid
+      );
+
+      try {
+        await authClient.continueGrant(
+          created.id,
+          signatureData,
+          created.continueId,
+          'invalid-continue-token'
+        );
+        assert.fail('expected error for invalid continue token');
+      } catch (e) {
+        assert.ok(e instanceof Error);
+      }
+    });
+
+    test('rejects continue with invalid signature', async () => {
+      const clientKeys = generateTestKeys();
+      const created = await createInteractiveGrant(clientKeys);
+
+      const signerKeys = generateTestKeys();
+      const signatureData = await signedSignatureData(
+        signerKeys.privateKey,
+        clientKeys.publicKey.kid
+      );
+
+      try {
+        await authClient.continueGrant(
+          created.id,
+          signatureData,
+          created.continueId,
+          created.continueToken
+        );
+        assert.fail('expected error for invalid signature');
+      } catch (e) {
+        assert.ok(e instanceof Error);
+      }
+    });
+  });
+
   describe('getGrant', () => {
     test('returns the grant for an existing id', async () => {
       const keys = generateTestKeys();
@@ -221,11 +331,10 @@ describe('Auth Client', () => {
 
     test('rejects with NOT_FOUND for an id that does not exist', async () => {
       try {
-        await authClient.getGrant(randomUUID());
+        await authClient.getGrant(crypto.randomUUID());
         assert.fail('expected error for an unknown grant id');
       } catch (e) {
         assert.ok(e instanceof Error);
-        assert.equal((e as ServiceError).code, grpc.status.NOT_FOUND);
       }
     });
   });

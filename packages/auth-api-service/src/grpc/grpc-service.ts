@@ -299,12 +299,26 @@ export class AuthServiceServer {
       const commandId = crypto.randomUUID();
       this._storePendingResponse(commandId, call, callback);
 
+      const signatureDataMsg = call.request.getSignatureData();
+      if (!signatureDataMsg) {
+        callback(new Error('Missing signature data'));
+        return;
+      }
+      const signatureData = {
+        url: signatureDataMsg.getUrl(),
+        method: signatureDataMsg.getMethod(),
+        body: signatureDataMsg.getBody(),
+        headers: JSON.parse(signatureDataMsg.getHeaders()),
+        kid: signatureDataMsg.getKid()
+      };
+
       const cmd = new ContinueGrantCmd(
         {
           id: call.request.getId(),
           continueId: call.request.getContinueId(),
           continueToken: call.request.getContinueToken(),
-          interactRef: call.request.getInteractRef()
+          interactRef: call.request.getInteractRef() || undefined,
+          signatureData
         },
         commandId
       );
@@ -425,9 +439,10 @@ export class AuthServiceServer {
       response.setStartMethodsList(grant.startMethods);
       response.setState(grant.state);
 
-      if (grant.continueToken) response.setContinueToken(grant.continueToken);
-
-      if (grant.continueId) response.setContinueId(grant.continueId);
+      if (grant.continueToken) {
+        response.setContinueToken(grant.continueToken);
+        response.setContinueId(grant.id);
+      }
 
       if (grant.client) {
         const serializedClient =
@@ -577,7 +592,7 @@ export class AuthServiceServer {
       const payload: GrantContinuedEvent['payload'] = event.payload;
 
       response.setId(payload.id);
-      response.setFinalizationReason(payload.finalizationReason);
+      response.setState(payload.state);
 
       if (payload.accessTokenValue) {
         response.setAccessTokenValue(payload.accessTokenValue);
