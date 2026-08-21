@@ -53,7 +53,9 @@ export async function grantRoutes(
   }>(
     '/',
     {
-      onRequest: requireSignatureHeaders,
+      onRequest: async (request) => {
+        requireSignatureHeaders(request);
+      },
       schema: {
         body: { $ref: '#/components/schemas/grant-request#' }
       }
@@ -142,7 +144,7 @@ export async function grantRoutes(
   }>(
     '/continue/:id',
     {
-      onRequest: (request) => {
+      onRequest: async (request) => {
         requireSignatureHeaders(request);
         getGnapTokenOrThrow(request);
       },
@@ -194,7 +196,7 @@ export async function grantRoutes(
   }>(
     '/continue/:id',
     {
-      onRequest: (request) => {
+      onRequest: async (request) => {
         requireSignatureHeaders(request);
         getGnapTokenOrThrow(request);
       }

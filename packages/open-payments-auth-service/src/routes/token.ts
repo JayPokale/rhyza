@@ -27,7 +27,7 @@ export async function tokenRoutes(
   }>(
     '/token/:id',
     {
-      onRequest: (request) => {
+      onRequest: async (request) => {
         requireSignatureHeaders(request);
         getGnapTokenOrThrow(request);
       }
@@ -64,7 +64,7 @@ export async function tokenRoutes(
   }>(
     '/token/:id',
     {
-      onRequest: (request) => {
+      onRequest: async (request) => {
         requireSignatureHeaders(request);
         getGnapTokenOrThrow(request);
       }
