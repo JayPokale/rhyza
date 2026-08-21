@@ -109,6 +109,18 @@ export async function grantRoutes(
         });
       }
 
+      if (
+        !result.accessTokenExpiresIn ||
+        !result.accessTokenValue ||
+        !result.accessTokenManagementId
+      ) {
+        throw new OpenPaymentsAuthServerRouteError(
+          500,
+          'Could not generate access token for grant request',
+          'request_denied'
+        );
+      }
+
       return reply.status(200).send({
         access_token: createAccessTokenResponse(
           result.id,
