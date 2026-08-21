@@ -151,7 +151,10 @@ export class GrantEntity implements IGrant {
     } else {
       const entity = new GrantEntity({
         ...input,
-        state: GrantState.ISSUED,
+        state: GrantState.APPROVED,
+        continueToken: generateContinueToken(),
+        continueId: uuid(),
+        lastContinuedAt: new Date(),
         accessTokens: []
       });
 
@@ -246,6 +249,8 @@ export class GrantEntity implements IGrant {
 
       if (this._state === GrantState.APPROVED) {
         this._state = GrantState.ISSUED;
+        this._continueToken = undefined;
+        this._continueId = undefined;
         return this.createAccessToken();
       }
 
@@ -298,12 +303,7 @@ export class GrantEntity implements IGrant {
   }
 
   // Issues a new access token for this grant.
-  createAccessToken(): IAccessToken {
-    if (this.state !== GrantState.ISSUED) {
-      throw new InvalidGrantError(
-        'Cannot create access token for grant that has not been issued'
-      );
-    }
+  private createAccessToken(): IAccessToken {
     const createdAt = new Date();
     const newAccessToken: IAccessToken = {
       value: generateAccessToken(),
