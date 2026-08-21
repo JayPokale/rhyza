@@ -119,9 +119,9 @@ message ContinueGrantRequest {
 message ContinueGrantResponse {
 	string id = 1;
 	string state = 2;
-	string access_token_value = 3;
-	string access_token_management_id = 4;
-	int32 access_token_expires_in = 5;
+	optional string access_token_value = 3;
+	optional string access_token_management_id = 4;
+	optional int32 access_token_expires_in = 5;
 	repeated AccessItem access = 6;
 	string continue_id = 7;
 	string continue_token = 8;
