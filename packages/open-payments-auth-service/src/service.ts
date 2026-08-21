@@ -54,6 +54,16 @@ export class OpenPaymentsAuthServer {
     });
 
     const validator = new FastifyOpenApiValidator(authServerOpenApiJsonSchema);
+    validator.addFormat('uint64', {
+      validate: (data: string) => {
+        try {
+          const value = BigInt(data);
+          return value >= BigInt(0);
+        } catch {
+          return false;
+        }
+      }
+    });
 
     this.server.setValidatorCompiler(({ schema }) => validator.compile(schema));
 
