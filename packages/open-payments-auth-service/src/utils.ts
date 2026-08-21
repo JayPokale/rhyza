@@ -62,7 +62,7 @@ export function createContinueResponse(
       value: continueTokenValue
     },
     // TODO wait
-    uri: `${openPaymentsAuthServerUrl}/continue/${encodeCompoundId(grantId, continueId)}`,
+    uri: `${openPaymentsAuthServerUrl}/continue/${encodeCompoundId(grantId, continueId)}`
   };
 }
 
