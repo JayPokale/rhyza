@@ -481,9 +481,9 @@ function fromPbContinueGrantResponse(
 ): ContinueGrantResult {
   return {
     id: response.getId(),
-    accessTokenValue: response.getAccessTokenValue(),
-    accessTokenManagementId: response.getAccessTokenManagementId(),
-    accessTokenExpiresIn: response.getAccessTokenExpiresIn(),
+    accessTokenValue: response.getAccessTokenValue() || undefined,
+    accessTokenManagementId: response.getAccessTokenManagementId() || undefined,
+    accessTokenExpiresIn: response.getAccessTokenExpiresIn() || undefined,
     access: response.getAccessList().map(fromPbAccessItem),
     continueId: response.getContinueId(),
     continueToken: response.getContinueToken()

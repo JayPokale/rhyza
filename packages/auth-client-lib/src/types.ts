@@ -86,9 +86,9 @@ export interface CreateGrantResult {
 
 export interface ContinueGrantResult {
   id: string;
-  accessTokenValue: string;
-  accessTokenManagementId: string;
-  accessTokenExpiresIn: number;
+  accessTokenValue?: string;
+  accessTokenManagementId?: string;
+  accessTokenExpiresIn?: number;
   access: AccessItem[];
   continueId: string;
   continueToken: string;
