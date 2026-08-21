@@ -301,4 +301,41 @@ describe('Auth Client', () => {
       }
     });
   });
+
+  describe('getGrant', () => {
+    test('returns the grant for an existing id', async () => {
+      const keys = generateTestKeys();
+      const signatureData = await signedSignatureData(
+        keys.privateKey,
+        keys.publicKey.kid
+      );
+
+      const access = makeAccessItem({
+        type: 'INCOMING_PAYMENT',
+        actions: ['READ']
+      });
+      const createResult = await authClient.createGrant(
+        JSON.stringify(keys.publicKey),
+        signatureData,
+        { access: [access] }
+      );
+
+      const result = await authClient.getGrant(createResult.id);
+
+      assert.ok(result);
+      assert.equal(result.id, createResult.id);
+      assert.equal(result.state, 'APPROVED');
+      assert.equal(result.client, JSON.stringify(keys.publicKey));
+      assert.equal(result.accesses.length, 1);
+    });
+
+    test('rejects with NOT_FOUND for an id that does not exist', async () => {
+      try {
+        await authClient.getGrant(crypto.randomUUID());
+        assert.fail('expected error for an unknown grant id');
+      } catch (e) {
+        assert.ok(e instanceof Error);
+      }
+    });
+  });
 });
