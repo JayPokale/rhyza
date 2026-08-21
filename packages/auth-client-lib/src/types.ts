@@ -59,7 +59,7 @@ export interface GetGrantResult {
   startMethods: string[];
   continueToken: string;
   continueId: string;
-  interactionNonce: string;
+  interactionNonce?: string;
   state: string;
   finalizationReason: string;
   client: string;
@@ -76,10 +76,10 @@ export interface CreateGrantResult {
   id: string;
   continueId: string;
   continueToken: string;
-  interactionNonce: string;
-  accessTokenValue: string;
-  accessTokenManagementId: string;
-  accessTokenExpiresIn: number;
+  interactionNonce?: string;
+  accessTokenValue?: string;
+  accessTokenManagementId?: string;
+  accessTokenExpiresIn?: number;
   access: AccessItem[];
   subjectIds: SubjectId[];
 }
