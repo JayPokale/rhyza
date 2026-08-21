@@ -122,8 +122,8 @@ export interface IInteraction {
 export interface IGrant {
   id: string;
   startMethods: IStartMethod[];
-  continueToken?: string;
-  continueId?: string;
+  continueToken: string;
+  continueId: string;
   state: GrantState;
   finalizationReason?: GrantFinalization;
   client?: string | IJsonWebKey;

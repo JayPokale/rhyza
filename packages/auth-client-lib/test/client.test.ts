@@ -9,7 +9,13 @@ import {
   createHeaders,
   generateTestKeys
 } from '@interledger/http-signature-utils';
-import { AuthClient, AccessItem, GrantFinish, SubjectId } from '../src/client';
+import {
+  AuthClient,
+  AccessItem,
+  GrantFinish,
+  SubjectId,
+  AccessLimits
+} from '../src/';
 
 describe('Auth Client', () => {
   const AUTH_GRPC_URL = process.env['AUTH_GRPC_URL'] || '0.0.0.0:50054';
@@ -52,11 +58,17 @@ describe('Auth Client', () => {
   }
 
   function makeAccessItem(
-    overrides: { type?: string; actions?: string[] } = {}
+    overrides: {
+      type?: string;
+      actions?: string[];
+      limits?: AccessLimits;
+      identifier?: string;
+    } = {}
   ): AccessItem {
     return {
-      type: overrides.type ?? 'INCOMING_PAYMENT',
-      actions: overrides.actions ?? ['READ']
+      type: 'INCOMING_PAYMENT',
+      actions: ['READ'],
+      ...overrides
     };
   }
 
@@ -101,9 +113,9 @@ describe('Auth Client', () => {
       assert.ok(result.accessTokenValue);
       assert.ok(result.accessTokenManagementId);
       assert.ok(result.accessTokenExpiresIn);
-      assert.equal(result.continueId, '');
-      assert.equal(result.continueToken, '');
-      assert.equal(result.interactionNonce, '');
+      assert.ok(result.continueId);
+      assert.ok(result.continueToken);
+      assert.equal(result.interactionNonce, undefined);
       assert.deepStrictEqual(result.access, [access]);
       assert.deepStrictEqual(result.subjectIds, [subjectId]);
     });
@@ -122,7 +134,18 @@ describe('Auth Client', () => {
       };
 
       const access = [
-        makeAccessItem({ type: 'OUTGOING_PAYMENT', actions: ['CREATE'] })
+        makeAccessItem({
+          type: 'OUTGOING_PAYMENT',
+          actions: ['CREATE'],
+          limits: {
+            debitAmount: {
+              assetCode: 'USD',
+              assetScale: 2,
+              value: '100'
+            }
+          },
+          identifier: 'https://wallet.com/alice'
+        })
       ];
 
       const result = await authClient.createGrant(
@@ -138,9 +161,9 @@ describe('Auth Client', () => {
       assert.ok(result.continueId);
       assert.ok(result.continueToken);
       assert.ok(result.interactionNonce);
-      assert.equal(result.accessTokenValue, '');
-      assert.equal(result.accessTokenManagementId, '');
-      assert.equal(result.accessTokenExpiresIn, 0);
+      assert.equal(result.accessTokenValue, undefined);
+      assert.equal(result.accessTokenManagementId, undefined);
+      assert.equal(result.accessTokenExpiresIn, undefined);
       assert.deepStrictEqual(result.access, access);
     });
 
@@ -191,7 +214,7 @@ describe('Auth Client', () => {
 
       assert.ok(result);
       assert.equal(result.id, createResult.id);
-      assert.equal(result.state, 'FINALIZED');
+      assert.equal(result.state, 'APPROVED');
       assert.equal(result.client, JSON.stringify(keys.publicKey));
       assert.equal(result.accesses.length, 1);
     });

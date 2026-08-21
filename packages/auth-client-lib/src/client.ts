@@ -381,12 +381,22 @@ function toPbAccessItem(input: AccessItem): PbAccessItem {
 }
 
 function fromPbAccessItem(accessItem: PbAccessItem): AccessItem {
-  return {
+  const item: AccessItem = {
     type: accessItem.getType(),
-    actions: accessItem.getActionsList(),
-    identifier: accessItem.getIdentifier() || undefined,
-    limits: fromPbAccessLimits(accessItem.getLimits())
+    actions: accessItem.getActionsList()
   };
+
+  const identifier = accessItem.getIdentifier();
+  if (identifier) {
+    item.identifier = identifier;
+  }
+
+  const limits = fromPbAccessLimits(accessItem.getLimits());
+  if (limits) {
+    item.limits = limits;
+  }
+
+  return item;
 }
 
 function toPbSubjectId(input: SubjectId): PbSubjectId {
@@ -428,7 +438,7 @@ function fromPbGrant(grant: PbGrant): GetGrantResult {
     startMethods: grant.getStartMethodsList(),
     continueToken: grant.getContinueToken(),
     continueId: grant.getContinueId(),
-    interactionNonce: grant.getInteractionNonce(),
+    interactionNonce: grant.getInteractionNonce() || undefined,
     state: grant.getState(),
     finalizationReason: grant.getFinalizationReason(),
     client: grant.getClient(),
@@ -449,10 +459,10 @@ function fromPbCreateGrantResponse(
     id: response.getId(),
     continueId: response.getContinueId(),
     continueToken: response.getContinueToken(),
-    interactionNonce: response.getInteractionNonce(),
-    accessTokenValue: response.getAccessTokenValue(),
-    accessTokenManagementId: response.getAccessTokenManagementId(),
-    accessTokenExpiresIn: response.getAccessTokenExpiresIn(),
+    interactionNonce: response.getInteractionNonce() || undefined,
+    accessTokenValue: response.getAccessTokenValue() || undefined,
+    accessTokenManagementId: response.getAccessTokenManagementId() || undefined,
+    accessTokenExpiresIn: response.getAccessTokenExpiresIn() || undefined,
     access: response.getAccessList().map(fromPbAccessItem),
     subjectIds: response.getSubIdsList().map(fromPbSubjectId)
   };

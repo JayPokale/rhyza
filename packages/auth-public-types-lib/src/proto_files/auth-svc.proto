@@ -96,10 +96,10 @@ message CreateGrantResponse {
 	string id = 1;
 	string continue_id = 2;
 	string continue_token = 3;
-	string interaction_nonce = 4;
-	string access_token_value = 5;
-	string access_token_management_id = 6;
-	int32 access_token_expires_in = 7;
+	optional string interaction_nonce = 4;
+	optional string access_token_value = 5;
+	optional string access_token_management_id = 6;
+	optional int32 access_token_expires_in = 7;
 	repeated AccessItem access = 8;
 	repeated SubjectId sub_ids = 9;
 }

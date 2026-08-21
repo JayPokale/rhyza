@@ -143,10 +143,10 @@ If a non-200 status is returned, indicating an error, or the request times out, 
   <Mermaid
     graph={`sequenceDiagram
       participant R as Rhyza
-      participant ASE as Account servicing entity
+      participant FSP as Financial service provider
 
-      R->>ASE: Fires payment_intent.created event to webhook endpoint
-      ASE->>ASE: No action required
+      R->>FSP: Fires payment_intent.created event to webhook endpoint
+      FSP->>FSP: No action required
 
 `}
 />
@@ -175,16 +175,16 @@ A payment for $12 was created.
   <Mermaid
     graph={`sequenceDiagram
       participant R as Rhyza
-      participant ASE as Account servicing entity
+      participant FSP as Financial service provider
 
-      R->>ASE: Fires payment.created event to webhook endpoint,<br/> debitAmount: $12
-      ASE->>ASE: Checks that sender's account has sufficient funds
+      R->>FSP: Fires payment.created event to webhook endpoint,<br/> debitAmount: $12
+      FSP->>FSP: Checks that sender's account has sufficient funds
       alt Account has sufficient funds
-        ASE->>ASE: Put hold of $12 on sender's account
-        ASE->>R: Admin API call: POST /payment-intents/{intentId}/payments/{id}/approve
-        R-->>ASE: success: true
+        FSP->>FSP: Put hold of $12 on sender's account
+        FSP->>R: Admin API call: POST /payment-intents/{intentId}/payments/{id}/approve
+        R-->>FSP: success: true
       else Account has insufficient funds
-        ASE->>ASE: Ignore or log failure
+        FSP->>FSP: Ignore or log failure
       end
 
 `}

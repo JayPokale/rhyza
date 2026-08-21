@@ -29,7 +29,7 @@ export default defineConfig({
     starlight({
       title: 'Rhyza',
       description:
-        'Rhyza is open source software that allows an Account Servicing Entity to enable Interledger functionality on its users’ accounts.',
+        "Rhyza is open source software that allows a Financial Service Provider to enable Interledger functionality on its users' accounts.",
       customCss: [
         './node_modules/@interledger/docs-design-system/src/styles/teal-theme.css',
         './node_modules/@interledger/docs-design-system/src/styles/ilf-docs.css',
@@ -97,8 +97,8 @@ export default defineConfig({
               collapsed: true,
               items: [
                 {
-                  label: 'Account servicing entity',
-                  link: '/overview/concepts/account-servicing-entity'
+                  label: 'Financial service provider',
+                  link: '/overview/concepts/financial-service-provider'
                 },
                 {
                   label: 'Accounting',
