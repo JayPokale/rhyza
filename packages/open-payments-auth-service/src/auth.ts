@@ -57,9 +57,7 @@ export function extractSignatureData(
   };
 }
 
-export async function requireSignatureHeaders(
-  request: FastifyRequest
-): Promise<void> {
+export function requireSignatureHeaders(request: FastifyRequest): void {
   if (!request.headers['signature']) {
     throw new OpenPaymentsAuthServerRouteError(
       401,
@@ -77,9 +75,7 @@ export async function requireSignatureHeaders(
   }
 }
 
-export async function getGnapTokenOrThrow(
-  request: FastifyRequest
-): Promise<void> {
+export function getGnapTokenOrThrow(request: FastifyRequest): void {
   (request as FastifyRequest & { gnapToken: string }).gnapToken =
     extractGnapToken(request);
 }
