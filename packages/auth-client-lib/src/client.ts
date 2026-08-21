@@ -116,13 +116,7 @@ export class AuthClient {
       request.setFinish(toPbGrantRequestFinish(options.finish));
     }
 
-    const signatureDataPb = new PbSignatureData();
-    signatureDataPb.setUrl(signatureData.url);
-    signatureDataPb.setMethod(signatureData.method);
-    signatureDataPb.setBody(signatureData.body);
-    signatureDataPb.setKid(signatureData.kid);
-    signatureDataPb.setHeaders(JSON.stringify(signatureData.headers));
-    request.setSignatureData(signatureDataPb);
+    request.setSignatureData(this.toSignatureData(signatureData));
 
     return new Promise((resolve, reject) => {
       this._grpcClient.createGrant(
@@ -140,15 +134,17 @@ export class AuthClient {
 
   continueGrant(
     id: string,
+    signatureData: SignatureRequestData,
     continueId: string,
     continueToken: string,
-    interactRef: string
+    interactRef?: string
   ): Promise<ContinueGrantResult> {
     const request = new PbContinueGrantRequest();
     request.setId(id);
     request.setContinueId(continueId);
     request.setContinueToken(continueToken);
-    request.setInteractRef(interactRef);
+    if (interactRef) request.setInteractRef(interactRef);
+    request.setSignatureData(this.toSignatureData(signatureData));
 
     return new Promise((resolve, reject) => {
       this._grpcClient.continueGrant(
@@ -162,6 +158,18 @@ export class AuthClient {
         }
       );
     });
+  }
+
+  private toSignatureData(
+    signatureData: SignatureRequestData
+  ): PbSignatureData {
+    const msg = new PbSignatureData();
+    msg.setUrl(signatureData.url);
+    msg.setMethod(signatureData.method);
+    msg.setBody(signatureData.body);
+    msg.setKid(signatureData.kid);
+    msg.setHeaders(JSON.stringify(signatureData.headers));
+    return msg;
   }
 
   revokeGrant(
@@ -473,7 +481,6 @@ function fromPbContinueGrantResponse(
 ): ContinueGrantResult {
   return {
     id: response.getId(),
-    finalizationReason: response.getFinalizationReason(),
     accessTokenValue: response.getAccessTokenValue(),
     accessTokenManagementId: response.getAccessTokenManagementId(),
     accessTokenExpiresIn: response.getAccessTokenExpiresIn(),

@@ -86,7 +86,6 @@ export interface CreateGrantResult {
 
 export interface ContinueGrantResult {
   id: string;
-  finalizationReason: string;
   accessTokenValue: string;
   accessTokenManagementId: string;
   accessTokenExpiresIn: number;

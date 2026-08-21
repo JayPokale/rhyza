@@ -31,9 +31,9 @@ import {
 import {
   AccessAction,
   AccessType,
-  GrantFinalization,
   IAccessItem,
   IAccessLimit,
+  IAccessToken,
   IFinishMethod,
   IGrant,
   IGrantRepository,
@@ -45,7 +45,7 @@ import {
   ISubjectId,
   IWalletAddressService
 } from './interfaces';
-import { GrantEntity } from './entity';
+import { GRANT_POLL_MS, GrantEntity } from './entity';
 import { JWK, validateSignature } from '@interledger/http-signature-utils';
 
 export interface IGrantService {
@@ -54,6 +54,8 @@ export interface IGrantService {
 
 export class GrantAggregate {
   private newGrantIds: string[] = [];
+  private continuedGrantIds = new Set<string>();
+  private continuedGrantAccessTokens = new Map<string, IAccessToken>();
   private grantMap = new Map<string, GrantEntity>();
   private walletAddressRequestMap = new Map<
     string,
@@ -98,73 +100,80 @@ export class GrantAggregate {
             this.parseJWKJson(payload.client) as JWK
           );
         }
-      } else if (cmd.msgName === ContinueGrantCmd.name) {
-        const payload = (cmd as ContinueGrantCmd).payload;
-        grantIdSet.add(payload.id);
       } else if (
+        cmd.msgName === ContinueGrantCmd.name ||
+        cmd.msgName === RevokeGrantCmd.name ||
+        cmd.msgName === IntrospectTokenCmd.name ||
+        cmd.msgName === RotateTokenCmd.name ||
+        cmd.msgName === RevokeTokenCmd.name ||
         cmd.msgName === AcceptInteractionCommand.name ||
         cmd.msgName === RejectInteractionCommand.name
       ) {
-        const payload = (
-          cmd as AcceptInteractionCommand | RejectInteractionCommand
-        ).payload;
-        grantIdSet.add(payload.id);
-      }
-
-      const grants = await this._repo.fetchByIds([...grantIdSet]);
-      const findKeys = async (walletAddress: string): Promise<void> => {
-        const keys =
-          await this._walletAddressService.getWalletAddressKeys(walletAddress);
-        const requestIdAndKid =
-          this.walletAddressRequestMap.get(walletAddress) ?? [];
-
-        for (const requested of requestIdAndKid) {
-          const key = keys.find((key) => key.kid === requested.kid);
-          if (key) this.requestIdToClientKeyMap.set(requested.requestId, key);
-        }
-      };
-
-      const waRequests = [];
-      for (const walletAddress of walletAddressSet) {
-        waRequests.push(findKeys(walletAddress));
-      }
-
-      await Promise.all(waRequests);
-
-      for (const grant of grants) {
-        this.grantMap.set(grant.id, GrantEntity.fromObject(grant));
-      }
-
-      for (const cmd of cmds) {
-        let event: IMessage;
-        if (cmd.msgName == CreateGrantCmd.name) {
-          event = await this.handleCreateGrantCommand(cmd as CreateGrantCmd);
-        } else if (cmd.msgName === ContinueGrantCmd.name) {
-          event = this.handleContinueGrantCommand(cmd as ContinueGrantCmd);
-        } else if (cmd.msgName === RevokeGrantCmd.name) {
-          event = this.handleRevokeGrantCommand(cmd as RevokeGrantCmd);
-        } else if (cmd.msgName === IntrospectTokenCmd.name) {
-          event = this.handleIntrospectTokenCommand(cmd as IntrospectTokenCmd);
-        } else if (cmd.msgName === RotateTokenCmd.name) {
-          event = this.handleRotateTokenCommand(cmd as RotateTokenCmd);
-        } else if (cmd.msgName === RevokeTokenCmd.name) {
-          event = this.handleRevokeTokenCommand(cmd as RevokeTokenCmd);
-        } else if (cmd.msgName === AcceptInteractionCommand.name) {
-          event = this.handleAcceptInteractionCommand(
-            cmd as AcceptInteractionCommand
-          );
-        } else if (cmd.msgName === RejectInteractionCommand.name) {
-          event = this.handleRejectInteractionCommand(
-            cmd as RejectInteractionCommand
-          );
-        } else {
-          this._logger.error(`Received unexpected command: ${cmd.msgName}`);
-          continue;
-        }
-
-        outputEvents.push(event);
+        grantIdSet.add(
+          (
+            cmd as
+              | ContinueGrantCmd
+              | RevokeGrantCmd
+              | IntrospectTokenCmd
+              | RotateTokenCmd
+              | RevokeTokenCmd
+              | AcceptInteractionCommand
+              | RejectInteractionCommand
+          ).payload.id
+        );
       }
     }
+
+    const grants = await this._repo.fetchByIds([...grantIdSet]);
+
+    const findKeys = async (walletAddress: string): Promise<void> => {
+      const keys =
+        await this._walletAddressService.getWalletAddressKeys(walletAddress);
+      const requestIdAndKid =
+        this.walletAddressRequestMap.get(walletAddress) ?? [];
+
+      for (const requested of requestIdAndKid) {
+        const key = keys.find((key) => key.kid === requested.kid);
+        if (key) this.requestIdToClientKeyMap.set(requested.requestId, key);
+      }
+    };
+
+    await Promise.all([...walletAddressSet].map((wa) => findKeys(wa)));
+
+    for (const grant of grants) {
+      this.grantMap.set(grant.id, GrantEntity.fromObject(grant));
+    }
+
+    for (const cmd of cmds) {
+      let event: IMessage;
+      if (cmd.msgName == CreateGrantCmd.name) {
+        event = await this.handleCreateGrantCommand(cmd as CreateGrantCmd);
+      } else if (cmd.msgName === ContinueGrantCmd.name) {
+        event = await this.handleContinueGrantCommand(cmd as ContinueGrantCmd);
+      } else if (cmd.msgName === RevokeGrantCmd.name) {
+        event = this.handleRevokeGrantCommand(cmd as RevokeGrantCmd);
+      } else if (cmd.msgName === IntrospectTokenCmd.name) {
+        event = this.handleIntrospectTokenCommand(cmd as IntrospectTokenCmd);
+      } else if (cmd.msgName === RotateTokenCmd.name) {
+        event = this.handleRotateTokenCommand(cmd as RotateTokenCmd);
+      } else if (cmd.msgName === RevokeTokenCmd.name) {
+        event = this.handleRevokeTokenCommand(cmd as RevokeTokenCmd);
+      } else if (cmd.msgName === AcceptInteractionCommand.name) {
+        event = this.handleAcceptInteractionCommand(
+          cmd as AcceptInteractionCommand
+        );
+      } else if (cmd.msgName === RejectInteractionCommand.name) {
+        event = this.handleRejectInteractionCommand(
+          cmd as RejectInteractionCommand
+        );
+      } else {
+        this._logger.error(`Received unexpected command: ${cmd.msgName}`);
+        continue;
+      }
+
+      outputEvents.push(event);
+    }
+
     return { events: outputEvents };
   }
 
@@ -254,6 +263,7 @@ export class GrantAggregate {
           id,
           continueId: entity.continueId,
           continueToken: entity.continueToken,
+          continueWaitMs: entity.continueToken ? GRANT_POLL_MS : undefined,
           interactionNonce: entity.interactionNonce,
           accessTokenValue: accessToken?.value,
           accessTokenManagementId: accessToken?.managementId,
@@ -278,12 +288,42 @@ export class GrantAggregate {
     }
   }
 
-  private handleContinueGrantCommand(cmd: ContinueGrantCmd) {
+  private resolveClientKeyForGrant(
+    grant: GrantEntity
+  ): IJsonWebKey | undefined {
+    if (typeof grant.client === 'string') {
+      return this.parseJWKJson(grant.client) ?? undefined;
+    }
+
+    return grant.client;
+  }
+
+  private async handleContinueGrantCommand(cmd: ContinueGrantCmd) {
     const { id, continueId, continueToken, interactRef } = cmd.payload;
     try {
       const grant = this.grantMap.get(id);
       if (!grant) {
         throw new GrantNotFoundError(`Grant ${id} not found`);
+      }
+
+      const clientKey = this.resolveClientKeyForGrant(grant);
+      if (!clientKey) {
+        throw new UnauthorizedRequestError();
+      }
+
+      const {
+        signatureData: { url, method, body, headers }
+      } = cmd.payload;
+
+      const isValidSignature = await this.validateRequestSignature(
+        clientKey as JWK,
+        url,
+        method,
+        body,
+        headers
+      );
+      if (!isValidSignature) {
+        throw new UnauthorizedRequestError();
       }
 
       const accessToken = grant.continue(
@@ -293,22 +333,33 @@ export class GrantAggregate {
       );
 
       this.grantMap.set(id, grant);
-      return new GrantContinuedEvent({
-        id,
-        finalizationReason: grant.finalizationReason as GrantFinalization,
-        accessTokenValue: accessToken?.value,
-        accessTokenManagementId: accessToken?.managementId,
-        accessTokenExpiresIn: accessToken?.expiresInMs,
-        access: grant.accesses,
-        continueId: grant.continueId,
-        continueToken: grant.continueToken
-      });
+      this.continuedGrantIds.add(id);
+      if (accessToken) {
+        this.continuedGrantAccessTokens.set(id, accessToken);
+      }
+      return new GrantContinuedEvent(
+        {
+          id,
+          state: grant.state,
+          accessTokenValue: accessToken?.value,
+          accessTokenManagementId: accessToken?.managementId,
+          accessTokenExpiresIn: accessToken?.expiresInMs,
+          access: grant.accesses,
+          continueId: grant.continueId,
+          continueToken: grant.continueToken,
+          continueWaitMs: grant.continueToken ? GRANT_POLL_MS : undefined
+        },
+        cmd.requestId
+      );
     } catch (err) {
-      return new GrantContinueFailedEvent({
-        grantId: cmd.payload.id,
-        errorName: (err as Error).name,
-        message: (err as Error).message
-      });
+      return new GrantContinueFailedEvent(
+        {
+          grantId: cmd.payload.id,
+          errorName: (err as Error).name,
+          message: (err as Error).message
+        },
+        cmd.requestId
+      );
     }
   }
 
@@ -423,7 +474,7 @@ export class GrantAggregate {
         throw new GrantNotFoundError(`Grant ${id} not found`);
       }
 
-      grant.handleInteractionChoice(choice);
+      grant.handleInteraction(choice);
       this.grantMap.set(id, grant);
 
       return new GrantInteractionChoiceHandledEvent({
@@ -454,7 +505,7 @@ export class GrantAggregate {
 
     return this.handleInteractionChoice(
       id,
-      InteractionState.DENIED,
+      InteractionState.REJECTED,
       interactRef
     );
   }
@@ -477,10 +528,36 @@ export class GrantAggregate {
       promises.push(this._repo.storeMany(newEntities));
     }
 
+    if (this.continuedGrantIds.size > 0) {
+      const continuedEntities = [];
+      for (const id of this.continuedGrantIds) {
+        const grant = this.grantMap.get(id);
+        if (!grant) {
+          this._logger.error(
+            `Grant ${id} missing from grantMap during continue flush`
+          );
+          continue;
+        }
+
+        continuedEntities.push({
+          id: grant.id,
+          state: grant.state,
+          continueToken: grant.continueToken,
+          continueId: grant.continueId,
+          lastContinuedAt: grant.lastContinuedAt,
+          accessToken: this.continuedGrantAccessTokens.get(id)
+        });
+      }
+      promises.push(this._repo.storeContinuedGrants(continuedEntities));
+    }
+
     // TODO handle gracefully
     try {
       await Promise.all(promises);
     } finally {
+      this.newGrantIds = [];
+      this.continuedGrantIds.clear();
+      this.continuedGrantAccessTokens.clear();
       this.grantMap.clear();
     }
   }
