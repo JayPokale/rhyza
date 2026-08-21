@@ -5,7 +5,7 @@ title: Exchange rates
 import { Badge } from '@astrojs/starlight/components'
 import { LinkOut } from '@interledger/docs-design-system'
 
-If you plan to support cross-currency transactions, you must specify how Rhyza obtains exchange rates. Rhyza supports two models for handling exchange rates: Pull (Rhyza makes a request to an endpoint hosted by the ASE) and Push (the ASE sets the exchange rates via the Admin API directly).
+If you plan to support cross-currency transactions, you must specify how Rhyza obtains exchange rates. Rhyza supports two models for handling exchange rates: Pull (Rhyza makes a request to an endpoint hosted by the FSP) and Push (the FSP sets the exchange rates via the Admin API directly).
 
 A rate probe precedes every Interledger payment to provide a quote that estimates the full cost of transferring value. For cross-currency transactions, Rhyza needs the exchange rates for the currencies involved in the payment.
 
@@ -16,17 +16,17 @@ A rate probe precedes every Interledger payment to provide a quote that estimate
 Every exchange rate Rhyza holds is scoped in one of two ways:
 
 - **Peer rate** — applies only to payments made through a specific peer, identified by `peerId`.
-- **Intra-ASE rate** — applies ASE-wide to any conversion between the two given asset codes, independent of peer.
+- **Intra-FSP rate** - applies FSP-wide to any conversion between the two given asset codes, independent of peer.
 
-A peer rate and an Intra-ASE rate for the same asset pair are set, cached, and expired independently of one another, so both can be active for the same pair at the same time.
+A peer rate and an Intra-FSP rate for the same asset pair are set, cached, and expired independently of one another, so both can be active for the same pair at the same time.
 
-Both the Pull and Push models below support setting/fetching either scope: include `peerId` to target a peer rate, or omit it to target the Intra-ASE rate for that asset pair.
+Both the Pull and Push models below support setting/fetching either scope: include `peerId` to target a peer rate, or omit it to target the Intra-FSP rate for that asset pair.
 
 ---
 
 ## Pull model
 
-In the pull model, Rhyza requests exchange rates from the ASE whenever a rate is needed and not available in its local cache.
+In the pull model, Rhyza requests exchange rates from the FSP whenever a rate is needed and not available in its local cache.
 
 ### Configure the pull model
 
@@ -38,9 +38,9 @@ EXCHANGE_RATES_URL: http://cloud-nine-wallet/rates
 
 ### Pull request specification
 
-The configured endpoint must accept <Badge text="GET" variant="note" size="medium"/> requests. Rhyza always includes the base asset code as a query parameter. When Rhyza needs a peer rate rather than the Intra-ASE rate, it also includes a `peerId` query parameter identifying the peer.
+The configured endpoint must accept <Badge text="GET" variant="note" size="medium"/> requests. Rhyza always includes the base asset code as a query parameter. When Rhyza needs a peer rate rather than the Intra-FSP rate, it also includes a `peerId` query parameter identifying the peer.
 
-```bash title="Example API request (Intra-ASE rate)"
+```bash title="Example API request (Intra-FSP rate)"
 GET https://cloud-nine-wallet/rates?base=USD
 ```
 
@@ -50,10 +50,10 @@ GET https://cloud-nine-wallet/rates?base=USD&peerId=480ef339-7842-4501-a905-923f
 
 <div class="overflow-table">
 
-| Query parameter | Type   | Description                                                                                | Required |
-| ---------------- | ------ | ------------------------------------------------------------------------------------------- | -------- |
-| `base`            | String | The base asset code to get rates for.                                                        | Y        |
-| `peerId`          | String | The unique identifier of the peer to get a peer-scoped rate for. Omitted for Intra-ASE rates. | N        |
+| Query parameter | Type   | Description                                                                                   | Required |
+| --------------- | ------ | --------------------------------------------------------------------------------------------- | -------- |
+| `base`          | String | The base asset code to get rates for.                                                         | Y        |
+| `peerId`        | String | The unique identifier of the peer to get a peer-scoped rate for. Omitted for Intra-FSP rates. | N        |
 
 </div>
 
@@ -85,11 +85,11 @@ The endpoint must return a JSON response containing the base asset and a mapping
 
 ## Push model
 
-In the push model, the ASE sets exchange rates in Rhyza directly via the Admin API, instead of having to host an external endpoint for Rhyza to query.
+In the push model, the FSP sets exchange rates in Rhyza directly via the Admin API, instead of having to host an external endpoint for Rhyza to query.
 
 ### Using the Admin API
 
-Exchange rates are pushed to Rhyza by sending a <Badge text="POST" variant="note" size="medium"/> request to the `/rates` endpoint. Include `peerId` in the payload to set a peer rate; omit it to set the Intra-ASE rate for the asset pair instead.
+Exchange rates are pushed to Rhyza by sending a <Badge text="POST" variant="note" size="medium"/> request to the `/rates` endpoint. Include `peerId` in the payload to set a peer rate; omit it to set the Intra-FSP rate for the asset pair instead.
 
 #### Set exchange rate request
 
@@ -107,7 +107,7 @@ POST https://rhyza.example.com/rates
 }
 ```
 
-```json title="Example payload (Intra-ASE rate)"
+```json title="Example payload (Intra-FSP rate)"
 {
   "sourceAssetCode": "USD",
   "destinationAssetCode": "EUR",
@@ -119,12 +119,12 @@ POST https://rhyza.example.com/rates
 <div class="overflow-table">
 
 | Field                  | Type   | Description                                                                                     | Required |
-| ---------------------- | ------ | ------------------------------------------------------------------------------------------------ | -------- |
-| `peerId`               | String | The unique identifier of the peer this rate applies to. Omit to set the Intra-ASE rate instead.  | N        |
-| `sourceAssetCode`      | String | The source currency code (e.g., "USD").                                                          | Y        |
-| `destinationAssetCode` | String | The destination currency code (e.g., "EUR").                                                      | Y        |
-| `rate`                 | Number | The exchange rate from the source asset to the destination asset.                                | Y        |
-| `rateTtlSecs`          | Number | The time-to-live for this rate in seconds. If omitted, a default is used.                        | N        |
+| ---------------------- | ------ | ----------------------------------------------------------------------------------------------- | -------- |
+| `peerId`               | String | The unique identifier of the peer this rate applies to. Omit to set the Intra-FSP rate instead. | N        |
+| `sourceAssetCode`      | String | The source currency code (e.g., "USD").                                                         | Y        |
+| `destinationAssetCode` | String | The destination currency code (e.g., "EUR").                                                    | Y        |
+| `rate`                 | Number | The exchange rate from the source asset to the destination asset.                               | Y        |
+| `rateTtlSecs`          | Number | The time-to-live for this rate in seconds. If omitted, a default is used.                       | N        |
 
 </div>
 
@@ -134,12 +134,12 @@ For the Pull model, you can specify how long Rhyza caches exchange rates via the
 
 For the Push model, the `rateTtlSecs` provided in the API request determines the lifetime of the specific rate. If a pushed rate is not available or has expired, Rhyza will attempt to pull the rate from the `EXCHANGE_RATES_URL` if configured. If the pull model is not configured or also fails to provide a rate, Rhyza will fail the payment or quote request with an error.
 
-Because peer rates and Intra-ASE rates are cached separately, expiry of one does not affect the other, and each is refreshed (via the Pull model) or re-pushed independently.
+Because peer rates and Intra-FSP rates are cached separately, expiry of one does not affect the other, and each is refreshed (via the Pull model) or re-pushed independently.
 
 Pulled and pushed rates expire differently:
 
 - **Pulled rates** are refreshed proactively in the background shortly before they expire, so a payment or quote is not delayed waiting on a live pull.
-- **Pushed rates** are not refreshed in the background. Once a pushed rate's `rateTtlSecs` elapses, it is only replaced the next time that rate is requested, at which point Rhyza falls back to the Pull model synchronously. If `rateTtlSecs` is omitted when the rate is pushed, the rate never expires and stays in effect — Rhyza will not fall back to pulling for that asset pair (or peer) until the ASE pushes a new rate.
+- **Pushed rates** are not refreshed in the background. Once a pushed rate's `rateTtlSecs` elapses, it is only replaced the next time that rate is requested, at which point Rhyza falls back to the Pull model synchronously. If `rateTtlSecs` is omitted when the rate is pushed, the rate never expires and stays in effect. Rhyza will not fall back to pulling for that asset pair (or peer) until the FSP pushes a new rate.
 
 ---
 
@@ -153,6 +153,6 @@ The following variables are used by the `pal-api-service` to manage exchange rat
 | ------------------------------ | ------ | ------------------------------------------------------------------------------ | ------- |
 | `EXCHANGE_RATES_URL`           | URL    | The external endpoint used for the Pull model.                                 | -       |
 | `EXCHANGE_RATES_LIFETIME_SECS` | Number | The duration (in seconds) Rhyza caches pulled exchange rates.                  | `3600`  |
-| `EXCHANGE_RATES_TIMEOUT_SECS`  | Number | The timeout (in seconds) Rhyza waits when pulling exchange rates from the ASE. | `10`    |
+| `EXCHANGE_RATES_TIMEOUT_SECS`  | Number | The timeout (in seconds) Rhyza waits when pulling exchange rates from the FSP. | `10`    |
 
 </div>
