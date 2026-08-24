@@ -518,14 +518,12 @@ export class AuthServiceServer {
 
       if (grant.finishMethod) response.setFinishMethod(grant.finishMethod);
 
-      if (grant.interactionNonce)
-        response.setInteractionNonce(grant.interactionNonce);
-
       if (grant.interaction) {
         const interaction = new Interaction();
         interaction.setExpiresAt(grant.interaction.expiresAt.getTime());
         interaction.setState(grant.interaction.state);
         interaction.setInteractRef(grant.interaction.interactRef);
+        interaction.setInteractionNonce(grant.interaction.interactionNonce);
         response.setInteraction(interaction);
       }
 
@@ -598,9 +596,6 @@ export class AuthServiceServer {
       }
       if (payload.continueId) {
         response.setContinueId(payload.continueId);
-      }
-      if (payload.interactionNonce) {
-        response.setInteractionNonce(payload.interactionNonce);
       }
 
       if (payload.accessTokenValue) {

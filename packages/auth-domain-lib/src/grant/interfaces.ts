@@ -126,7 +126,6 @@ export interface IGrant {
   finishNonce?: string;
   finishMethod?: IFinishMethod;
   finishUri?: string;
-  interactionNonce?: string;
   interaction?: IInteraction;
   accessTokens: IAccessToken[];
 }
