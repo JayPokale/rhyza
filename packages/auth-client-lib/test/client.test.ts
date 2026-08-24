@@ -111,9 +111,9 @@ describe('Auth Client', () => {
       assert.ok(result.accessTokenValue);
       assert.ok(result.accessTokenManagementId);
       assert.ok(result.accessTokenExpiresIn);
-      assert.ok(!result.continueId);
-      assert.ok(!result.continueToken);
       assert.equal(result.interactionNonce, undefined);
+      assert.ok(result.continueId);
+      assert.ok(result.continueToken);
       assert.deepStrictEqual(result.access, [access]);
       assert.deepStrictEqual(result.subjectIds, [subjectId]);
     });
@@ -158,7 +158,6 @@ describe('Auth Client', () => {
       assert.ok(result);
       assert.ok(result.continueId);
       assert.ok(result.continueToken);
-      assert.ok(result.interactionNonce);
       assert.equal(result.accessTokenValue, undefined);
       assert.equal(result.accessTokenManagementId, undefined);
       assert.equal(result.accessTokenExpiresIn, undefined);

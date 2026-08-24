@@ -79,7 +79,6 @@ describe('GrantEntity', () => {
       assert.equal(entity.continueId, undefined);
       assert.equal(entity.lastContinuedAt, undefined);
 
-      assert.equal(entity.interactionNonce, undefined);
       assert.equal(entity.interaction, undefined);
 
       assert.ok(accessToken);
@@ -143,7 +142,6 @@ describe('GrantEntity', () => {
       assert.ok(entity.lastContinuedAt instanceof Date);
       assert.ok(entity.lastContinuedAt!.getTime() <= Date.now());
 
-      assert.ok(entity.interactionNonce);
       assert.equal(entity.interaction, undefined); // This should not be initalized until startInteraction is called on the entity.
 
       assert.equal(accessToken, undefined);
@@ -178,7 +176,6 @@ describe('GrantEntity', () => {
       assert.ok(entity.continueToken);
       assert.ok(entity.continueId);
       assert.ok(entity.lastContinuedAt instanceof Date);
-      assert.ok(entity.interactionNonce);
       assert.equal(entity.interaction, undefined); // This should not be initialized at this point.
       assert.equal(accessToken, undefined);
     });
@@ -477,6 +474,21 @@ describe('GrantEntity', () => {
     })
   })
   describe('startInteraction', () => {
+    it('creates a pending interaction and moves the grant to pending state', () => {
+      const entity = makeContinuableGrant();
+
+      const interaction = entity.startInteraction();
+
+      assert.ok(interaction.interactRef);
+      assert.ok(interaction.interactionNonce);
+      assert.equal(typeof interaction.createdAt, 'number');
+      assert.equal(interaction.expiresInMs, 10_000); // Default interaction expiry
+      assert.equal(interaction.state, InteractionState.PENDING);
+
+      assert.equal(entity.state, GrantState.PENDING);
+      assert.deepEqual(entity.interaction, interaction);
+    });
+
     it('throws NonInteractiveGrantError when the grant has no start methods', () => {
       const entity = GrantEntity.fromObject({
         id: randomUUID(),

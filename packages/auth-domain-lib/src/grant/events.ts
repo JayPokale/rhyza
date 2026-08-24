@@ -103,7 +103,6 @@ export interface GrantCreatedPayload {
   continueId?: string;
   continueToken?: string;
   continueWaitMs?: number;
-  interactionNonce?: string;
   accessTokenValue?: string;
   accessTokenManagementId?: string;
   accessTokenExpiresIn?: number;
@@ -260,6 +259,7 @@ export class TokenRotationFailedEvent extends AuthDomainEvent {
 
 export interface GrantInteractionStartedPayload {
   id: string;
+  nonce: string;
 }
 
 export class GrantInteractionStartedEvent extends AuthDomainEvent {

@@ -157,9 +157,9 @@ describe('GrantAggregate.handleBatch', () => {
         assert.ok(payload.accessTokenValue);
         assert.ok(payload.accessTokenManagementId);
         assert.equal(payload.accessTokenExpiresIn, 10_000);
-        assert.equal(payload.continueId, undefined);
-        assert.equal(payload.continueToken, undefined);
         assert.equal(payload.interactionNonce, undefined);
+        assert.ok(payload.continueId);
+        assert.ok(payload.continueToken);
         assert.deepEqual(payload.access, cmd.payload.access);
       });
 
@@ -186,7 +186,6 @@ describe('GrantAggregate.handleBatch', () => {
         const payload = (events[0] as GrantCreatedEvent).payload;
         assert.ok(payload.continueId);
         assert.ok(payload.continueToken);
-        assert.ok(payload.interactionNonce);
         assert.equal(payload.accessTokenValue, undefined);
         assert.equal(payload.accessTokenValue, undefined);
         assert.equal(payload.accessTokenManagementId, undefined);
@@ -901,7 +900,7 @@ describe('GrantAggregate.handleBatch', () => {
             assert.equal(events[0].msgName, GrantInteractionStartedEvent.name);
             const payload = (events[0] as GrantInteractionStartedEvent).payload;
             assert.equal(payload.id, id);
-            assert.equal(events[0].requestId, requestId);
+            assert.ok(payload.nonce);
             assert.equal(events[0].requestId, requestId);
 
             assert.equal(storeInteractionsMock.mock.callCount(), 0);
