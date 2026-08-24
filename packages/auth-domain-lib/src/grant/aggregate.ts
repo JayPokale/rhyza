@@ -271,6 +271,7 @@ export class GrantAggregate {
           continueId: entity.continueId,
           continueToken: entity.continueToken,
           continueWaitMs: entity.continueToken ? GRANT_POLL_MS : undefined,
+          interactionNonce: entity.interactionNonce,
           accessTokenValue: accessToken?.value,
           accessTokenManagementId: accessToken?.managementId,
           accessTokenExpiresIn: accessToken?.expiresInMs,
@@ -504,14 +505,11 @@ export class GrantAggregate {
         throw new GrantNotFoundError(`Grant ${id} not found`);
       }
 
-      const interaction = grant.startInteraction();
+      const { nonce } = grant.startInteraction();
       this.grantMap.set(id, grant);
       this.newGrantInteractions.add(grant.id);
 
-      return new GrantInteractionStartedEvent(
-        { id, nonce: interaction.interactionNonce },
-        cmd.requestId
-      );
+      return new GrantInteractionStartedEvent({ id, nonce }, cmd.requestId);
     } catch (error) {
       return new GrantInteractionStartFailedEvent(
         {

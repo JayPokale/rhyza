@@ -457,7 +457,7 @@ function fromPbInteraction(
     interactRef: interaction.getInteractRef(),
     clientNonce: interaction.getClientNonce(),
     state: interaction.getState(),
-    expiresInMs: interaction.getExpiresInMs()
+    expiresAt: interaction.getExpiresAt()
   };
 }
 

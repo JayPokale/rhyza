@@ -25,7 +25,7 @@ import {
 } from './interfaces';
 
 export const GRANT_POLL_MS = 5_000; // 5 seconds
-const INTERACTION_EXPIRY_MS = 10_000; // 10 seconds
+const INTERACTION_EXPIRY_MS = 600_000; // 10 minutes
 const ACCESS_TOKEN_EXPIRY_MS = 10_000; // 10 seconds
 
 function generateContinueToken(): string {
@@ -83,6 +83,7 @@ export class GrantEntity implements IGrant {
   private _finishNonce?: string;
   private _finishMethod?: IFinishMethod;
   private _finishUri?: string;
+  private _interactionNonce?: string;
   private _interaction?: IInteraction;
   // Map is indexed by the value of the access token.
   private _accessTokens: Map<string, IAccessToken> = new Map<
@@ -103,7 +104,8 @@ export class GrantEntity implements IGrant {
     this._finishNonce = input.finishNonce;
     this._finishMethod = input.finishMethod;
     this._finishUri = input.finishUri;
-    this._interaction = input.interaction;
+    (this._interactionNonce = input.interactionNonce),
+      (this._interaction = input.interaction);
 
     if (input.accessTokens) {
       for (const accessToken of input.accessTokens) {
@@ -142,6 +144,7 @@ export class GrantEntity implements IGrant {
         continueToken: generateContinueToken(),
         continueId: uuid(),
         lastContinuedAt: new Date(),
+        interactionNonce: generateNonce(),
         accessTokens: []
       });
 
@@ -166,6 +169,7 @@ export class GrantEntity implements IGrant {
   toObject(): IGrant {
     return {
       id: this._id,
+      interactionNonce: this._interactionNonce,
       interaction: this._interaction,
       startMethods: this._startMethods,
       continueToken: this._continueToken,
@@ -183,7 +187,11 @@ export class GrantEntity implements IGrant {
   }
 
   // Generates an interaction for the grant.
-  startInteraction(): IInteraction {
+  startInteraction(): IInteraction & { nonce: string } {
+    if (!this._interactionNonce || !this._startMethods) {
+      throw new NonInteractiveGrantError();
+    }
+
     if (
       this._state === GrantState.APPROVED ||
       this._state === GrantState.ISSUED ||
@@ -193,20 +201,17 @@ export class GrantEntity implements IGrant {
       throw new InvalidGrantError();
     }
 
-    if (!this._startMethods) {
-      throw new NonInteractiveGrantError();
-    }
+    const createdAt = Date.now();
 
     this._interaction = {
-      interactionNonce: generateNonce(),
       interactRef: uuid(),
-      createdAt: Date.now(),
-      expiresInMs: INTERACTION_EXPIRY_MS,
+      createdAt,
+      expiresAt: createdAt + INTERACTION_EXPIRY_MS,
       state: InteractionState.PENDING
     };
     this._state = GrantState.PENDING;
 
-    return this._interaction;
+    return { ...this._interaction, nonce: this._interactionNonce };
   }
 
   // Updates the approval state of the interaction.
@@ -398,13 +403,6 @@ export class GrantEntity implements IGrant {
     return this.createAccessToken();
   }
 
-  isInteractive(): boolean {
-    if (!this._accesses) return false;
-    return this._accesses.some((access) =>
-      InteractiveAccessType.includes(access.type)
-    );
-  }
-
   get id(): string {
     return this._id;
   }
@@ -443,6 +441,10 @@ export class GrantEntity implements IGrant {
 
   get finishMethod(): IFinishMethod | undefined {
     return this._finishMethod;
+  }
+
+  get interactionNonce(): string | undefined {
+    return this._interactionNonce;
   }
 
   get interaction(): IInteraction | undefined {

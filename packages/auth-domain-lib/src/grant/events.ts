@@ -93,6 +93,7 @@ export interface GrantCreatedPayload {
   continueId?: string;
   continueToken?: string;
   continueWaitMs?: number;
+  interactionNonce?: string;
   accessTokenValue?: string;
   accessTokenManagementId?: string;
   accessTokenExpiresIn?: number;

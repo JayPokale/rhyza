@@ -110,8 +110,7 @@ export interface IInteraction {
   interactRef: string;
   state: InteractionState;
   createdAt: number; // Unix timestamp
-  expiresInMs: number;
-  interactionNonce: string;
+  expiresAt: number; // Unix timstamp
 }
 
 export interface IGrant {
@@ -127,6 +126,7 @@ export interface IGrant {
   finishNonce?: string;
   finishMethod?: IFinishMethod;
   finishUri?: string;
+  interactionNonce?: string;
   interaction?: IInteraction;
   accessTokens: IAccessToken[];
 }
