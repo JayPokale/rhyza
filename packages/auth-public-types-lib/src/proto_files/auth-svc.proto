@@ -43,7 +43,7 @@ message Grant {
 	repeated string start_methods = 2;
 	string continue_token = 3;
 	string continue_id = 4;
-	string interaction_nonce =5;
+	string interaction_nonce = 5;
 	string state = 6;
 	string finalization_reason = 7;
 	string client = 8;
