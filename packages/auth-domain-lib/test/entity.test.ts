@@ -477,12 +477,12 @@ describe('GrantEntity', () => {
     it('creates a pending interaction and moves the grant to pending state', () => {
       const entity = makeContinuableGrant();
 
-      const interaction = entity.startInteraction();
+      const { nonce, ...interaction } = entity.startInteraction();
 
       assert.ok(interaction.interactRef);
-      assert.ok(interaction.interactionNonce);
+      assert.equal(nonce, entity.interactionNonce);
       assert.equal(typeof interaction.createdAt, 'number');
-      assert.equal(interaction.expiresInMs, 10_000); // Default interaction expiry
+      assert.equal(interaction.expiresAt, interaction.createdAt + 600_000); // Default interaction expiry
       assert.equal(interaction.state, InteractionState.PENDING);
 
       assert.equal(entity.state, GrantState.PENDING);
@@ -507,6 +507,8 @@ describe('GrantEntity', () => {
     it('throws InvalidGrantError when the grant is already in final state', () => {
       const entity = GrantEntity.fromObject({
         id: randomUUID(),
+        startMethods: ['REDIRECT'],
+        interactionNonce: randomUUID(),
         state: GrantState.ISSUED
       } as IGrant);
 
@@ -522,6 +524,8 @@ describe('GrantEntity', () => {
     it('throws InvalidGrantError when the grant is already approved', () => {
       const entity = GrantEntity.fromObject({
         id: randomUUID(),
+        startMethods: ['REDIRECT'],
+        interactionNonce: randomUUID(),
         state: GrantState.APPROVED
       } as IGrant);
 

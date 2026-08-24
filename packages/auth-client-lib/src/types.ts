@@ -51,7 +51,7 @@ export interface InteractionResult {
   interactRef: string;
   clientNonce: string;
   state: string;
-  expiresInMs: number;
+  expiresAt: number;
 }
 
 export interface GetGrantResult {

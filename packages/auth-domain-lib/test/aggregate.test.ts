@@ -186,6 +186,7 @@ describe('GrantAggregate.handleBatch', () => {
         const payload = (events[0] as GrantCreatedEvent).payload;
         assert.ok(payload.continueId);
         assert.ok(payload.continueToken);
+        assert.ok(payload.interactionNonce);
         assert.equal(payload.accessTokenValue, undefined);
         assert.equal(payload.accessTokenValue, undefined);
         assert.equal(payload.accessTokenManagementId, undefined);
