@@ -98,6 +98,16 @@ jobs:
           changes_stripped = strip_whitespace(changes_raw)
           changelog_stripped = strip_whitespace(changelog_raw)
 
+          print(f"DEBUG: Original changes length: {len(changes_raw)} chars")
+          print(f"DEBUG: Stripped changes length: {len(changes_stripped)} chars")
+          print(f"DEBUG: Stripped changelog length: {len(changelog_stripped)} chars")
+
+          with open("debug_changes_stripped.txt", "w", encoding="utf-8") as f:
+              f.write(changes_stripped)
+          with open("debug_changelog_stripped.txt", "w", encoding="utf-8") as f:
+              f.write(changelog_stripped)
+          print("DEBUG: Wrote stripped strings to debug_changes_stripped.txt and debug_changelog_stripped.txt")      
+
           if not changes_stripped:
               print("No changes detected. The changelog is up to date.")
               sys.exit(0)
