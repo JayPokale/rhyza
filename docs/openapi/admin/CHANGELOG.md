@@ -7,10 +7,6 @@
 -  api operation id `Assets_createAsset` removed and replaced with `createAsset`
 
 
-### POST /liquidity/deposit
--  endpoint added
-
-
 ### POST /payment-intents
 -  api operation id `PaymentIntents_createPaymentIntent` removed and replaced with `createPaymentIntent`
 
@@ -22,7 +18,7 @@
 
 
 ### POST /payment-intents/{id}/complete
--  endpoint added
+-  api operation id `PaymentIntents_completePaymentIntent` removed and replaced with `completePaymentIntent`
 
 
 ### GET /payment-intents/{intentId}/payments/{id}
