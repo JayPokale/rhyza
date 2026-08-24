@@ -487,14 +487,12 @@ export class AuthServiceServer {
 
       if (grant.finishMethod) response.setFinishMethod(grant.finishMethod);
 
-      if (grant.interactionNonce)
-        response.setInteractionNonce(grant.interactionNonce);
-
       if (grant.interaction) {
         const interaction = new Interaction();
         interaction.setExpiresInMs(grant.interaction.expiresInMs);
         interaction.setState(grant.interaction.state);
         interaction.setInteractRef(grant.interaction.interactRef);
+        interaction.setInteractionNonce(grant.interaction.interactionNonce);
         response.setInteraction(interaction);
       }
 
@@ -564,9 +562,6 @@ export class AuthServiceServer {
       }
       if (payload.continueId) {
         response.setContinueId(payload.continueId);
-      }
-      if (payload.interactionNonce) {
-        response.setInteractionNonce(payload.interactionNonce);
       }
 
       if (payload.accessTokenValue) {
@@ -700,6 +695,7 @@ export class AuthServiceServer {
       const response = new StartInteractionResponse();
       const payload: GrantInteractionStartedEvent['payload'] = event.payload;
       response.setId(payload.id);
+      response.setNonce(payload.nonce);
       this._resolvePendingResponse(pending, requestId, null, response);
     } else if (AuthDomainEvent.isGrantInteractionStartFailedEvent(event)) {
       this._resolvePendingResponse(pending, requestId, {
