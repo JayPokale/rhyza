@@ -523,7 +523,6 @@ export class AuthServiceServer {
         interaction.setExpiresAt(grant.interaction.expiresAt.getTime());
         interaction.setState(grant.interaction.state);
         interaction.setInteractRef(grant.interaction.interactRef);
-        interaction.setInteractionNonce(grant.interaction.interactionNonce);
         response.setInteraction(interaction);
       }
 
@@ -590,6 +589,7 @@ export class AuthServiceServer {
       const response = new CreateGrantResponse();
       const payload: GrantCreatedEvent['payload'] = event.payload;
       response.setId(payload.id);
+      response.setInteractive(payload.interactive);
 
       if (payload.continueToken) {
         response.setContinueToken(payload.continueToken);

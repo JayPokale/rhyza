@@ -83,6 +83,7 @@ export class GrantEntity implements IGrant {
   private _finishNonce?: string;
   private _finishMethod?: IFinishMethod;
   private _finishUri?: string;
+  private _interactionNonce?: string;
   private _interaction?: IInteraction;
   // Map is indexed by the value of the access token.
   private _accessTokens: Map<string, IAccessToken> = new Map<
@@ -103,7 +104,8 @@ export class GrantEntity implements IGrant {
     this._finishNonce = input.finishNonce;
     this._finishMethod = input.finishMethod;
     this._finishUri = input.finishUri;
-    this._interactionNonce = input.interactionNonce;
+    (this._interactionNonce = input.interactionNonce),
+      (this._interaction = input.interaction);
 
     if (input.accessTokens) {
       for (const accessToken of input.accessTokens) {
@@ -164,6 +166,7 @@ export class GrantEntity implements IGrant {
   toObject(): IGrant {
     return {
       id: this._id,
+      interactionNonce: this._interactionNonce,
       interaction: this._interaction,
       startMethods: this._startMethods,
       continueToken: this._continueToken,
@@ -400,13 +403,6 @@ export class GrantEntity implements IGrant {
     return this.createAccessToken();
   }
 
-  isInteractive(): boolean {
-    if (!this._accesses) return false;
-    return this._accesses.some((access) =>
-      InteractiveAccessType.includes(access.type)
-    );
-  }
-
   get id(): string {
     return this._id;
   }
@@ -445,6 +441,10 @@ export class GrantEntity implements IGrant {
 
   get finishMethod(): IFinishMethod | undefined {
     return this._finishMethod;
+  }
+
+  get interactionNonce(): string | undefined {
+    return this._interactionNonce;
   }
 
   get interaction(): IInteraction | undefined {

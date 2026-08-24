@@ -288,6 +288,7 @@ export class GrantAggregate {
           continueId: entity.continueId,
           continueToken: entity.continueToken,
           continueWaitMs: entity.continueToken ? GRANT_POLL_MS : undefined,
+          interactionNonce: entity.interactionNonce,
           accessTokenValue: accessToken?.value,
           accessTokenManagementId: accessToken?.managementId,
           accessTokenExpiresIn: accessToken?.expiresInMs,
