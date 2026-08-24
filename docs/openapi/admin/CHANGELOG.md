@@ -30,7 +30,13 @@
 
 
 ### POST /payment-intents/{intentId}/payments/{id}/approve
-- :warning: api path removed without deprecation
+- :warning: added the new `CANCELLED` enum value to the `state` response property for the response status `200`
+- :warning: added the new `CONFIRMED` enum value to the `state` response property for the response status `200`
+- :warning: added the new `CREATED` enum value to the `state` response property for the response status `200`
+- :warning: added the new `PROCESSING` enum value to the `state` response property for the response status `200`
+- :warning: added the new `REJECTED` enum value to the `state` response property for the response status `200`
+- :warning: added the new `SENDING` enum value to the `state` response property for the response status `200`
+-  api operation id `Payments_approvePayment` removed and replaced with `approvePayment`
 
 
 ### POST /payment-intents/{intentId}/payments/{id}/cancel
@@ -39,10 +45,6 @@
 
 ### POST /payments
 -  api operation id `Payments_createPayment` removed and replaced with `createPayment`
-
-
-### POST /payments/{id}/approve
--  endpoint added
 
 
 ### POST /payments/{id}/cancel
