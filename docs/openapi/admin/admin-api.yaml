@@ -271,7 +271,7 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/PaymentCreate'
-  /payments/{id}/approve:
+  /payment-intents/{intentId}/payments/{id}/approve:
     post:
       summary: Approve Payment
       description: Approve a payment, allowing it to proceed.
@@ -279,18 +279,18 @@ paths:
         - payments
       operationId: approvePayment
       parameters:
+        - name: intentId
+          in: path
+          description: Unique identifier for the payment intent
+          required: true
+          schema:
+            type: string
         - name: id
           in: path
           description: Unique identifier for the payment to be approved
           required: true
           schema:
             type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PaymentApprove'
       responses:
         '200':
           description: The request has succeeded.
@@ -766,14 +766,6 @@ components:
         paymentIntentId:
           type: string
           description: The unique identifier for the payment intent.
-    PaymentApprove:
-      type: object
-      required:
-        - intentId
-      properties:
-        intentId:
-          type: string
-          description: Payment intent the payment is for.
     PaymentCancel:
       type: object
       required:

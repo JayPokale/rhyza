@@ -90,9 +90,7 @@ export class MockWebhookIntegrationService {
 
     const response = await this.adminClient.payments.approvePaymentRaw({
       id: payload.id,
-      paymentApprove: {
-        intentId: payload.paymentIntentId
-      }
+      intentId: payload.paymentIntentId
     });
     if (!response.raw.ok) {
       const detail = await response

@@ -9,7 +9,6 @@ export * from './ErrorResponse';
 export * from './LiquidityDeposit202Response';
 export * from './LiquidityDepositRequest';
 export * from './Payment';
-export * from './PaymentApprove';
 export * from './PaymentCancel';
 export * from './PaymentCreate';
 export * from './PaymentCreateResponse';

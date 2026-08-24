@@ -34,11 +34,6 @@ import {
     PaymentToJSON,
 } from '../models/Payment';
 import {
-    type PaymentApprove,
-    PaymentApproveFromJSON,
-    PaymentApproveToJSON,
-} from '../models/PaymentApprove';
-import {
     type PaymentCancel,
     PaymentCancelFromJSON,
     PaymentCancelToJSON,
@@ -55,8 +50,8 @@ import {
 } from '../models/PaymentCreateResponse';
 
 export interface ApprovePaymentRequest {
+    intentId: string;
     id: string;
-    paymentApprove: PaymentApprove;
 }
 
 export interface CancelPaymentRequest {
@@ -82,6 +77,13 @@ export class PaymentsApi extends runtime.BaseAPI {
      * Creates request options for approvePayment without sending the request
      */
     async approvePaymentRequestOpts(requestParameters: ApprovePaymentRequest): Promise<runtime.RequestOpts> {
+        if (requestParameters['intentId'] == null) {
+            throw new runtime.RequiredError(
+                'intentId',
+                'Required parameter "intentId" was null or undefined when calling approvePayment().'
+            );
+        }
+
         if (requestParameters['id'] == null) {
             throw new runtime.RequiredError(
                 'id',
@@ -89,21 +91,13 @@ export class PaymentsApi extends runtime.BaseAPI {
             );
         }
 
-        if (requestParameters['paymentApprove'] == null) {
-            throw new runtime.RequiredError(
-                'paymentApprove',
-                'Required parameter "paymentApprove" was null or undefined when calling approvePayment().'
-            );
-        }
-
         const queryParameters: any = {};
 
         const headerParameters: runtime.HTTPHeaders = {};
 
-        headerParameters['Content-Type'] = 'application/json';
 
-
-        let urlPath = `/payments/{id}/approve`;
+        let urlPath = `/payment-intents/{intentId}/payments/{id}/approve`;
+        urlPath = urlPath.replace('{intentId}', encodeURIComponent(String(requestParameters['intentId'])));
         urlPath = urlPath.replace('{id}', encodeURIComponent(String(requestParameters['id'])));
 
         return {
@@ -111,7 +105,6 @@ export class PaymentsApi extends runtime.BaseAPI {
             method: 'POST',
             headers: headerParameters,
             query: queryParameters,
-            body: PaymentApproveToJSON(requestParameters['paymentApprove']),
         };
     }
 
@@ -130,8 +123,8 @@ export class PaymentsApi extends runtime.BaseAPI {
      * Approve a payment, allowing it to proceed.
      * Approve Payment
      */
-    async approvePayment(id: string, paymentApprove: PaymentApprove, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<ApprovePayment200Response> {
-        const response = await this.approvePaymentRaw({ id: id, paymentApprove: paymentApprove }, initOverrides);
+    async approvePayment(intentId: string, id: string, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<ApprovePayment200Response> {
+        const response = await this.approvePaymentRaw({ intentId: intentId, id: id }, initOverrides);
         return await response.value();
     }
 

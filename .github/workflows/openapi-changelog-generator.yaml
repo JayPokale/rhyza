@@ -78,17 +78,34 @@ jobs:
 
       - name: Check CHANGELOG.md Update
         run: |
-          tr -d '[:space:]' < oasdiff-changes.txt > temp_changes_stripped.txt
-          tr -d '[:space:]' < "${{ env.OPENAPI_CHANGELOG_PATH }}" > temp_changelog_stripped.txt
+          python3 -c '
+          import sys, os, re
 
-          if [ ! -s temp_changes_stripped.txt ]; then
-            echo "No changes detected. The changelog is up to date."
-            exit 0
-          fi
+          changelog_path = os.environ.get("OPENAPI_CHANGELOG_PATH")
 
-          if grep -q -F -f temp_changes_stripped.txt temp_changelog_stripped.txt; then
-            echo "åThe changelog is up to date."
-          else
-            echo "Error: The changelog is incomplete. Please generate it using oasdiff."
-            exit 1
-          fi
+          try:
+              with open("oasdiff-changes.txt", "r", encoding="utf-8") as f:
+                  changes_raw = f.read()
+              with open(changelog_path, "r", encoding="utf-8") as f:
+                  changelog_raw = f.read()
+          except FileNotFoundError as e:
+              print(f"Error: {e}")
+              sys.exit(1)
+
+          def strip_whitespace(text):
+              return re.sub(r"\s+", "", text)
+
+          changes_stripped = strip_whitespace(changes_raw)
+          changelog_stripped = strip_whitespace(changelog_raw)
+
+          if not changes_stripped:
+              print("No changes detected. The changelog is up to date.")
+              sys.exit(0)
+
+          if changes_stripped in changelog_stripped:
+              print("Success: The changelog is up to date.")
+              sys.exit(0)
+          else:
+              print("Error: The changelog is incomplete. Please generate it using oasdiff.")
+              sys.exit(1)
+          '

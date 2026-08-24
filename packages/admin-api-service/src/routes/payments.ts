@@ -7,7 +7,6 @@ import {
   ApprovePaymentRequest,
   CancelPaymentRequest,
   GetPaymentRequest,
-  PaymentApprove,
   PaymentCancel,
   PaymentCreate
 } from 'admin-client-lib';
@@ -93,21 +92,22 @@ export async function paymentRoutes(
 
   server.post<{
     Params: ApprovePaymentRequest;
-    Body: PaymentApprove;
-  }>('/payments/:id/approve', async (request, reply) => {
-    const { id } = request.params;
-    const { intentId } = request.body ?? {};
+  }>(
+    '/payment-intents/:intentId/payments/:id/approve',
+    async (request, reply) => {
+      const { id, intentId } = request.params;
 
-    try {
-      const result = await paymentsClient.approvePayment(intentId, id);
-      return reply.status(200).send({ id: result.id, state: result.state });
-    } catch (err) {
-      server.log.error(err);
-      const httpStatus = httpStatusFromGrpcError(err);
-      const { error } = toClientApiErrorResponse(err);
-      return reply.status(httpStatus).send({ error: error.description });
+      try {
+        const result = await paymentsClient.approvePayment(intentId, id);
+        return reply.status(200).send({ id: result.id, state: result.state });
+      } catch (err) {
+        server.log.error(err);
+        const httpStatus = httpStatusFromGrpcError(err);
+        const { error } = toClientApiErrorResponse(err);
+        return reply.status(httpStatus).send({ error: error.description });
+      }
     }
-  });
+  );
 
   server.post<{
     Params: CancelPaymentRequest;
