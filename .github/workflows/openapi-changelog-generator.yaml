@@ -76,6 +76,11 @@ jobs:
           format: markdown
           output-to-file: 'oasdiff-changes.txt'
 
+      - name: DEBUG - Show exact differences
+        run: |
+          echo "Compare CI output to CHANGELOG.md..."
+          diff -u oasdiff-changes.txt "${{ env.OPENAPI_CHANGELOG_PATH }}" || true
+
       - name: Check CHANGELOG.md Update
         run: |
           python3 -c '
