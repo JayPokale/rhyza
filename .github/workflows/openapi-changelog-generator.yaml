@@ -116,6 +116,12 @@ jobs:
               print("Success: The changelog is up to date.")
               sys.exit(0)
           else:
-              print("Error: The changelog is incomplete. Please generate it using oasdiff.")
+              print("Error: The changelog is incomplete.")
+              print("---")
+              print("DEBUG Snippet (First 150 chars of changes):")
+              print(changes_stripped[:150])
+              print("---")
+              print("DEBUG Snippet (Last 150 chars of changes):")
+              print(changes_stripped[-150:])
               sys.exit(1)
           '
