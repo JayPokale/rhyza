@@ -282,7 +282,7 @@ export class AuthClient {
           if (error) {
             reject(error);
           } else {
-            resolve({ id: response.getId() });
+            resolve({ id: response.getId(), nonce: response.getNonce() });
           }
         }
       );
@@ -467,6 +467,7 @@ function fromPbGrant(grant: PbGrant): GetGrantResult {
     startMethods: grant.getStartMethodsList(),
     continueToken: grant.getContinueToken(),
     continueId: grant.getContinueId(),
+    interactionNonce: grant.getInteractionNonce() || undefined,
     state: grant.getState(),
     finalizationReason: grant.getFinalizationReason(),
     client: grant.getClient(),
@@ -487,6 +488,7 @@ function fromPbCreateGrantResponse(
     id: response.getId(),
     continueId: response.getContinueId(),
     continueToken: response.getContinueToken(),
+    interactionNonce: response.getInteractionNonce() || undefined,
     accessTokenValue: response.getAccessTokenValue() || undefined,
     accessTokenManagementId: response.getAccessTokenManagementId() || undefined,
     accessTokenExpiresIn: response.getAccessTokenExpiresIn() || undefined,

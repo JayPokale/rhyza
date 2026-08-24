@@ -487,12 +487,14 @@ export class AuthServiceServer {
 
       if (grant.finishMethod) response.setFinishMethod(grant.finishMethod);
 
+      if (grant.interactionNonce)
+        response.setInteractionNonce(grant.interactionNonce);
+
       if (grant.interaction) {
         const interaction = new Interaction();
         interaction.setExpiresAt(grant.interaction.expiresAt);
         interaction.setState(grant.interaction.state);
         interaction.setInteractRef(grant.interaction.interactRef);
-        interaction.setInteractionNonce(grant.interaction.interactionNonce);
         response.setInteraction(interaction);
       }
 
@@ -556,13 +558,15 @@ export class AuthServiceServer {
       const response = new CreateGrantResponse();
       const payload: GrantCreatedEvent['payload'] = event.payload;
       response.setId(payload.id);
-      response.setInteractive(payload.interactive);
 
       if (payload.continueToken) {
         response.setContinueToken(payload.continueToken);
       }
       if (payload.continueId) {
         response.setContinueId(payload.continueId);
+      }
+      if (payload.interactionNonce) {
+        response.setInteractionNonce(payload.interactionNonce);
       }
 
       if (payload.accessTokenValue) {

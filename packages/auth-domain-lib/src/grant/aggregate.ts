@@ -122,6 +122,7 @@ export class GrantAggregate {
               | IntrospectTokenCmd
               | RotateTokenCmd
               | RevokeTokenCmd
+              | StartInteractionCmd
               | AcceptInteractionCommand
               | RejectInteractionCommand
           ).payload.id
