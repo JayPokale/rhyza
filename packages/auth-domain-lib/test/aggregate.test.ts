@@ -353,7 +353,9 @@ describe('GrantAggregate.handleBatch', () => {
     });
 
     describe('handleRotateTokenCommand', async () => {
-      async function createIssuedGrant(keys: ReturnType<typeof generateTestKeys>) {
+      async function createIssuedGrant(
+        keys: ReturnType<typeof generateTestKeys>
+      ) {
         const createCmd = makeCreateGrantCmd({
           client: JSON.stringify(keys.publicKey),
           signatureData: await signedSignatureData(
