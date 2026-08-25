@@ -114,14 +114,7 @@ export class AuthClient {
     request.setClient(client);
     if (options.subjectIds) request.setSubjectIdsList(options.subjectIds);
     request.setFinish(options.finish);
-
-    const signatureDataMsg = new SignatureData();
-    signatureDataMsg.setUrl(signatureData.url);
-    signatureDataMsg.setMethod(signatureData.method);
-    signatureDataMsg.setBody(signatureData.body);
-    signatureDataMsg.setKid(signatureData.kid);
-    signatureDataMsg.setHeaders(JSON.stringify(signatureData.headers));
-    request.setSignatureData(signatureDataMsg);
+    request.setSignatureData(this._toSignatureData(signatureData));
 
     return new Promise((resolve, reject) => {
       this._grpcClient.createGrant(
@@ -139,15 +132,17 @@ export class AuthClient {
 
   continueGrant(
     id: string,
+    signatureData: SignatureRequestData,
     continueId: string,
     continueToken: string,
-    interactRef: string
+    interactRef?: string
   ): Promise<ContinueGrantResponse> {
     const request = new ContinueGrantRequest();
     request.setId(id);
     request.setContinueId(continueId);
     request.setContinueToken(continueToken);
-    request.setInteractRef(interactRef);
+    if (interactRef) request.setInteractRef(interactRef);
+    request.setSignatureData(this._toSignatureData(signatureData));
 
     return new Promise((resolve, reject) => {
       this._grpcClient.continueGrant(

@@ -31,9 +31,9 @@ import {
 import {
   AccessAction,
   AccessType,
-  GrantFinalization,
   IAccessItem,
   IAccessLimit,
+  IAccessToken,
   IFinishMethod,
   IGrant,
   IGrantRepository,
@@ -44,10 +44,9 @@ import {
   IStartMethod,
   ISubjectId,
   IWalletAddressService,
-  IRotatedGrantUpdate,
-  RevokedAccessToken
+  IRotatedGrantUpdate
 } from './interfaces';
-import { GrantEntity } from './entity';
+import { GRANT_POLL_MS, GrantEntity } from './entity';
 import { JWK, validateSignature } from '@interledger/http-signature-utils';
 
 export interface IGrantService {
@@ -57,6 +56,8 @@ export interface IGrantService {
 export class GrantAggregate {
   private newGrantIds: string[] = [];
   private rotatedGrantIds = new Map<string, IRotatedGrantUpdate>();
+  private continuedGrantIds = new Set<string>();
+  private continuedGrantAccessTokens = new Map<string, IAccessToken>();
   private grantMap = new Map<string, GrantEntity>();
   private walletAddressRequestMap = new Map<
     string,
@@ -111,12 +112,23 @@ export class GrantAggregate {
         cmd.msgName === AcceptInteractionCommand.name ||
         cmd.msgName === RejectInteractionCommand.name
       ) {
-        const payload = (cmd as ContinueGrantCmd).payload;
-        grantIdSet.add(payload.id);
+        grantIdSet.add(
+          (
+            cmd as
+              | ContinueGrantCmd
+              | RevokeGrantCmd
+              | IntrospectTokenCmd
+              | RotateTokenCmd
+              | RevokeTokenCmd
+              | AcceptInteractionCommand
+              | RejectInteractionCommand
+          ).payload.id
+        );
       }
     }
 
     const grants = await this._repo.fetchByIds([...grantIdSet]);
+
     const findKeys = async (walletAddress: string): Promise<void> => {
       const keys =
         await this._walletAddressService.getWalletAddressKeys(walletAddress);
@@ -129,12 +141,7 @@ export class GrantAggregate {
       }
     };
 
-    const waRequests = [];
-    for (const walletAddress of walletAddressSet) {
-      waRequests.push(findKeys(walletAddress));
-    }
-
-    await Promise.all(waRequests);
+    await Promise.all([...walletAddressSet].map((wa) => findKeys(wa)));
 
     for (const grant of grants) {
       this.grantMap.set(grant.id, GrantEntity.fromObject(grant));
@@ -145,7 +152,7 @@ export class GrantAggregate {
       if (cmd.msgName == CreateGrantCmd.name) {
         event = await this.handleCreateGrantCommand(cmd as CreateGrantCmd);
       } else if (cmd.msgName === ContinueGrantCmd.name) {
-        event = this.handleContinueGrantCommand(cmd as ContinueGrantCmd);
+        event = await this.handleContinueGrantCommand(cmd as ContinueGrantCmd);
       } else if (cmd.msgName === RevokeGrantCmd.name) {
         event = this.handleRevokeGrantCommand(cmd as RevokeGrantCmd);
       } else if (cmd.msgName === IntrospectTokenCmd.name) {
@@ -169,6 +176,7 @@ export class GrantAggregate {
 
       outputEvents.push(event);
     }
+
     return { events: outputEvents };
   }
 
@@ -268,6 +276,7 @@ export class GrantAggregate {
           id,
           continueId: entity.continueId,
           continueToken: entity.continueToken,
+          continueWaitMs: entity.continueToken ? GRANT_POLL_MS : undefined,
           interactionNonce: entity.interactionNonce,
           accessTokenValue: accessToken?.value,
           accessTokenManagementId: accessToken?.managementId,
@@ -292,12 +301,32 @@ export class GrantAggregate {
     }
   }
 
-  private handleContinueGrantCommand(cmd: ContinueGrantCmd) {
+  private async handleContinueGrantCommand(cmd: ContinueGrantCmd) {
     const { id, continueId, continueToken, interactRef } = cmd.payload;
     try {
       const grant = this.grantMap.get(id);
       if (!grant) {
         throw new GrantNotFoundError(`Grant ${id} not found`);
+      }
+
+      const clientKey = this.resolveClientKeyForGrant(grant);
+      if (!clientKey) {
+        throw new UnauthorizedRequestError();
+      }
+
+      const {
+        signatureData: { url, method, body, headers }
+      } = cmd.payload;
+
+      const isValidSignature = await this.validateRequestSignature(
+        clientKey as JWK,
+        url,
+        method,
+        body,
+        headers
+      );
+      if (!isValidSignature) {
+        throw new UnauthorizedRequestError();
       }
 
       const accessToken = grant.continue(
@@ -307,22 +336,33 @@ export class GrantAggregate {
       );
 
       this.grantMap.set(id, grant);
-      return new GrantContinuedEvent({
-        id,
-        finalizationReason: grant.finalizationReason as GrantFinalization,
-        accessTokenValue: accessToken?.value,
-        accessTokenManagementId: accessToken?.managementId,
-        accessTokenExpiresIn: accessToken?.expiresInMs,
-        access: grant.accesses,
-        continueId: grant.continueId,
-        continueToken: grant.continueToken
-      });
+      this.continuedGrantIds.add(id);
+      if (accessToken) {
+        this.continuedGrantAccessTokens.set(id, accessToken);
+      }
+      return new GrantContinuedEvent(
+        {
+          id,
+          state: grant.state,
+          accessTokenValue: accessToken?.value,
+          accessTokenManagementId: accessToken?.managementId,
+          accessTokenExpiresIn: accessToken?.expiresInMs,
+          access: grant.accesses,
+          continueId: grant.continueId,
+          continueToken: grant.continueToken,
+          continueWaitMs: grant.continueToken ? GRANT_POLL_MS : undefined
+        },
+        cmd.requestId
+      );
     } catch (err) {
-      return new GrantContinueFailedEvent({
-        grantId: cmd.payload.id,
-        errorName: (err as Error).name,
-        message: (err as Error).message
-      });
+      return new GrantContinueFailedEvent(
+        {
+          grantId: cmd.payload.id,
+          errorName: (err as Error).name,
+          message: (err as Error).message
+        },
+        cmd.requestId
+      );
     }
   }
 
@@ -406,7 +446,7 @@ export class GrantAggregate {
       const accessToken = grant.rotateAccessToken(value, managementId);
       const revokedToken = grant.accessTokens.find(
         (t) => t.value === value
-      ) as RevokedAccessToken;
+      ) as IAccessToken;
 
       this.grantMap.set(id, grant);
       this.rotatedGrantIds.set(id, {
@@ -472,7 +512,7 @@ export class GrantAggregate {
         throw new GrantNotFoundError(`Grant ${id} not found`);
       }
 
-      grant.handleInteractionChoice(choice);
+      grant.handleInteraction(choice);
       this.grantMap.set(id, grant);
 
       return new GrantInteractionChoiceHandledEvent({
@@ -503,7 +543,7 @@ export class GrantAggregate {
 
     return this.handleInteractionChoice(
       id,
-      InteractionState.DENIED,
+      InteractionState.REJECTED,
       interactRef
     );
   }
@@ -530,15 +570,39 @@ export class GrantAggregate {
       promises.push(
         this._repo.storeRotatedGrants([...this.rotatedGrantIds.values()])
       );
-    }
+      if (this.continuedGrantIds.size > 0) {
+        const continuedEntities = [];
+        for (const id of this.continuedGrantIds) {
+          const grant = this.grantMap.get(id);
+          if (!grant) {
+            this._logger.error(
+              `Grant ${id} missing from grantMap during continue flush`
+            );
+            continue;
+          }
 
-    // TODO handle gracefully
-    try {
-      await Promise.all(promises);
-    } finally {
-      this.newGrantIds = [];
-      this.grantMap.clear();
-      this.rotatedGrantIds.clear();
+          continuedEntities.push({
+            id: grant.id,
+            state: grant.state,
+            continueToken: grant.continueToken,
+            continueId: grant.continueId,
+            lastContinuedAt: grant.lastContinuedAt,
+            accessToken: this.continuedGrantAccessTokens.get(id)
+          });
+        }
+        promises.push(this._repo.storeContinuedGrants(continuedEntities));
+      }
+
+      // TODO handle gracefully
+      try {
+        await Promise.all(promises);
+      } finally {
+        this.newGrantIds = [];
+        this.continuedGrantIds.clear();
+        this.continuedGrantAccessTokens.clear();
+        this.grantMap.clear();
+        this.rotatedGrantIds.clear();
+      }
     }
   }
 }
