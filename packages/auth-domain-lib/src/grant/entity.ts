@@ -151,7 +151,7 @@ export class GrantEntity implements IGrant {
     } else {
       const entity = new GrantEntity({
         ...input,
-        state: GrantState.APPROVED,
+        state: GrantState.ISSUED,
         continueToken: generateContinueToken(),
         continueId: uuid(),
         lastContinuedAt: new Date(),

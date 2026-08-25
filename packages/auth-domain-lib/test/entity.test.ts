@@ -72,7 +72,7 @@ describe('GrantEntity', () => {
 
       const { entity, accessToken } = GrantEntity.create(input);
 
-      assert.equal(entity.state, 'APPROVED');
+      assert.equal(entity.state, 'ISSUED');
       assert.ok(entity.continueToken);
       assert.ok(entity.continueId);
 
@@ -326,8 +326,8 @@ describe('GrantEntity', () => {
         () => entity.continue(token, id, interaction.interactRef),
         InvalidInteractionError
       );
-    })
-  })
+    });
+  });
 
   describe('introspectAccessToken', () => {
     function createIssuedGrant(accesses = makeCreateGrantInput().accesses) {

@@ -13,6 +13,7 @@ import {
   SubjectId,
   AccessLimits
 } from '../src/';
+import { randomUUID } from 'node:crypto';
 
 describe('Auth Client', () => {
   const AUTH_GRPC_URL = process.env['AUTH_GRPC_URL'] || '0.0.0.0:50054';
@@ -324,7 +325,7 @@ describe('Auth Client', () => {
 
       assert.ok(result);
       assert.equal(result.id, createResult.id);
-      assert.equal(result.state, 'APPROVED');
+      assert.equal(result.state, 'ISSUED');
       assert.equal(result.client, JSON.stringify(keys.publicKey));
       assert.equal(result.accesses.length, 1);
     });
@@ -355,8 +356,8 @@ describe('Auth Client', () => {
       );
 
       return {
-        id: createResult.getId(),
-        tokenValue: createResult.getAccessTokenValue()
+        id: createResult.id,
+        tokenValue: createResult.accessTokenValue as string
       };
     }
 
@@ -368,12 +369,9 @@ describe('Auth Client', () => {
 
       const result = await authClient.introspectToken(id, tokenValue, access);
 
-      assert.equal(result.getActive(), true);
-      assert.equal(result.getGrantId(), id);
-      assert.deepStrictEqual(
-        result.getAccessList().map((a) => a.toObject()),
-        access.map((a) => a.toObject())
-      );
+      assert.equal(result.active, true);
+      assert.equal(result.grantId, id);
+      assert.deepStrictEqual(result.access, access);
     });
 
     test('returns active: false for a token value that does not match', async () => {
@@ -388,8 +386,8 @@ describe('Auth Client', () => {
         []
       );
 
-      assert.equal(result.getActive(), false);
-      assert.equal(result.getAccessList().length, 0);
+      assert.equal(result.active, false);
+      assert.equal(result.access.length, 0);
     });
 
     test('restricts the returned access to the requested access items', async () => {
@@ -403,11 +401,8 @@ describe('Auth Client', () => {
         access[0]
       ]);
 
-      assert.equal(result.getActive(), true);
-      assert.deepStrictEqual(
-        result.getAccessList().map((a) => a.toObject()),
-        [access[0]].map((a) => a.toObject())
-      );
+      assert.equal(result.active, true);
+      assert.deepStrictEqual(result.access, [access[0]]);
     });
 
     test('returns active: false when the requested access items are not fully covered by the grant', async () => {
@@ -421,7 +416,7 @@ describe('Auth Client', () => {
         makeAccessItem({ type: 'QUOTE', actions: ['CREATE'] })
       ]);
 
-      assert.equal(result.getActive(), false);
+      assert.equal(result.active, false);
     });
 
     test('returns active: false when the grant does not exist', async () => {
@@ -431,7 +426,7 @@ describe('Auth Client', () => {
         []
       );
 
-      assert.equal(result.getActive(), false);
+      assert.equal(result.active, false);
     });
   });
 });
