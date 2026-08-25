@@ -1,4 +1,4 @@
-name: OpenAPI PR Changelog Generator
+name: Admin OpenAPI Checks
 
 on:
   pull_request:
