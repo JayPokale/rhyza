@@ -42,6 +42,7 @@ jobs:
            fi
 
   check-changelog:
+    name: Check if admin changelog is up to date
     runs-on: ubuntu-latest
     env:
       OPENAPI_SPEC_PATH: 'docs/openapi/admin/admin-api.yaml'
