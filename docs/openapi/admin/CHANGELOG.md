@@ -61,3 +61,7 @@
 
 ### POST /wallet-addresses
 -  api operation id `WalletAddresses_createWalletAddress` removed and replaced with `createWalletAddress`
+
+
+## Info
+-  a breaking change was detected but the major version did not increase, from `0.0.0` to `0.0.1`
