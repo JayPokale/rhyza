@@ -378,10 +378,10 @@ export class AuthServiceServer {
 
       const cmd = new StartInteractionCmd(
         {
-          id: call.request.getId(),
+          id: call.request.getId()
         },
         commandId
-      )
+      );
       await this._msgProducer.send(cmd);
     } else if (call.request instanceof FinishInteractionRequest) {
       const commandId = call.request.getId();
