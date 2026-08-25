@@ -105,6 +105,7 @@ export class GrantEntity implements IGrant {
     this._finishMethod = input.finishMethod;
     this._finishUri = input.finishUri;
     this._interactionNonce = input.interactionNonce;
+    this._interaction = input.interaction;
 
     if (input.accessTokens) {
       for (const accessToken of input.accessTokens) {
