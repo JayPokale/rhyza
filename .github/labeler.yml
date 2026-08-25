@@ -25,3 +25,7 @@
 'open-payments-resource-service':
   - changed-files:
       - any-glob-to-any-file: 'packages/open-payments-resource-service/**'
+
+'open-payments-auth-service':
+  - changed-files:
+      - any-glob-to-any-file: 'packages/open-payments-auth-service/**'

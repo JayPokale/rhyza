@@ -570,39 +570,40 @@ export class GrantAggregate {
       promises.push(
         this._repo.storeRotatedGrants([...this.rotatedGrantIds.values()])
       );
-      if (this.continuedGrantIds.size > 0) {
-        const continuedEntities = [];
-        for (const id of this.continuedGrantIds) {
-          const grant = this.grantMap.get(id);
-          if (!grant) {
-            this._logger.error(
-              `Grant ${id} missing from grantMap during continue flush`
-            );
-            continue;
-          }
+    }
 
-          continuedEntities.push({
-            id: grant.id,
-            state: grant.state,
-            continueToken: grant.continueToken,
-            continueId: grant.continueId,
-            lastContinuedAt: grant.lastContinuedAt,
-            accessToken: this.continuedGrantAccessTokens.get(id)
-          });
+    if (this.continuedGrantIds.size > 0) {
+      const continuedEntities = [];
+      for (const id of this.continuedGrantIds) {
+        const grant = this.grantMap.get(id);
+        if (!grant) {
+          this._logger.error(
+            `Grant ${id} missing from grantMap during continue flush`
+          );
+          continue;
         }
-        promises.push(this._repo.storeContinuedGrants(continuedEntities));
-      }
 
-      // TODO handle gracefully
-      try {
-        await Promise.all(promises);
-      } finally {
-        this.newGrantIds = [];
-        this.continuedGrantIds.clear();
-        this.continuedGrantAccessTokens.clear();
-        this.grantMap.clear();
-        this.rotatedGrantIds.clear();
+        continuedEntities.push({
+          id: grant.id,
+          state: grant.state,
+          continueToken: grant.continueToken,
+          continueId: grant.continueId,
+          lastContinuedAt: grant.lastContinuedAt,
+          accessToken: this.continuedGrantAccessTokens.get(id)
+        });
       }
+      promises.push(this._repo.storeContinuedGrants(continuedEntities));
+    }
+
+    // TODO handle gracefully
+    try {
+      await Promise.all(promises);
+    } finally {
+      this.newGrantIds = [];
+      this.continuedGrantIds.clear();
+      this.continuedGrantAccessTokens.clear();
+      this.grantMap.clear();
+      this.rotatedGrantIds.clear();
     }
   }
 }
