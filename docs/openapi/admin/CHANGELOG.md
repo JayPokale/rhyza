@@ -1,4 +1,4 @@
-# API Changelog 0.0.0 vs. 0.0.0
+# API Changelog 0.0.0 vs. 0.0.1
 
 
 ## API Changes
