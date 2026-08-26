@@ -310,6 +310,7 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
             peerAssetScale: receivedPayment.peerAssetScale,
             sourceAmount: receivedPayment.sourceAmount,
             receiveAmount: receivedPayment.receiveAmount,
+            expiresAt: receivedPayment.expiresAt,
             ledgerTransferId: receivedPayment.ledgerTransferId,
             failReason: receivedPayment.failReason
           }))
@@ -448,7 +449,8 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
           peerAssetCode: receivedPayment.peerAssetCode,
           peerAssetScale: receivedPayment.peerAssetScale,
           sourceAmount: receivedPayment.sourceAmount,
-          receiveAmount: receivedPayment.receiveAmount
+          receiveAmount: receivedPayment.receiveAmount,
+          expiresAt: receivedPayment.expiresAt
         });
       }
     }

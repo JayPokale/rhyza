@@ -79,7 +79,8 @@ export class MockPaymentIntentRepo implements IPaymentIntentRepository {
           sourceAmount: receivedPayment.sourceAmount,
           receiveAmount: receivedPayment.receiveAmount,
           ledgerTransferId: receivedPayment.ledgerTransferId,
-          failReason: receivedPayment.failReason
+          failReason: receivedPayment.failReason,
+          expiresAt: receivedPayment.expiresAt
         }))
       });
     }

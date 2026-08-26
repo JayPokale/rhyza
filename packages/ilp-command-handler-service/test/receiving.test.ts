@@ -313,13 +313,12 @@ describe('IlpCommandHandler — remote quote receiving', () => {
       resolved!.sharedSecret
     );
 
-    await consumer.deliver([
-      inboundProbe(credentials.ilpAddress, {
-        packetId: 'packet-pay-1',
-        data,
-        executionCondition
-      })
-    ]);
+    const prepare = inboundProbe(credentials.ilpAddress, {
+      packetId: 'packet-pay-1',
+      data,
+      executionCondition
+    });
+    await consumer.deliver([prepare]);
 
     assert.equal(
       producer.sent.filter(
@@ -341,6 +340,7 @@ describe('IlpCommandHandler — remote quote receiving', () => {
     assert.equal(received.payload.paymentIntentId, PAYMENT_INTENT_ID);
     assert.equal(received.payload.sourceAmount, '100');
     assert.equal(received.payload.peerId, 'peer-1');
+    assert.equal(received.payload.expiresAt, prepare.payload.expiresAt);
 
     const stored = await repo.fetchPacketById('packet-pay-1');
     assert.ok(stored);

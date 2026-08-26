@@ -341,6 +341,7 @@ export type ValidateReceivedPaymentCmdPayload = {
   packetId: string;
   peerId: string;
   sourceAmount: string;
+  expiresAt?: string;
 };
 
 export class ValidateReceivedPaymentCmd extends PaymentIntentCommand {

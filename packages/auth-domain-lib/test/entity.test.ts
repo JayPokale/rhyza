@@ -73,7 +73,7 @@ describe('GrantEntity', () => {
 
       const { entity, accessToken } = GrantEntity.create(input);
 
-      assert.equal(entity.state, 'APPROVED');
+      assert.equal(entity.state, 'ISSUED');
       assert.ok(entity.continueToken);
       assert.ok(entity.continueId);
 
@@ -387,6 +387,177 @@ describe('GrantEntity', () => {
           entity.revokeAccessToken(accessToken.value, 'wrong-management-id'),
         UnknownAccessTokenError
       );
+    });
+  });
+
+  describe('introspectAccessToken', () => {
+    function createIssuedGrant(accesses = makeCreateGrantInput().accesses) {
+      const input = makeCreateGrantInput({ accesses });
+      const { entity, accessToken } = GrantEntity.create(input);
+      assert.ok(accessToken); // Non-interactive grants issue a token immediately.
+      return { entity, accessToken };
+    }
+
+    it('returns active: false for a value that does not match any access token', () => {
+      const { entity } = createIssuedGrant();
+
+      const result = entity.introspectAccessToken('unknown-token-value');
+
+      assert.deepEqual(result, { active: false });
+    });
+
+    it('returns active: false for a revoked access token', () => {
+      const { entity, accessToken } = createIssuedGrant();
+      entity.revokeAccessToken(accessToken.value, accessToken.managementId);
+
+      const result = entity.introspectAccessToken(accessToken.value);
+
+      assert.deepEqual(result, { active: false });
+    });
+
+    it('returns active: false for an expired access token', (context) => {
+      const now = Date.now();
+      context.mock.timers.enable({ apis: ['Date'], now });
+
+      const { entity, accessToken } = createIssuedGrant();
+      context.mock.timers.tick(accessToken.expiresInMs + 1);
+
+      const result = entity.introspectAccessToken(accessToken.value);
+
+      assert.deepEqual(result, { active: false });
+    });
+
+    it('returns active: true with the grant accesses when no requestedAccesses are given', () => {
+      const accesses = [
+        { type: AccessType.INCOMING_PAYMENT, actions: [AccessAction.READ] }
+      ];
+      const { entity, accessToken } = createIssuedGrant(accesses);
+
+      const result = entity.introspectAccessToken(accessToken.value);
+
+      assert.deepEqual(result, { active: true, access: accesses });
+    });
+
+    it('returns active: true with the matching access items when the grant covers every requested access', () => {
+      const accesses = [
+        { type: AccessType.INCOMING_PAYMENT, actions: [AccessAction.READ] },
+        { type: AccessType.QUOTE, actions: [AccessAction.CREATE] }
+      ];
+      const { entity, accessToken } = createIssuedGrant(accesses);
+
+      const result = entity.introspectAccessToken(accessToken.value, [
+        { type: AccessType.INCOMING_PAYMENT, actions: [AccessAction.READ] }
+      ]);
+
+      assert.deepEqual(result, {
+        active: true,
+        access: [accesses[0]]
+      });
+    });
+
+    it('returns active: true when the requested actions are a subset of the actions on a matching grant access item', () => {
+      const accesses = [
+        {
+          type: AccessType.INCOMING_PAYMENT,
+          actions: [AccessAction.READ, AccessAction.CREATE]
+        }
+      ];
+      const { entity, accessToken } = createIssuedGrant(accesses);
+
+      const requestedAccesses = [
+        { type: AccessType.INCOMING_PAYMENT, actions: [AccessAction.READ] }
+      ];
+      const result = entity.introspectAccessToken(
+        accessToken.value,
+        requestedAccesses
+      );
+
+      assert.deepEqual(result, { active: true, access: [accesses[0]] });
+    });
+
+    it('returns active: false when a matching access item does not have sufficiently overlapping actions', () => {
+      const accesses = [
+        { type: AccessType.INCOMING_PAYMENT, actions: [AccessAction.READ] }
+      ];
+      const { entity, accessToken } = createIssuedGrant(accesses);
+
+      const requestedAccesses = [
+        { type: AccessType.INCOMING_PAYMENT, actions: [AccessAction.CREATE] }
+      ];
+      const result = entity.introspectAccessToken(
+        accessToken.value,
+        requestedAccesses
+      );
+
+      assert.deepEqual(result, { active: false });
+    });
+
+    it('returns active: false when a matching access item only has a subset of the requested actions', () => {
+      const accesses = [
+        { type: AccessType.INCOMING_PAYMENT, actions: [AccessAction.CREATE] }
+      ];
+      const { entity, accessToken } = createIssuedGrant(accesses);
+
+      const requestedAccesses = [
+        {
+          type: AccessType.INCOMING_PAYMENT,
+          actions: [AccessAction.CREATE, AccessAction.READ]
+        }
+      ];
+      const result = entity.introspectAccessToken(
+        accessToken.value,
+        requestedAccesses
+      );
+
+      assert.deepEqual(result, { active: false });
+    });
+
+    it('returns active: true when a read request matches a grant access item with read-all', () => {
+      const accesses = [
+        { type: AccessType.INCOMING_PAYMENT, actions: [AccessAction.READ_ALL] }
+      ];
+      const { entity, accessToken } = createIssuedGrant(accesses);
+
+      const requestedAccesses = [
+        { type: AccessType.INCOMING_PAYMENT, actions: [AccessAction.READ] }
+      ];
+      const result = entity.introspectAccessToken(
+        accessToken.value,
+        requestedAccesses
+      );
+
+      assert.deepEqual(result, { active: true, access: [accesses[0]] });
+    });
+
+    it('returns active: true when a list request matches a grant access item with list-all', () => {
+      const accesses = [
+        { type: AccessType.INCOMING_PAYMENT, actions: [AccessAction.LIST_ALL] }
+      ];
+      const { entity, accessToken } = createIssuedGrant(accesses);
+
+      const requestedAccesses = [
+        { type: AccessType.INCOMING_PAYMENT, actions: [AccessAction.LIST] }
+      ];
+      const result = entity.introspectAccessToken(
+        accessToken.value,
+        requestedAccesses
+      );
+
+      assert.deepEqual(result, { active: true, access: [accesses[0]] });
+    });
+
+    it('returns active: false when the grant does not cover every requested access', () => {
+      const accesses = [
+        { type: AccessType.INCOMING_PAYMENT, actions: [AccessAction.READ] }
+      ];
+      const { entity, accessToken } = createIssuedGrant(accesses);
+
+      const result = entity.introspectAccessToken(accessToken.value, [
+        { type: AccessType.INCOMING_PAYMENT, actions: [AccessAction.READ] },
+        { type: AccessType.OUTGOING_PAYMENT, actions: [AccessAction.CREATE] }
+      ]);
+
+      assert.deepEqual(result, { active: false });
     });
   });
 });

@@ -24,7 +24,6 @@ import {
   GrantRevokedEvent,
   GrantRevokeFailedEvent,
   TokenIntrospectedEvent,
-  TokenIntrospectionFailedEvent,
   TokenRotatedEvent,
   TokenRotationFailedEvent,
   TokenRevokedEvent,
@@ -78,6 +77,7 @@ export class GrantAggregate {
 
     const grantIdSet = new Set<string>();
     const walletAddressSet = new Set<string>();
+    // Maybe consolidate commands that just insert a grant id into the map into a single else-if block?
     for (const cmd of cmds) {
       if (cmd.msgName === CreateGrantCmd.name) {
         const payload = (cmd as CreateGrantCmd).payload;
@@ -401,23 +401,49 @@ export class GrantAggregate {
     try {
       const grant = this.grantMap.get(id);
       if (!grant) {
-        throw new GrantNotFoundError(`Grant ${id} not found`);
+        this._logger.debug(
+          `Grant ${id} not found - command: ${IntrospectTokenCmd.name}`
+        );
+        return new TokenIntrospectedEvent(
+          {
+            id,
+            value: tokenValue,
+            active: false
+          },
+          cmd.requestId
+        );
       }
 
       const accessToken = grant.introspectAccessToken(tokenValue, access);
 
       this.grantMap.set(id, grant);
-      return new TokenIntrospectedEvent({
-        id,
-        active: accessToken.active,
-        access: accessToken.access
-      });
+      return new TokenIntrospectedEvent(
+        {
+          id,
+          value: tokenValue,
+          active: accessToken.active,
+          access: accessToken.access
+        },
+        cmd.requestId
+      );
     } catch (err) {
-      return new TokenIntrospectionFailedEvent({
-        grantId: cmd.payload.id,
-        errorName: (err as Error).name,
-        message: (err as Error).message
-      });
+      this._logger.error(
+        {
+          grantId: cmd.payload.id,
+          value: tokenValue,
+          errorName: (err as Error).constructor.name,
+          message: (err as Error).message
+        },
+        `Failed to introspect token ${tokenValue} for grant ${cmd.payload.id}`
+      );
+      return new TokenIntrospectedEvent(
+        {
+          id: cmd.payload.id,
+          value: tokenValue,
+          active: false
+        },
+        cmd.requestId
+      );
     }
   }
 
@@ -602,6 +628,7 @@ export class GrantAggregate {
       this.continuedGrantAccessTokens.clear();
       this.revokedTokens.clear();
       this.grantMap.clear();
+      this.newGrantIds = [];
     }
   }
 }
