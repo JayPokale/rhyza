@@ -31,6 +31,7 @@ import {
   Interaction,
   ContinueGrantResponse,
   RevokeGrantResponse,
+  RevokeTokenResponse,
   IntrospectTokenResponse,
   RotateTokenResponse,
   Grant
@@ -57,6 +58,8 @@ import {
   TokenIntrospectionFailedEvent,
   TokenRotatedEvent,
   TokenRotationFailedEvent,
+  TokenRevokedEvent,
+  TokenRevokeFailedEvent,
   IAccessItem
 } from 'auth-domain-lib';
 import crypto from 'crypto';
@@ -403,11 +406,25 @@ export class AuthServiceServer {
       const commandId = call.request.getId();
       this._storePendingResponse(commandId, call, callback);
 
+      const signatureDataMsg = call.request.getSignatureData();
+      if (!signatureDataMsg) {
+        callback(new Error('Missing signature data'));
+        return;
+      }
+      const signatureData = {
+        url: signatureDataMsg.getUrl(),
+        method: signatureDataMsg.getMethod(),
+        body: signatureDataMsg.getBody(),
+        headers: JSON.parse(signatureDataMsg.getHeaders()),
+        kid: signatureDataMsg.getKid()
+      };
+
       const cmd = new RevokeTokenCmd(
         {
           id: call.request.getId(),
           value: call.request.getTokenValue(),
-          managementId: call.request.getManagementId()
+          managementId: call.request.getManagementId(),
+          signatureData
         },
         commandId
       );
@@ -521,7 +538,10 @@ export class AuthServiceServer {
       }
     }, timeoutMs);
 
-    this._responseMap.set(commandId, { callback, timer });
+    this._responseMap.set(commandId, {
+      callback,
+      timer
+    });
   }
 
   private async _handleBatch(messages: IMessage[]): Promise<void> {
@@ -691,6 +711,23 @@ export class AuthServiceServer {
         details: (event.payload as TokenRotationFailedEvent['payload']).message,
         name:
           (event.payload as TokenRotationFailedEvent['payload']).errorName ||
+          'CommandError',
+        metadata: new grpc.Metadata()
+      });
+    } else if (GrantDomainEvent.isTokenRevokedEvent(event)) {
+      const response = new RevokeTokenResponse();
+      const payload: TokenRevokedEvent['payload'] = event.payload;
+      response.setId(payload.id);
+      this._resolvePendingResponse(pending, requestId, null, response);
+    } else if (GrantDomainEvent.isTokenRevokeFailedEvent(event)) {
+      this._resolvePendingResponse(pending, requestId, {
+        code: grpc.status.INTERNAL,
+        message:
+          (event.payload as TokenRevokeFailedEvent['payload']).message ||
+          'Command processing failed',
+        details: (event.payload as TokenRevokeFailedEvent['payload']).message,
+        name:
+          (event.payload as TokenRevokeFailedEvent['payload']).errorName ||
           'CommandError',
         metadata: new grpc.Metadata()
       });

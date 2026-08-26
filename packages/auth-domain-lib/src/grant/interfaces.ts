@@ -184,6 +184,7 @@ export interface IContinuedGrantUpdate {
 export interface IGrantRepository {
   storeMany(grants: IGrant[]): Promise<void>;
   storeContinuedGrants(grants: IContinuedGrantUpdate[]): Promise<void>;
+  storeRevokedTokens(tokens: IAccessToken[]): Promise<void>;
   fetchById(id: string): Promise<IGrant | undefined>;
   fetchByIds(ids: string[]): Promise<IGrant[]>;
 }

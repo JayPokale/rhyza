@@ -1,7 +1,7 @@
 import { Collection, CollectionInfo, Db, MongoClient, WithId } from 'mongodb';
 import {
-  IContinuedGrantUpdate,
   IAccessToken,
+  IContinuedGrantUpdate,
   IGrant,
   IGrantRepository
 } from 'auth-domain-lib';
@@ -236,6 +236,33 @@ export class MongoDbGrantRepo implements IGrantRepository {
       this._logger.error(err);
       throw new Error(
         `Unable to store continued grants - error: ${(err as Error).message}`
+      );
+    }
+  }
+
+  async storeRevokedTokens(tokens: IAccessToken[]): Promise<void> {
+    this._checkInitialisedOrThrow();
+
+    if (tokens.length === 0) return;
+
+    try {
+      await this._accessTokenCollection.bulkWrite(
+        tokens.map((token) => ({
+          updateOne: {
+            filter: { value: token.value },
+            update: {
+              $set: {
+                revokedAt: token.revokedAt
+              }
+            }
+          }
+        })),
+        { ordered: false }
+      );
+    } catch (err) {
+      this._logger.error(err);
+      throw new Error(
+        `Unable to store revoked tokens - error: ${(err as Error).message}`
       );
     }
   }

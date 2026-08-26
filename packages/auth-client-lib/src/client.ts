@@ -246,6 +246,7 @@ export class AuthClient {
 
   revokeToken(
     id: string,
+    signatureData: SignatureRequestData,
     tokenValue: string,
     managementId: string
   ): Promise<RevokeTokenResult> {
@@ -253,6 +254,7 @@ export class AuthClient {
     request.setId(id);
     request.setTokenValue(tokenValue);
     request.setManagementId(managementId);
+    request.setSignatureData(this.toSignatureData(signatureData));
 
     return new Promise((resolve, reject) => {
       this._grpcClient.revokeToken(

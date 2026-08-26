@@ -26,7 +26,9 @@ import {
   TokenIntrospectedEvent,
   TokenIntrospectionFailedEvent,
   TokenRotatedEvent,
-  TokenRotationFailedEvent
+  TokenRotationFailedEvent,
+  TokenRevokedEvent,
+  TokenRevokeFailedEvent
 } from './events';
 import {
   AccessAction,
@@ -56,6 +58,7 @@ export class GrantAggregate {
   private newGrantIds: string[] = [];
   private continuedGrantIds = new Set<string>();
   private continuedGrantAccessTokens = new Map<string, IAccessToken>();
+  private revokedTokens = new Map<string, IAccessToken>();
   private grantMap = new Map<string, GrantEntity>();
   private walletAddressRequestMap = new Map<
     string,
@@ -157,7 +160,7 @@ export class GrantAggregate {
       } else if (cmd.msgName === RotateTokenCmd.name) {
         event = this.handleRotateTokenCommand(cmd as RotateTokenCmd);
       } else if (cmd.msgName === RevokeTokenCmd.name) {
-        event = this.handleRevokeTokenCommand(cmd as RevokeTokenCmd);
+        event = await this.handleRevokeTokenCommand(cmd as RevokeTokenCmd);
       } else if (cmd.msgName === AcceptInteractionCommand.name) {
         event = this.handleAcceptInteractionCommand(
           cmd as AcceptInteractionCommand
@@ -375,15 +378,21 @@ export class GrantAggregate {
       grant.revoke(continueToken, continueId);
 
       this.grantMap.set(id, grant);
-      return new GrantRevokedEvent({
-        id
-      });
+      return new GrantRevokedEvent(
+        {
+          id
+        },
+        cmd.requestId
+      );
     } catch (error) {
-      return new GrantRevokeFailedEvent({
-        grantId: id,
-        errorName: (error as Error).name,
-        message: (error as Error).message
-      });
+      return new GrantRevokeFailedEvent(
+        {
+          grantId: id,
+          errorName: (error as Error).name,
+          message: (error as Error).message
+        },
+        cmd.requestId
+      );
     }
   }
 
@@ -439,7 +448,7 @@ export class GrantAggregate {
     }
   }
 
-  private handleRevokeTokenCommand(cmd: RevokeTokenCmd) {
+  private async handleRevokeTokenCommand(cmd: RevokeTokenCmd) {
     const { id, value, managementId } = cmd.payload;
 
     try {
@@ -448,18 +457,45 @@ export class GrantAggregate {
         throw new GrantNotFoundError(`Grant ${id} not found`);
       }
 
-      grant.revokeAccessToken(value, managementId);
-      this.grantMap.set(id, grant);
+      const clientKey = this.resolveClientKeyForGrant(grant);
+      if (!clientKey) {
+        throw new UnauthorizedRequestError();
+      }
 
-      return new GrantRevokedEvent({
-        id
-      });
+      const {
+        signatureData: { url, method, body, headers }
+      } = cmd.payload;
+
+      const isValidSignature = await this.validateRequestSignature(
+        clientKey as JWK,
+        url,
+        method,
+        body,
+        headers
+      );
+      if (!isValidSignature) {
+        throw new UnauthorizedRequestError();
+      }
+
+      const revokedToken = grant.revokeAccessToken(value, managementId);
+      this.grantMap.set(id, grant);
+      this.revokedTokens.set(revokedToken.value, revokedToken);
+
+      return new TokenRevokedEvent(
+        {
+          id
+        },
+        cmd.requestId
+      );
     } catch (error) {
-      return new GrantRevokeFailedEvent({
-        grantId: id,
-        errorName: (error as Error).name,
-        message: (error as Error).message
-      });
+      return new TokenRevokeFailedEvent(
+        {
+          grantId: id,
+          errorName: (error as Error).name,
+          message: (error as Error).message
+        },
+        cmd.requestId
+      );
     }
   }
 
@@ -551,6 +587,12 @@ export class GrantAggregate {
       promises.push(this._repo.storeContinuedGrants(continuedEntities));
     }
 
+    if (this.revokedTokens.size > 0) {
+      promises.push(
+        this._repo.storeRevokedTokens([...this.revokedTokens.values()])
+      );
+    }
+
     // TODO handle gracefully
     try {
       await Promise.all(promises);
@@ -558,6 +600,7 @@ export class GrantAggregate {
       this.newGrantIds = [];
       this.continuedGrantIds.clear();
       this.continuedGrantAccessTokens.clear();
+      this.revokedTokens.clear();
       this.grantMap.clear();
     }
   }

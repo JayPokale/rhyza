@@ -159,7 +159,8 @@ export class RotateTokenCmd extends CommandMsg {
   }
 }
 
-export interface RevokeTokenCmdPayload {
+export interface RevokeTokenCmdPayload
+  extends Omit<SignedCommandPayload, 'client'> {
   id: string;
   value: string;
   managementId: string;

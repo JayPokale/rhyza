@@ -4,7 +4,11 @@ import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { AuthClient } from 'auth-client-lib';
 import { components } from '../types/generated/auth-server-types';
 import { createAccessTokenResponse, decodeCompoundId } from '../utils';
-import { requireSignatureHeaders, getGnapTokenOrThrow } from '../auth';
+import {
+  extractSignatureData,
+  getGnapTokenOrThrow,
+  requireSignatureHeaders
+} from '../auth';
 
 interface TokenRouteOptions extends FastifyPluginOptions {
   authClient: AuthClient;
@@ -78,9 +82,9 @@ export async function tokenRoutes(
 
       await authClient.revokeToken(
         grantId,
+        extractSignatureData(request),
         tokenValue,
         managementId
-        //TODO pass in http signature data
       );
 
       return reply.status(204).send();

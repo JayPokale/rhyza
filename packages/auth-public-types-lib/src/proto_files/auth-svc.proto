@@ -167,6 +167,7 @@ message RevokeTokenRequest {
 	string id = 1; // grant id
 	string token_value = 2;
 	string management_id = 3;
+	SignatureData signature_data = 4;
 }
 
 message RevokeTokenResponse {

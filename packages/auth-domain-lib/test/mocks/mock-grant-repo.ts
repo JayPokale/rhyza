@@ -1,4 +1,5 @@
 import {
+  IAccessToken,
   IContinuedGrantUpdate,
   IGrant,
   IGrantRepository
@@ -31,6 +32,22 @@ export class MockGrantRepo implements IGrantRepository {
         lastContinuedAt: update.lastContinuedAt,
         accessTokens
       });
+    }
+  }
+
+  async storeRevokedTokens(tokens: IAccessToken[]): Promise<void> {
+    for (const token of tokens) {
+      for (const [grantId, grant] of this._store) {
+        const index = grant.accessTokens.findIndex(
+          (t) => t.value === token.value
+        );
+        if (index === -1) continue;
+
+        const accessTokens = [...grant.accessTokens];
+        accessTokens[index] = { ...token };
+        this._store.set(grantId, { ...grant, accessTokens });
+        break;
+      }
     }
   }
 
