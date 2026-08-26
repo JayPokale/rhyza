@@ -107,6 +107,6 @@ jobs:
               print("Success: The changelog is up to date.")
               sys.exit(0)
           else:
-              print("Error: The changelog is incomplete. Please generate it using oasdiff.")
+              print("Error: The changelog is incomplete. Please run 'pnpm generate-admin-changelog' locally and add its result to CHANGELOG.md")
               sys.exit(1)
           '

@@ -307,7 +307,7 @@ paths:
                   state:
                     $ref: '#/components/schemas/PaymentState'
                 additionalProperties: false
-  /payments/{id}/cancel:
+  /payment-intents/{intentId}/payments/{id}/cancel:
     post:
       summary: Cancel Payment
       description: Cancel a pending payment
@@ -315,6 +315,12 @@ paths:
         - payments
       operationId: cancelPayment
       parameters:
+        - name: intentId
+          in: path
+          description: Unique identifier for the payment intent
+          required: true
+          schema:
+            type: string
         - name: id
           in: path
           description: Unique identifier for the payment to be cancelled
@@ -341,7 +347,7 @@ paths:
                     type: string
                     description: Unique identifier of the cancelled payment
                 additionalProperties: false
-  /payments/{id}/payment-intents/{intentId}:
+  /payment-intents/{intentId}/payments/{id}:
     get:
       summary: Get Payment
       description: Retrieve details of a specific payment by its ID within a payment intent.
@@ -771,9 +777,6 @@ components:
       required:
         - intentId
       properties:
-        intentId:
-          type: string
-          description: Payment intent the payment is for.
         reason:
           type: string
           description: Reason why the payment was cancelled.

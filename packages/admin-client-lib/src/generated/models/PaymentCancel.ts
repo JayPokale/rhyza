@@ -20,12 +20,6 @@ import { mapValues } from '../runtime';
  */
 export interface PaymentCancel {
     /**
-     * Payment intent the payment is for.
-     * @type {string}
-     * @memberof PaymentCancel
-     */
-    intentId: string;
-    /**
      * Reason why the payment was cancelled.
      * @type {string}
      * @memberof PaymentCancel
@@ -37,7 +31,6 @@ export interface PaymentCancel {
  * Check if a given object implements the PaymentCancel interface.
  */
 export function instanceOfPaymentCancel(value: object): value is PaymentCancel {
-    if (!('intentId' in value) || value['intentId'] === undefined) return false;
     return true;
 }
 
@@ -51,7 +44,6 @@ export function PaymentCancelFromJSONTyped(json: any, ignoreDiscriminator: boole
     }
     return {
         
-        'intentId': json['intentId'],
         'reason': json['reason'] == null ? undefined : json['reason'],
     };
 }
@@ -67,7 +59,6 @@ export function PaymentCancelToJSONTyped(value?: PaymentCancel | null, ignoreDis
 
     return {
         
-        'intentId': value['intentId'],
         'reason': value['reason'],
     };
 }

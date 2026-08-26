@@ -55,6 +55,7 @@ export interface ApprovePaymentRequest {
 }
 
 export interface CancelPaymentRequest {
+    intentId: string;
     id: string;
     paymentCancel: PaymentCancel;
 }
@@ -132,6 +133,13 @@ export class PaymentsApi extends runtime.BaseAPI {
      * Creates request options for cancelPayment without sending the request
      */
     async cancelPaymentRequestOpts(requestParameters: CancelPaymentRequest): Promise<runtime.RequestOpts> {
+        if (requestParameters['intentId'] == null) {
+            throw new runtime.RequiredError(
+                'intentId',
+                'Required parameter "intentId" was null or undefined when calling cancelPayment().'
+            );
+        }
+
         if (requestParameters['id'] == null) {
             throw new runtime.RequiredError(
                 'id',
@@ -153,7 +161,8 @@ export class PaymentsApi extends runtime.BaseAPI {
         headerParameters['Content-Type'] = 'application/json';
 
 
-        let urlPath = `/payments/{id}/cancel`;
+        let urlPath = `/payment-intents/{intentId}/payments/{id}/cancel`;
+        urlPath = urlPath.replace('{intentId}', encodeURIComponent(String(requestParameters['intentId'])));
         urlPath = urlPath.replace('{id}', encodeURIComponent(String(requestParameters['id'])));
 
         return {
@@ -180,8 +189,8 @@ export class PaymentsApi extends runtime.BaseAPI {
      * Cancel a pending payment
      * Cancel Payment
      */
-    async cancelPayment(id: string, paymentCancel: PaymentCancel, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<CancelPayment200Response> {
-        const response = await this.cancelPaymentRaw({ id: id, paymentCancel: paymentCancel }, initOverrides);
+    async cancelPayment(intentId: string, id: string, paymentCancel: PaymentCancel, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<CancelPayment200Response> {
+        const response = await this.cancelPaymentRaw({ intentId: intentId, id: id, paymentCancel: paymentCancel }, initOverrides);
         return await response.value();
     }
 
@@ -257,7 +266,7 @@ export class PaymentsApi extends runtime.BaseAPI {
         const headerParameters: runtime.HTTPHeaders = {};
 
 
-        let urlPath = `/payments/{id}/payment-intents/{intentId}`;
+        let urlPath = `/payment-intents/{intentId}/payments/{id}`;
         urlPath = urlPath.replace('{intentId}', encodeURIComponent(String(requestParameters['intentId'])));
         urlPath = urlPath.replace('{id}', encodeURIComponent(String(requestParameters['id'])));
 

@@ -64,7 +64,7 @@ export async function paymentRoutes(
 
   server.get<{
     Params: GetPaymentRequest;
-  }>('/payments/:id/payment-intents/:intentId', async (request, reply) => {
+  }>('/payment-intents/:intentId/payments/:id', async (request, reply) => {
     const { intentId, id } = request.params;
 
     let payment;
@@ -112,18 +112,21 @@ export async function paymentRoutes(
   server.post<{
     Params: CancelPaymentRequest;
     Body: PaymentCancel;
-  }>('/payments/:id/cancel', async (request, reply) => {
-    const { id } = request.params;
-    const { intentId, reason } = request.body ?? {};
+  }>(
+    '/payment-intents/:intentId/payments/:id/cancel',
+    async (request, reply) => {
+      const { id, intentId } = request.params;
+      const { reason } = request.body ?? {};
 
-    try {
-      await paymentsClient.cancelPayment(intentId, id, reason);
-      return reply.status(200).send({ id });
-    } catch (err) {
-      server.log.error(err);
-      const httpStatus = httpStatusFromGrpcError(err);
-      const { error } = toClientApiErrorResponse(err);
-      return reply.status(httpStatus).send({ error: error.description });
+      try {
+        await paymentsClient.cancelPayment(intentId, id, reason);
+        return reply.status(200).send({ id });
+      } catch (err) {
+        server.log.error(err);
+        const httpStatus = httpStatusFromGrpcError(err);
+        const { error } = toClientApiErrorResponse(err);
+        return reply.status(httpStatus).send({ error: error.description });
+      }
     }
-  });
+  );
 }
