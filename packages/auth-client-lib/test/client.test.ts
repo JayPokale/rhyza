@@ -217,6 +217,17 @@ describe('Auth Client', () => {
     test('revokes a valid token', async () => {
       const { keys, grantId, tokenValue, managementId } =
         await createIssuedGrant();
+      const access = [
+        makeAccessItem({ type: 'INCOMING_PAYMENT', actions: ['READ'] })
+      ];
+
+      const before = await authClient.introspectToken(
+        grantId,
+        tokenValue,
+        access
+      );
+      assert.equal(before.active, true);
+
       const signatureData = await signedSignatureData(
         keys.privateKey,
         keys.publicKey.kid
@@ -231,6 +242,13 @@ describe('Auth Client', () => {
 
       assert.ok(result);
       assert.equal(result.id, grantId);
+
+      const after = await authClient.introspectToken(
+        grantId,
+        tokenValue,
+        access
+      );
+      assert.equal(after.active, false);
     });
 
     test('rejects revocation with an invalid signature', async () => {

@@ -390,6 +390,15 @@ describe('GrantAggregate.handleBatch', () => {
         const { keys, grantId, tokenValue, managementId } =
           await createIssuedGrant();
 
+        const before = await aggregate.handleBatch([
+          makeIntrospectTokenCmd({ id: grantId, tokenValue })
+        ]);
+        assert.equal(before.events[0].msgName, TokenIntrospectedEvent.name);
+        assert.equal(
+          (before.events[0] as TokenIntrospectedEvent).payload.active,
+          true
+        );
+
         const { events } = await aggregate.handleBatch([
           new RevokeTokenCmd(
             {
@@ -414,6 +423,15 @@ describe('GrantAggregate.handleBatch', () => {
         assert.ok(stored);
         const revoked = stored.accessTokens.find((t) => t.value === tokenValue);
         assert.ok(revoked?.revokedAt);
+
+        const after = await aggregate.handleBatch([
+          makeIntrospectTokenCmd({ id: grantId, tokenValue })
+        ]);
+        assert.equal(after.events[0].msgName, TokenIntrospectedEvent.name);
+        assert.equal(
+          (after.events[0] as TokenIntrospectedEvent).payload.active,
+          false
+        );
       });
 
       it('fails with UnauthorizedRequestError for an invalid signature', async () => {

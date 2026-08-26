@@ -342,6 +342,11 @@ describe('GrantEntity', () => {
     it('revokes a valid token when managementId matches', () => {
       const { entity, accessToken } = makeIssuedGrantWithToken();
 
+      assert.equal(
+        entity.introspectAccessToken(accessToken.value).active,
+        true
+      );
+
       const revoked = entity.revokeAccessToken(
         accessToken.value,
         accessToken.managementId
@@ -352,6 +357,10 @@ describe('GrantEntity', () => {
         entity.accessTokens.find((t) => t.value === accessToken.value)
           ?.revokedAt,
         revoked.revokedAt
+      );
+      assert.equal(
+        entity.introspectAccessToken(accessToken.value).active,
+        false
       );
     });
 
