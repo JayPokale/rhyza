@@ -5,7 +5,8 @@ import { randomUUID } from 'node:crypto';
 import { GrantEntity } from '../src/grant/entity';
 import {
   InvalidGrantError,
-  InvalidInteractionError
+  InvalidInteractionError,
+  UnknownAccessTokenError
 } from '../src/grant/errors';
 import {
   AccessAction,
@@ -325,6 +326,66 @@ describe('GrantEntity', () => {
       assert.throws(
         () => entity.continue(token, id, interaction.interactRef),
         InvalidInteractionError
+      );
+    });
+  });
+
+  describe('revokeAccessToken', () => {
+    function makeIssuedGrantWithToken() {
+      const { entity, accessToken } = GrantEntity.create(
+        makeCreateGrantInput()
+      );
+      assert.ok(accessToken);
+      return { entity, accessToken };
+    }
+
+    it('revokes a valid token when managementId matches', () => {
+      const { entity, accessToken } = makeIssuedGrantWithToken();
+
+      const revoked = entity.revokeAccessToken(
+        accessToken.value,
+        accessToken.managementId
+      );
+
+      assert.ok(revoked.revokedAt);
+      assert.equal(
+        entity.accessTokens.find((t) => t.value === accessToken.value)
+          ?.revokedAt,
+        revoked.revokedAt
+      );
+    });
+
+    it('is idempotent when the token is already revoked', () => {
+      const { entity, accessToken } = makeIssuedGrantWithToken();
+      const first = entity.revokeAccessToken(
+        accessToken.value,
+        accessToken.managementId
+      );
+      const second = entity.revokeAccessToken(
+        accessToken.value,
+        accessToken.managementId
+      );
+
+      assert.equal(second.revokedAt?.getTime(), first.revokedAt?.getTime());
+    });
+
+    it('rejects an unknown token value', () => {
+      const { entity, accessToken } = makeIssuedGrantWithToken();
+
+      assert.throws(
+        () =>
+          entity.revokeAccessToken('unknown-token', accessToken.managementId),
+        UnknownAccessTokenError
+      );
+    });
+
+    it('rejects a mismatched managementId', () => {
+      const { entity, accessToken } = makeIssuedGrantWithToken();
+
+      assert.throws(
+        () =>
+          entity.revokeAccessToken(accessToken.value, 'wrong-management-id'),
+        UnknownAccessTokenError
       );
     });
   });

@@ -491,7 +491,7 @@ export class GrantAggregate {
       return new TokenRevokeFailedEvent(
         {
           grantId: id,
-          errorName: (error as Error).name,
+          errorName: (error as Error).constructor.name,
           message: (error as Error).message
         },
         cmd.requestId
