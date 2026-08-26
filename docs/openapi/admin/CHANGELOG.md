@@ -22,7 +22,15 @@
 
 
 ### GET /payment-intents/{intentId}/payments/{id}
-- :warning: api path removed without deprecation
+- :warning: added the new `CANCELLED` enum value to the `state` response property for the response status `200`
+- :warning: added the new `COMPLETED` enum value to the `state` response property for the response status `200`
+- :warning: added the new `CONFIRMED` enum value to the `state` response property for the response status `200`
+- :warning: added the new `CREATED` enum value to the `state` response property for the response status `200`
+- :warning: added the new `FAILED` enum value to the `state` response property for the response status `200`
+- :warning: added the new `PROCESSING` enum value to the `state` response property for the response status `200`
+- :warning: added the new `REJECTED` enum value to the `state` response property for the response status `200`
+- :warning: added the new `SENDING` enum value to the `state` response property for the response status `200`
+-  api operation id `Payments_getPayment` removed and replaced with `getPayment`
 
 
 ### POST /payment-intents/{intentId}/payments/{id}/approve
@@ -36,19 +44,12 @@
 
 
 ### POST /payment-intents/{intentId}/payments/{id}/cancel
-- :warning: api path removed without deprecation
+- :warning: request body became required
+-  api operation id `Payments_cancelPayment` removed and replaced with `cancelPayment`
 
 
 ### POST /payments
 -  api operation id `Payments_createPayment` removed and replaced with `createPayment`
-
-
-### POST /payments/{id}/cancel
--  endpoint added
-
-
-### GET /payments/{id}/payment-intents/{intentId}
--  endpoint added
 
 
 ### POST /peers
@@ -62,6 +63,3 @@
 ### POST /wallet-addresses
 -  api operation id `WalletAddresses_createWalletAddress` removed and replaced with `createWalletAddress`
 
-
-## Info
--  a breaking change was detected but the major version did not increase, from `0.0.0` to `0.0.1`
