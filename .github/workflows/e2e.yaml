@@ -25,9 +25,9 @@ jobs:
         run: |
           pnpm install --frozen-lockfile
 
-      - name: Generate admin-client
+      - name: Generate and build admin-client
         run: |
-          pnpm generate
+          pnpm generate && pnpm --filter admin-client-lib build
 
       - name: Run E2E tests
         run: |
