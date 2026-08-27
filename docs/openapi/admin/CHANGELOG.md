@@ -1,3 +1,8 @@
+# API Changelog 0.0.1 vs. 0.0.2
+
+No changes to report, but the specs are different
+
+
 # API Changelog 0.0.0 vs. 0.0.1
 
 
