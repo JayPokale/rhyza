@@ -152,9 +152,6 @@ export class GrantEntity implements IGrant {
       const entity = new GrantEntity({
         ...input,
         state: GrantState.ISSUED,
-        continueToken: generateContinueToken(),
-        continueId: uuid(),
-        lastContinuedAt: new Date(),
         accessTokens: []
       });
 
@@ -374,12 +371,12 @@ export class GrantEntity implements IGrant {
   }
 
   rotateAccessToken(value: string, managementId: string): IAccessToken {
-    if (this.state !== GrantState.ISSUED) {
-      throw new InvalidGrantError();
-    }
-
     const accessToken = this._accessTokens.get(value);
-    if (!accessToken) {
+    if (
+      !accessToken ||
+      accessToken.revokedAt ||
+      accessToken.expiresAt.getTime() < Date.now()
+    ) {
       throw new UnknownAccessTokenError();
     }
 

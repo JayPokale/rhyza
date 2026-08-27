@@ -2,7 +2,8 @@ import {
   IAccessToken,
   IContinuedGrantUpdate,
   IGrant,
-  IGrantRepository
+  IGrantRepository,
+  IRotatedGrantUpdate
 } from '../../src/grant/interfaces';
 
 export class MockGrantRepo implements IGrantRepository {
@@ -11,6 +12,18 @@ export class MockGrantRepo implements IGrantRepository {
   async storeMany(grants: IGrant[]): Promise<void> {
     for (const grant of grants) {
       this._store.set(grant.id, grant);
+    }
+  }
+
+  async storeRotatedGrants(updates: IRotatedGrantUpdate[]): Promise<void> {
+    for (const update of updates) {
+      const grant = this._store.get(update.id);
+      if (!grant) continue;
+      const tokens = grant.accessTokens.map((t) =>
+        t.value === update.revokedToken.value ? update.revokedToken : t
+      );
+      tokens.push(update.newToken);
+      this._store.set(update.id, { ...grant, accessTokens: tokens });
     }
   }
 

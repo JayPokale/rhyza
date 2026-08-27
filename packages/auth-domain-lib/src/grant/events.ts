@@ -269,10 +269,11 @@ export class TokenRotatedEvent extends DomainEvent {
   msgTopic: string = DomainEventTopics.AuthEvents;
   payload: TokenRotatedPayload;
 
-  constructor(payload: TokenRotatedPayload) {
+  constructor(payload: TokenRotatedPayload, requestId?: string) {
     super(payload.id);
     this.aggregateId = this.msgKey = payload.id;
     this.payload = payload;
+    this.requestId = requestId;
   }
 }
 
@@ -290,10 +291,11 @@ export class TokenRotationFailedEvent extends DomainEvent {
   msgTopic: string = DomainEventTopics.AuthEvents;
   payload: TokenRotationFailedPayload;
 
-  constructor(payload: TokenRotationFailedPayload) {
+  constructor(payload: TokenRotationFailedPayload, requestId?: string) {
     super(payload.grantId);
     this.aggregateId = this.msgKey = payload.grantId;
     this.payload = payload;
+    this.requestId = requestId;
   }
 }
 

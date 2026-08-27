@@ -74,8 +74,9 @@ describe('GrantEntity', () => {
       const { entity, accessToken } = GrantEntity.create(input);
 
       assert.equal(entity.state, 'ISSUED');
-      assert.ok(entity.continueToken);
-      assert.ok(entity.continueId);
+      assert.equal(entity.continueToken, undefined);
+      assert.equal(entity.continueId, undefined);
+      assert.equal(entity.lastContinuedAt, undefined);
 
       assert.equal(entity.interactionNonce, undefined);
       assert.equal(entity.interaction, undefined);
@@ -179,6 +180,82 @@ describe('GrantEntity', () => {
       assert.ok(entity.interactionNonce);
       assert.equal(entity.interaction, undefined); // This should not be initialized at this point.
       assert.equal(accessToken, undefined);
+    });
+  });
+
+  describe('rotateAccessToken', () => {
+    function makeIssuedGrant() {
+      const { entity, accessToken } = GrantEntity.create(
+        makeCreateGrantInput({
+          accesses: [
+            { type: AccessType.INCOMING_PAYMENT, actions: [AccessAction.READ] }
+          ]
+        })
+      );
+      assert.ok(accessToken);
+      return { entity, accessToken };
+    }
+
+    it('issues a new token, revokes the old one, and preserves grant state', () => {
+      const { entity, accessToken } = makeIssuedGrant();
+
+      const rotated = entity.rotateAccessToken(
+        accessToken.value,
+        accessToken.managementId
+      );
+
+      assert.ok(rotated.value);
+      assert.ok(rotated.managementId);
+      assert.notEqual(rotated.value, accessToken.value);
+      assert.notEqual(rotated.managementId, accessToken.managementId);
+      assert.ok(rotated.createdAt instanceof Date);
+      assert.equal(rotated.expiresInMs, 10_000);
+
+      // Old token is now revoked on the entity.
+      const revoked = entity.accessTokens.find(
+        (t) => t.value === accessToken.value
+      );
+      assert.ok(revoked);
+      assert.ok(revoked.revokedAt instanceof Date);
+
+      // New token is present on the entity.
+      const fresh = entity.accessTokens.find((t) => t.value === rotated.value);
+      assert.ok(fresh);
+      assert.equal(fresh.revokedAt, undefined);
+
+      // Grant state is unchanged.
+      assert.equal(entity.state, 'ISSUED');
+    });
+
+    it('throws UnknownAccessTokenError for an unknown token value', () => {
+      const { entity } = makeIssuedGrant();
+
+      assert.throws(
+        () => entity.rotateAccessToken('unknown-value', 'any-id'),
+        UnknownAccessTokenError
+      );
+    });
+
+    it('throws UnknownAccessTokenError when the managementId does not match', () => {
+      const { entity, accessToken } = makeIssuedGrant();
+
+      assert.throws(
+        () =>
+          entity.rotateAccessToken(accessToken.value, 'wrong-management-id'),
+        UnknownAccessTokenError
+      );
+    });
+
+    it('throws UnknownAccessTokenError when the token is already revoked', () => {
+      const { entity, accessToken } = makeIssuedGrant();
+
+      entity.revokeAccessToken(accessToken.value, accessToken.managementId);
+
+      assert.throws(
+        () =>
+          entity.rotateAccessToken(accessToken.value, accessToken.managementId),
+        UnknownAccessTokenError
+      );
     });
   });
 

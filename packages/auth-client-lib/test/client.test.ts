@@ -2,6 +2,7 @@
 
 import { after, before, describe, test } from 'node:test';
 import * as assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import {
   createHeaders,
   generateTestKeys
@@ -13,7 +14,6 @@ import {
   SubjectId,
   AccessLimits
 } from '../src/';
-import { randomUUID } from 'node:crypto';
 
 describe('Auth Client', () => {
   const AUTH_GRPC_URL = process.env['AUTH_GRPC_URL'] || '0.0.0.0:50054';
@@ -111,8 +111,8 @@ describe('Auth Client', () => {
       assert.ok(result.accessTokenValue);
       assert.ok(result.accessTokenManagementId);
       assert.ok(result.accessTokenExpiresIn);
-      assert.ok(result.continueId);
-      assert.ok(result.continueToken);
+      assert.ok(!result.continueId);
+      assert.ok(!result.continueToken);
       assert.equal(result.interactionNonce, undefined);
       assert.deepStrictEqual(result.access, [access]);
       assert.deepStrictEqual(result.subjectIds, [subjectId]);
@@ -184,6 +184,136 @@ describe('Auth Client', () => {
           }
         );
         assert.fail('expected error for invalid signature');
+      } catch (e) {
+        assert.ok(e instanceof Error);
+      }
+    });
+  });
+
+  describe('rotateToken', () => {
+    async function createIssuedGrant() {
+      const keys = generateTestKeys();
+      const signatureData = await signedSignatureData(
+        keys.privateKey,
+        keys.publicKey.kid
+      );
+      const access = makeAccessItem({
+        type: 'INCOMING_PAYMENT',
+        actions: ['READ']
+      });
+      const result = await authClient.createGrant(
+        JSON.stringify(keys.publicKey),
+        signatureData,
+        { access: [access] }
+      );
+      return {
+        keys,
+        grantId: result.id,
+        tokenValue: result.accessTokenValue,
+        managementId: result.accessTokenManagementId
+      };
+    }
+
+    test('rotates a valid token and returns a new value and managementId', async () => {
+      const { keys, grantId, tokenValue, managementId } =
+        await createIssuedGrant();
+      const signatureData = await signedSignatureData(
+        keys.privateKey,
+        keys.publicKey.kid
+      );
+
+      assert.ok(tokenValue);
+      assert.ok(managementId);
+
+      const result = await authClient.rotateToken(
+        grantId,
+        signatureData,
+        tokenValue,
+        managementId
+      );
+
+      assert.ok(result);
+      assert.ok(result.newAccessTokenValue);
+      assert.ok(result.newAccessTokenManagementId);
+      assert.notEqual(result.newAccessTokenValue, tokenValue);
+      assert.notEqual(result.newAccessTokenManagementId, managementId);
+      assert.ok(result.newAccessTokenExpiresIn > 0);
+    });
+
+    test('rejects rotation with an invalid signature', async () => {
+      const { grantId, tokenValue, managementId } = await createIssuedGrant();
+      const wrongKeys = generateTestKeys();
+      const signatureData = await signedSignatureData(
+        wrongKeys.privateKey,
+        wrongKeys.publicKey.kid
+      );
+
+      assert.ok(tokenValue);
+      assert.ok(managementId);
+
+      try {
+        await authClient.rotateToken(
+          grantId,
+          signatureData,
+          tokenValue,
+          managementId
+        );
+        assert.fail('expected error for invalid signature');
+      } catch (e) {
+        assert.ok(e instanceof Error);
+      }
+    });
+
+    test('rejects rotation of an unknown token value', async () => {
+      const { keys, grantId, managementId } = await createIssuedGrant();
+      const signatureData = await signedSignatureData(
+        keys.privateKey,
+        keys.publicKey.kid
+      );
+
+      assert.ok(managementId);
+
+      try {
+        await authClient.rotateToken(
+          grantId,
+          signatureData,
+          'unknown-token-value',
+          managementId
+        );
+        assert.fail('expected error for unknown token');
+      } catch (e) {
+        assert.ok(e instanceof Error);
+      }
+    });
+
+    test('rejects replaying an already-rotated (revoked) token', async () => {
+      const { keys, grantId, tokenValue, managementId } =
+        await createIssuedGrant();
+      const signatureData = await signedSignatureData(
+        keys.privateKey,
+        keys.publicKey.kid
+      );
+
+      assert.ok(tokenValue);
+      assert.ok(managementId);
+
+      // First rotation succeeds.
+      await authClient.rotateToken(
+        grantId,
+        signatureData,
+        tokenValue,
+        managementId
+      );
+
+      // Replaying the old token must fail.
+      try {
+        await authClient.rotateToken(
+          grantId,
+          await signedSignatureData(keys.privateKey, keys.publicKey.kid),
+          tokenValue,
+          managementId
+        );
+        assert.fail('expected error replaying revoked token');
       } catch (e) {
         assert.ok(e instanceof Error);
       }
@@ -378,7 +508,7 @@ describe('Auth Client', () => {
       assert.notEqual(result.continueId, created.continueId);
       assert.equal(result.accessTokenValue, undefined);
       assert.equal(result.accessTokenManagementId, undefined);
-      assert.equal(result.accessTokenManagementId, undefined);
+      assert.equal(result.accessTokenExpiresIn, undefined);
     });
 
     test('rejects continue with invalid continue token', async () => {
@@ -455,7 +585,7 @@ describe('Auth Client', () => {
 
     test('rejects with NOT_FOUND for an id that does not exist', async () => {
       try {
-        await authClient.getGrant(crypto.randomUUID());
+        await authClient.getGrant(randomUUID());
         assert.fail('expected error for an unknown grant id');
       } catch (e) {
         assert.ok(e instanceof Error);

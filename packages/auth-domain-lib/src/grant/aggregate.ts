@@ -44,7 +44,8 @@ import {
   isJWK,
   IStartMethod,
   ISubjectId,
-  IWalletAddressService
+  IWalletAddressService,
+  IRotatedGrantUpdate
 } from './interfaces';
 import { GRANT_POLL_MS, GrantEntity } from './entity';
 import { JWK, validateSignature } from '@interledger/http-signature-utils';
@@ -55,6 +56,7 @@ export interface IGrantService {
 
 export class GrantAggregate {
   private newGrantIds: string[] = [];
+  private grantIdsWithRotatedTokens = new Map<string, IRotatedGrantUpdate>();
   private continuedGrantIds = new Set<string>();
   private continuedGrantAccessTokens = new Map<string, IAccessToken>();
   private revokedTokens = new Map<string, IAccessToken>();
@@ -77,7 +79,7 @@ export class GrantAggregate {
 
     const grantIdSet = new Set<string>();
     const walletAddressSet = new Set<string>();
-    // Maybe consolidate commands that just insert a grant id into the map into a single else-if block?
+
     for (const cmd of cmds) {
       if (cmd.msgName === CreateGrantCmd.name) {
         const payload = (cmd as CreateGrantCmd).payload;
@@ -158,7 +160,7 @@ export class GrantAggregate {
       } else if (cmd.msgName === IntrospectTokenCmd.name) {
         event = this.handleIntrospectTokenCommand(cmd as IntrospectTokenCmd);
       } else if (cmd.msgName === RotateTokenCmd.name) {
-        event = this.handleRotateTokenCommand(cmd as RotateTokenCmd);
+        event = await this.handleRotateTokenCommand(cmd as RotateTokenCmd);
       } else if (cmd.msgName === RevokeTokenCmd.name) {
         event = await this.handleRevokeTokenCommand(cmd as RevokeTokenCmd);
       } else if (cmd.msgName === AcceptInteractionCommand.name) {
@@ -190,6 +192,16 @@ export class GrantAggregate {
     } catch {
       return null;
     }
+  }
+
+  private resolveClientKeyForGrant(
+    grant: GrantEntity
+  ): IJsonWebKey | undefined {
+    if (typeof grant.client === 'string') {
+      return this.parseJWKJson(grant.client) ?? undefined;
+    }
+
+    return grant.client;
   }
 
   // Signature Header validation can be performed in the application.
@@ -289,16 +301,6 @@ export class GrantAggregate {
         cmd.requestId
       );
     }
-  }
-
-  private resolveClientKeyForGrant(
-    grant: GrantEntity
-  ): IJsonWebKey | undefined {
-    if (typeof grant.client === 'string') {
-      return this.parseJWKJson(grant.client) ?? undefined;
-    }
-
-    return grant.client;
   }
 
   private async handleContinueGrantCommand(cmd: ContinueGrantCmd) {
@@ -447,7 +449,7 @@ export class GrantAggregate {
     }
   }
 
-  private handleRotateTokenCommand(cmd: RotateTokenCmd) {
+  private async handleRotateTokenCommand(cmd: RotateTokenCmd) {
     const { id, value, managementId } = cmd.payload;
     try {
       const grant = this.grantMap.get(id);
@@ -455,22 +457,57 @@ export class GrantAggregate {
         throw new GrantNotFoundError(`Grant ${id} not found`);
       }
 
+      const clientKey = this.resolveClientKeyForGrant(grant);
+      if (!clientKey) {
+        throw new UnauthorizedRequestError();
+      }
+
+      const {
+        signatureData: { url, method, body, headers }
+      } = cmd.payload;
+
+      const isValidSignature = await this.validateRequestSignature(
+        clientKey as JWK,
+        url,
+        method,
+        body,
+        headers
+      );
+      if (!isValidSignature) {
+        throw new UnauthorizedRequestError();
+      }
+
       const accessToken = grant.rotateAccessToken(value, managementId);
+      const revokedToken = grant.accessTokens.find(
+        (t) => t.value === value
+      ) as IAccessToken;
 
       this.grantMap.set(id, grant);
-      return new TokenRotatedEvent({
+      this.grantIdsWithRotatedTokens.set(id, {
         id,
-        newAccessTokenValue: accessToken.value,
-        newAccessTokenManagementId: accessToken.managementId,
-        newAccessTokenExpiresIn: accessToken.expiresInMs,
-        access: grant.accesses
+        revokedToken,
+        newToken: accessToken
       });
+
+      return new TokenRotatedEvent(
+        {
+          id,
+          newAccessTokenValue: accessToken.value,
+          newAccessTokenManagementId: accessToken.managementId,
+          newAccessTokenExpiresIn: accessToken.expiresInMs,
+          access: grant.accesses
+        },
+        cmd.requestId
+      );
     } catch (err) {
-      return new TokenRotationFailedEvent({
-        grantId: cmd.payload.id,
-        errorName: (err as Error).name,
-        message: (err as Error).message
-      });
+      return new TokenRotationFailedEvent(
+        {
+          grantId: cmd.payload.id,
+          errorName: (err as Error).constructor.name,
+          message: (err as Error).message
+        },
+        cmd.requestId
+      );
     }
   }
 
@@ -590,6 +627,14 @@ export class GrantAggregate {
       promises.push(this._repo.storeMany(newEntities));
     }
 
+    if (this.grantIdsWithRotatedTokens.size > 0) {
+      promises.push(
+        this._repo.storeRotatedGrants([
+          ...this.grantIdsWithRotatedTokens.values()
+        ])
+      );
+    }
+
     if (this.continuedGrantIds.size > 0) {
       const continuedEntities = [];
       for (const id of this.continuedGrantIds) {
@@ -628,7 +673,7 @@ export class GrantAggregate {
       this.continuedGrantAccessTokens.clear();
       this.revokedTokens.clear();
       this.grantMap.clear();
-      this.newGrantIds = [];
+      this.grantIdsWithRotatedTokens.clear();
     }
   }
 }

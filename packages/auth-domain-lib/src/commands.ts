@@ -138,7 +138,8 @@ export class IntrospectTokenCmd extends CommandMsg {
   }
 }
 
-export interface RotateTokenCmdPayload {
+export interface RotateTokenCmdPayload
+  extends Omit<SignedCommandPayload, 'client'> {
   id: string;
   value: string;
   managementId: string;

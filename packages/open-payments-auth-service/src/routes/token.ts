@@ -45,9 +45,9 @@ export async function tokenRoutes(
 
       const result = await authClient.rotateToken(
         grantId,
+        extractSignatureData(request),
         tokenValue,
         managementId
-        //TODO pass in http signature data
       );
 
       return reply.status(200).send({
