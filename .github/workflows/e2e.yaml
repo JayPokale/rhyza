@@ -2,6 +2,10 @@ name: E2E tests
 
 on:
   workflow_dispatch:
+  # REMOVE AFTER TESTING
+  pull_request:
+    branches:
+      - main
 
 jobs:
   e2e:
