@@ -97,7 +97,7 @@ jobs:
           changes_stripped = strip_whitespace(changes_raw)
           changelog_stripped = strip_whitespace(changelog_raw)
 
-          if not changes_stripped:
+          if not changes_stripped or changes_stripped.lower() == "nochangelogchanges":
               print("No changes detected. The changelog is up to date.")
               sys.exit(0)
 
@@ -106,6 +106,5 @@ jobs:
               sys.exit(0)
           else:
               print("Error: The changelog is incomplete. Please run `pnpm generate-admin-changelog` locally and add its result to `CHANGELOG.md`")
-              print("\n" + changes_stripped)
               sys.exit(1)
           '
