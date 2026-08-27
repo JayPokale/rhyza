@@ -17,6 +17,10 @@ jobs:
 
       - uses: pnpm/action-setup@v4
 
+      - name: Generate admin-client
+        run: |
+          pnpm generate
+
       - name: Install dependencies
         run: |
           pnpm install --frozen-lockfile
