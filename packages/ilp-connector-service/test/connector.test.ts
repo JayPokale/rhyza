@@ -185,6 +185,7 @@ describe('IlpConnector', () => {
     assert.equal(cmd.msgName, ProcessFulfillPacketCmd.name);
     assert.equal(cmd.payload.paymentIntentId, 'intent-1');
     assert.equal(cmd.msgKey, 'intent-1');
+    assert.equal(cmd.payload.fulfillment, Buffer.alloc(32).toString('base64'));
     assert.equal(
       await correlationStore.hasOutboundCorrelation('packet-1'),
       false

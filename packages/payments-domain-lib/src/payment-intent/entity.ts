@@ -593,6 +593,7 @@ class ReceivedPayment {
   private _sourceAmount: bigint;
   private _receiveAmount: bigint;
   private _createdAt: Date;
+  private _expiresAt?: Date;
   private _ledgerTransferId?: string;
   private _failReason?: string;
 
@@ -607,6 +608,7 @@ class ReceivedPayment {
     this._sourceAmount = args.sourceAmount;
     this._receiveAmount = args.receiveAmount;
     this._createdAt = args.createdAt;
+    this._expiresAt = args.expiresAt;
     this._ledgerTransferId = args.ledgerTransferId;
     this._failReason = args.failReason;
   }
@@ -620,6 +622,7 @@ class ReceivedPayment {
     peerAssetScale: number;
     sourceAmount: bigint;
     receiveAmount: bigint;
+    expiresAt?: Date;
   }): ReceivedPayment {
     return new ReceivedPayment({
       ...args,
@@ -689,6 +692,7 @@ class ReceivedPayment {
       sourceAmount: this._sourceAmount,
       receiveAmount: this._receiveAmount,
       createdAt: this._createdAt,
+      expiresAt: this._expiresAt,
       ledgerTransferId: this._ledgerTransferId,
       failReason: this._failReason
     };
@@ -1461,6 +1465,7 @@ export class PaymentIntent implements IPaymentIntent {
     peerAssetScale: number;
     sourceAmount: bigint;
     fxRate?: number;
+    expiresAt?: Date;
   }): IReceivedPayment {
     const { id, packetId, peerId, peerAssetCode, peerAssetScale, fxRate } =
       args;
@@ -1510,7 +1515,8 @@ export class PaymentIntent implements IPaymentIntent {
       peerAssetCode,
       peerAssetScale,
       sourceAmount: args.sourceAmount,
-      receiveAmount
+      receiveAmount,
+      expiresAt: args.expiresAt
     });
 
     this._receivedPayments.push(receivedPayment);

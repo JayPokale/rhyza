@@ -151,10 +151,7 @@ export class GrantEntity implements IGrant {
     } else {
       const entity = new GrantEntity({
         ...input,
-        state: GrantState.APPROVED,
-        continueToken: generateContinueToken(),
-        continueId: uuid(),
-        lastContinuedAt: new Date(),
+        state: GrantState.ISSUED,
         accessTokens: []
       });
 
@@ -347,7 +344,7 @@ export class GrantEntity implements IGrant {
         }
       }
 
-      if (allowedAccessItems.length === requestedAccesses.length)
+      if (allowedAccessItems.length !== requestedAccesses.length)
         return { active: false };
       return { active: true, access: allowedAccessItems };
     } else {

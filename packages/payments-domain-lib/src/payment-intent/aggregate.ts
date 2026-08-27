@@ -1525,7 +1525,10 @@ export class PaymentIntentAggregate {
         peerAssetCode,
         peerAssetScale,
         sourceAmount: BigInt(cmd.payload.sourceAmount),
-        fxRate
+        fxRate,
+        expiresAt: cmd.payload.expiresAt
+          ? new Date(cmd.payload.expiresAt)
+          : undefined
       });
 
       this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());

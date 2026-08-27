@@ -23,6 +23,7 @@ export class PacketCorrelation {
     paymentId: string;
     requestId: string;
     fulfillment?: string;
+    executionCondition?: string;
   }): PacketCorrelation {
     return new PacketCorrelation({
       ...args,
