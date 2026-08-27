@@ -75,11 +75,6 @@ jobs:
           format: markdown
           output-to-file: 'oasdiff-changes.txt'
 
-      - name: DEBUG - Show exact differences
-        run: |
-          echo "CI output VS CHANGELOG.md"
-          diff -u oasdiff-changes.txt "${{ env.OPENAPI_CHANGELOG_PATH }}" || true
-
       - name: Verify Changelog is Up to Date
         run: |
           python3 -c '
@@ -111,5 +106,6 @@ jobs:
               sys.exit(0)
           else:
               print("Error: The changelog is incomplete. Please run `pnpm generate-admin-changelog` locally and add its result to `CHANGELOG.md`")
+              print("\n" + changes_stripped)
               sys.exit(1)
           '
