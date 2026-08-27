@@ -55,7 +55,7 @@ export interface IGrantService {
 
 export class GrantAggregate {
   private newGrantIds: string[] = [];
-  private rotatedGrantIds = new Map<string, IRotatedGrantUpdate>();
+  private grantIdsWithRotatedTokens = new Map<string, IRotatedGrantUpdate>();
   private continuedGrantIds = new Set<string>();
   private continuedGrantAccessTokens = new Map<string, IAccessToken>();
   private grantMap = new Map<string, GrantEntity>();
@@ -449,7 +449,7 @@ export class GrantAggregate {
       ) as IAccessToken;
 
       this.grantMap.set(id, grant);
-      this.rotatedGrantIds.set(id, {
+      this.grantIdsWithRotatedTokens.set(id, {
         id,
         revokedToken,
         newToken: accessToken
@@ -566,9 +566,11 @@ export class GrantAggregate {
       promises.push(this._repo.storeMany(newEntities));
     }
 
-    if (this.rotatedGrantIds.size > 0) {
+    if (this.grantIdsWithRotatedTokens.size > 0) {
       promises.push(
-        this._repo.storeRotatedGrants([...this.rotatedGrantIds.values()])
+        this._repo.storeRotatedGrants([
+          ...this.grantIdsWithRotatedTokens.values()
+        ])
       );
     }
 
@@ -603,7 +605,7 @@ export class GrantAggregate {
       this.continuedGrantIds.clear();
       this.continuedGrantAccessTokens.clear();
       this.grantMap.clear();
-      this.rotatedGrantIds.clear();
+      this.grantIdsWithRotatedTokens.clear();
     }
   }
 }

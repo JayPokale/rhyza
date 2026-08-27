@@ -375,7 +375,7 @@ export class GrantEntity implements IGrant {
     if (
       !accessToken ||
       accessToken.revokedAt ||
-      accessToken.createdAt.getTime() + accessToken.expiresInMs < Date.now()
+      accessToken.expiresAt.getTime() < Date.now()
     ) {
       throw new UnknownAccessTokenError();
     }
