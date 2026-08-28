@@ -245,7 +245,6 @@ export class GrantEntity implements IGrant {
       }
 
       if (this._state === GrantState.APPROVED) {
-        this._state = GrantState.ISSUED;
         this._continueToken = undefined;
         this._continueId = undefined;
         return this.createAccessToken();
@@ -280,12 +279,16 @@ export class GrantEntity implements IGrant {
     }
   }
 
-  revoke(continueToken: string, continueId: string) {
+  revoke(continueToken: string, continueId: string): IAccessToken[] {
     if (
       continueToken !== this._continueToken ||
       continueId !== this._continueId
     )
       throw new InvalidGrantError('Invalid continue token or continue id');
+
+    if (this._state === GrantState.REVOKED) {
+      return [];
+    }
 
     if (
       this._state !== GrantState.APPROVED &&
@@ -297,6 +300,21 @@ export class GrantEntity implements IGrant {
     }
 
     this._state = GrantState.REVOKED;
+
+    const revokedTokens: IAccessToken[] = [];
+    const now = new Date();
+    for (const accessToken of this._accessTokens.values()) {
+      if (
+        !accessToken.revokedAt &&
+        accessToken.expiresAt.getTime() >= Date.now()
+      ) {
+        accessToken.revokedAt = now;
+        this._accessTokens.set(accessToken.value, accessToken);
+        revokedTokens.push(accessToken);
+      }
+    }
+
+    return revokedTokens;
   }
 
   // Issues a new access token for this grant.

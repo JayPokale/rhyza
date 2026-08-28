@@ -187,10 +187,16 @@ export interface IContinuedGrantUpdate {
   accessToken?: IAccessToken;
 }
 
+export interface IRevokedGrantUpdate {
+  id: string;
+  state: GrantState;
+}
+
 export interface IGrantRepository {
   storeMany(grants: IGrant[]): Promise<void>;
   storeRotatedGrants(updates: IRotatedGrantUpdate[]): Promise<void>;
   storeContinuedGrants(grants: IContinuedGrantUpdate[]): Promise<void>;
+  storeRevokedGrants(grants: IRevokedGrantUpdate[]): Promise<void>;
   storeRevokedTokens(tokens: IAccessToken[]): Promise<void>;
   fetchById(id: string): Promise<IGrant | undefined>;
   fetchByIds(ids: string[]): Promise<IGrant[]>;

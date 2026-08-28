@@ -73,7 +73,8 @@ export class CreateGrantCmd extends CommandMsg {
   }
 }
 
-export interface RevokeGrantCmdPayload {
+export interface RevokeGrantCmdPayload
+  extends Omit<SignedCommandPayload, 'client'> {
   id: string;
   continueId: string;
   continueToken: string;
