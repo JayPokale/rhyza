@@ -1,11 +1,15 @@
 import {
   FinalizedRemoteQuoteUpdate,
+  IPage,
+  IPageOpts,
   IPaymentIntent,
   IPaymentIntentRepository,
+  ISentPayment,
   PaymentIntentState,
   SentPaymentState,
   ReceivedPaymentState
 } from '../../src/payment-intent/interfaces';
+import { InvalidCursorError } from '../../src/payment-intent/errors';
 
 export class MockPaymentIntentRepo implements IPaymentIntentRepository {
   private _store: Map<string, IPaymentIntent> = new Map();
@@ -97,6 +101,80 @@ export class MockPaymentIntentRepo implements IPaymentIntentRepository {
       }
     }
     return results;
+  }
+
+  async fetchPaymentIntentsPage(
+    opts: IPageOpts
+  ): Promise<IPage<Omit<IPaymentIntent, 'sentPayments' | 'receivedPayments'>>> {
+    const all = this.getAll();
+    const filtered =
+      opts.walletAddressId == null
+        ? all
+        : all.filter((p) => p.receiverWalletAddressId === opts.walletAddressId);
+    const page = this._page(all, filtered, opts);
+    return {
+      ...page,
+      items: page.items.map((p) => {
+        const { sentPayments, receivedPayments, ...rest } = p;
+        void sentPayments;
+        void receivedPayments;
+        return rest;
+      })
+    };
+  }
+
+  async fetchSentPaymentsPage(
+    opts: IPageOpts & { paymentIntentId?: string }
+  ): Promise<IPage<ISentPayment>> {
+    const all = this.getAll().flatMap((intent) => intent.sentPayments);
+    const filtered = all.filter(
+      (p) =>
+        (opts.walletAddressId == null ||
+          p.senderWalletAddressId === opts.walletAddressId) &&
+        (opts.paymentIntentId == null ||
+          p.paymentIntentId === opts.paymentIntentId)
+    );
+    return this._page(all, filtered, opts);
+  }
+
+  // Keyset pagination over (createdAt, id) — mirrors the Mongo implementation.
+  // The cursor is resolved against the unfiltered collection, like the
+  // Mongo boundary findOne.
+  private _page<T extends { id: string; createdAt: Date }>(
+    all: T[],
+    filtered: T[],
+    opts: { cursor?: string; limit: number; backwards: boolean }
+  ): IPage<T> {
+    const cmp = (a: T, b: T) =>
+      a.createdAt.getTime() - b.createdAt.getTime() ||
+      (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+
+    let boundary: T | undefined;
+    if (opts.cursor != null) {
+      boundary = all.find((item) => item.id === opts.cursor);
+      if (!boundary) {
+        throw new InvalidCursorError(`Unknown cursor: ${opts.cursor}`);
+      }
+    }
+
+    const inRange = boundary
+      ? filtered.filter((item) =>
+          opts.backwards ? cmp(item, boundary) < 0 : cmp(item, boundary) > 0
+        )
+      : filtered;
+
+    const sorted = [...inRange].sort(cmp);
+    if (opts.backwards) sorted.reverse();
+
+    const hasMore = sorted.length > opts.limit;
+    const items = sorted.slice(0, opts.limit);
+    if (opts.backwards) items.reverse();
+
+    return {
+      items,
+      hasNextPage: opts.backwards ? opts.cursor != null : hasMore,
+      hasPreviousPage: opts.backwards ? hasMore : opts.cursor != null
+    };
   }
 
   async storeQuotes(

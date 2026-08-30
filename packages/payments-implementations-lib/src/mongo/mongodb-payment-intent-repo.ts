@@ -1,6 +1,9 @@
-import { Collection, CollectionInfo, Db, MongoClient } from 'mongodb';
+import { Collection, CollectionInfo, Db, Filter, MongoClient } from 'mongodb';
 import {
   FinalizedRemoteQuoteUpdate,
+  InvalidCursorError,
+  IPage,
+  IPageOpts,
   ISentPayment,
   IPaymentIntent,
   IPaymentIntentRepository,
@@ -75,6 +78,12 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
           { remoteUrl: 1 },
           { unique: true, sparse: true }
         );
+        // supports keyset pagination filtered by receiver wallet address
+        await this._paymentIntentCollection.createIndex({
+          receiverWalletAddressId: 1,
+          createdAt: 1,
+          id: 1
+        });
       }
 
       const paymentsCollectionExists = collections.some(
@@ -95,6 +104,12 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
         );
         await this._sentPaymentCollection.createIndex({
           paymentIntentId: 1
+        });
+        // supports keyset pagination filtered by sender wallet address
+        await this._sentPaymentCollection.createIndex({
+          senderWalletAddressId: 1,
+          createdAt: 1,
+          id: 1
         });
       }
 
@@ -345,6 +360,150 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
         `Unable to fetch payment intent ids by remote URLs - error: ${(err as Error).message}`
       );
     }
+  }
+
+  async fetchPaymentIntentsPage(
+    opts: IPageOpts
+  ): Promise<IPage<Omit<IPaymentIntent, 'sentPayments' | 'receivedPayments'>>> {
+    this._checkInitialisedOrThrow();
+
+    try {
+      const filter: Record<string, unknown> = {};
+      if (opts.walletAddressId != null) {
+        filter['receiverWalletAddressId'] = opts.walletAddressId;
+      }
+
+      const page = await this._fetchPageDocs(
+        this._paymentIntentCollection,
+        filter,
+        opts
+      );
+
+      return {
+        ...page,
+        items: page.items.map((doc) => ({
+          id: doc.id,
+          receiverWalletAddressId: doc.receiverWalletAddressId,
+          receiverWalletAddress: doc.receiverWalletAddress,
+          state: doc.state,
+          destination: doc.destination,
+          assetCode: doc.assetCode,
+          assetScale: doc.assetScale,
+          createdAt: doc.createdAt,
+          expiresAt: doc.expiresAt,
+          incomingAmount: doc.incomingAmount,
+          receivedAmount: doc.receivedAmount,
+          destinationIlpAddress: doc.destinationIlpAddress,
+          remoteUrl: doc.remoteUrl,
+          peerId: doc.peerId,
+          quotes: doc.quotes.map((quote) => ({ ...quote }))
+        }))
+      };
+    } catch (err) {
+      if (err instanceof InvalidCursorError) throw err;
+      this._logger.error(err);
+      throw new Error(
+        `Unable to fetch payment intents page - error: ${(err as Error).message}`
+      );
+    }
+  }
+
+  async fetchSentPaymentsPage(
+    opts: IPageOpts & { paymentIntentId?: string }
+  ): Promise<IPage<ISentPayment>> {
+    this._checkInitialisedOrThrow();
+
+    try {
+      const filter: Record<string, unknown> = {};
+      if (opts.walletAddressId != null) {
+        filter['senderWalletAddressId'] = opts.walletAddressId;
+      }
+      if (opts.paymentIntentId != null) {
+        filter['paymentIntentId'] = opts.paymentIntentId;
+      }
+
+      const page = await this._fetchPageDocs(
+        this._sentPaymentCollection,
+        filter,
+        opts
+      );
+
+      return {
+        ...page,
+        items: page.items.map((payment) => ({
+          id: payment.id,
+          state: payment.state,
+          createdAt: payment.createdAt,
+          paymentIntentId: payment.paymentIntentId,
+          senderWalletAddress: payment.senderWalletAddress,
+          senderWalletAddressId: payment.senderWalletAddressId,
+          quoteId: payment.quoteId,
+          assetCode: payment.assetCode,
+          assetScale: payment.assetScale,
+          debitAmount: payment.debitAmount,
+          receiveAmount: payment.receiveAmount,
+          sentAmount: payment.sentAmount,
+          ledgerTransferId: payment.ledgerTransferId,
+          failReason: payment.failReason,
+          cancelledAt: payment.cancelledAt,
+          cancelReason: payment.cancelReason
+        }))
+      };
+    } catch (err) {
+      if (err instanceof InvalidCursorError) throw err;
+      this._logger.error(err);
+      throw new Error(
+        `Unable to fetch sent payments page - error: ${(err as Error).message}`
+      );
+    }
+  }
+
+  // Keyset pagination over (createdAt, id). The cursor is the last document's id.
+  // Given the cursor, figure out where that document sits in the (createdAt, id)
+  // ordering, then use that position as the starting point for the next page.
+  private async _fetchPageDocs<T extends { id: string; createdAt: Date }>(
+    collection: Collection<T>,
+    filter: Record<string, unknown>,
+    opts: { cursor?: string; limit: number; backwards: boolean }
+  ): Promise<IPage<T>> {
+    const { cursor, limit, backwards } = opts;
+
+    let boundary: { id: string; createdAt: Date } | null = null;
+    if (cursor != null) {
+      boundary = (await collection.findOne({ id: cursor } as Filter<T>, {
+        projection: { _id: 0, id: 1, createdAt: 1 }
+      })) as { id: string; createdAt: Date } | null;
+      if (!boundary) {
+        throw new InvalidCursorError(`Unknown cursor: ${cursor}`);
+      }
+    }
+
+    const cmp = backwards ? '$lt' : '$gt';
+    const range = boundary
+      ? {
+          $or: [
+            { createdAt: { [cmp]: boundary.createdAt } },
+            { createdAt: boundary.createdAt, id: { [cmp]: boundary.id } }
+          ]
+        }
+      : {};
+
+    const docs = (await collection
+      .find({ ...filter, ...range } as Filter<T>)
+      // TODO: sort by oldest (asc) or newest (desc)? v1 is oldest
+      .sort(backwards ? { createdAt: -1, id: -1 } : { createdAt: 1, id: 1 })
+      .limit(limit + 1)
+      .toArray()) as unknown as T[];
+
+    const hasMore = docs.length > limit;
+    const items = docs.slice(0, limit);
+    if (backwards) items.reverse();
+
+    return {
+      items,
+      hasNextPage: backwards ? cursor != null : hasMore,
+      hasPreviousPage: backwards ? hasMore : cursor != null
+    };
   }
 
   async storeQuotes(
