@@ -47,6 +47,9 @@ export interface IMessageConsumer {
     batchHandlerCallback: (messages: IMessage[]) => Promise<void>
   ): void;
   setFilteringFn(filterFn: (message: IMessage) => boolean): void;
+
+  setOnRebalanceFn(onRebalanceFn: () => Promise<void>): void;
+
   setTopics(topics: string[]): void;
 
   setBatchSize(size: number): void;

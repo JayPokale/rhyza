@@ -7,11 +7,13 @@ import { format } from 'node:util';
 import crypto from 'crypto';
 import { ILogger, NullLogger } from 'common-types-lib';
 import { OpenTelemetryService } from 'implementations-lib';
+import { PalClient } from 'pal-client-lib';
 
 const CREATE_LEDGER_AND_ACCOUNTS =
   (process.env['CREATE_LEDGER_AND_ACCOUNTS'] &&
     process.env['CREATE_LEDGER_AND_ACCOUNTS'].toUpperCase() === 'TRUE') ||
   false;
+const PAL_API_URL = process.env['PAL_API_URL'] || '127.0.0.1:50051';
 const TRANSACTION_COUNT = process.env['TRANSACTION_COUNT']
   ? parseInt(process.env['TRANSACTION_COUNT'])
   : 10;
@@ -63,8 +65,10 @@ async function main() {
   await loadTests.start();
 }
 
+const apiClient = new PalClient(PAL_API_URL);
 const loadTests = new LoadTests(
   settingsData,
+  apiClient,
   TRANSACTION_COUNT,
   logger,
   INSTANCE_ID,

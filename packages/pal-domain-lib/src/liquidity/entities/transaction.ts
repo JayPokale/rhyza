@@ -25,11 +25,7 @@ export class LedgerTransactionDtoSerializer {
       amount: transaction.amount.toString(),
       amountScale: transaction.amountScale,
       timestamp: transaction.timestamp,
-      peerId: transaction.peerId,
-      externalId: transaction.externalId,
-      transferId: transaction.transferId,
-      isReservation: transaction.isReservation,
-      voidsReservation: transaction.voidsReservation
+      externalId: transaction.externalId
     };
   }
   static fromDTO(dto: ILedgerTransactionDto): ILedgerTransaction {

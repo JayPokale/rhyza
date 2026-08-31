@@ -136,6 +136,7 @@ export class LoadTestsPage implements IUiPage {
       alwaysScroll: true,
       scrollback: 1000,
       keys: true,
+      focusable: true,
       vi: true,
       border: {
         type: 'line'

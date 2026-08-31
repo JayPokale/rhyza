@@ -13,13 +13,14 @@
   "license": "ISC",
   "dependencies": {
     "common-types-lib": "workspace: *",
-    "google-protobuf": "~4.0.2",
     "implementations-lib": "workspace: *",
+    "pal-domain-lib": "workspace: *",
+    "pal-public-types-lib": "workspace: *",
+    "pal-client-lib": "workspace: *",
+    "google-protobuf": "~4.0.2",
     "install": "^0.13.0",
     "ioredis": "~5.10.1",
-    "mongodb": "~7.1.0",
-    "pal-domain-lib": "workspace: *",
-    "pal-public-types-lib": "workspace: *"
+    "mongodb": "~7.1.0"
   },
   "devDependencies": {
     "@types/google-protobuf": "~3.15.12",

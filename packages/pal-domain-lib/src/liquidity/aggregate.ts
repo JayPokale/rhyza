@@ -123,7 +123,7 @@ export class LedgerAggregate {
    * in-memory state before accepting new commands.
    */
   async clearInMemoryState(): Promise<void> {
-    if (this._ledgers.size === 0) return;
+    if(this._ledgers.size === 0) return;
 
     // wait for the batch processing to finish before clearing the state
     // eslint-disable-next-line no-async-promise-executor
@@ -133,9 +133,7 @@ export class LedgerAggregate {
         await new Promise((resolve) => setTimeout(resolve, 1));
       }
       const ids = Array.from(this._ledgers.keys());
-      this._logger.info(
-        `Clearing in-memory state, currently ${ids.length} ledgers are loaded: ${ids.join(',')}`
-      );
+      this._logger.info(`Clearing in-memory state, currently ${ids.length} ledgers are loaded: ${ids.join(',')}`);
 
       // clear the ledgers and set them to null to force memory release
       ids.forEach((ledgerId) => {
@@ -145,7 +143,9 @@ export class LedgerAggregate {
         this._ledgers.delete(ledgerId);
       });
 
-      this._logger.info('Clearing in-memory state complete.');
+      this._logger.info(
+        'Clearing in-memory state complete.'
+      );
       resolve();
     });
   }
@@ -192,7 +192,7 @@ export class LedgerAggregate {
     this._uncommittedDomainEvents.length = 0;
 
     this._logger.debug(
-      `LedgerAggregate: processed ${commands.length} commands and published ${eventsCount} events in ${Date.now() - startTs}ms - proc: ${procMs}ms esRepo pub: ${esRepoMs}ms producer pub: ${producerMs}ms`
+      `LedgerAggregate: processed ${commands.length} commands and published ${eventsCount} events in ${Date.now() - startTs}ms - proc: ${procMs}ms producer pub: ${producerMs}ms`
     );
 
     this._processing = false;
@@ -209,9 +209,7 @@ export class LedgerAggregate {
       return loadedLedger;
     }
 
-    this._logger.info(
-      `LedgerAggregate: loading ledger ${ledgerId} from snapshot/events...`
-    );
+    this._logger.info(`LedgerAggregate: loading ledger ${ledgerId} from snapshot/events...`);
 
     const startTs = Date.now();
 
@@ -220,10 +218,7 @@ export class LedgerAggregate {
 
     let partitionAndOffset: { partition: number; offset: number } | undefined =
       undefined;
-    if (
-      snapshot?.lastEventIndexOffset != undefined &&
-      snapshot?.lastEventIndexPartition != undefined
-    ) {
+    if (snapshot?.lastEventIndexOffset && snapshot?.lastEventIndexPartition) {
       partitionAndOffset = {
         partition: snapshot.lastEventIndexPartition,
         offset: snapshot.lastEventIndexOffset + 1 // we want to start reading the next message, not the last one that made it to the snapshot
@@ -247,7 +242,7 @@ export class LedgerAggregate {
     this._ledgers.set(ledgerId, ledger);
 
     this._logger.info(
-      `LedgerAggregate: ${ledgerId} ledger loading took: ${Date.now() - startTs}ms`
+      `LedgerAggregate: ledger loading took: ${Date.now() - startTs}ms`
     );
     return ledger;
   }

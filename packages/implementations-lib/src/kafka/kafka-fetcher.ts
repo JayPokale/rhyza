@@ -8,8 +8,8 @@ import {
 } from 'common-types-lib';
 import { randomBytes } from 'node:crypto';
 
-const DEFAULT_BATCH_SIZE = 5000;
-const DEFAULT_BATCH_TIMEOUT_MS = 1000;
+const DEFAULT_BATCH_SIZE = 25000;
+const DEFAULT_BATCH_TIMEOUT_MS = 500;
 
 export class KafkaFetcher implements IMessageFetcher {
   private readonly _logger: ILogger | null;

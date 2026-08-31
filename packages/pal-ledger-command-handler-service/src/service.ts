@@ -287,6 +287,10 @@ export class PalLedgerCommandHandlerService {
     await this._consumer.connect();
     await this._consumer.startAndWaitForRebalance();
 
+    // only hook this after the startAndWaitForRebalance()
+    this._consumer.setOnRebalanceFn(async () => {
+      await this._ledgerAggregate.clearInMemoryState();
+    });
     this._logger.info(
       `${PalLedgerCommandHandlerService.name} ready to receive commands`
     );

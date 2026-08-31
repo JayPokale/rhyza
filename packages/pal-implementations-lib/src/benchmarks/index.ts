@@ -11,13 +11,15 @@ import {
   SettingsPage
 } from './uiPages/settings';
 
-import { LoadTestsPage } from './uiPages/loadTests';
+import { LoadTestsPage } from './uiPages/load-tests';
 import { ISettingsData, IUiPage } from './common';
 import { LoadTests } from './load';
 import process from 'process';
 import { OpenTelemetryService } from 'implementations-lib';
 import crypto from 'crypto';
 import { ILogger, NullLogger } from 'common-types-lib';
+import { LedgerSettingsPage } from './uiPages/ledger-settings';
+import { PalClient } from 'pal-client-lib';
 
 // should not have to do this, but it fails without it
 const runtime = new NodeRuntime();
@@ -30,14 +32,15 @@ const APP_VERSION = '0.0.1';
 const INSTANCE_ID = `${APP_NAME}_${crypto.randomUUID()}`;
 
 const TITLE = 'Rafiki V2 PAL Ledger Benchmarks';
-const MENU_ITEMS = ["Settings", "Create Ledger", "Load Test", "Quit"];
+const MENU_ITEMS = ['Settings', 'Ledger Setup', 'Load Test', 'Quit'];
 
 const TRANSACTION_COUNT = process.env['TRANSACTION_COUNT']
   ? parseInt(process.env['TRANSACTION_COUNT'])
   : 10;
 
+const PAL_API_URL = process.env['PAL_API_URL'] || '127.0.0.1:50051';
 const KAFKA_URL =
-  process.env['KAFKA_URL'] || '127.0.0.1:19092,127.0.0.1:29092,127.0.0.1:39092';
+  process.env['KAFKA_URL'] || '127.0.0.1:29092,127.0.0.1:39092,127.0.0.1:49092';
 const OPEN_TELEMETRY_COLLECTOR_URL =
   process.env['OPEN_TELEMETRY_COLLECTOR_URL'] || 'http://127.0.0.1:4317';
 
@@ -61,8 +64,10 @@ OpenTelemetryService.Start(
   OPEN_TELEMETRY_COLLECTOR_URL
 );
 
+const apiClient = new PalClient(PAL_API_URL);
 const loadTests = new LoadTests(
   settingsData,
+  apiClient,
   TRANSACTION_COUNT,
   logger,
   INSTANCE_ID,
@@ -144,10 +149,7 @@ const footer = new Box({
   focusable: false,
   tags: true,
   border: { type: 'line' },
-  // content:
-  //   '[UP]/[DOWN]/[ENTER] to navigate and select | [TAB] to change fields | [ESCAPE] to go to the menu | [Q] or [Ctrl+C] to quit',
-  content:
-    '{center}{green-fg}●{/} Connected  {gray-fg}|{/}  {cyan-fg}4 files in context{/}  {gray-fg}|{/}  {yellow-fg}Press Ctrl+C to exit{/}{/center}',
+  content: '',
   style: {
     fg: 'yellow',
     bg: 'black'
@@ -163,7 +165,7 @@ function updateFooter(){
     ? `{green-fg}● ${loadTests.perSecCount}/sec `
     : '{red-fg}● (not running)';
 
-  const shortcuts = "{yellow-fg}Press C to setup ledger - Ctrl+C to exit{/}{/center}";
+  const shortcuts = "{yellow-fg}Press H for help | Ctrl+C to exit{/}{/center}";
   footer.content = connState + separator + runState + separator + shortcuts;
   screen.render();
 }
@@ -177,6 +179,11 @@ loadTests.on('stateChanged', ()=>{
 // Content Box Pages (Right Panel)
 const settingsPage = new SettingsPage(settingsData);
 const loadTestsPage = new LoadTestsPage(settingsData, loadTests);
+const ledgerSettingsPage = new LedgerSettingsPage(
+  settingsData,
+  loadTests,
+  apiClient
+);
 
 let currentPage: IUiPage;
 async function navigateToPage(newPage: IUiPage) {
@@ -196,13 +203,11 @@ async function navHandlerCallback(item: Element, index: number) {
 
   if (selectedIndex === 0) {
     await navigateToPage(settingsPage);
-    //screen.focusOffset(2);
+  } else if (selectedIndex === 1) {
+    await navigateToPage(ledgerSettingsPage);
   } else if (selectedIndex === 2) {
     await navigateToPage(loadTestsPage);
-    //screen.focusOffset(3);
   }
-
-  //screen.render(); // Re-render terminal buffer
 }
 
 menu.on('select', navHandlerCallback);
@@ -216,7 +221,7 @@ screen.key(['2'], () => {
 });
 screen.key(['3'], () => {
   // menu.selectTab(2);
-  menu.select(2);
+  menu.selectTab(2);
 });
 
 screen.key(['s'], async () => {
@@ -242,6 +247,10 @@ screen.key(['q', 'C-c'], () => {
 screen.key(['escape'], () => {
   menu.focus();
 });
+// escape always focuses navigation
+screen.key(['r'], () => {
+  loadTests.resetStats();
+});
 
 screen.key(['h'], () => {
 // Create a box perfectly centered horizontally and vertically.
@@ -250,8 +259,18 @@ screen.key(['h'], () => {
     left: 'center',
     width: '50%',
     height: '50%',
-    content:
-      '{center}{green-fg}Help{/}\n[UP]/[DOWN]/[ENTER] to navigate and select \n[TAB] to change fields\n[ESCAPE] to go to the menu\n[Q] or [Ctrl+C] to quit',
+    content: `{center}{green-fg}Help{/}
+
+      [LEFT]/[RIGH]/[ENTER] to navigate between screens and select
+      [TAB] to change fields
+      [ESCAPE] to go to back to the menu
+
+      [C] to setup the ledger and deposit
+      [S] to start/stop load testing
+      [R] to reset stats
+
+      [Ctrl+R] to refresh the screen
+      {red-fg}[Q] or [Ctrl+C] to quit{/}`,
     tags: true,
     border: {
       type: 'line'
@@ -261,9 +280,6 @@ screen.key(['h'], () => {
       bg: 'black',
       border: {
         fg: '#f0f0f0'
-      },
-      hover: {
-        bg: 'green'
       }
     }
   });

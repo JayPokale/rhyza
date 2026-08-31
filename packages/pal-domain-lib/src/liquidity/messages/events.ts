@@ -6,7 +6,7 @@ import {
   MessageDataFormats
 } from 'common-types-lib';
 
-const DATAFORMAT = MessageDataFormats.PROTOBUF;
+const DATAFORMAT = MessageDataFormats.JSON;
 
 export abstract class LedgerStateEvent extends StateEvent {
   msgDataFormat: MessageDataFormats = DATAFORMAT;

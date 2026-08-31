@@ -65,7 +65,7 @@ import {
   LedgerWithdrawFromPeerFailedWithInsufficientFundsEvent,
   LedgerWithdrawFromAseFailedWithInsufficientFundsEvent
 } from 'pal-public-types-lib';
-//import { amountToBigIntOfSize, amountFromBigIntOfSize } from '../utils';
+import {amountToBigIntOfSize, amountFromBigIntOfSize} from "../utils";
 
 const DEFAULT_DISPLAY_ASSET_SCALE = 2;
 
@@ -586,50 +586,6 @@ export class Ledger {
 
     this._recordDomainEvent(outputDomainEvent, cmd);
   }
-
-  /*
-  private async _processPostTransactionCmd(
-    cmd: PostTransactionCmd
-  ): Promise<void> {
-    const debitedAccount: ILedgerAccount | undefined = this._accounts.find(
-      (a) => a.id === cmd.payload.debitedAccountId
-    );
-    const creditedAccount = this._accounts.find(
-      (a) => a.id === cmd.payload.creditedAccountId
-    );
-    if (!debitedAccount || !creditedAccount) {
-      throw new Error('Account(s) not found');
-    }
-    // note: we don't need to check that the accounts are of the same asset in the same ledger!
-
-    // TODO validate amount and convert to ledger scale
-    // const ledgerAmount = amountToBigIntOfSize(
-    //   cmd.payload.amount, cmd.payload.amountScale, this._assetScale
-    // );
-
-    const transactionDTO: ILedgerTransactionDto = {
-      id: cmd.payload.id,
-      debitedAccountId: cmd.payload.debitedAccountId,
-      creditedAccountId: cmd.payload.creditedAccountId,
-      amount: cmd.payload.amount,
-      amountScale: cmd.payload.amountScale,
-      timestamp: Date.now(),
-      externalId: cmd.payload.transferId,
-      isReservation: false
-    };
-
-    this._recordAndApplyStateEvent(
-      new LedgerTransactionRecordedStateEvent(this._id, {
-        transaction: transactionDTO
-      })
-    );
-
-    this._recordDomainEvent(
-      new LedgerTransactionPostedEvent(this._id, transactionDTO),
-      cmd
-    );
-  }
-*/
 
   private async _processReserveTransferCmd(
     cmd: ReserveTransferCmd
