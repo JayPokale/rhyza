@@ -36,8 +36,7 @@ import {
   MongoDbAssetRepo,
   MongoDbFxRepo,
   MongoDbLedgerReadSideRepo,
-  MongoDbPeerRepo,
-  PostTransactionCmdSerde
+  MongoDbPeerRepo
 } from 'pal-implementations-lib';
 
 import {
@@ -203,7 +202,6 @@ export class PalLedgerEventHandlerService {
         .register(new LedgerTransactionRecordedStateEventSerde())
         // commands
         .register(new CreateLedgerCmdSerde())
-        .register(new PostTransactionCmdSerde())
         .register(new CreateLedgerAccountForAssetCmdSerde())
         .register(new CreateLedgerAccountsForPeerCmdSerde());
 

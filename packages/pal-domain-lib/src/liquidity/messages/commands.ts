@@ -4,7 +4,7 @@ import {
   MessageDataFormats
 } from 'common-types-lib';
 
-const DATAFORMAT = MessageDataFormats.PROTOBUF;
+const DATAFORMAT = MessageDataFormats.JSON;
 
 export abstract class LedgerCommand extends CommandMsg {
   msgDataFormat: MessageDataFormats = DATAFORMAT;
@@ -27,10 +27,6 @@ export abstract class LedgerCommand extends CommandMsg {
     cmd: CommandMsg
   ): cmd is CreateLedgerAccountsForPeerCmd {
     return cmd.msgName === CreateLedgerAccountsForPeerCmd.name;
-  }
-
-  static isPostTransactionCmd(cmd: CommandMsg): cmd is PostTransactionCmd {
-    return cmd.msgName === PostTransactionCmd.name;
   }
 
   // High-level commands
@@ -108,22 +104,6 @@ export class CreateLedgerAccountsForPeerCmd extends LedgerCommand {
   }
 }
 
-export type PostTransactionCmdPayload = {
-  id: string;
-  debitedAccountId: string;
-  creditedAccountId: string;
-  amount: string;
-  amountScale: number;
-  transferId?: string;
-};
-export class PostTransactionCmd extends LedgerCommand {
-  payload: PostTransactionCmdPayload;
-  constructor(aggId: string, payload: PostTransactionCmdPayload) {
-    super(aggId);
-    this.payload = payload;
-  }
-}
-
 /*
  * High-level transfer commands
  * */
@@ -173,12 +153,12 @@ export class ReserveTransferCmd extends LedgerCommand {
 export type CommitTransferCmdPayload = {
   requestId: string;
   transferId: string;
-  peerId: string;
+  // peerId: string;
   // payerClearingAccountId: string;
   // suspenseAccountId: string;
   // payeeClearingAccountId: string;
-  amount: string;
-  amountScale: number;
+  // amount: string;
+  // amountScale: number;
   transferDirection: 'INCOMING' | 'OUTGOING';
   paymentIntentId: string;
   paymentId: string;
@@ -194,11 +174,11 @@ export class CommitTransferCmd extends LedgerCommand {
 export type RejectTransferCmdPayload = {
   requestId: string;
   transferId: string;
-  peerId: string;
+  // peerId: string;
   // payerClearingAccountId: string;
   // suspenseAccountId: string;
-  amount: string;
-  amountScale: number;
+  // amount: string;
+  // amountScale: number;
   transferDirection: 'INCOMING' | 'OUTGOING';
   paymentIntentId: string;
   paymentId: string;

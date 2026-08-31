@@ -20,7 +20,7 @@ import {
   KafkaLedgerEventSourcingRepository,
   LedgerCreatedStateEventSerde,
   LedgerSnapshotSerde,
-  LedgerAccountsCreatedStateEventSerde, PostTransactionCmdSerde
+  LedgerAccountsCreatedStateEventSerde
 } from 'pal-implementations-lib';
 import { LedgerTransactionRecordedStateEventSerde } from 'pal-implementations-lib';
 import crypto from 'crypto';
@@ -149,9 +149,7 @@ export class PalLedgerCommandHandlerService {
         // commands
         .register(new CreateLedgerCmdSerde())
         .register(new CreateLedgerAccountForAssetCmdSerde())
-        .register(new CreateLedgerAccountsForPeerCmdSerde())
-        .register(new PostTransactionCmdSerde());
-
+        .register(new CreateLedgerAccountsForPeerCmdSerde());
 
       msgSerializationFactory = MessageSerializationFactory.instance();
       msgSerializationFactory.setTelemetry(this._telemetryService);
@@ -275,6 +273,10 @@ export class PalLedgerCommandHandlerService {
     await this._consumer.connect();
     await this._consumer.startAndWaitForRebalance();
 
+    // only hook this after the startAndWaitForRebalance()
+    this._consumer.setOnRebalanceFn(async () => {
+      await this._ledgerAggregate.clearInMemoryState();
+    });
     this._logger.info(
       `${PalLedgerCommandHandlerService.name} ready to receive commands`
     );

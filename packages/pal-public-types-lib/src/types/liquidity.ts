@@ -27,11 +27,15 @@ export interface ILedgerAccountDto {
 // must align with ILedgerTransaction in domain
 export interface ILedgerTransactionDto {
   id: string;
+  originatingCommandName: string;
   debitedAccountId: string;
   creditedAccountId: string;
   amount: string;
   amountScale: number;
   timestamp: number;
-  // external transaction id passed in by clients
-  externalId?: string;
+  externalId?: string; // external liquidity id
+  isReservation: boolean;
+  voidsReservation: boolean;
+  peerId: string;
+  transferId?: string; //transferId for non-liquidity transaction
 }

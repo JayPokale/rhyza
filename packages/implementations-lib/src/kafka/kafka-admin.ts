@@ -38,18 +38,18 @@ export class KafkaAdmin implements IKafkaAdmin {
     });
   }
 
-  async deleteTopics(
-    topics: {
-      topic: string;
-      numPartitions: number;
-      replicationFactor: number;
-    }[]
-  ): Promise<void> {
-    await this._admin.deleteTopicRecords({
-      timeout: DEFAULT_TIMEOUT_MS,
-      topics: topics
-    });
-  }
+  // async deleteTopics(
+  //   topics: {
+  //     topic: string;
+  //     numPartitions: number;
+  //     replicationFactor: number;
+  //   }[]
+  // ): Promise<void> {
+  //   await this._admin.deleteTopicRecords({
+  //     timeout: DEFAULT_TIMEOUT_MS,
+  //     topics: topics
+  //   });
+  // }
 
   async hasAllTopics(topics: string[]): Promise<boolean> {
     const existingTopics = await this._admin.listTopics();

@@ -3,7 +3,7 @@
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { PalClient } from 'pal-client-lib';
 import { IMessageProducer } from 'common-types-lib';
-import { PostTransactionCmd } from 'pal-domain-lib';
+import { DepositToAseCmd } from 'pal-domain-lib';
 import crypto from 'crypto';
 
 interface LiquidityRouteOptions extends FastifyPluginOptions {
@@ -42,25 +42,24 @@ export async function liquidityRoutes(
     }
 
     const peer = await palClient.getPeer(peerId);
-    const aseLiquidityAccId = peer?.ledgerAccounts?.aseLiquidityAccId;
-    if (!aseLiquidityAccId) {
+    if (!peer) {
       return reply.status(404).send({
-        error: `Peer ${peerId} not found or missing its ledger accounts`
+        error: `Peer ${peerId} not found`
       });
     }
 
     // Deposit liquidity: debit the asset system account, credit the peer's ASE
     // liquidity account. The ledger id is the asset code.
-    const cmd = new PostTransactionCmd(assetCode, {
-      id: crypto.randomUUID(),
+    const cmd = new DepositToAseCmd({
+      requestId: crypto.randomUUID(),
+      peerId: peerId,
       amount: String(amount),
       amountScale: asset.scale,
-      debitedAccountId: asset.ledgerAccountId,
-      creditedAccountId: aseLiquidityAccId
+      assetCode: asset.code
     });
 
     await producer.send(cmd);
 
-    return reply.status(202).send({ id: cmd.payload.id });
+    return reply.status(202).send({ id: cmd.payload.requestId });
   });
 }

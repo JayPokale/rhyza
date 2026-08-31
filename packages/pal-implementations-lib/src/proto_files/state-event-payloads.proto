@@ -15,10 +15,18 @@ message PbLedgerAccountState{
     optional string peer_id = 8;
 }
 
+message PbLedgerPendingTransfer{
+  string transfer_id = 1;
+  string peer_id = 2;
+  string amount = 3;
+  uint32 amount_scale = 4;
+}
+
 message PbLedgerSnapshotPayload{
     repeated PbLedgerAccountState accounts = 1;
-    uint64 transaction_count = 2;
-    uint32 asset_scale = 3;
+    repeated PbLedgerPendingTransfer pending_transfers = 2;
+    uint64 transaction_count = 3;
+    uint32 asset_scale = 4;
 }
 
 message PbLedgerAccountsCreatedStatePayload{
@@ -37,4 +45,10 @@ message PbLedgerTransactionRecordedStatePayload{
     string amount =4;
     uint32 amount_scale = 5;
     uint64 timestamp = 6;
+    string peer_id = 7;
+    bool is_reservation = 8;
+    bool voids_reservation = 9;
+    string originating_command_name = 10;
+    optional string external_id = 11;
+    optional string transfer_id = 12;
 }

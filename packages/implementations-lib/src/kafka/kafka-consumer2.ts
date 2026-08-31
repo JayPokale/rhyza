@@ -85,7 +85,12 @@ export class KafkaLowLevelConsumerNew2 implements IMessageConsumer {
   private readonly _telemetryService: ITelemetryService | null = null;
   private readonly _histogram: ITelemetryHistogram | null = null;
 
-  private _stream: PlatformaticKafka.MessagesStream<Buffer, Buffer, Buffer, Buffer> | null = null;
+  private _stream: PlatformaticKafka.MessagesStream<
+    Buffer,
+    Buffer,
+    Buffer,
+    Buffer
+  > | null = null;
 
   private _topics: string[] = [];
   private _batchHandlerCallback: messageHandlerCallback | null = null;
@@ -96,12 +101,12 @@ export class KafkaLowLevelConsumerNew2 implements IMessageConsumer {
   constructor(
     clientId: string,
     groupId: string,
-    brokers:string[],
+    brokers: string[],
     serializerFactory: IRawMessageSerializerFactory,
     logger: ILogger | null = null,
     telemetryService: ITelemetryService | null = null,
-    batchSize:number = DEFAULT_BATCH_SIZE,
-    batchTimeoutMs:number = DEFAULT_BATCH_TIMEOUT_MS,
+    batchSize: number = DEFAULT_BATCH_SIZE,
+    batchTimeoutMs: number = DEFAULT_BATCH_TIMEOUT_MS
   ) {
     this._logger = logger;
     this._telemetryService = telemetryService;
@@ -109,24 +114,18 @@ export class KafkaLowLevelConsumerNew2 implements IMessageConsumer {
     this._batchSize = batchSize;
     this._batchTimeoutMs = batchTimeoutMs;
 
-    if(this._telemetryService) {
-      this._histogram = this._telemetryService.getHistogram(
-        HISTOGRAM_NAME
-      );
+    if (this._telemetryService) {
+      this._histogram = this._telemetryService.getHistogram(HISTOGRAM_NAME);
     }
 
-    this._consumer = new PlatformaticKafka.Consumer(
-      {
-        clientId: clientId,
-        bootstrapBrokers: brokers,
-        groupId: groupId,
-        autocommit: true,
-        timeout: 60_000
-      }
-    );
-
+    this._consumer = new PlatformaticKafka.Consumer({
+      clientId: clientId,
+      bootstrapBrokers: brokers,
+      groupId: groupId,
+      autocommit: true,
+      timeout: 60_000
+    });
   }
-
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   setCallbackFn(handlerCallback: (message: IMessage) => Promise<void>): void {
@@ -141,6 +140,13 @@ export class KafkaLowLevelConsumerNew2 implements IMessageConsumer {
 
   setTopics(topics: string[]): void {
     this._topics = topics;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  setOnRebalanceFn(onRebalanceFn: () => Promise<void>) {
+    throw new Error(
+      'setOnRebalanceFn is not supported for KafkaLowLevelConsumerNew2'
+    );
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -177,18 +183,26 @@ export class KafkaLowLevelConsumerNew2 implements IMessageConsumer {
   }
 
   async startAndWaitForRebalance(): Promise<void> {
-    this._logger?.info("Starting consumer...");
+    this._logger?.info('Starting consumer...');
     this._stream = await this._consumer.consume({
-      topics: this._topics, maxWaitTime: 10, mode: PlatformaticKafka.MessagesStreamModes.LATEST
+      topics: this._topics,
+      maxWaitTime: 10,
+      mode: PlatformaticKafka.MessagesStreamModes.LATEST
     });
 
-    let cycleStartTs:bigint, beforeDeserializeTs:bigint, beforeHandlerTs:bigint, beforeCommitTs:bigint;
-    let deserializeTookNs:number,handlerTookNs:number, commitTookNs:number, cycleTookNs:number;
+    let cycleStartTs: bigint,
+      beforeDeserializeTs: bigint,
+      beforeHandlerTs: bigint,
+      beforeCommitTs: bigint;
+    let deserializeTookNs: number,
+      handlerTookNs: number,
+      commitTookNs: number,
+      cycleTookNs: number;
     let deserializedMessages: IMessage[] = [];
 
-    const batch = new MessageBatcher(this._batchSize, this._batchTimeoutMs)
+    const batch = new MessageBatcher(this._batchSize, this._batchTimeoutMs);
     batch.on('data', async (kafkaMessages: PlatformaticKafka.Message[]) => {
-      if(!this._batchHandlerCallback){
+      if (!this._batchHandlerCallback) {
         return;
       }
 
@@ -207,10 +221,10 @@ export class KafkaLowLevelConsumerNew2 implements IMessageConsumer {
           timestamp: Number(msg.timestamp),
           headers: []
         };
-        if(msg.headers){
+        if (msg.headers) {
           rawMsg.headers = [];
           for (const [key, val] of msg.headers) {
-            rawMsg.headers.push({[key.toString()]: val});
+            rawMsg.headers.push({ [key.toString()]: val });
           }
         }
 
@@ -225,33 +239,43 @@ export class KafkaLowLevelConsumerNew2 implements IMessageConsumer {
       // Commit offsets after successful processing
       beforeCommitTs = process.hrtime.bigint();
       for await (const msg of kafkaMessages) {
-        await msg.commit()
+        await msg.commit();
       }
       commitTookNs = Number(process.hrtime.bigint() - beforeCommitTs);
 
       cycleTookNs = Number(process.hrtime.bigint() - cycleStartTs);
 
-      if(this._histogram){
-        this._histogram.observe(cycleTookNs, {[TELEMETRY_PROPS_CALL_NAME_PROP]: 'consumeCycle'});
+      if (this._histogram) {
+        this._histogram.observe(cycleTookNs, {
+          [TELEMETRY_PROPS_CALL_NAME_PROP]: 'consumeCycle'
+        });
         //this._histogram.observe(fetchBatchTookNs, {[TELEMETRY_PROPS_CALL_NAME_PROP]: 'fetchBatch'});
-        this._histogram.observe(deserializeTookNs, {[TELEMETRY_PROPS_CALL_NAME_PROP]: 'deserialize'});
-        this._histogram.observe(handlerTookNs, {[TELEMETRY_PROPS_CALL_NAME_PROP]: 'handler'});
-        this._histogram.observe(commitTookNs, {[TELEMETRY_PROPS_CALL_NAME_PROP]: 'commit'});
+        this._histogram.observe(deserializeTookNs, {
+          [TELEMETRY_PROPS_CALL_NAME_PROP]: 'deserialize'
+        });
+        this._histogram.observe(handlerTookNs, {
+          [TELEMETRY_PROPS_CALL_NAME_PROP]: 'handler'
+        });
+        this._histogram.observe(commitTookNs, {
+          [TELEMETRY_PROPS_CALL_NAME_PROP]: 'commit'
+        });
       }
 
       // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-      this._logger?.isDebugEnabled() && this._logger?.debug(
-        `Consume cycle took:  ${Math.round(cycleTookNs/1e+6)}ms - parts: ${Math.round(deserializeTookNs/1e+6)}ms / ${Math.round(handlerTookNs/1e+6)}ms / ${Math.round(commitTookNs/1e+6)}ms (deserialization/handler/commit)`
-      );
-
+      this._logger?.isDebugEnabled() &&
+        this._logger?.debug(
+          `Consume cycle took:  ${Math.round(cycleTookNs / 1e6)}ms - parts: ${Math.round(deserializeTookNs / 1e6)}ms / ${Math.round(handlerTookNs / 1e6)}ms / ${Math.round(commitTookNs / 1e6)}ms (deserialization/handler/commit)`
+        );
     });
 
-    pipeline(this._stream, batch).then(()=>{
-      this._logger?.info("Consumer Closed");
-    }).catch((err)=>{
-      this._logger?.error(err);
-    });
-    this._logger?.info("Consumer Started");
+    pipeline(this._stream, batch)
+      .then(() => {
+        this._logger?.info('Consumer Closed');
+      })
+      .catch((err) => {
+        this._logger?.error(err);
+      });
+    this._logger?.info('Consumer Started');
   }
 
   start(): Promise<void> {
@@ -259,7 +283,7 @@ export class KafkaLowLevelConsumerNew2 implements IMessageConsumer {
   }
 
   async stop(): Promise<void> {
-    if(this._stream) {
+    if (this._stream) {
       await this._stream.close();
     }
 
@@ -277,5 +301,4 @@ export class KafkaLowLevelConsumerNew2 implements IMessageConsumer {
   setBatchSize(size: number): void {
     this._batchSize = size;
   }
-
 }

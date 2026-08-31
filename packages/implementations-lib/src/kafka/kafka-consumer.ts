@@ -93,6 +93,13 @@ export class KafkaConsumer implements IMessageConsumer {
     this._topics = topics;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  setOnRebalanceFn(onRebalanceFn: () => Promise<void>) {
+    throw new Error(
+      'setOnRebalanceFn is not supported for KafkaLowLevelConsumerNew2'
+    );
+  }
+
   async start(): Promise<void> {
     throw new Error('Method not implemented.');
   }
