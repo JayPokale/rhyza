@@ -197,12 +197,12 @@ export class GrantEntity implements IGrant {
       throw new InvalidGrantError();
     }
 
-    const createdAt = Date.now();
+    const createdAt = new Date();
 
     this._interaction = {
       interactRef: uuid(),
       createdAt,
-      expiresAt: createdAt + INTERACTION_EXPIRY_MS,
+      expiresAt: new Date(createdAt.getTime() + INTERACTION_EXPIRY_MS),
       state: InteractionState.PENDING
     };
     this._state = GrantState.PENDING;

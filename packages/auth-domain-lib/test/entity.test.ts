@@ -481,8 +481,11 @@ describe('GrantEntity', () => {
 
       assert.ok(interaction.interactRef);
       assert.equal(nonce, entity.interactionNonce);
-      assert.equal(typeof interaction.createdAt, 'number');
-      assert.equal(interaction.expiresAt, interaction.createdAt + 600_000); // Default interaction expiry
+      assert.equal(typeof interaction.createdAt.getTime(), 'number');
+      assert.equal(
+        interaction.expiresAt.getTime(),
+        interaction.createdAt.getTime() + 600_000
+      ); // Default interaction expiry
       assert.equal(interaction.state, InteractionState.PENDING);
 
       assert.equal(entity.state, GrantState.PENDING);

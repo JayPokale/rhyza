@@ -109,8 +109,8 @@ export type GrantState = keyof typeof GrantState;
 export interface IInteraction {
   interactRef: string;
   state: InteractionState;
-  createdAt: number; // Unix timestamp
-  expiresAt: number; // Unix timstamp
+  createdAt: Date; // Unix timestamp
+  expiresAt: Date; // Unix timstamp
 }
 
 export interface IGrant {
