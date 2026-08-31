@@ -72,7 +72,7 @@ export abstract class AuthDomainEvent extends DomainEvent {
   ): evt is TokenRevokeFailedEvent {
     return evt.msgName === TokenRevokeFailedEvent.name;
   }
-  
+
   static isGrantInteractionStartedEvent(
     evt: DomainEvent
   ): evt is GrantInteractionStartedEvent {

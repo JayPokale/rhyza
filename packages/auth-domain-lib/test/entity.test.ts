@@ -7,7 +7,7 @@ import {
   InvalidGrantError,
   InvalidInteractionError,
   UnknownAccessTokenError,
-  NonInteractiveGrantError,
+  NonInteractiveGrantError
 } from '../src/grant/errors';
 import {
   AccessAction,
@@ -470,9 +470,9 @@ describe('GrantEntity', () => {
         () =>
           entity.revokeAccessToken(accessToken.value, 'wrong-management-id'),
         UnknownAccessTokenError
-      )
-    })
-  })
+      );
+    });
+  });
   describe('startInteraction', () => {
     it('creates a pending interaction and moves the grant to pending state', () => {
       const entity = makeContinuableGrant();
