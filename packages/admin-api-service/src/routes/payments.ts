@@ -4,7 +4,9 @@ import { randomUUID } from 'crypto';
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { PalClient, parseAddressToDomainAndPathName } from 'pal-client-lib';
 import {
+  IAmount,
   PaymentsClient,
+  PaymentResult,
   httpStatusFromGrpcError,
   toClientApiErrorResponse
 } from 'payments-client-lib';
@@ -12,6 +14,56 @@ import {
 interface PaymentRouteOptions extends FastifyPluginOptions {
   palClient: PalClient;
   paymentsClient: PaymentsClient;
+}
+
+interface AmountBody {
+  value: string;
+  assetCode: string;
+  assetScale: number;
+}
+
+interface PaymentBody {
+  id: string;
+  state: string;
+  paymentIntentId: string;
+  senderWalletAddress: string;
+  quoteId?: string;
+  debitAmount: AmountBody;
+  receiveAmount: AmountBody;
+  sentAmount: AmountBody;
+  createdAt: string;
+  failReason?: string;
+}
+
+function toAmountBody(amount: IAmount): AmountBody {
+  return {
+    value: String(amount.value),
+    assetCode: amount.assetCode,
+    assetScale: amount.assetScale
+  };
+}
+
+function toPaymentBody(payment: PaymentResult): PaymentBody {
+  const body: PaymentBody = {
+    id: payment.id,
+    state: payment.state,
+    paymentIntentId: payment.paymentIntentId,
+    senderWalletAddress: payment.senderWalletAddress,
+    debitAmount: toAmountBody(payment.debitAmount),
+    receiveAmount: toAmountBody(payment.receiveAmount),
+    sentAmount: toAmountBody(payment.sentAmount),
+    createdAt: payment.createdAt
+  };
+
+  if (payment.quoteId) {
+    body.quoteId = payment.quoteId;
+  }
+
+  if (payment.failReason) {
+    body.failReason = payment.failReason;
+  }
+
+  return body;
 }
 
 export async function paymentRoutes(
@@ -76,17 +128,7 @@ export async function paymentRoutes(
         return reply.status(httpStatus).send({ error: error.description });
       }
 
-      return reply.status(200).send({
-        id: payment.id,
-        state: payment.state,
-        senderWalletAddress: payment.senderWalletAddress,
-        assetCode: payment.assetCode,
-        assetScale: payment.assetScale,
-        quoteId: payment.quoteId,
-        debitAmount: String(payment.debitAmount),
-        receiveAmount: String(payment.receiveAmount),
-        sentAmount: String(payment.sentAmount)
-      });
+      return reply.status(200).send(toPaymentBody(payment));
     }
   );
 

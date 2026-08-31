@@ -22,10 +22,53 @@ service PaymentsGrpc {
   rpc CancelPayment(CancelPaymentRequest) returns (CancelPaymentResponse);
 
   // Fetches a payment intent by ID.
-  rpc GetPaymentIntent(GetPaymentIntentRequest) returns (GetPaymentIntentResponse);
+  rpc GetPaymentIntent(GetPaymentIntentRequest) returns (PaymentIntent);
 
-  // Fetches a payment by concatenated ID (paymentIntentId_paymentId).
-  rpc GetPayment(GetPaymentRequest) returns (GetPaymentResponse);
+  // Fetches a payment by its parent intent ID and its own ID.
+  rpc GetPayment(GetPaymentRequest) returns (Payment);
+}
+
+/*
+ * Shared resource messages
+ */
+
+// A monetary amount together with the asset that denominates it.
+message Amount {
+  uint64 value = 1;
+  string asset_code = 2;
+  uint32 asset_scale = 3;
+}
+
+// A payment intent resource (Open Payments incoming payment).
+message PaymentIntent {
+  string id = 1;
+  string receiver_wallet_address = 2;
+  string state = 3;
+  string destination = 4;
+  optional uint64 incoming_amount = 5;
+  uint64 received_amount = 6;
+  string asset_code = 7;
+  uint32 asset_scale = 8;
+  optional string expires_at = 9;
+  optional string destination_ilp_address = 10;
+  string created_at = 11;
+}
+
+// A payment resource (Open Payments outgoing payment).
+message Payment {
+  string id = 1;
+  string state = 2;
+  string sender_wallet_address = 3;
+  string sender_wallet_address_id = 4;
+  string payment_intent_id = 5;
+  optional string quote_id = 6;
+  Amount debit_amount = 7;
+  Amount receive_amount = 8;
+  Amount sent_amount = 9;
+  string created_at = 10;
+  // Parent intent's remoteUrl (set for REMOTE intents) — the receiver resource URL.
+  optional string remote_url = 11;
+  optional string fail_reason = 12;
 }
 
 /*
@@ -128,7 +171,7 @@ message CancelPaymentResponse {
 }
 
 /*
- * Get Payment Intent messages
+ * Get / list messages
  */
 
 // Request to fetch a payment intent by ID.
@@ -136,41 +179,8 @@ message GetPaymentIntentRequest {
   string id = 1;
 }
 
-// Response containing the payment intent details.
-message GetPaymentIntentResponse {
-  string id = 1;
-  string receiver_wallet_address = 2;
-  string state = 3;
-  string destination = 4;
-  optional uint64 incoming_amount = 5;
-  uint64 received_amount = 6;
-  string asset_code = 7;
-  uint32 asset_scale = 8;
-  optional string expires_at = 9;
-  optional string destination_ilp_address = 10;
-}
-
-/*
- * Get Payment messages
- */
-
 // Request to fetch a payment by its parent intent ID and its own ID.
 message GetPaymentRequest {
   string payment_intent_id = 1;
   string id = 2;
-}
-
-// Response containing the payment details.
-message GetPaymentResponse {
-  string id = 1;
-  string state = 2;
-  string sender_wallet_address = 3;
-  string sender_wallet_address_id = 4;
-  string payment_intent_id = 5;
-  string asset_code = 6;
-  uint32 asset_scale = 7;
-  optional string quote_id = 8;
-  uint64 debit_amount = 9;
-  uint64 receive_amount = 10;
-  uint64 sent_amount = 11;
 }

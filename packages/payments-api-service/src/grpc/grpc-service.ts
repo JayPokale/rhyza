@@ -24,16 +24,21 @@ import {
   CancelPaymentRequest,
   CancelPaymentResponse,
   GetPaymentIntentRequest,
-  GetPaymentIntentResponse,
   GetPaymentRequest,
-  GetPaymentResponse,
+  Amount,
+  PaymentIntent,
+  Payment,
   HealthCheckRequest,
   HealthCheckResponse,
   HealthService,
   PaymentsGrpcService,
   PaymentIntentDomainEvent
 } from 'payments-public-types-lib';
-import { IPaymentIntentRepository } from 'payments-domain-lib';
+import {
+  IPaymentIntent,
+  IPaymentIntentRepository,
+  ISentPayment
+} from 'payments-domain-lib';
 import {
   AppErrorType,
   ILogger,
@@ -317,8 +322,8 @@ export class PaymentsServiceServer {
   }
 
   private async _handleGetPaymentIntent(
-    call: ServerUnaryCall<GetPaymentIntentRequest, GetPaymentIntentResponse>,
-    callback: sendUnaryData<GetPaymentIntentResponse>
+    call: ServerUnaryCall<GetPaymentIntentRequest, PaymentIntent>,
+    callback: sendUnaryData<PaymentIntent>
   ): Promise<void> {
     const id = call.request.getId();
     try {
@@ -331,33 +336,15 @@ export class PaymentsServiceServer {
         return;
       }
 
-      const response = new GetPaymentIntentResponse();
-      response.setId(paymentIntent.id);
-      response.setReceiverWalletAddress(paymentIntent.receiverWalletAddress);
-      response.setState(paymentIntent.state);
-      response.setDestination(paymentIntent.destination);
-      response.setReceivedAmount(Number(paymentIntent.receivedAmount));
-      response.setAssetCode(paymentIntent.assetCode);
-      response.setAssetScale(paymentIntent.assetScale);
-      if (paymentIntent.incomingAmount != null) {
-        response.setIncomingAmount(Number(paymentIntent.incomingAmount));
-      }
-      if (paymentIntent.expiresAt) {
-        response.setExpiresAt(new Date(paymentIntent.expiresAt).toISOString());
-      }
-      if (paymentIntent.destinationIlpAddress) {
-        response.setDestinationIlpAddress(paymentIntent.destinationIlpAddress);
-      }
-
-      callback(null, response);
+      callback(null, this._toPbPaymentIntent(paymentIntent));
     } catch (err) {
       callback({ code: grpc.status.INTERNAL, message: (err as Error).message });
     }
   }
 
   private async _handleGetPayment(
-    call: ServerUnaryCall<GetPaymentRequest, GetPaymentResponse>,
-    callback: sendUnaryData<GetPaymentResponse>
+    call: ServerUnaryCall<GetPaymentRequest, Payment>,
+    callback: sendUnaryData<Payment>
   ): Promise<void> {
     const paymentIntentId = call.request.getPaymentIntentId();
     const paymentId = call.request.getId();
@@ -385,25 +372,88 @@ export class PaymentsServiceServer {
         return;
       }
 
-      const response = new GetPaymentResponse();
-      response.setId(payment.id);
-      response.setState(payment.state);
-      response.setSenderWalletAddress(payment.senderWalletAddress);
-      response.setSenderWalletAddressId(payment.senderWalletAddressId);
-      response.setPaymentIntentId(payment.paymentIntentId);
-      response.setAssetCode(payment.assetCode);
-      response.setAssetScale(payment.assetScale);
-      response.setDebitAmount(Number(payment.debitAmount));
-      response.setReceiveAmount(Number(payment.receiveAmount));
-      response.setSentAmount(Number(payment.sentAmount));
-      if (payment.quoteId) {
-        response.setQuoteId(payment.quoteId);
-      }
-
-      callback(null, response);
+      callback(null, this._toPbPayment(payment, paymentIntent));
     } catch (err) {
       callback({ code: grpc.status.INTERNAL, message: (err as Error).message });
     }
+  }
+
+  private _toPbPaymentIntent(
+    paymentIntent: Omit<IPaymentIntent, 'sentPayments' | 'receivedPayments'>
+  ): PaymentIntent {
+    const pbPaymentIntent = new PaymentIntent();
+    pbPaymentIntent.setId(paymentIntent.id);
+    pbPaymentIntent.setReceiverWalletAddress(
+      paymentIntent.receiverWalletAddress
+    );
+    pbPaymentIntent.setState(paymentIntent.state);
+    pbPaymentIntent.setDestination(paymentIntent.destination);
+    pbPaymentIntent.setReceivedAmount(Number(paymentIntent.receivedAmount));
+    pbPaymentIntent.setAssetCode(paymentIntent.assetCode);
+    pbPaymentIntent.setAssetScale(paymentIntent.assetScale);
+    pbPaymentIntent.setCreatedAt(
+      new Date(paymentIntent.createdAt).toISOString()
+    );
+    if (paymentIntent.incomingAmount != null) {
+      pbPaymentIntent.setIncomingAmount(Number(paymentIntent.incomingAmount));
+    }
+    if (paymentIntent.expiresAt) {
+      pbPaymentIntent.setExpiresAt(
+        new Date(paymentIntent.expiresAt).toISOString()
+      );
+    }
+    if (paymentIntent.destinationIlpAddress) {
+      pbPaymentIntent.setDestinationIlpAddress(
+        paymentIntent.destinationIlpAddress
+      );
+    }
+    return pbPaymentIntent;
+  }
+
+  private _toPbPayment(
+    payment: ISentPayment,
+    parentIntent: { assetCode: string; assetScale: number; remoteUrl?: string }
+  ): Payment {
+    const pbPayment = new Payment();
+    pbPayment.setId(payment.id);
+    pbPayment.setState(payment.state);
+    pbPayment.setSenderWalletAddress(payment.senderWalletAddress);
+    pbPayment.setSenderWalletAddressId(payment.senderWalletAddressId);
+    pbPayment.setPaymentIntentId(payment.paymentIntentId);
+    pbPayment.setCreatedAt(new Date(payment.createdAt).toISOString());
+    if (payment.quoteId) {
+      pbPayment.setQuoteId(payment.quoteId);
+    }
+    if (payment.failReason) {
+      pbPayment.setFailReason(payment.failReason);
+    }
+    if (parentIntent.remoteUrl) {
+      pbPayment.setRemoteUrl(parentIntent.remoteUrl);
+    }
+
+    // debitAmount and sentAmount are denominated in the payment's own
+    // (sender-side) asset pair.
+    const debitAmount = new Amount();
+    debitAmount.setValue(Number(payment.debitAmount));
+    debitAmount.setAssetCode(payment.assetCode);
+    debitAmount.setAssetScale(payment.assetScale);
+    pbPayment.setDebitAmount(debitAmount);
+
+    const sentAmount = new Amount();
+    sentAmount.setValue(Number(payment.sentAmount));
+    sentAmount.setAssetCode(payment.assetCode);
+    sentAmount.setAssetScale(payment.assetScale);
+    pbPayment.setSentAmount(sentAmount);
+
+    // receiveAmount is denominated in the parent intent's (receive-side)
+    // asset — a different currency for cross-currency payments.
+    const receiveAmount = new Amount();
+    receiveAmount.setValue(Number(payment.receiveAmount));
+    receiveAmount.setAssetCode(parentIntent.assetCode);
+    receiveAmount.setAssetScale(parentIntent.assetScale);
+    pbPayment.setReceiveAmount(receiveAmount);
+
+    return pbPayment;
   }
 
   private _storePendingResponse(

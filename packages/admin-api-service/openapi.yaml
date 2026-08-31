@@ -642,10 +642,15 @@ components:
         - destination
         - walletAddress
         - receivedAmount
+        - createdAt
       properties:
         id:
           type: string
           description: The unique identifier for the payment intent.
+        createdAt:
+          type: string
+          format: date-time
+          description: When the payment intent was created.
         state:
           type: string
           description: The current status of the payment intent.
@@ -777,12 +782,12 @@ components:
       required:
         - id
         - state
+        - paymentIntentId
         - senderWalletAddress
-        - assetCode
-        - assetScale
         - debitAmount
         - receiveAmount
         - sentAmount
+        - createdAt
       properties:
         id:
           type: string
@@ -790,24 +795,28 @@ components:
         state:
           type: string
           description: The current state of the payment.
+        paymentIntentId:
+          type: string
+          description: The parent payment intent's id.
         senderWalletAddress:
           type: string
           description: The wallet address of the sender.
-        assetCode:
-          type: string
-          description: The asset code used for the payment.
-        assetScale:
-          type: number
-          description: The asset scale used for the payment.
         quoteId:
           type: string
           description: The ID of the quote associated with this payment.
         debitAmount:
-          type: string
-          description: The amount debited from the sender.
+          $ref: '#/components/schemas/Amount'
+          description: The amount debited from the sender, in the sender-side asset.
         receiveAmount:
-          type: string
-          description: The amount received by the destination.
+          $ref: '#/components/schemas/Amount'
+          description: The amount received by the destination, in the receive-side asset.
         sentAmount:
+          $ref: '#/components/schemas/Amount'
+          description: The total amount sent so far, in the sender-side asset.
+        createdAt:
           type: string
-          description: The total amount sent so far.
+          format: date-time
+          description: When the payment was created.
+        failReason:
+          type: string
+          description: Failure detail when the payment failed.

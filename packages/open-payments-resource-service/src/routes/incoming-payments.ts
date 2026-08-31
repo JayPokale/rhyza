@@ -6,7 +6,8 @@ import {
   httpStatusFromGrpcError,
   isGrpcServiceError,
   toClientApiErrorResponse,
-  PaymentsClient
+  PaymentsClient,
+  PaymentIntentResult
 } from 'payments-client-lib';
 import { OpenPaymentsResourceServerRouteError } from '../errors.js';
 import { components } from '../types/generated/resource-server-types.js';
@@ -19,6 +20,36 @@ interface IncomingPaymentRouteOptions extends FastifyPluginOptions {
   palClient: PalClient;
   paymentsClient: PaymentsClient;
   streamServer: StreamServer;
+}
+
+export function toIncomingPaymentBody(
+  paymentIntent: PaymentIntentResult
+): components['schemas']['incoming-payment'] {
+  const body: components['schemas']['incoming-payment'] = {
+    id: paymentIntent.id,
+    completed: paymentIntent.state === 'COMPLETED',
+    walletAddress: paymentIntent.receiverWalletAddress,
+    createdAt: paymentIntent.createdAt,
+    receivedAmount: {
+      value: String(paymentIntent.receivedAmount),
+      assetCode: paymentIntent.assetCode,
+      assetScale: paymentIntent.assetScale
+    }
+  };
+
+  if (paymentIntent.incomingAmount != null) {
+    body.incomingAmount = {
+      value: String(paymentIntent.incomingAmount),
+      assetCode: paymentIntent.assetCode,
+      assetScale: paymentIntent.assetScale
+    };
+  }
+
+  if (paymentIntent.expiresAt) {
+    body.expiresAt = paymentIntent.expiresAt;
+  }
+
+  return body;
 }
 
 export async function incomingPaymentRoutes(
@@ -134,31 +165,10 @@ export async function incomingPaymentRoutes(
       destinationIlpAddress: string;
       sharedSecret: string;
     } = {
-      id: paymentIntent.id,
-      expiresAt: paymentIntent.expiresAt,
-      completed: paymentIntent.state === 'COMPLETED',
-      walletAddress: paymentIntent.receiverWalletAddress,
-      createdAt: new Date().toISOString(),
-      receivedAmount: {
-        value: String(paymentIntent.receivedAmount),
-        assetCode: paymentIntent.assetCode,
-        assetScale: paymentIntent.assetScale
-      },
+      ...toIncomingPaymentBody(paymentIntent),
       sharedSecret: streamCredentials.sharedSecret,
       destinationIlpAddress: streamCredentials.ilpAddress
     };
-
-    if (paymentIntent.incomingAmount != null) {
-      response.incomingAmount = {
-        value: String(paymentIntent.incomingAmount),
-        assetCode: paymentIntent.assetCode,
-        assetScale: paymentIntent.assetScale
-      };
-    }
-
-    if (paymentIntent.expiresAt) {
-      response.expiresAt = paymentIntent.expiresAt;
-    }
 
     return reply.status(200).send(response);
   });
@@ -198,31 +208,10 @@ export async function incomingPaymentRoutes(
       destinationIlpAddress: string;
       sharedSecret: string;
     } = {
-      id: paymentIntent.id,
-      expiresAt: paymentIntent.expiresAt,
-      completed: paymentIntent.state === 'COMPLETED',
-      walletAddress: paymentIntent.receiverWalletAddress,
-      createdAt: new Date().toISOString(),
-      receivedAmount: {
-        value: String(paymentIntent.receivedAmount),
-        assetCode: paymentIntent.assetCode,
-        assetScale: paymentIntent.assetScale
-      },
+      ...toIncomingPaymentBody(paymentIntent),
       sharedSecret: streamCredentials.sharedSecret,
       destinationIlpAddress: streamCredentials.ilpAddress
     };
-
-    if (paymentIntent.incomingAmount != null) {
-      response.incomingAmount = {
-        value: String(paymentIntent.incomingAmount),
-        assetCode: paymentIntent.assetCode,
-        assetScale: paymentIntent.assetScale
-      };
-    }
-
-    if (paymentIntent.expiresAt) {
-      response.expiresAt = paymentIntent.expiresAt;
-    }
 
     return reply.status(200).send(response);
   });

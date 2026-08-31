@@ -2,6 +2,7 @@ import * as grpc from '@grpc/grpc-js';
 import { ServiceError, status } from '@grpc/grpc-js';
 import { randomUUID } from 'node:crypto';
 import { createServiceError } from './errors';
+import { IAmount } from './local-types';
 import {
   CreatePaymentIntentRequest,
   CreatePaymentIntentResponse,
@@ -15,9 +16,10 @@ import {
   ApprovePaymentRequest,
   ApprovePaymentResponse,
   GetPaymentIntentRequest,
-  GetPaymentIntentResponse,
   GetPaymentRequest,
-  GetPaymentResponse,
+  Amount,
+  PaymentIntent,
+  Payment,
   CancelPaymentRequest,
   CancelPaymentResponse
 } from 'payments-public-types-lib';
@@ -25,6 +27,23 @@ import {
 type IncomingPaymentInput =
   | { incomingPaymentId: string }
   | { incomingPaymentUrl: string };
+
+export type PaymentIntentResult = Omit<
+  PaymentIntent.AsObject,
+  'receivedAmount' | 'incomingAmount'
+> & {
+  receivedAmount: bigint;
+  incomingAmount: bigint | undefined;
+};
+
+export type PaymentResult = Omit<
+  Payment.AsObject,
+  'debitAmount' | 'receiveAmount' | 'sentAmount'
+> & {
+  debitAmount: IAmount;
+  receiveAmount: IAmount;
+  sentAmount: IAmount;
+};
 
 export class PaymentsClient {
   private readonly _serverUrl: string;
@@ -310,43 +329,20 @@ export class PaymentsClient {
     });
   }
 
-  async getPaymentIntent(id: string): Promise<
-    Omit<
-      GetPaymentIntentResponse.AsObject,
-      'receivedAmount' | 'incomingAmount'
-    > & {
-      receivedAmount: bigint;
-      incomingAmount: bigint | undefined;
-    }
-  > {
+  async getPaymentIntent(id: string): Promise<PaymentIntentResult> {
     const request = new GetPaymentIntentRequest();
     request.setId(id);
 
     return new Promise((resolve, reject) => {
       this._grpcClient.getPaymentIntent(
         request,
-        (error: ServiceError | null, response: GetPaymentIntentResponse) => {
+        (error: ServiceError | null, response: PaymentIntent) => {
           if (error) {
             console.error(error);
             return reject(error);
           }
 
-          const incomingAmount = response.getIncomingAmount();
-          const expiresAt = response.getExpiresAt();
-          const destinationIlpAddress = response.getDestinationIlpAddress();
-
-          return resolve({
-            id: response.getId(),
-            receiverWalletAddress: response.getReceiverWalletAddress(),
-            state: response.getState(),
-            destination: response.getDestination(),
-            receivedAmount: BigInt(response.getReceivedAmount()),
-            assetCode: response.getAssetCode(),
-            assetScale: response.getAssetScale(),
-            incomingAmount: incomingAmount ? BigInt(incomingAmount) : undefined,
-            expiresAt: expiresAt || undefined,
-            destinationIlpAddress: destinationIlpAddress || undefined
-          });
+          return resolve(PaymentsClient._paymentIntentFromPb(response));
         }
       );
     });
@@ -355,12 +351,7 @@ export class PaymentsClient {
   async getPayment(
     paymentIntentId: string,
     id: string
-  ): Promise<
-    Omit<
-      GetPaymentResponse.AsObject,
-      'debitAmount' | 'receiveAmount' | 'sentAmount'
-    > & { debitAmount: bigint; receiveAmount: bigint; sentAmount: bigint }
-  > {
+  ): Promise<PaymentResult> {
     const request = new GetPaymentRequest();
     request.setId(id);
     request.setPaymentIntentId(paymentIntentId);
@@ -368,29 +359,84 @@ export class PaymentsClient {
     return new Promise((resolve, reject) => {
       this._grpcClient.getPayment(
         request,
-        (error: ServiceError | null, response: GetPaymentResponse) => {
+        (error: ServiceError | null, response: Payment) => {
           if (error) {
             console.error(error);
             return reject(error);
           }
 
-          const quoteId = response.getQuoteId();
-
-          return resolve({
-            id: response.getId(),
-            state: response.getState(),
-            senderWalletAddress: response.getSenderWalletAddress(),
-            senderWalletAddressId: response.getSenderWalletAddressId(),
-            paymentIntentId: response.getPaymentIntentId(),
-            assetCode: response.getAssetCode(),
-            assetScale: response.getAssetScale(),
-            quoteId: quoteId || undefined,
-            debitAmount: BigInt(response.getDebitAmount()),
-            receiveAmount: BigInt(response.getReceiveAmount()),
-            sentAmount: BigInt(response.getSentAmount())
-          });
+          return resolve(PaymentsClient._paymentFromPb(response));
         }
       );
     });
+  }
+
+  private static _paymentIntentFromPb(
+    response: PaymentIntent
+  ): PaymentIntentResult {
+    const incomingAmount = response.getIncomingAmount();
+    const expiresAt = response.getExpiresAt();
+    const destinationIlpAddress = response.getDestinationIlpAddress();
+
+    return {
+      id: response.getId(),
+      receiverWalletAddress: response.getReceiverWalletAddress(),
+      state: response.getState(),
+      destination: response.getDestination(),
+      receivedAmount: BigInt(response.getReceivedAmount()),
+      assetCode: response.getAssetCode(),
+      assetScale: response.getAssetScale(),
+      incomingAmount: incomingAmount ? BigInt(incomingAmount) : undefined,
+      expiresAt: expiresAt || undefined,
+      destinationIlpAddress: destinationIlpAddress || undefined,
+      createdAt: response.getCreatedAt()
+    };
+  }
+
+  private static _paymentFromPb(response: Payment): PaymentResult {
+    const quoteId = response.getQuoteId();
+    const remoteUrl = response.getRemoteUrl();
+    const failReason = response.getFailReason();
+
+    return {
+      id: response.getId(),
+      state: response.getState(),
+      senderWalletAddress: response.getSenderWalletAddress(),
+      senderWalletAddressId: response.getSenderWalletAddressId(),
+      paymentIntentId: response.getPaymentIntentId(),
+      quoteId: quoteId || undefined,
+      debitAmount: PaymentsClient._amountFromPb(
+        response.getDebitAmount(),
+        'debitAmount'
+      ),
+      receiveAmount: PaymentsClient._amountFromPb(
+        response.getReceiveAmount(),
+        'receiveAmount'
+      ),
+      sentAmount: PaymentsClient._amountFromPb(
+        response.getSentAmount(),
+        'sentAmount'
+      ),
+      createdAt: response.getCreatedAt(),
+      remoteUrl: remoteUrl || undefined,
+      failReason: failReason || undefined
+    };
+  }
+
+  private static _amountFromPb(
+    pbAmount: Amount | undefined,
+    field: string
+  ): IAmount {
+    if (!pbAmount) {
+      throw createServiceError(
+        status.INTERNAL,
+        `Missing '${field}' on payment response`
+      );
+    }
+    return {
+      value: BigInt(pbAmount.getValue()),
+      assetCode: pbAmount.getAssetCode(),
+      assetScale: pbAmount.getAssetScale()
+    };
   }
 }
