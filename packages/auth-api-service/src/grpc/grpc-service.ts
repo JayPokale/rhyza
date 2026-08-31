@@ -523,7 +523,7 @@ export class AuthServiceServer {
 
       if (grant.interaction) {
         const interaction = new Interaction();
-        interaction.setExpiresAt(grant.interaction.expiresAt);
+        interaction.setExpiresAt(grant.interaction.expiresAt.getTime());
         interaction.setState(grant.interaction.state);
         interaction.setInteractRef(grant.interaction.interactRef);
         response.setInteraction(interaction);
