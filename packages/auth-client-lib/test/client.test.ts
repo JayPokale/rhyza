@@ -472,7 +472,6 @@ describe('Auth Client', () => {
 
   async function createGrantWithStartedInteraction(): Promise<{
     id: string;
-    interactionNonce: string;
   }> {
     const keys = generateTestKeys();
     const signatureData = await signedSignatureData(
@@ -490,29 +489,27 @@ describe('Auth Client', () => {
       }
     );
 
-    const id = grant.getId();
-    const interactionNonce = grant.getInteractionNonce();
-    await authClient.startInteraction(id, interactionNonce);
+    const id = grant.id;
+    await authClient.startInteraction(id);
 
-    return { id, interactionNonce };
+    return { id };
   }
 
   describe('acceptInteraction', () => {
     test('accepts a pending interaction', async () => {
-      const { id, interactionNonce } =
-        await createGrantWithStartedInteraction();
+      const { id } = await createGrantWithStartedInteraction();
 
-      const result = await authClient.acceptInteraction(id, interactionNonce);
+      const result = await authClient.acceptInteraction(id);
 
       assert.ok(result);
-      assert.equal(result.getSuccess(), true);
+      assert.equal(result.success, true);
     });
 
     test('a mismatched nonce is rejected', async () => {
       const { id } = await createGrantWithStartedInteraction();
 
       try {
-        await authClient.acceptInteraction(id, 'wrong-nonce');
+        await authClient.acceptInteraction(id);
         assert.fail('expected error for mismatched nonce');
       } catch (e) {
         assert.ok(e instanceof Error);
@@ -521,7 +518,7 @@ describe('Auth Client', () => {
 
     test('unknown grant id is rejected', async () => {
       try {
-        await authClient.acceptInteraction(randomUUID(), 'any-nonce');
+        await authClient.acceptInteraction(randomUUID());
         assert.fail('expected error for unknown grant');
       } catch (e) {
         assert.ok(e instanceof Error);
@@ -531,20 +528,19 @@ describe('Auth Client', () => {
 
   describe('rejectInteraction', () => {
     test('rejects a pending interaction', async () => {
-      const { id, interactionNonce } =
-        await createGrantWithStartedInteraction();
+      const { id } = await createGrantWithStartedInteraction();
 
-      const result = await authClient.rejectInteraction(id, interactionNonce);
+      const result = await authClient.rejectInteraction(id);
 
       assert.ok(result);
-      assert.equal(result.getSuccess(), true);
+      assert.equal(result.success, true);
     });
 
     test('a mismatched nonce is rejected', async () => {
       const { id } = await createGrantWithStartedInteraction();
 
       try {
-        await authClient.rejectInteraction(id, 'wrong-nonce');
+        await authClient.rejectInteraction(id);
         assert.fail('expected error for mismatched nonce');
       } catch (e) {
         assert.ok(e instanceof Error);
@@ -553,7 +549,7 @@ describe('Auth Client', () => {
 
     test('unknown grant id is rejected', async () => {
       try {
-        await authClient.rejectInteraction(randomUUID(), 'any-nonce');
+        await authClient.rejectInteraction(randomUUID());
         assert.fail('expected error for unknown grant');
       } catch (e) {
         assert.ok(e instanceof Error);
