@@ -14,23 +14,21 @@ if [ ! -f "$FILE_PATH" ]; then
     exit 1
 fi
 
-MERGE_BASE=$(git merge-base HEAD "$BASE_BRANCH")
-
-if [ -z "$MERGE_BASE" ]; then
-    echo "Error: Could not find a common ancestor between HEAD and $BASE_BRANCH."
-    exit 1
+BASE_REF="origin/${BASE_BRANCH}"
+if ! git rev-parse --verify "$BASE_REF" >/dev/null 2>&1; then
+    BASE_REF="$BASE_BRANCH"
 fi
 
 TEMP_BASE=$(mktemp)
 trap 'rm -f "$TEMP_BASE"' EXIT
 
-if ! git show "${MERGE_BASE}:${FILE_PATH}" > "$TEMP_BASE" 2>/dev/null; then
-    echo "Error: Could not find '$FILE_PATH' at the merge base ($MERGE_BASE)."
+if ! git show "${BASE_REF}:${FILE_PATH}" > "$TEMP_BASE" 2>/dev/null; then
+    echo "Error: Could not find '$FILE_PATH' at $BASE_REF."
     exit 1
 fi
 
 echo "Comparing: $FILE_PATH (Current)"
-echo "Against:   $BASE_BRANCH (Merge Base commit: ${MERGE_BASE:0:7})"
+echo "Against:   $BASE_REF"
 echo "Mode:      $MODE"
 echo "--------------------------------------------------------"
 
