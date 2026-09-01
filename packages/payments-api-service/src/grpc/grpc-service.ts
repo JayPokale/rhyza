@@ -25,6 +25,10 @@ import {
   CancelPaymentResponse,
   GetPaymentIntentRequest,
   GetPaymentRequest,
+  GetPaymentIntentsPageRequest,
+  GetPaymentIntentsPageResponse,
+  GetPaymentsPageRequest,
+  GetPaymentsPageResponse,
   Amount,
   PaymentIntent,
   Payment,
@@ -35,6 +39,7 @@ import {
   PaymentIntentDomainEvent
 } from 'payments-public-types-lib';
 import {
+  InvalidCursorError,
   IPaymentIntent,
   IPaymentIntentRepository,
   ISentPayment
@@ -65,6 +70,8 @@ interface PendingResponse {
 }
 
 export class PaymentsServiceServer {
+  private static readonly DEFAULT_PAGE_LIMIT = 20;
+  private static readonly MAX_PAGE_LIMIT = 100;
   private readonly _instanceId: string;
   private readonly _serverUrl: string;
   private readonly _server: grpc.Server;
@@ -134,7 +141,9 @@ export class PaymentsServiceServer {
       approvePayment: this._handleUnary.bind(this),
       cancelPayment: this._handleUnary.bind(this),
       getPaymentIntent: this._handleGetPaymentIntent.bind(this),
-      getPayment: this._handleGetPayment.bind(this)
+      getPayment: this._handleGetPayment.bind(this),
+      getPaymentIntentsPage: this._handleGetPaymentIntentsPage.bind(this),
+      getPaymentsPage: this._handleGetPaymentsPage.bind(this)
     });
   }
 
@@ -376,6 +385,103 @@ export class PaymentsServiceServer {
     } catch (err) {
       callback({ code: grpc.status.INTERNAL, message: (err as Error).message });
     }
+  }
+
+  private async _handleGetPaymentIntentsPage(
+    call: ServerUnaryCall<
+      GetPaymentIntentsPageRequest,
+      GetPaymentIntentsPageResponse
+    >,
+    callback: sendUnaryData<GetPaymentIntentsPageResponse>
+  ): Promise<void> {
+    try {
+      const request = call.request;
+      const page = await this._repo.fetchPaymentIntentsPage({
+        walletAddressId: request.getWalletAddressId() || undefined,
+        cursor: request.getCursor() || undefined,
+        limit: this._clampPageLimit(request.getLimit()),
+        backwards: request.getBackwards()
+      });
+
+      const response = new GetPaymentIntentsPageResponse();
+      response.setPaymentIntentsList(
+        page.items.map((intent) => this._toPbPaymentIntent(intent))
+      );
+      response.setHasNextPage(page.hasNextPage);
+      response.setHasPreviousPage(page.hasPreviousPage);
+      if (page.items.length > 0) {
+        response.setStartCursor(page.items[0].id);
+        response.setEndCursor(page.items[page.items.length - 1].id);
+      }
+
+      callback(null, response);
+    } catch (err) {
+      callback(this._pageErrorToStatus(err));
+    }
+  }
+
+  private async _handleGetPaymentsPage(
+    call: ServerUnaryCall<GetPaymentsPageRequest, GetPaymentsPageResponse>,
+    callback: sendUnaryData<GetPaymentsPageResponse>
+  ): Promise<void> {
+    try {
+      const request = call.request;
+      const page = await this._repo.fetchSentPaymentsPage({
+        walletAddressId: request.getWalletAddressId() || undefined,
+        paymentIntentId: request.getPaymentIntentId() || undefined,
+        cursor: request.getCursor() || undefined,
+        limit: this._clampPageLimit(request.getLimit()),
+        backwards: request.getBackwards()
+      });
+
+      // Hydrate parent intents in one batched fetch — receiveAmount is
+      // denominated in the parent intent's (receive-side) asset, and the
+      // OP receiver URL comes from the parent's remoteUrl.
+      const intentIds = [...new Set(page.items.map((p) => p.paymentIntentId))];
+      const parentIntents = await this._repo.fetchByIds(intentIds);
+      const intentById = new Map(parentIntents.map((i) => [i.id, i]));
+
+      const response = new GetPaymentsPageResponse();
+      response.setPaymentsList(
+        page.items.map((payment) => {
+          const parent = intentById.get(payment.paymentIntentId);
+          if (!parent) {
+            throw new Error(
+              `Parent payment intent '${payment.paymentIntentId}' not found for payment '${payment.id}'`
+            );
+          }
+          return this._toPbPayment(payment, parent);
+        })
+      );
+      response.setHasNextPage(page.hasNextPage);
+      response.setHasPreviousPage(page.hasPreviousPage);
+      if (page.items.length > 0) {
+        response.setStartCursor(page.items[0].id);
+        response.setEndCursor(page.items[page.items.length - 1].id);
+      }
+
+      callback(null, response);
+    } catch (err) {
+      callback(this._pageErrorToStatus(err));
+    }
+  }
+
+  private _clampPageLimit(limit: number): number {
+    if (!limit) return PaymentsServiceServer.DEFAULT_PAGE_LIMIT;
+    return Math.min(limit, PaymentsServiceServer.MAX_PAGE_LIMIT);
+  }
+
+  private _pageErrorToStatus(err: unknown): grpc.ServiceError {
+    if (err instanceof InvalidCursorError) {
+      return {
+        code: grpc.status.INVALID_ARGUMENT,
+        message: (err as Error).message
+      } as grpc.ServiceError;
+    }
+    return {
+      code: grpc.status.INTERNAL,
+      message: (err as Error).message
+    } as grpc.ServiceError;
   }
 
   private _toPbPaymentIntent(

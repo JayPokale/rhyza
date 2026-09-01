@@ -2,7 +2,7 @@ import * as grpc from '@grpc/grpc-js';
 import { ServiceError, status } from '@grpc/grpc-js';
 import { randomUUID } from 'node:crypto';
 import { createServiceError } from './errors';
-import { IAmount } from './local-types';
+import { IAmount, IPage, IPageQuery } from './local-types';
 import {
   CreatePaymentIntentRequest,
   CreatePaymentIntentResponse,
@@ -17,6 +17,8 @@ import {
   ApprovePaymentResponse,
   GetPaymentIntentRequest,
   GetPaymentRequest,
+  GetPaymentIntentsPageRequest,
+  GetPaymentsPageRequest,
   Amount,
   PaymentIntent,
   Payment,
@@ -369,6 +371,119 @@ export class PaymentsClient {
         }
       );
     });
+  }
+
+  async getPaymentIntentsPage(
+    query: IPageQuery = {}
+  ): Promise<IPage<PaymentIntentResult>> {
+    const { cursor, limit, backwards } = PaymentsClient._pageArgs(query);
+
+    const request = new GetPaymentIntentsPageRequest();
+    if (query.walletAddressId) {
+      request.setWalletAddressId(query.walletAddressId);
+    }
+    if (cursor) request.setCursor(cursor);
+    request.setLimit(limit);
+    request.setBackwards(backwards);
+
+    return new Promise((resolve, reject) => {
+      this._grpcClient.getPaymentIntentsPage(request, (error, response) => {
+        if (error) {
+          console.error(error);
+          return reject(error);
+        }
+
+        return resolve({
+          items: response
+            .getPaymentIntentsList()
+            .map((pb) => PaymentsClient._paymentIntentFromPb(pb)),
+          pagination: {
+            startCursor: response.getStartCursor() || undefined,
+            endCursor: response.getEndCursor() || undefined,
+            hasNextPage: response.getHasNextPage(),
+            hasPreviousPage: response.getHasPreviousPage()
+          }
+        });
+      });
+    });
+  }
+
+  async getPaymentsPage(
+    query: IPageQuery & { paymentIntentId?: string } = {}
+  ): Promise<IPage<PaymentResult>> {
+    const { cursor, limit, backwards } = PaymentsClient._pageArgs(query);
+
+    const request = new GetPaymentsPageRequest();
+    if (query.walletAddressId) {
+      request.setWalletAddressId(query.walletAddressId);
+    }
+    if (query.paymentIntentId) {
+      request.setPaymentIntentId(query.paymentIntentId);
+    }
+    if (cursor) request.setCursor(cursor);
+    request.setLimit(limit);
+    request.setBackwards(backwards);
+
+    return new Promise((resolve, reject) => {
+      this._grpcClient.getPaymentsPage(request, (error, response) => {
+        if (error) {
+          console.error(error);
+          return reject(error);
+        }
+
+        return resolve({
+          items: response
+            .getPaymentsList()
+            .map((pb) => PaymentsClient._paymentFromPb(pb)),
+          pagination: {
+            startCursor: response.getStartCursor() || undefined,
+            endCursor: response.getEndCursor() || undefined,
+            hasNextPage: response.getHasNextPage(),
+            hasPreviousPage: response.getHasPreviousPage()
+          }
+        });
+      });
+    });
+  }
+
+  // Maps first/last query params (Open Payments style) onto the gRPC
+  // limit/backwards request shape, enforcing the shared validation rules.
+  private static _pageArgs(query: IPageQuery): {
+    cursor?: string;
+    limit: number;
+    backwards: boolean;
+  } {
+    const { cursor, first, last } = query;
+
+    if (first != null && last != null) {
+      throw createServiceError(
+        status.INVALID_ARGUMENT,
+        "Cannot provide both 'first' and 'last'"
+      );
+    }
+    if (last != null && cursor == null) {
+      throw createServiceError(
+        status.INVALID_ARGUMENT,
+        "'last' requires 'cursor'"
+      );
+    }
+    for (const [name, value] of [
+      ['first', first],
+      ['last', last]
+    ] as const) {
+      if (value != null && (!Number.isInteger(value) || value < 1)) {
+        throw createServiceError(
+          status.INVALID_ARGUMENT,
+          `'${name}' must be a positive integer`
+        );
+      }
+    }
+
+    return {
+      cursor,
+      limit: last ?? first ?? 0, // 0 => server default
+      backwards: last != null
+    };
   }
 
   private static _paymentIntentFromPb(

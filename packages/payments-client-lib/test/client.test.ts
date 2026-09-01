@@ -544,4 +544,241 @@ describe('Payments Client', () => {
       }
     });
   });
+
+  describe('getPaymentIntentsPage', () => {
+    // Fresh wallet address per test run so pagination assertions are
+    // isolated from data left behind by earlier runs.
+    const PAGE_RECEIVER_ADDRESS = `payments-client-test.com/page-receiver-${randomUUID()}`;
+    let pageReceiverWalletAddressId: string;
+    const intentIds: string[] = [];
+
+    before(async () => {
+      const { domain, pathName } = parseAddressToDomainAndPathName(
+        PAGE_RECEIVER_ADDRESS
+      );
+      await palClient.createWalletAddress(
+        domain,
+        pathName,
+        'Page Receiver',
+        ASSET_CODE
+      );
+      const alias = await palClient.ResolveWalletAddressAlias(domain, pathName);
+      assert.ok(alias, 'page receiver wallet address alias must resolve');
+      pageReceiverWalletAddressId = alias.walletAddressId;
+
+      for (let i = 0; i < 5; i++) {
+        const id = randomUUID();
+        await paymentsClient.createPaymentIntent(
+          id,
+          pageReceiverWalletAddressId,
+          PAGE_RECEIVER_ADDRESS,
+          100
+        );
+        intentIds.push(id);
+      }
+    });
+
+    test('walks forward through all intents without gaps or duplicates', async () => {
+      const page1 = await paymentsClient.getPaymentIntentsPage({
+        walletAddressId: pageReceiverWalletAddressId,
+        first: 2
+      });
+      assert.equal(page1.items.length, 2);
+      assert.equal(page1.pagination.hasNextPage, true);
+      assert.equal(page1.pagination.hasPreviousPage, false);
+      assert.equal(page1.pagination.startCursor, page1.items[0].id);
+      assert.equal(page1.pagination.endCursor, page1.items[1].id);
+
+      const page2 = await paymentsClient.getPaymentIntentsPage({
+        walletAddressId: pageReceiverWalletAddressId,
+        first: 2,
+        cursor: page1.pagination.endCursor
+      });
+      assert.equal(page2.items.length, 2);
+      assert.equal(page2.pagination.hasNextPage, true);
+      assert.equal(page2.pagination.hasPreviousPage, true);
+
+      const page3 = await paymentsClient.getPaymentIntentsPage({
+        walletAddressId: pageReceiverWalletAddressId,
+        first: 2,
+        cursor: page2.pagination.endCursor
+      });
+      assert.equal(page3.items.length, 1);
+      assert.equal(page3.pagination.hasNextPage, false);
+      assert.equal(page3.pagination.hasPreviousPage, true);
+
+      const walked = [...page1.items, ...page2.items, ...page3.items];
+      assert.equal(walked.length, 5);
+      assert.deepEqual(
+        new Set(walked.map((intent) => intent.id)),
+        new Set(intentIds)
+      );
+      for (const intent of walked) {
+        assert.ok(intent.createdAt, 'expected createdAt on page items');
+      }
+    });
+
+    test('walks backward with last + cursor', async () => {
+      const forward = await paymentsClient.getPaymentIntentsPage({
+        walletAddressId: pageReceiverWalletAddressId,
+        first: 5
+      });
+      assert.equal(forward.items.length, 5);
+
+      const backward = await paymentsClient.getPaymentIntentsPage({
+        walletAddressId: pageReceiverWalletAddressId,
+        last: 2,
+        cursor: forward.pagination.endCursor
+      });
+      assert.equal(backward.items.length, 2);
+      // the two items immediately before the boundary, still ascending
+      assert.deepEqual(
+        backward.items.map((intent) => intent.id),
+        forward.items.slice(2, 4).map((intent) => intent.id)
+      );
+      assert.equal(backward.pagination.hasNextPage, true);
+      assert.equal(backward.pagination.hasPreviousPage, true);
+    });
+
+    test('first and last together are rejected', async () => {
+      try {
+        await paymentsClient.getPaymentIntentsPage({
+          first: 1,
+          last: 1,
+          cursor: intentIds[0]
+        });
+        assert.fail('expected INVALID_ARGUMENT ServiceError');
+      } catch (e) {
+        assertGrpcServiceError(e, status.INVALID_ARGUMENT);
+      }
+    });
+
+    test('last without cursor is rejected', async () => {
+      try {
+        await paymentsClient.getPaymentIntentsPage({ last: 1 });
+        assert.fail('expected INVALID_ARGUMENT ServiceError');
+      } catch (e) {
+        assertGrpcServiceError(e, status.INVALID_ARGUMENT);
+      }
+    });
+
+    test('unknown cursor is rejected', async () => {
+      try {
+        await paymentsClient.getPaymentIntentsPage({
+          walletAddressId: pageReceiverWalletAddressId,
+          cursor: randomUUID(),
+          first: 2
+        });
+        assert.fail('expected INVALID_ARGUMENT ServiceError');
+      } catch (e) {
+        assertGrpcServiceError(e, status.INVALID_ARGUMENT);
+      }
+    });
+
+    test('filtering by an unknown wallet address returns an empty page', async () => {
+      const page = await paymentsClient.getPaymentIntentsPage({
+        walletAddressId: randomUUID(),
+        first: 10
+      });
+      assert.equal(page.items.length, 0);
+      assert.equal(page.pagination.hasNextPage, false);
+      assert.equal(page.pagination.hasPreviousPage, false);
+      assert.equal(page.pagination.startCursor, undefined);
+      assert.equal(page.pagination.endCursor, undefined);
+    });
+  });
+
+  describe('getPaymentsPage', () => {
+    // Fresh sender wallet address per test run isolates these payments.
+    const PAGE_SENDER_ADDRESS = `payments-client-test.com/page-sender-${randomUUID()}`;
+    let pageSenderWalletAddressId: string;
+    const paymentIds: string[] = [];
+    let firstIntentId: string;
+
+    before(async () => {
+      const { domain, pathName } = parseAddressToDomainAndPathName(
+        PAGE_SENDER_ADDRESS
+      );
+      await palClient.createWalletAddress(
+        domain,
+        pathName,
+        'Page Sender',
+        ASSET_CODE
+      );
+      const alias = await palClient.ResolveWalletAddressAlias(domain, pathName);
+      assert.ok(alias, 'page sender wallet address alias must resolve');
+      pageSenderWalletAddressId = alias.walletAddressId;
+
+      // three payments across two intents
+      firstIntentId = await createPaymentIntent(100);
+      const secondIntentId = await createPaymentIntent(100);
+      for (const intentId of [firstIntentId, firstIntentId, secondIntentId]) {
+        const paymentId = randomUUID();
+        await paymentsClient.createPayment(
+          paymentId,
+          pageSenderWalletAddressId,
+          PAGE_SENDER_ADDRESS,
+          intentId,
+          undefined,
+          100
+        );
+        paymentIds.push(paymentId);
+      }
+    });
+
+    test('walks forward through all payments with hydrated amounts', async () => {
+      const page1 = await paymentsClient.getPaymentsPage({
+        walletAddressId: pageSenderWalletAddressId,
+        first: 2
+      });
+      assert.equal(page1.items.length, 2);
+      assert.equal(page1.pagination.hasNextPage, true);
+      assert.equal(page1.pagination.hasPreviousPage, false);
+
+      const page2 = await paymentsClient.getPaymentsPage({
+        walletAddressId: pageSenderWalletAddressId,
+        first: 2,
+        cursor: page1.pagination.endCursor
+      });
+      assert.equal(page2.items.length, 1);
+      assert.equal(page2.pagination.hasNextPage, false);
+      assert.equal(page2.pagination.hasPreviousPage, true);
+
+      const walked = [...page1.items, ...page2.items];
+      assert.deepEqual(
+        new Set(walked.map((payment) => payment.id)),
+        new Set(paymentIds)
+      );
+
+      for (const payment of walked) {
+        assert.equal(payment.senderWalletAddressId, pageSenderWalletAddressId);
+        assert.ok(payment.createdAt, 'expected createdAt on page items');
+        // debit/sent amounts in the sender-side asset
+        assert.deepEqual(payment.debitAmount, {
+          value: 100n,
+          assetCode: ASSET_CODE,
+          assetScale: ASSET_SCALE
+        });
+        assert.equal(payment.sentAmount.value, 0n);
+        assert.equal(payment.sentAmount.assetCode, ASSET_CODE);
+        // receiveAmount hydrated with the parent intent's (receive-side) asset
+        assert.equal(payment.receiveAmount.assetCode, ASSET_CODE);
+        assert.equal(payment.receiveAmount.assetScale, ASSET_SCALE);
+        // LOCAL parent intents have no remoteUrl
+        assert.equal(payment.remoteUrl, undefined);
+      }
+    });
+
+    test('filters by paymentIntentId', async () => {
+      const page = await paymentsClient.getPaymentsPage({
+        walletAddressId: pageSenderWalletAddressId,
+        paymentIntentId: firstIntentId,
+        first: 10
+      });
+      assert.equal(page.items.length, 2);
+      for (const payment of page.items) {
+        assert.equal(payment.paymentIntentId, firstIntentId);
+      }
+    });
+  });
 });
