@@ -429,9 +429,6 @@ importers:
       implementations-lib:
         specifier: workspace:*
         version: link:../implementations-lib
-      ioredis:
-        specifier: ~5.10.1
-        version: 5.10.1
     devDependencies:
       ilp-connector-service:
         specifier: workspace:*
@@ -520,6 +517,9 @@ importers:
       ilp-domain-lib:
         specifier: workspace:*
         version: link:../ilp-domain-lib
+      implementations-lib:
+        specifier: workspace:*
+        version: link:../implementations-lib
       ioredis:
         specifier: ~5.10.1
         version: 5.10.1
