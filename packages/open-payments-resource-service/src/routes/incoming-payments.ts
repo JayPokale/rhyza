@@ -173,6 +173,55 @@ export async function incomingPaymentRoutes(
     return reply.status(200).send(response);
   });
 
+  server.get<{
+    Querystring: {
+      'wallet-address': string;
+      cursor?: string;
+      first?: string;
+      last?: string;
+    };
+  }>('/incoming-payments', async (request, reply) => {
+    const walletAddressUrl = request.query['wallet-address'];
+
+    if (!walletAddressUrl) {
+      throw new OpenPaymentsResourceServerRouteError(
+        400,
+        "Missing required query parameter 'wallet-address'",
+        'invalid_request'
+      );
+    }
+
+    const { domain, pathName } =
+      parseAddressToDomainAndPathName(walletAddressUrl);
+    const alias = await palClient.ResolveWalletAddressAlias(domain, pathName);
+
+    if (!alias) {
+      return reply.status(200).send({
+        pagination: { hasNextPage: false, hasPreviousPage: false },
+        result: []
+      });
+    }
+
+    try {
+      const page = await paymentsClient.getPaymentIntentsPage({
+        walletAddressId: alias.walletAddressId,
+        cursor: request.query.cursor,
+        first:
+          request.query.first != null ? Number(request.query.first) : undefined,
+        last:
+          request.query.last != null ? Number(request.query.last) : undefined
+      });
+
+      return reply.status(200).send({
+        pagination: page.pagination,
+        result: page.items.map(toIncomingPaymentBody)
+      });
+    } catch (err) {
+      const httpStatus = httpStatusFromGrpcError(err);
+      return reply.status(httpStatus).send(toClientApiErrorResponse(err));
+    }
+  });
+
   server.post<{
     Params: { id: string };
     Reply:

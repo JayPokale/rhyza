@@ -6,6 +6,7 @@ import { PaymentsClient } from 'payments-client-lib';
 import { createStreamServer, parseStreamServerSecret } from 'ilp-client-lib';
 import { walletAddressRoutes } from './routes/wallet-addresses.js';
 import { incomingPaymentRoutes } from './routes/incoming-payments.js';
+import { outgoingPaymentRoutes } from './routes/outgoing-payments.js';
 
 import resourceServerOpenApiJsonSchema from '../../../open-payments-specifications/json/resource-server.json';
 import { errorHandler } from './errors.js';
@@ -90,6 +91,12 @@ export class OpenPaymentsResourceServer {
         serverSecret: parseStreamServerSecret(STREAM_SERVER_SECRET_RAW),
         serverAddress: ILP_ADDRESS
       })
+    });
+
+    this.server.register(outgoingPaymentRoutes, {
+      palClient: this.palClient,
+      paymentsClient: this.paymentsClient,
+      openPaymentsUrl: OPEN_PAYMENTS_RESOURCE_SERVER_URL
     });
 
     this.server.register(quoteRoutes, {
