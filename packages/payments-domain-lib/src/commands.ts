@@ -1,4 +1,4 @@
-import { CommandMsg, CommandTopics } from 'common-types-lib';
+import { AppErrorType, CommandMsg, CommandTopics } from 'common-types-lib';
 
 export abstract class PaymentIntentCommand extends CommandMsg {
   msgTopic: string = CommandTopics.PaymentCommands;
@@ -70,34 +70,34 @@ export abstract class PaymentIntentCommand extends CommandMsg {
     return cmd.msgName === CompleteRemotePaymentCmd.name;
   }
 
-  static isValidateReceivedPaymentCmd(
+  static isValidateInboundPaymentCmd(
     cmd: CommandMsg
-  ): cmd is ValidateReceivedPaymentCmd {
-    return cmd.msgName === ValidateReceivedPaymentCmd.name;
+  ): cmd is ValidateInboundPaymentCmd {
+    return cmd.msgName === ValidateInboundPaymentCmd.name;
   }
 
-  static isAcceptReceivedPaymentCmd(
+  static isAcceptInboundPaymentCmd(
     cmd: CommandMsg
-  ): cmd is AcceptReceivedPaymentCmd {
-    return cmd.msgName === AcceptReceivedPaymentCmd.name;
+  ): cmd is AcceptInboundPaymentCmd {
+    return cmd.msgName === AcceptInboundPaymentCmd.name;
   }
 
-  static isFailReceivedPaymentCmd(
+  static isFailInboundPaymentCmd(
     cmd: CommandMsg
-  ): cmd is FailReceivedPaymentCmd {
-    return cmd.msgName === FailReceivedPaymentCmd.name;
+  ): cmd is FailInboundPaymentCmd {
+    return cmd.msgName === FailInboundPaymentCmd.name;
   }
 
-  static isFinalizeReceivedPaymentCmd(
+  static isFinalizeInboundPaymentCmd(
     cmd: CommandMsg
-  ): cmd is FinalizeReceivedPaymentCmd {
-    return cmd.msgName === FinalizeReceivedPaymentCmd.name;
+  ): cmd is FinalizeInboundPaymentCmd {
+    return cmd.msgName === FinalizeInboundPaymentCmd.name;
   }
 
-  static isMarkReceivedPaymentFulfillableCmd(
+  static isMarkInboundPaymentFulfillableCmd(
     cmd: CommandMsg
-  ): cmd is MarkReceivedPaymentFulfillableCmd {
-    return cmd.msgName === MarkReceivedPaymentFulfillableCmd.name;
+  ): cmd is MarkInboundPaymentFulfillableCmd {
+    return cmd.msgName === MarkInboundPaymentFulfillableCmd.name;
   }
 }
 
@@ -114,6 +114,20 @@ export class CreatePaymentIntentCmd extends PaymentIntentCommand {
   payload: CreatePaymentIntentCmdPayload;
 
   constructor(payload: CreatePaymentIntentCmdPayload, requestId: string) {
+    super(payload.id);
+    this.requestId = requestId;
+    this.payload = payload;
+  }
+}
+
+export type CompletePaymentIntentCmdPayload = {
+  id: string;
+};
+
+export class CompletePaymentIntentCmd extends PaymentIntentCommand {
+  payload: CompletePaymentIntentCmdPayload;
+
+  constructor(payload: CompletePaymentIntentCmdPayload, requestId: string) {
     super(payload.id);
     this.requestId = requestId;
     this.payload = payload;
@@ -210,6 +224,7 @@ export type FailRemoteQuoteCmdPayload = {
   quoteId: string;
   paymentIntentId: string;
   errorName: string;
+  errorType?: AppErrorType;
   message: string;
 };
 
@@ -291,6 +306,8 @@ export type RejectRemotePaymentCmdPayload = {
   paymentIntentId: string;
   paymentId: string;
   reason?: string;
+  rejectCode?: string;
+  rejectMessage?: string;
 };
 
 export class RejectRemotePaymentCmd extends PaymentIntentCommand {
@@ -318,66 +335,67 @@ export class CompleteRemotePaymentCmd extends PaymentIntentCommand {
   }
 }
 
-export type ValidateReceivedPaymentCmdPayload = {
+export type ValidateInboundPaymentCmdPayload = {
   id: string;
   paymentIntentId: string;
   packetId: string;
   peerId: string;
   sourceAmount: string;
+  expiresAt?: string;
 };
 
-export class ValidateReceivedPaymentCmd extends PaymentIntentCommand {
-  payload: ValidateReceivedPaymentCmdPayload;
+export class ValidateInboundPaymentCmd extends PaymentIntentCommand {
+  payload: ValidateInboundPaymentCmdPayload;
 
-  constructor(payload: ValidateReceivedPaymentCmdPayload, requestId: string) {
+  constructor(payload: ValidateInboundPaymentCmdPayload, requestId: string) {
     super(payload.paymentIntentId);
     this.requestId = requestId;
     this.payload = payload;
   }
 }
 
-export type AcceptReceivedPaymentCmdPayload = {
-  receivedPaymentId: string;
+export type AcceptInboundPaymentCmdPayload = {
+  inboundPaymentId: string;
   paymentIntentId: string;
   ledgerTransferId: string;
 };
 
-export class AcceptReceivedPaymentCmd extends PaymentIntentCommand {
-  payload: AcceptReceivedPaymentCmdPayload;
+export class AcceptInboundPaymentCmd extends PaymentIntentCommand {
+  payload: AcceptInboundPaymentCmdPayload;
 
-  constructor(payload: AcceptReceivedPaymentCmdPayload, requestId: string) {
+  constructor(payload: AcceptInboundPaymentCmdPayload, requestId: string) {
     super(payload.paymentIntentId);
     this.requestId = requestId;
     this.payload = payload;
   }
 }
 
-export type FailReceivedPaymentCmdPayload = {
-  receivedPaymentId: string;
+export type FailInboundPaymentCmdPayload = {
+  inboundPaymentId: string;
   paymentIntentId: string;
   reason?: string;
 };
 
-export class FailReceivedPaymentCmd extends PaymentIntentCommand {
-  payload: FailReceivedPaymentCmdPayload;
+export class FailInboundPaymentCmd extends PaymentIntentCommand {
+  payload: FailInboundPaymentCmdPayload;
 
-  constructor(payload: FailReceivedPaymentCmdPayload, requestId: string) {
+  constructor(payload: FailInboundPaymentCmdPayload, requestId: string) {
     super(payload.paymentIntentId);
     this.requestId = requestId;
     this.payload = payload;
   }
 }
 
-export type MarkReceivedPaymentFulfillableCmdPayload = {
-  receivedPaymentId: string;
+export type MarkInboundPaymentFulfillableCmdPayload = {
+  inboundPaymentId: string;
   paymentIntentId: string;
 };
 
-export class MarkReceivedPaymentFulfillableCmd extends PaymentIntentCommand {
-  payload: MarkReceivedPaymentFulfillableCmdPayload;
+export class MarkInboundPaymentFulfillableCmd extends PaymentIntentCommand {
+  payload: MarkInboundPaymentFulfillableCmdPayload;
 
   constructor(
-    payload: MarkReceivedPaymentFulfillableCmdPayload,
+    payload: MarkInboundPaymentFulfillableCmdPayload,
     requestId: string
   ) {
     super(payload.paymentIntentId);
@@ -386,15 +404,15 @@ export class MarkReceivedPaymentFulfillableCmd extends PaymentIntentCommand {
   }
 }
 
-export type FinalizeReceivedPaymentCmdPayload = {
-  receivedPaymentId: string;
+export type FinalizeInboundPaymentCmdPayload = {
+  inboundPaymentId: string;
   paymentIntentId: string;
 };
 
-export class FinalizeReceivedPaymentCmd extends PaymentIntentCommand {
-  payload: FinalizeReceivedPaymentCmdPayload;
+export class FinalizeInboundPaymentCmd extends PaymentIntentCommand {
+  payload: FinalizeInboundPaymentCmdPayload;
 
-  constructor(payload: FinalizeReceivedPaymentCmdPayload, requestId: string) {
+  constructor(payload: FinalizeInboundPaymentCmdPayload, requestId: string) {
     super(payload.paymentIntentId);
     this.requestId = requestId;
     this.payload = payload;

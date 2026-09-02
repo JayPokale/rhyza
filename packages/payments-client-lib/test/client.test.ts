@@ -3,8 +3,18 @@
 import { after, before, describe, test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import { randomUUID } from 'crypto';
-import { PaymentsClient, RemoteQuotingNotConfiguredError } from '../src';
+import { status } from '@grpc/grpc-js';
+import { PaymentsClient, isGrpcServiceError } from '../src';
 import { PalClient, parseAddressToDomainAndPathName } from 'pal-client-lib';
+
+function assertGrpcServiceError(err: unknown, expectedCode: status): void {
+  assert.ok(isGrpcServiceError(err), 'expected a gRPC ServiceError');
+  assert.equal(err.code, expectedCode);
+  assert.ok(
+    err.details || err.message,
+    'expected ServiceError to include a message'
+  );
+}
 
 describe('Payments Client', () => {
   async function createPaymentIntent(incomingAmount?: number) {
@@ -61,7 +71,7 @@ describe('Payments Client', () => {
 
     // Ensure sender wallet address exists
     const { domain: senderDomain, pathName: senderPathName } =
-      parseAddressToDomainAndPathName(RECEIVER_WALLET_ADDRESS);
+      parseAddressToDomainAndPathName(SENDER_WALLET_ADDRESS);
 
     try {
       await palClient.createWalletAddress(
@@ -84,8 +94,8 @@ describe('Payments Client', () => {
     receiverWalletAddressId = receiverAlias.walletAddressId;
 
     const senderAlias = await palClient.resolveWalletAddressAlias(
-      receiverDomain,
-      receiverPathName
+      senderDomain,
+      senderPathName
     );
 
     assert.ok(senderAlias, 'sender wallet address alias must resolve');
@@ -144,7 +154,7 @@ describe('Payments Client', () => {
       );
       assert.fail('expected error for duplicate id');
     } catch (e) {
-      assert.ok(e instanceof Error);
+      assertGrpcServiceError(e, status.ALREADY_EXISTS);
     }
   });
 
@@ -157,7 +167,7 @@ describe('Payments Client', () => {
       );
       assert.fail('expected error for invalid uuid');
     } catch (e) {
-      assert.ok(e instanceof Error);
+      assertGrpcServiceError(e, status.INVALID_ARGUMENT);
     }
   });
 
@@ -170,8 +180,67 @@ describe('Payments Client', () => {
       );
       assert.fail('expected error for unknown wallet address');
     } catch (e) {
-      assert.ok(e instanceof Error);
+      assertGrpcServiceError(e, status.NOT_FOUND);
     }
+  });
+
+  describe('getPaymentIntent', () => {
+    test('returns payment intent', async () => {
+      const id = await createPaymentIntent(100);
+      const result = await paymentsClient.getPaymentIntent(id);
+
+      assert.equal(result.id, id);
+      assert.equal(result.incomingAmount, 100n);
+    });
+
+    test('unknown id returns NOT_FOUND ServiceError', async () => {
+      try {
+        await paymentsClient.getPaymentIntent(randomUUID());
+        assert.fail('expected NOT_FOUND ServiceError');
+      } catch (e) {
+        assertGrpcServiceError(e, status.NOT_FOUND);
+      }
+    });
+  });
+
+  describe('completePaymentIntent', () => {
+    test('invalid uuid returns INVALID_ARGUMENT ServiceError', async () => {
+      try {
+        await paymentsClient.completePaymentIntent('not-a-uuid');
+        assert.fail('expected INVALID_ARGUMENT ServiceError');
+      } catch (e) {
+        assertGrpcServiceError(e, status.INVALID_ARGUMENT);
+      }
+    });
+
+    test('unknown id returns NOT_FOUND ServiceError', async () => {
+      try {
+        await paymentsClient.completePaymentIntent(randomUUID());
+        assert.fail('expected NOT_FOUND ServiceError');
+      } catch (e) {
+        assertGrpcServiceError(e, status.NOT_FOUND);
+      }
+    });
+
+    test('completes a CREATED local intent', async () => {
+      const id = await createPaymentIntent();
+      const result = await paymentsClient.completePaymentIntent(id);
+
+      assert.equal(result.id, id);
+      assert.equal(result.state, 'COMPLETED');
+    });
+
+    test('completing an already COMPLETED intent returns FAILED_PRECONDITION ServiceError', async () => {
+      const id = await createPaymentIntent();
+      await paymentsClient.completePaymentIntent(id);
+
+      try {
+        await paymentsClient.completePaymentIntent(id);
+        assert.fail('expected FAILED_PRECONDITION ServiceError');
+      } catch (e) {
+        assertGrpcServiceError(e, status.FAILED_PRECONDITION);
+      }
+    });
   });
 
   describe('createQuote', () => {
@@ -241,7 +310,7 @@ describe('Payments Client', () => {
         );
         assert.fail('expected error for duplicate quote id');
       } catch (e) {
-        assert.ok(e instanceof Error);
+        assertGrpcServiceError(e, status.NOT_FOUND);
       }
     });
 
@@ -256,11 +325,11 @@ describe('Payments Client', () => {
         );
         assert.fail('expected error for unknown incoming payment');
       } catch (e) {
-        assert.ok(e instanceof Error);
+        assertGrpcServiceError(e, status.NOT_FOUND);
       }
     });
 
-    test('remote quote without openPaymentsUrl throws RemoteQuotingNotConfiguredError', async () => {
+    test('remote quote without openPaymentsUrl throws FAILED_PRECONDITION ServiceError', async () => {
       const clientWithoutUrl = new PaymentsClient(PAYMENTS_GRPC_URL);
       await clientWithoutUrl.init();
       try {
@@ -273,9 +342,11 @@ describe('Payments Client', () => {
           senderWalletAddressId,
           SENDER_WALLET_ADDRESS
         );
-        assert.fail('expected RemoteQuotingNotConfiguredError');
+        assert.fail('expected FAILED_PRECONDITION ServiceError');
       } catch (e) {
-        assert.ok(e instanceof RemoteQuotingNotConfiguredError);
+        assert.ok(isGrpcServiceError(e));
+        assert.equal(e.code, status.FAILED_PRECONDITION);
+        assert.equal(e.name, 'RemoteQuotingNotConfigured');
       } finally {
         await clientWithoutUrl.disconnect();
       }
@@ -293,7 +364,7 @@ describe('Payments Client', () => {
         );
         assert.fail('expected error for unknown wallet address');
       } catch (e) {
-        assert.ok(e instanceof Error);
+        assertGrpcServiceError(e, status.NOT_FOUND);
       }
     });
   });
@@ -361,7 +432,7 @@ describe('Payments Client', () => {
         );
         assert.fail('expected error for duplicate id');
       } catch (e) {
-        assert.ok(e instanceof Error);
+        assertGrpcServiceError(e, status.INVALID_ARGUMENT);
       }
     });
 
@@ -377,7 +448,7 @@ describe('Payments Client', () => {
         );
         assert.fail('expected error for unknown incoming payment');
       } catch (e) {
-        assert.ok(e instanceof Error);
+        assertGrpcServiceError(e, status.NOT_FOUND);
       }
     });
 
@@ -394,7 +465,7 @@ describe('Payments Client', () => {
         );
         assert.fail('expected error for unknown wallet address');
       } catch (e) {
-        assert.ok(e instanceof Error);
+        assertGrpcServiceError(e, status.NOT_FOUND);
       }
     });
   });
@@ -439,7 +510,7 @@ describe('Payments Client', () => {
         await paymentsClient.approvePayment(paymentIntentId, paymentId);
         assert.fail('expected error for duplicate approval');
       } catch (e) {
-        assert.ok(e instanceof Error);
+        assertGrpcServiceError(e, status.FAILED_PRECONDITION);
       }
     });
 
@@ -449,7 +520,7 @@ describe('Payments Client', () => {
         await paymentsClient.approvePayment(paymentIntentId, randomUUID());
         assert.fail('expected error for unknown payment');
       } catch (e) {
-        assert.ok(e instanceof Error);
+        assertGrpcServiceError(e, status.NOT_FOUND);
       }
     });
 
@@ -469,7 +540,7 @@ describe('Payments Client', () => {
         await paymentsClient.approvePayment(randomUUID(), paymentId);
         assert.fail('expected error for unknown payment intent');
       } catch (e) {
-        assert.ok(e instanceof Error);
+        assertGrpcServiceError(e, status.NOT_FOUND);
       }
     });
   });

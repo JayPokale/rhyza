@@ -4,30 +4,56 @@ import { IAccessItem } from './grant/interfaces';
 const BOUNDED_CONTEXT_NAME = 'auth';
 const GRANT_AGGREGATE_NAME = 'grant';
 
-interface LimitPayload {
+interface BaseLimitPayload {
   receiver: string;
   assetCode: string;
   assetScale: number;
-  debitAmount?: bigint;
-  sendAmount?: bigint;
   interval?: string;
 }
+
+type ReceiveAmountLimitPayload = BaseLimitPayload & {
+  debitAmount?: bigint;
+  receiveAmount: bigint;
+};
+
+type DebitAmountLimitPayload = BaseLimitPayload & {
+  debitAmount: bigint;
+  receiveAmount?: bigint;
+};
+
+type LimitPayload = ReceiveAmountLimitPayload | DebitAmountLimitPayload;
 
 interface SubjectId {
   format: string;
   id: string;
 }
 
-interface JsonWebKey {
-  kty: string;
-  kid: string;
-  use?: string;
-  alg: string;
-  crv: string;
-  x: string;
+abstract class AuthCmd extends CommandMsg {
+  contextName: string = BOUNDED_CONTEXT_NAME;
+  aggregateName: string = GRANT_AGGREGATE_NAME;
+  msgKey: string;
+  msgTopic: string = CommandTopics.AuthCommands;
+  payload: unknown;
+
+  constructor(aggId: string, requestId: string) {
+    super(aggId);
+    this.msgKey = aggId;
+    this.requestId = requestId;
+  }
 }
 
-export interface CreateGrantCmdPayload {
+export interface SignedCommandPayload {
+  client: string;
+  signatureData: {
+    url: string;
+    method: string;
+    body: string;
+    headers: Record<string, string>;
+    kid: string;
+  };
+}
+
+export interface CreateGrantCmdPayload extends SignedCommandPayload {
   id: string;
   access: {
     identifier?: string;
@@ -35,7 +61,6 @@ export interface CreateGrantCmdPayload {
     actions: string[];
     limits?: LimitPayload;
   }[];
-  client?: string | JsonWebKey;
   interact?: {
     start: string[];
     finish?: {
@@ -47,36 +72,11 @@ export interface CreateGrantCmdPayload {
   subjectIds?: SubjectId[];
 }
 
-export class CreateGrantCmd extends CommandMsg {
-  contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateName: string = GRANT_AGGREGATE_NAME;
-  msgKey: string;
-  msgTopic: string = CommandTopics.AuthCommands;
+export class CreateGrantCmd extends AuthCmd {
   payload: CreateGrantCmdPayload;
 
   constructor(payload: CreateGrantCmdPayload, requestId: string) {
-    super(payload.id);
-    this.requestId = requestId;
-    this.msgKey = payload.id;
-    this.payload = payload;
-  }
-}
-
-export interface GetGrantCmdPayload {
-  id: string;
-}
-
-export class GetGrantCmd extends CommandMsg {
-  contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateName: string = GRANT_AGGREGATE_NAME;
-  msgKey: string;
-  msgTopic: string = CommandTopics.AuthCommands;
-  payload: GetGrantCmdPayload;
-
-  constructor(payload: GetGrantCmdPayload, requestId: string) {
-    super(payload.id);
-    this.requestId = requestId;
-    this.msgKey = payload.id;
+    super(payload.id, requestId);
     this.payload = payload;
   }
 }
@@ -87,39 +87,28 @@ export interface RevokeGrantCmdPayload {
   continueToken: string;
 }
 
-export class RevokeGrantCmd extends CommandMsg {
-  contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateName: string = GRANT_AGGREGATE_NAME;
-  msgKey: string;
-  msgTopic: string = CommandTopics.AuthCommands;
+export class RevokeGrantCmd extends AuthCmd {
   payload: RevokeGrantCmdPayload;
 
   constructor(payload: RevokeGrantCmdPayload, requestId: string) {
-    super(payload.id);
-    this.requestId = requestId;
-    this.msgKey = payload.id;
+    super(payload.id, requestId);
     this.payload = payload;
   }
 }
 
-export interface ContinueGrantCmdPayload {
+export interface ContinueGrantCmdPayload
+  extends Omit<SignedCommandPayload, 'client'> {
   id: string;
   continueId: string;
   continueToken: string;
-  interactRef: string;
+  interactRef?: string;
 }
 
-export class ContinueGrantCmd extends CommandMsg {
-  contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateName: string = GRANT_AGGREGATE_NAME;
-  msgKey: string;
-  msgTopic: string = CommandTopics.AuthCommands;
+export class ContinueGrantCmd extends AuthCmd {
   payload: ContinueGrantCmdPayload;
 
   constructor(payload: ContinueGrantCmdPayload, requestId: string) {
-    super(payload.id);
-    this.requestId = requestId;
-    this.msgKey = payload.id;
+    super(payload.id, requestId);
     this.payload = payload;
   }
 }
@@ -130,59 +119,56 @@ export interface IntrospectTokenCmdPayload {
   access?: IAccessItem[];
 }
 
-export class IntrospectTokenCmd extends CommandMsg {
-  contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateName: string = GRANT_AGGREGATE_NAME;
-  msgKey: string;
-  msgTopic: string = CommandTopics.AuthCommands;
+export class IntrospectTokenCmd extends AuthCmd {
   payload: IntrospectTokenCmdPayload;
 
   constructor(payload: IntrospectTokenCmdPayload, requestId: string) {
-    super(payload.id);
-    this.requestId = requestId;
-    this.msgKey = payload.id;
+    super(payload.id, requestId);
     this.payload = payload;
   }
 }
 
-export interface RotateTokenCmdPayload {
+export interface RotateTokenCmdPayload
+  extends Omit<SignedCommandPayload, 'client'> {
   id: string;
   value: string;
   managementId: string;
 }
 
-export class RotateTokenCmd extends CommandMsg {
-  contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateName: string = GRANT_AGGREGATE_NAME;
-  msgKey: string;
-  msgTopic: string = CommandTopics.AuthCommands;
+export class RotateTokenCmd extends AuthCmd {
   payload: RotateTokenCmdPayload;
 
   constructor(payload: RotateTokenCmdPayload, requestId: string) {
-    super(payload.id);
-    this.requestId = requestId;
-    this.msgKey = payload.id;
+    super(payload.id, requestId);
     this.payload = payload;
   }
 }
 
-export interface RevokeTokenCmdPayload {
+export interface RevokeTokenCmdPayload
+  extends Omit<SignedCommandPayload, 'client'> {
   id: string;
   value: string;
   managementId: string;
 }
 
-export class RevokeTokenCmd extends CommandMsg {
-  contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateName: string = GRANT_AGGREGATE_NAME;
-  msgKey: string;
-  msgTopic: string = CommandTopics.AuthCommands;
+export class RevokeTokenCmd extends AuthCmd {
   payload: RevokeTokenCmdPayload;
 
   constructor(payload: RevokeTokenCmdPayload, requestId: string) {
-    super(payload.id);
-    this.requestId = requestId;
-    this.msgKey = payload.id;
+    super(payload.id, requestId);
+    this.payload = payload;
+  }
+}
+
+export interface StartInteractionCmdPayload {
+  id: string;
+}
+
+export class StartInteractionCmd extends AuthCmd {
+  payload: StartInteractionCmdPayload;
+
+  constructor(payload: StartInteractionCmdPayload, requestId: string) {
+    super(payload.id, requestId);
     this.payload = payload;
   }
 }
@@ -193,16 +179,11 @@ export interface HandleInteractionChoiceCmdPayload {
   interactRef?: string;
 }
 
-class HandleInteractionChoiceCmd extends CommandMsg {
-  contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateName: string = GRANT_AGGREGATE_NAME;
-  msgKey: string;
-  msgTopic: string = CommandTopics.AuthCommands;
+class HandleInteractionChoiceCmd extends AuthCmd {
   payload: HandleInteractionChoiceCmdPayload;
 
   constructor(payload: HandleInteractionChoiceCmdPayload, requestId: string) {
-    super(payload.id);
-    this.requestId = requestId;
+    super(payload.id, requestId);
     this.msgKey = payload.id;
     this.payload = payload;
   }

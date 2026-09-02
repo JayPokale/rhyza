@@ -2,11 +2,8 @@
 
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { PalClient } from 'pal-client-lib';
-import {
-  IIlpClientHttp,
-  IlpClient,
-  IlpClientPeerAlreadyExistsError
-} from 'ilp-client-lib';
+import { IlpClient, IlpClientPeerAlreadyExistsError } from 'ilp-client-lib';
+import { PeerCreate } from 'admin-client-lib';
 
 interface PeerRouteOptions extends FastifyPluginOptions {
   palClient: PalClient;
@@ -20,15 +17,7 @@ export async function peerRoutes(
   const { palClient, ilpClient } = opts;
 
   server.post<{
-    Body: {
-      id: string;
-      name: string;
-      assetCode: string;
-      assetScale: number;
-      ilpStaticAddress: string;
-      http: IIlpClientHttp;
-      isActive?: boolean;
-    };
+    Body: PeerCreate;
   }>('/peers', async (request, reply) => {
     const {
       id,

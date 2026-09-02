@@ -167,11 +167,11 @@ export interface FulfillInboundPaymentCmdPayload {
   peerId: string;
   packetId: string;
   paymentIntentId: string;
-  receivedPaymentId: string;
+  inboundPaymentId: string;
   requestId: string;
 }
 
-// Payments BC: received payment is fulfillable - dispatch stored STREAM fulfillment.
+// Payments BC: inbound payment is fulfillable - dispatch stored STREAM fulfillment.
 export class FulfillInboundPaymentCmd extends CommandMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateName: string = AGGREGATE_NAME;
@@ -180,6 +180,32 @@ export class FulfillInboundPaymentCmd extends CommandMsg {
   payload: FulfillInboundPaymentCmdPayload;
 
   constructor(payload: FulfillInboundPaymentCmdPayload) {
+    super(payload.peerId);
+    this.msgKey = payload.packetId;
+    this.payload = payload;
+    this.requestId = payload.requestId;
+  }
+}
+
+export interface RejectInboundPaymentCmdPayload {
+  peerId: string;
+  packetId: string;
+  paymentIntentId: string;
+  inboundPaymentId: string;
+  requestId: string;
+  rejectCode?: string;
+  rejectMessage?: string;
+}
+
+// Payments BC: inbound payment failed after prepare was accepted — reject on the wire.
+export class RejectInboundPaymentCmd extends CommandMsg {
+  contextName: string = BOUNDED_CONTEXT_NAME;
+  aggregateName: string = AGGREGATE_NAME;
+  msgKey: string;
+  msgTopic: string = CommandTopics.IlpCommands;
+  payload: RejectInboundPaymentCmdPayload;
+
+  constructor(payload: RejectInboundPaymentCmdPayload) {
     super(payload.peerId);
     this.msgKey = payload.packetId;
     this.payload = payload;
@@ -221,6 +247,7 @@ export interface ProcessFulfillPacketCmdPayload {
   paymentIntentId: string;
   packetId: string;
   fulfilledAt: string;
+  fulfillment: string;
 }
 
 export class ProcessFulfillPacketCmd extends CommandMsg {

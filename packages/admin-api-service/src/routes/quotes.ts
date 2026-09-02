@@ -1,5 +1,6 @@
 'use strict';
 
+import { QuoteCreate } from 'admin-client-lib';
 import { randomUUID } from 'crypto';
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { PalClient, parseAddressToDomainAndPathName } from 'pal-client-lib';
@@ -17,14 +18,7 @@ export async function quoteRoutes(
   const { palClient, paymentsClient } = opts;
 
   server.post<{
-    Body: {
-      walletAddress: string;
-      id?: string;
-      paymentIntentId?: string;
-      paymentIntentUrl?: string;
-      debitAmount?: string;
-      receiveAmount?: string;
-    };
+    Body: QuoteCreate;
   }>('/quotes', async (request, reply) => {
     const {
       walletAddress,

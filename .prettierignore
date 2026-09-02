@@ -7,3 +7,4 @@ open-payments-specifications/**
 packages/open-payments-resource-service/src/types/generated
 .astro
 docs/
+packages/admin-client-lib/src/generated/**

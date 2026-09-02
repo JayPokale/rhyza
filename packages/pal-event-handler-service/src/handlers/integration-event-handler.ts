@@ -8,9 +8,9 @@ import {
   MessageTypes
 } from 'common-types-lib';
 import {
-  ReceivedPaymentValidatedEvent,
-  ReceivedPaymentAcceptedEvent,
-  ReceivedPaymentFailedEvent,
+  InboundPaymentValidatedEvent,
+  InboundPaymentAcceptedEvent,
+  InboundPaymentFailedEvent,
   RemotePaymentSendApprovedEvent,
   RemotePaymentSendConfirmedEvent,
   RemotePaymentSendRejectedEvent
@@ -70,11 +70,11 @@ export class IntegrationEventHandler {
       await this._handleRemotePaymentSendConfirmed(evt);
     } else if (evt.msgName === RemotePaymentSendRejectedEvent.name) {
       await this._handleRemotePaymentSendRejected(evt);
-    } else if (evt.msgName === ReceivedPaymentValidatedEvent.name) {
-      await this._handleReceivedPaymentValidated(evt);
-    } else if (evt.msgName === ReceivedPaymentAcceptedEvent.name) {
-      await this._handleReceivedPaymentAccepted(evt);
-    } else if (evt.msgName === ReceivedPaymentFailedEvent.name) {
+    } else if (evt.msgName === InboundPaymentValidatedEvent.name) {
+      await this._handleInboundPaymentValidated(evt);
+    } else if (evt.msgName === InboundPaymentAcceptedEvent.name) {
+      await this._handleInboundPaymentAccepted(evt);
+    } else if (evt.msgName === InboundPaymentFailedEvent.name) {
       // RejectTransferCmd (INCOMING)
     }
   }
@@ -99,13 +99,15 @@ export class IntegrationEventHandler {
   private async _handleRemotePaymentSendConfirmed(
     evt: RemotePaymentSendConfirmedEvent
   ): Promise<void> {
+    const payload = evt.payload;
+
     this._pendingMessages.push(
-      new CommitTransferCmd(evt.payload.assetCode, {
-        requestId: evt.payload.requestId,
-        transferId: evt.payload.ledgerTransferId,
+      new CommitTransferCmd(payload.assetCode, {
+        requestId: payload.requestId,
+        transferId: payload.ledgerTransferId,
         transferDirection: 'OUTGOING',
-        paymentIntentId: evt.payload.paymentIntentId,
-        paymentId: evt.payload.paymentId
+        paymentIntentId: payload.paymentIntentId,
+        paymentId: payload.paymentId
       })
     );
   }
@@ -113,20 +115,41 @@ export class IntegrationEventHandler {
   private async _handleRemotePaymentSendRejected(
     evt: RemotePaymentSendRejectedEvent
   ): Promise<void> {
+    const payload = evt.payload;
+
     this._pendingMessages.push(
       new RejectTransferCmd(evt.payload.assetCode, {
         requestId: evt.payload.requestId,
         transferId: evt.payload.ledgerTransferId,
         transferDirection: 'OUTGOING',
-        paymentIntentId: evt.payload.paymentIntentId,
-        paymentId: evt.payload.paymentId
+        paymentIntentId: payload.paymentIntentId,
+        paymentId: payload.paymentId
       })
     );
   }
 
-  private async _handleReceivedPaymentValidated(
-    evt: ReceivedPaymentValidatedEvent
+  private async _handleInboundPaymentValidated(
+    evt: InboundPaymentValidatedEvent
   ): Promise<void> {
+    const payload = evt.payload;
+
+    const peer = await this._peerAggregate.getPeer(payload.peerId);
+    if (!peer?.ledgerAccounts) {
+      const errorMessage = `No peer/ledger accounts for peer ${payload.peerId}`;
+      this._logger.warn(
+        `InboundPaymentValidatedEvent (inboundPaymentId ${payload.inboundPaymentId}): ${errorMessage} — failing inbound payment`
+      );
+      this._pendingMessages.push(
+        new LedgerIncomingReserveFailedEvent(payload.receiveAssetCode, {
+          requestId: payload.requestId,
+          paymentIntentId: payload.paymentIntentId,
+          paymentId: payload.inboundPaymentId,
+          errorMessage
+        })
+      );
+      return;
+    }
+
     this._pendingMessages.push(
       new ReserveTransferCmd(evt.payload.receiveAssetCode, {
         requestId: evt.payload.requestId,
@@ -135,22 +158,40 @@ export class IntegrationEventHandler {
         amount: evt.payload.receiveAmount,
         amountScale: evt.payload.receiveAssetScale,
         transferDirection: 'INCOMING',
-        paymentIntentId: evt.payload.paymentIntentId,
-        paymentId: evt.payload.receivedPaymentId
+        paymentIntentId: payload.paymentIntentId,
+        paymentId: payload.inboundPaymentId
       })
     );
   }
 
-  private async _handleReceivedPaymentAccepted(
-    evt: ReceivedPaymentAcceptedEvent
-  ): Promise<void> {
+  private async _handleInboundPaymentAccepted(evt: InboundPaymentAcceptedEvent): Promise<void> {
+    const payload = evt.payload;
+
+    const peer = await this._peerAggregate.getPeer(payload.peerId);
+    if (!peer?.ledgerAccounts) {
+      const errorMessage = `No peer/ledger accounts for peer ${payload.peerId}`;
+      this._logger.warn(
+        `InboundPaymentAcceptedEvent (inboundPaymentId ${payload.inboundPaymentId}): ${errorMessage} — commit failed`
+      );
+      this._pendingMessages.push(
+        new LedgerIncomingTransferCommitFailedEvent(payload.receiveAssetCode, {
+          requestId: payload.requestId,
+          transferId: payload.ledgerTransferId,
+          errorMessage,
+          paymentIntentId: payload.paymentIntentId,
+          paymentId: payload.inboundPaymentId
+        })
+      );
+      return;
+    }
+
     this._pendingMessages.push(
       new CommitTransferCmd(evt.payload.receiveAssetCode, {
         requestId: evt.payload.requestId,
         transferId: evt.payload.ledgerTransferId,
         transferDirection: 'INCOMING',
-        paymentIntentId: evt.payload.paymentIntentId,
-        paymentId: evt.payload.receivedPaymentId
+        paymentIntentId: payload.paymentIntentId,
+        paymentId: payload.inboundPaymentId
       })
     );
   }

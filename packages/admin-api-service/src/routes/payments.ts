@@ -3,7 +3,18 @@
 import { randomUUID } from 'crypto';
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { PalClient, parseAddressToDomainAndPathName } from 'pal-client-lib';
-import { PaymentsClient, PaymentNotFoundError } from 'payments-client-lib';
+import {
+  ApprovePaymentRequest,
+  CancelPaymentRequest,
+  GetPaymentRequest,
+  PaymentCancel,
+  PaymentCreate
+} from 'admin-client-lib';
+import {
+  PaymentsClient,
+  httpStatusFromGrpcError,
+  toClientApiErrorResponse
+} from 'payments-client-lib';
 
 interface PaymentRouteOptions extends FastifyPluginOptions {
   palClient: PalClient;
@@ -17,13 +28,7 @@ export async function paymentRoutes(
   const { palClient, paymentsClient } = opts;
 
   server.post<{
-    Body: {
-      walletAddress: string;
-      paymentIntentId: string;
-      id?: string;
-      quoteId?: string;
-      debitAmount?: number;
-    };
+    Body: PaymentCreate;
   }>('/payments', async (request, reply) => {
     const { walletAddress, paymentIntentId, quoteId, debitAmount } =
       request.body;
@@ -38,71 +43,79 @@ export async function paymentRoutes(
         .send({ error: `Wallet address '${walletAddress}' not found` });
     }
 
-    const result = await paymentsClient.createPayment(
-      id,
-      alias.walletAddressId,
-      walletAddress,
-      paymentIntentId,
-      quoteId,
-      debitAmount ? Number(debitAmount) : undefined
-    );
+    try {
+      const result = await paymentsClient.createPayment(
+        id,
+        alias.walletAddressId,
+        walletAddress,
+        paymentIntentId,
+        quoteId,
+        debitAmount ? Number(debitAmount) : undefined
+      );
 
-    return reply.status(201).send({ id: result.id, paymentIntentId });
+      return reply.status(201).send({ id: result.id, paymentIntentId });
+    } catch (err) {
+      server.log.error(err);
+      const httpStatus = httpStatusFromGrpcError(err);
+      const { error } = toClientApiErrorResponse(err);
+      return reply.status(httpStatus).send({ error: error.description });
+    }
   });
 
-  server.get<{ Params: { intentId: string; id: string } }>(
-    '/payment-intents/:intentId/payments/:id',
-    async (request, reply) => {
-      const { intentId, id } = request.params;
+  server.get<{
+    Params: GetPaymentRequest;
+  }>('/payment-intents/:intentId/payments/:id', async (request, reply) => {
+    const { intentId, id } = request.params;
 
-      let payment;
-      try {
-        payment = await paymentsClient.getPayment(intentId, id);
-      } catch (err) {
-        if (err instanceof PaymentNotFoundError) {
-          return reply.status(404).send({ error: `Payment '${id}' not found` });
-        }
-        throw err;
-      }
-
-      return reply.status(200).send({
-        id: payment.id,
-        state: payment.state,
-        senderWalletAddress: payment.senderWalletAddress,
-        assetCode: payment.assetCode,
-        assetScale: payment.assetScale,
-        quoteId: payment.quoteId,
-        debitAmount: String(payment.debitAmount),
-        receiveAmount: String(payment.receiveAmount),
-        sentAmount: String(payment.sentAmount)
-      });
+    let payment;
+    try {
+      payment = await paymentsClient.getPayment(intentId, id);
+    } catch (err) {
+      server.log.error(err);
+      const httpStatus = httpStatusFromGrpcError(err);
+      const { error } = toClientApiErrorResponse(err);
+      return reply.status(httpStatus).send({ error: error.description });
     }
-  );
+
+    return reply.status(200).send({
+      id: payment.id,
+      state: payment.state,
+      senderWalletAddress: payment.senderWalletAddress,
+      assetCode: payment.assetCode,
+      assetScale: payment.assetScale,
+      quoteId: payment.quoteId,
+      debitAmount: String(payment.debitAmount),
+      receiveAmount: String(payment.receiveAmount),
+      sentAmount: String(payment.sentAmount)
+    });
+  });
 
   server.post<{
-    Params: { intentId: string; id: string };
+    Params: ApprovePaymentRequest;
   }>(
     '/payment-intents/:intentId/payments/:id/approve',
     async (request, reply) => {
-      const { intentId, id } = request.params;
+      const { id, intentId } = request.params;
 
       try {
         const result = await paymentsClient.approvePayment(intentId, id);
         return reply.status(200).send({ id: result.id, state: result.state });
       } catch (err) {
         server.log.error(err);
-        return reply.status(500).send({ error: (err as Error).message });
+        const httpStatus = httpStatusFromGrpcError(err);
+        const { error } = toClientApiErrorResponse(err);
+        return reply.status(httpStatus).send({ error: error.description });
       }
     }
   );
 
   server.post<{
-    Params: { intentId: string; id: string };
-    Body: { reason?: string };
+    Params: CancelPaymentRequest;
+    Body: PaymentCancel;
   }>(
     '/payment-intents/:intentId/payments/:id/cancel',
     async (request, reply) => {
-      const { intentId, id } = request.params;
+      const { id, intentId } = request.params;
       const { reason } = request.body ?? {};
 
       try {
@@ -110,7 +123,9 @@ export async function paymentRoutes(
         return reply.status(200).send({ id });
       } catch (err) {
         server.log.error(err);
-        return reply.status(500).send({ error: (err as Error).message });
+        const httpStatus = httpStatusFromGrpcError(err);
+        const { error } = toClientApiErrorResponse(err);
+        return reply.status(httpStatus).send({ error: error.description });
       }
     }
   );

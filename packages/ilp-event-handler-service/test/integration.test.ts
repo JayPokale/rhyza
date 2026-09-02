@@ -277,7 +277,7 @@ describe('ILP receiving quote flow over Kafka topics', () => {
     assert.equal(reject.response.data, undefined);
   });
 
-  test('an invalid amount is answered with a generic reject', async () => {
+  test('an invalid amount is answered with F03', async () => {
     const { bus, transport, destinationIlpAddress } = await wireSystem();
 
     await transport.simulateInboundPrepare(
@@ -287,6 +287,6 @@ describe('ILP receiving quote flow over Kafka topics', () => {
 
     assert.equal(requestReceivedEvents(bus).length, 0);
     const reject = lastReject(transport);
-    assert.equal(reject.response.rejectCode, 'T00');
+    assert.equal(reject.response.rejectCode, 'F03');
   });
 });

@@ -1,7 +1,14 @@
 openapi: 3.1.0
 info:
   title: Rafiki Admin API
-  version: 0.0.0
+  version: 0.0.1
+  license:
+    name: ISC
+    identifier: ISC
+servers:
+  - url: /
+    description: Base URL is determined by the Rafiki deployment.
+security: []
 tags:
   - name: assets
     x-displayName: Assets
@@ -27,7 +34,7 @@ paths:
         with the same peer id.
       tags:
         - peers
-      operationId: Peers_createPeer
+      operationId: createPeer
       parameters: []
       responses:
         '201':
@@ -63,11 +70,12 @@ paths:
       description: Create a new asset.
       tags:
         - assets
-      operationId: Assets_createAsset
+      operationId: createAsset
       parameters: []
       responses:
         '201':
-          description: The request has succeeded and an asset has been created as a result.
+          description: >-
+            The request has succeeded and an asset has been created as a result.
           content:
             application/json:
               schema:
@@ -91,7 +99,7 @@ paths:
       description: Create a new wallet address.
       tags:
         - wallet-addresses
-      operationId: WalletAddresses_createWalletAddress
+      operationId: createWalletAddress
       parameters: []
       responses:
         '201':
@@ -119,7 +127,7 @@ paths:
       description: Create a new payment intent for a receiver's account.
       tags:
         - payment-intents
-      operationId: PaymentIntents_createPaymentIntent
+      operationId: createPaymentIntent
       parameters: []
       responses:
         '201':
@@ -147,7 +155,7 @@ paths:
       description: Retrieve details of a specific payment intent by its unique identifier.
       tags:
         - payment-intents
-      operationId: PaymentIntents_getPaymentIntent
+      operationId: getPaymentIntent
       parameters:
         - name: id
           in: path
@@ -168,13 +176,46 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /payment-intents/{id}/complete:
+    post:
+      summary: Complete Payment Intent
+      description: Complete a payment intent by its unique identifier.
+      tags:
+        - payment-intents
+      operationId: completePaymentIntent
+      parameters:
+        - name: id
+          in: path
+          description: Unique identifier for the payment intent
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentIntentCompleteResponse'
+        '404':
+          description: Payment intent not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Payment intent cannot be completed in its current state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /quotes:
     post:
       summary: Create Quote
       description: Create a quote for a payment intent.
       tags:
         - quotes
-      operationId: Quotes_createQuote
+      operationId: createQuote
       parameters: []
       responses:
         '201':
@@ -208,7 +249,7 @@ paths:
       description: Create a payment for a sender's account.
       tags:
         - payments
-      operationId: Payments_createPayment
+      operationId: createPayment
       parameters: []
       responses:
         '201':
@@ -236,7 +277,7 @@ paths:
       description: Approve a payment, allowing it to proceed.
       tags:
         - payments
-      operationId: Payments_approvePayment
+      operationId: approvePayment
       parameters:
         - name: intentId
           in: path
@@ -264,17 +305,15 @@ paths:
                     type: string
                     description: Unique identifier of the approved payment
                   state:
-                    type: string
-                    enum:
-                      - COMPLETED
-                      - FAILED
+                    $ref: '#/components/schemas/PaymentState'
+                additionalProperties: false
   /payment-intents/{intentId}/payments/{id}/cancel:
     post:
       summary: Cancel Payment
       description: Cancel a pending payment
       tags:
         - payments
-      operationId: Payments_cancelPayment
+      operationId: cancelPayment
       parameters:
         - name: intentId
           in: path
@@ -288,6 +327,12 @@ paths:
           required: true
           schema:
             type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentCancel'
       responses:
         '200':
           description: The request has succeeded.
@@ -301,19 +346,14 @@ paths:
                   id:
                     type: string
                     description: Unique identifier of the cancelled payment
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PaymentCancel'
+                additionalProperties: false
   /payment-intents/{intentId}/payments/{id}:
     get:
       summary: Get Payment
       description: Retrieve details of a specific payment by its ID within a payment intent.
       tags:
         - payments
-      operationId: Payments_getPayment
+      operationId: getPayment
       parameters:
         - name: intentId
           in: path
@@ -570,6 +610,19 @@ components:
         openPaymentsUrl:
           type: string
           description: The Open Payments URL for this payment intent.
+    PaymentIntentCompleteResponse:
+      type: object
+      description: Response schema after completing a payment intent.
+      required:
+        - id
+        - state
+      properties:
+        id:
+          type: string
+          description: The unique identifier for the completed payment intent.
+        state:
+          type: string
+          description: The resulting state of the payment intent.
     Amount:
       type: object
       description: Represents an amount of money with its currency and scale.
@@ -601,7 +654,7 @@ components:
           type: string
           description: The unique identifier for the payment intent.
         state:
-          type: string
+          $ref: '#/components/schemas/PaymentIntentState'
           description: The current status of the payment intent.
         destination:
           type: string
@@ -721,6 +774,8 @@ components:
           description: The unique identifier for the payment intent.
     PaymentCancel:
       type: object
+      required:
+        - intentId
       properties:
         reason:
           type: string
@@ -742,7 +797,7 @@ components:
           type: string
           description: Unique identifier for the payment.
         state:
-          type: string
+          $ref: '#/components/schemas/PaymentState'
           description: The current state of the payment.
         senderWalletAddress:
           type: string
@@ -765,3 +820,19 @@ components:
         sentAmount:
           type: string
           description: The total amount sent so far.
+    PaymentIntentState:
+      type: string
+      enum:
+        - CREATED
+        - COMPLETED
+    PaymentState:
+      type: string
+      enum:
+        - CREATED
+        - PROCESSING
+        - SENDING
+        - CONFIRMED
+        - REJECTED
+        - COMPLETED
+        - CANCELLED
+        - FAILED

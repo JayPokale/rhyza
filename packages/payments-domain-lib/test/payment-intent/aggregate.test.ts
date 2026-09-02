@@ -10,10 +10,12 @@ import {
   PaymentCreateFailedEvent,
   PaymentIntentCreatedEvent,
   PaymentIntentCreateFailedEvent,
-  PaymentIntentCompletedEvent
+  PaymentIntentCompletedEvent,
+  PaymentIntentCompleteFailedEvent
 } from 'payments-public-types-lib';
 import {
   CompleteRemoteQuoteCmd,
+  CompletePaymentIntentCmd,
   CreatePaymentCmd,
   CreatePaymentIntentCmd,
   FailRemoteQuoteCmd,
@@ -24,11 +26,11 @@ import {
   ConfirmRemotePaymentCmd,
   RejectRemotePaymentCmd,
   CompleteRemotePaymentCmd,
-  ValidateReceivedPaymentCmd,
-  AcceptReceivedPaymentCmd,
-  FailReceivedPaymentCmd,
-  MarkReceivedPaymentFulfillableCmd,
-  FinalizeReceivedPaymentCmd
+  ValidateInboundPaymentCmd,
+  AcceptInboundPaymentCmd,
+  FailInboundPaymentCmd,
+  MarkInboundPaymentFulfillableCmd,
+  FinalizeInboundPaymentCmd
 } from '../../src/commands';
 import {
   MockPaymentIntentRepo,
@@ -56,12 +58,12 @@ import {
   PaymentFailedEvent,
   RemotePaymentSendConfirmedEvent,
   RemotePaymentSendRejectedEvent,
-  ReceivedPaymentValidatedEvent,
-  ReceivedPaymentValidationFailedEvent,
-  ReceivedPaymentAcceptedEvent,
-  ReceivedPaymentFailedEvent,
-  ReceivedPaymentFulfillableEvent,
-  ReceivedPaymentFinalizedEvent
+  InboundPaymentValidatedEvent,
+  InboundPaymentValidationFailedEvent,
+  InboundPaymentAcceptedEvent,
+  InboundPaymentFailedEvent,
+  InboundPaymentFulfillableEvent,
+  InboundPaymentFinalizedEvent
 } from 'payments-public-types-lib';
 
 function makeApprovePaymentCmd(
@@ -115,6 +117,17 @@ function makeCreatePaymentIntentCmd(
         overrides.receiverWalletAddress ?? 'domain.com/alice',
       expiresAt: overrides.expiresAt,
       incomingAmount: overrides.incomingAmount
+    },
+    crypto.randomUUID()
+  );
+}
+
+function makeCompletePaymentIntentCmd(
+  overrides: Partial<{ id: string }> = {}
+): CompletePaymentIntentCmd {
+  return new CompletePaymentIntentCmd(
+    {
+      id: overrides.id ?? crypto.randomUUID()
     },
     crypto.randomUUID()
   );
@@ -220,7 +233,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         }
       ],
       sentPayments: [],
-      receivedPayments: [],
+      inboundPayments: [],
       destinationIlpAddress: 'g.peer.123'
     };
   }
@@ -286,6 +299,107 @@ describe('PaymentIntentAggregate.handleBatch', () => {
       });
     });
 
+    describe('handleCompletePaymentIntentCommand', () => {
+      function makeLocalIntent(
+        overrides: Partial<{
+          state: IPaymentIntent['state'];
+          destination: IPaymentIntent['destination'];
+          expiresAt: Date;
+        }> = {}
+      ): IPaymentIntent {
+        return {
+          id: crypto.randomUUID(),
+          receivedAmount: 0n,
+          receiverWalletAddress: 'domain.com/alice',
+          receiverWalletAddressId: 'wallet-1',
+          assetCode: 'USD',
+          assetScale: 2,
+          state: overrides.state ?? 'CREATED',
+          destination: overrides.destination ?? 'LOCAL',
+          createdAt: new Date(),
+          expiresAt: overrides.expiresAt ?? new Date(Date.now() + 60_000),
+          incomingAmount: null,
+          quotes: [],
+          sentPayments: [],
+          inboundPayments: []
+        };
+      }
+
+      it('completes a local payment intent', async () => {
+        const intent = makeLocalIntent();
+        await repo.storeMany([intent]);
+
+        const cmd = makeCompletePaymentIntentCmd({ id: intent.id });
+        const { events } = await aggregate.handleBatch([cmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, PaymentIntentCompletedEvent.name);
+        const payload = (events[0] as PaymentIntentCompletedEvent).payload;
+        assert.equal(payload.id, intent.id);
+        assert.equal(payload.state, 'COMPLETED');
+        assert.equal(payload.assetCode, 'USD');
+        assert.equal(payload.assetScale, 2);
+
+        await aggregate.flush();
+        const stored = repo.getAll().find((p) => p.id === intent.id);
+        assert(stored);
+        assert.equal(stored.state, 'COMPLETED');
+      });
+
+      it('fails when payment intent not found', async () => {
+        const cmd = makeCompletePaymentIntentCmd({ id: 'nonexistent' });
+        const { events } = await aggregate.handleBatch([cmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, PaymentIntentCompleteFailedEvent.name);
+        const payload = (events[0] as PaymentIntentCompleteFailedEvent).payload;
+        assert.equal(payload.errorName, 'PaymentIntentNotFoundError');
+        assert.equal(payload.id, 'nonexistent');
+      });
+
+      it('fails when payment intent destination is REMOTE', async () => {
+        const intent = makeLocalIntent({ destination: 'REMOTE' });
+        await repo.storeMany([intent]);
+
+        const cmd = makeCompletePaymentIntentCmd({ id: intent.id });
+        const { events } = await aggregate.handleBatch([cmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, PaymentIntentCompleteFailedEvent.name);
+        const payload = (events[0] as PaymentIntentCompleteFailedEvent).payload;
+        assert.equal(payload.errorName, 'PaymentIntentInvalidState');
+        assert.match(payload.message, /destination must be local/);
+      });
+
+      it('fails when payment intent is already COMPLETED', async () => {
+        const intent = makeLocalIntent({ state: 'COMPLETED' });
+        await repo.storeMany([intent]);
+
+        const cmd = makeCompletePaymentIntentCmd({ id: intent.id });
+        const { events } = await aggregate.handleBatch([cmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, PaymentIntentCompleteFailedEvent.name);
+        const payload = (events[0] as PaymentIntentCompleteFailedEvent).payload;
+        assert.equal(payload.errorName, 'PaymentIntentInvalidState');
+      });
+
+      it('fails when payment intent is expired', async () => {
+        const intent = makeLocalIntent({
+          expiresAt: new Date(Date.now() - 1000)
+        });
+        await repo.storeMany([intent]);
+
+        const cmd = makeCompletePaymentIntentCmd({ id: intent.id });
+        const { events } = await aggregate.handleBatch([cmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, PaymentIntentCompleteFailedEvent.name);
+        const payload = (events[0] as PaymentIntentCompleteFailedEvent).payload;
+        assert.equal(payload.errorName, 'PaymentIntentExpired');
+      });
+    });
+
     describe('handleCreateQuoteCommand', () => {
       it('fails when sender wallet address not found', async () => {
         const quoteCmd = makeCreateQuoteCmd({
@@ -346,7 +460,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           incomingAmount: null,
           quotes: [],
           sentPayments: [],
-          receivedPayments: []
+          inboundPayments: []
         };
         await repo.storeMany([paymentIntent]);
 
@@ -378,7 +492,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           incomingAmount: null,
           quotes: [],
           sentPayments: [],
-          receivedPayments: []
+          inboundPayments: []
         };
         await repo.storeMany([paymentIntent]);
 
@@ -408,7 +522,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           incomingAmount: null,
           quotes: [],
           sentPayments: [],
-          receivedPayments: [],
+          inboundPayments: [],
           destinationIlpAddress: 'g.peer.123'
         };
         await repo.storeMany([paymentIntent]);
@@ -451,7 +565,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           incomingAmount: null,
           quotes: [],
           sentPayments: [],
-          receivedPayments: []
+          inboundPayments: []
         };
         await repo.storeMany([paymentIntent]);
 
@@ -562,7 +676,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
               }
             ],
             sentPayments: [],
-            receivedPayments: [],
+            inboundPayments: [],
             destinationIlpAddress: 'g.peer.123'
           };
         }
@@ -706,7 +820,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           incomingAmount: null,
           quotes: [],
           sentPayments: [],
-          receivedPayments: []
+          inboundPayments: []
         };
       }
 
@@ -868,7 +982,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
       });
     });
 
-    describe('handleValidateReceivedPaymentCommand', () => {
+    describe('handleValidateInboundPaymentCommand', () => {
       function makeLocalIntent(
         overrides: Partial<{
           assetCode: string;
@@ -892,11 +1006,11 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           incomingAmount: null,
           quotes: [],
           sentPayments: [],
-          receivedPayments: []
+          inboundPayments: []
         };
       }
 
-      function makeValidateReceivedPaymentCmd(
+      function makeValidateInboundPaymentCmd(
         overrides: Partial<{
           id: string;
           paymentIntentId: string;
@@ -905,41 +1019,43 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           sourceAmount: string;
           peerAssetCode: string;
           peerAssetScale: number;
+          expiresAt: string;
         }> = {}
-      ): ValidateReceivedPaymentCmd {
+      ): ValidateInboundPaymentCmd {
         const peerId = overrides.peerId ?? 'peer-1';
         mockPalService.setPeerById({
           peerId,
           assetCode: overrides.peerAssetCode ?? 'USD',
           assetScale: overrides.peerAssetScale ?? 2
         });
-        return new ValidateReceivedPaymentCmd(
+        return new ValidateInboundPaymentCmd(
           {
             id: overrides.id ?? crypto.randomUUID(),
             paymentIntentId: overrides.paymentIntentId ?? crypto.randomUUID(),
             packetId: overrides.packetId ?? crypto.randomUUID(),
             peerId,
-            sourceAmount: overrides.sourceAmount ?? '100'
+            sourceAmount: overrides.sourceAmount ?? '100',
+            expiresAt: overrides.expiresAt
           },
           crypto.randomUUID()
         );
       }
 
-      it('same-asset: emits ReceivedPaymentValidatedEvent with receiveAmount = sourceAmount', async () => {
+      it('same-asset: emits InboundPaymentValidatedEvent with receiveAmount = sourceAmount', async () => {
         const intent = makeLocalIntent({ assetCode: 'USD', assetScale: 2 });
         await repo.storeMany([intent]);
 
-        const cmd = makeValidateReceivedPaymentCmd({
+        const cmd = makeValidateInboundPaymentCmd({
           paymentIntentId: intent.id,
           sourceAmount: '100'
         });
         const { events } = await aggregate.handleBatch([cmd]);
 
         assert.equal(events.length, 1);
-        assert.equal(events[0].msgName, ReceivedPaymentValidatedEvent.name);
-        const payload = (events[0] as ReceivedPaymentValidatedEvent).payload;
+        assert.equal(events[0].msgName, InboundPaymentValidatedEvent.name);
+        const payload = (events[0] as InboundPaymentValidatedEvent).payload;
         assert.equal(payload.paymentIntentId, intent.id);
-        assert.equal(payload.receivedPaymentId, cmd.payload.id);
+        assert.equal(payload.inboundPaymentId, cmd.payload.id);
         assert.equal(payload.packetId, cmd.payload.packetId);
         assert.equal(payload.peerId, cmd.payload.peerId);
         assert.equal(payload.sourceAmount, '100');
@@ -948,6 +1064,28 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         assert.equal(payload.receiveAssetScale, 2);
         assert.equal(payload.receiverWalletAddressId, 'wallet-1');
         assert.equal(payload.state, 'VALIDATED');
+      });
+
+      it('stores expiresAt on the inbound payment', async () => {
+        const intent = makeLocalIntent({ assetCode: 'USD', assetScale: 2 });
+        await repo.storeMany([intent]);
+        const expiresAt = new Date(Date.now() + 30_000).toISOString();
+
+        const cmd = makeValidateInboundPaymentCmd({
+          paymentIntentId: intent.id,
+          expiresAt
+        });
+        const { events } = await aggregate.handleBatch([cmd]);
+        await aggregate.flush();
+
+        assert.equal(events[0].msgName, InboundPaymentValidatedEvent.name);
+        const stored = await repo.fetchByIdsWithPayments([intent.id]);
+        assert.equal(stored.length, 1);
+        assert.equal(stored[0].inboundPayments.length, 1);
+        assert.equal(
+          stored[0].inboundPayments[0].expiresAt?.toISOString(),
+          expiresAt
+        );
       });
 
       it('cross-asset: converts sourceAmount using FX rate and scale diff', async () => {
@@ -961,26 +1099,26 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           assetScale: 2
         });
 
-        const cmd = makeValidateReceivedPaymentCmd({
+        const cmd = makeValidateInboundPaymentCmd({
           paymentIntentId: intent.id,
           sourceAmount: '100'
         });
         const { events } = await aggregate.handleBatch([cmd]);
 
         assert.equal(events.length, 1);
-        assert.equal(events[0].msgName, ReceivedPaymentValidatedEvent.name);
-        const payload = (events[0] as ReceivedPaymentValidatedEvent).payload;
+        assert.equal(events[0].msgName, InboundPaymentValidatedEvent.name);
+        const payload = (events[0] as InboundPaymentValidatedEvent).payload;
         // scaleDiff = 2, floor(100 * 2 * 100) = 20000
         assert.equal(payload.receiveAmount, '20000');
         assert.equal(payload.receiveAssetCode, 'XRP');
         assert.equal(payload.receiveAssetScale, 4);
       });
 
-      it('persists the received payment after flush', async () => {
+      it('persists the inbound payment after flush', async () => {
         const intent = makeLocalIntent();
         await repo.storeMany([intent]);
 
-        const cmd = makeValidateReceivedPaymentCmd({
+        const cmd = makeValidateInboundPaymentCmd({
           paymentIntentId: intent.id,
           sourceAmount: '250'
         });
@@ -989,19 +1127,19 @@ describe('PaymentIntentAggregate.handleBatch', () => {
 
         const stored = repo.getAll().find((p) => p.id === intent.id);
         assert(stored);
-        assert.equal(stored.receivedPayments.length, 1);
-        const receivedPayment = stored.receivedPayments[0];
-        assert.equal(receivedPayment.id, cmd.payload.id);
-        assert.equal(receivedPayment.state, 'VALIDATED');
-        assert.equal(receivedPayment.paymentIntentId, intent.id);
-        assert.equal(receivedPayment.packetId, cmd.payload.packetId);
-        assert.equal(receivedPayment.peerId, cmd.payload.peerId);
-        assert.equal(receivedPayment.sourceAmount, 250n);
-        assert.equal(receivedPayment.receiveAmount, 250n);
+        assert.equal(stored.inboundPayments.length, 1);
+        const inboundPayment = stored.inboundPayments[0];
+        assert.equal(inboundPayment.id, cmd.payload.id);
+        assert.equal(inboundPayment.state, 'VALIDATED');
+        assert.equal(inboundPayment.paymentIntentId, intent.id);
+        assert.equal(inboundPayment.packetId, cmd.payload.packetId);
+        assert.equal(inboundPayment.peerId, cmd.payload.peerId);
+        assert.equal(inboundPayment.sourceAmount, 250n);
+        assert.equal(inboundPayment.receiveAmount, 250n);
       });
 
       it('fails with PaymentIntentNotFoundError when intent missing', async () => {
-        const cmd = makeValidateReceivedPaymentCmd({
+        const cmd = makeValidateInboundPaymentCmd({
           paymentIntentId: 'nonexistent'
         });
         const { events } = await aggregate.handleBatch([cmd]);
@@ -1009,13 +1147,13 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         assert.equal(events.length, 1);
         assert.equal(
           events[0].msgName,
-          ReceivedPaymentValidationFailedEvent.name
+          InboundPaymentValidationFailedEvent.name
         );
-        const payload = (events[0] as ReceivedPaymentValidationFailedEvent)
+        const payload = (events[0] as InboundPaymentValidationFailedEvent)
           .payload;
         assert.equal(payload.errorName, 'PaymentIntentNotFoundError');
         assert.equal(payload.paymentIntentId, 'nonexistent');
-        assert.equal(payload.receivedPaymentId, cmd.payload.id);
+        assert.equal(payload.inboundPaymentId, cmd.payload.id);
         assert.equal(payload.packetId, cmd.payload.packetId);
         assert.equal(payload.peerId, cmd.payload.peerId);
       });
@@ -1024,16 +1162,16 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         const intent = makeLocalIntent({ destination: 'REMOTE' });
         await repo.storeMany([intent]);
 
-        const cmd = makeValidateReceivedPaymentCmd({
+        const cmd = makeValidateInboundPaymentCmd({
           paymentIntentId: intent.id
         });
         const { events } = await aggregate.handleBatch([cmd]);
 
         assert.equal(
           events[0].msgName,
-          ReceivedPaymentValidationFailedEvent.name
+          InboundPaymentValidationFailedEvent.name
         );
-        const payload = (events[0] as ReceivedPaymentValidationFailedEvent)
+        const payload = (events[0] as InboundPaymentValidationFailedEvent)
           .payload;
         assert.equal(payload.errorName, 'PaymentIntentInvalidState');
       });
@@ -1042,16 +1180,16 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         const intent = makeLocalIntent({ state: 'COMPLETED' });
         await repo.storeMany([intent]);
 
-        const cmd = makeValidateReceivedPaymentCmd({
+        const cmd = makeValidateInboundPaymentCmd({
           paymentIntentId: intent.id
         });
         const { events } = await aggregate.handleBatch([cmd]);
 
         assert.equal(
           events[0].msgName,
-          ReceivedPaymentValidationFailedEvent.name
+          InboundPaymentValidationFailedEvent.name
         );
-        const payload = (events[0] as ReceivedPaymentValidationFailedEvent)
+        const payload = (events[0] as InboundPaymentValidationFailedEvent)
           .payload;
         assert.equal(payload.errorName, 'PaymentIntentInvalidState');
       });
@@ -1062,16 +1200,16 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         });
         await repo.storeMany([intent]);
 
-        const cmd = makeValidateReceivedPaymentCmd({
+        const cmd = makeValidateInboundPaymentCmd({
           paymentIntentId: intent.id
         });
         const { events } = await aggregate.handleBatch([cmd]);
 
         assert.equal(
           events[0].msgName,
-          ReceivedPaymentValidationFailedEvent.name
+          InboundPaymentValidationFailedEvent.name
         );
-        const payload = (events[0] as ReceivedPaymentValidationFailedEvent)
+        const payload = (events[0] as InboundPaymentValidationFailedEvent)
           .payload;
         assert.equal(payload.errorName, 'PaymentIntentExpired');
       });
@@ -1080,7 +1218,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         const intent = makeLocalIntent();
         await repo.storeMany([intent]);
 
-        const cmd = makeValidateReceivedPaymentCmd({
+        const cmd = makeValidateInboundPaymentCmd({
           paymentIntentId: intent.id,
           sourceAmount: '0'
         });
@@ -1088,35 +1226,35 @@ describe('PaymentIntentAggregate.handleBatch', () => {
 
         assert.equal(
           events[0].msgName,
-          ReceivedPaymentValidationFailedEvent.name
+          InboundPaymentValidationFailedEvent.name
         );
-        const payload = (events[0] as ReceivedPaymentValidationFailedEvent)
+        const payload = (events[0] as InboundPaymentValidationFailedEvent)
           .payload;
         assert.equal(payload.errorName, 'InvalidPaymentAmountError');
       });
 
-      it('fails with InvalidPaymentIdError on duplicate received payment id', async () => {
+      it('fails with InvalidPaymentIdError on duplicate inbound payment id', async () => {
         const intent = makeLocalIntent();
         await repo.storeMany([intent]);
 
-        const receivedPaymentId = crypto.randomUUID();
-        const cmd1 = makeValidateReceivedPaymentCmd({
-          id: receivedPaymentId,
+        const inboundPaymentId = crypto.randomUUID();
+        const cmd1 = makeValidateInboundPaymentCmd({
+          id: inboundPaymentId,
           paymentIntentId: intent.id
         });
-        const cmd2 = makeValidateReceivedPaymentCmd({
-          id: receivedPaymentId,
+        const cmd2 = makeValidateInboundPaymentCmd({
+          id: inboundPaymentId,
           paymentIntentId: intent.id
         });
         const { events } = await aggregate.handleBatch([cmd1, cmd2]);
 
         assert.equal(events.length, 2);
-        assert.equal(events[0].msgName, ReceivedPaymentValidatedEvent.name);
+        assert.equal(events[0].msgName, InboundPaymentValidatedEvent.name);
         assert.equal(
           events[1].msgName,
-          ReceivedPaymentValidationFailedEvent.name
+          InboundPaymentValidationFailedEvent.name
         );
-        const payload = (events[1] as ReceivedPaymentValidationFailedEvent)
+        const payload = (events[1] as InboundPaymentValidationFailedEvent)
           .payload;
         assert.equal(payload.errorName, 'InvalidPaymentIdError');
       });
@@ -1126,16 +1264,16 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         await repo.storeMany([intent]);
         mockPalService.getRates = async () => null;
 
-        const cmd = makeValidateReceivedPaymentCmd({
+        const cmd = makeValidateInboundPaymentCmd({
           paymentIntentId: intent.id
         });
         const { events } = await aggregate.handleBatch([cmd]);
 
         assert.equal(
           events[0].msgName,
-          ReceivedPaymentValidationFailedEvent.name
+          InboundPaymentValidationFailedEvent.name
         );
-        const payload = (events[0] as ReceivedPaymentValidationFailedEvent)
+        const payload = (events[0] as InboundPaymentValidationFailedEvent)
           .payload;
         assert.equal(payload.errorName, 'RatesError');
       });
@@ -1145,27 +1283,27 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         await repo.storeMany([intent]);
         mockPalService.getPeerById = async () => null;
 
-        const cmd = makeValidateReceivedPaymentCmd({
+        const cmd = makeValidateInboundPaymentCmd({
           paymentIntentId: intent.id
         });
         const { events } = await aggregate.handleBatch([cmd]);
 
         assert.equal(
           events[0].msgName,
-          ReceivedPaymentValidationFailedEvent.name
+          InboundPaymentValidationFailedEvent.name
         );
-        const payload = (events[0] as ReceivedPaymentValidationFailedEvent)
+        const payload = (events[0] as InboundPaymentValidationFailedEvent)
           .payload;
         assert.equal(payload.errorName, 'PeerNotFoundError');
       });
     });
 
-    describe('handleAcceptReceivedPaymentCommand / handleFailReceivedPaymentCommand', () => {
-      function makeIntentWithReceivedPayment(
-        receivedPaymentState: IPaymentIntent['receivedPayments'][number]['state'] = 'VALIDATED'
-      ): { intent: IPaymentIntent; receivedPaymentId: string } {
+    describe('handleAcceptInboundPaymentCommand / handleFailInboundPaymentCommand', () => {
+      function makeIntentWithInboundPayment(
+        inboundPaymentState: IPaymentIntent['inboundPayments'][number]['state'] = 'VALIDATED'
+      ): { intent: IPaymentIntent; inboundPaymentId: string } {
         const intentId = crypto.randomUUID();
-        const receivedPaymentId = crypto.randomUUID();
+        const inboundPaymentId = crypto.randomUUID();
         const intent: IPaymentIntent = {
           id: intentId,
           receivedAmount: 0n,
@@ -1180,10 +1318,10 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           incomingAmount: null,
           quotes: [],
           sentPayments: [],
-          receivedPayments: [
+          inboundPayments: [
             {
-              id: receivedPaymentId,
-              state: receivedPaymentState,
+              id: inboundPaymentId,
+              state: inboundPaymentState,
               paymentIntentId: intentId,
               packetId: 'packet-1',
               peerId: 'peer-1',
@@ -1195,16 +1333,16 @@ describe('PaymentIntentAggregate.handleBatch', () => {
             }
           ]
         };
-        return { intent, receivedPaymentId };
+        return { intent, inboundPaymentId };
       }
 
-      it('accepts a VALIDATED received payment and emits ReceivedPaymentAcceptedEvent', async () => {
-        const { intent, receivedPaymentId } = makeIntentWithReceivedPayment();
+      it('accepts a VALIDATED inbound payment and emits InboundPaymentAcceptedEvent', async () => {
+        const { intent, inboundPaymentId } = makeIntentWithInboundPayment();
         await repo.storeMany([intent]);
 
-        const cmd = new AcceptReceivedPaymentCmd(
+        const cmd = new AcceptInboundPaymentCmd(
           {
-            receivedPaymentId,
+            inboundPaymentId,
             paymentIntentId: intent.id,
             ledgerTransferId: 'transfer-1'
           },
@@ -1213,10 +1351,10 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         const { events } = await aggregate.handleBatch([cmd]);
 
         assert.equal(events.length, 1);
-        assert.equal(events[0].msgName, ReceivedPaymentAcceptedEvent.name);
-        const payload = (events[0] as ReceivedPaymentAcceptedEvent).payload;
+        assert.equal(events[0].msgName, InboundPaymentAcceptedEvent.name);
+        const payload = (events[0] as InboundPaymentAcceptedEvent).payload;
         assert.equal(payload.paymentIntentId, intent.id);
-        assert.equal(payload.receivedPaymentId, receivedPaymentId);
+        assert.equal(payload.inboundPaymentId, inboundPaymentId);
         assert.equal(payload.packetId, 'packet-1');
         assert.equal(payload.peerId, 'peer-1');
         assert.equal(payload.ledgerTransferId, 'transfer-1');
@@ -1227,12 +1365,12 @@ describe('PaymentIntentAggregate.handleBatch', () => {
       });
 
       it('persists the accepted state and ledgerTransferId after flush', async () => {
-        const { intent, receivedPaymentId } = makeIntentWithReceivedPayment();
+        const { intent, inboundPaymentId } = makeIntentWithInboundPayment();
         await repo.storeMany([intent]);
 
-        const cmd = new AcceptReceivedPaymentCmd(
+        const cmd = new AcceptInboundPaymentCmd(
           {
-            receivedPaymentId,
+            inboundPaymentId,
             paymentIntentId: intent.id,
             ledgerTransferId: 'transfer-1'
           },
@@ -1243,21 +1381,21 @@ describe('PaymentIntentAggregate.handleBatch', () => {
 
         const stored = repo
           .getAll()
-          .flatMap((p) => p.receivedPayments)
-          .find((rp) => rp.id === receivedPaymentId);
+          .flatMap((p) => p.inboundPayments)
+          .find((rp) => rp.id === inboundPaymentId);
         assert(stored);
         assert.equal(stored.state, 'ACCEPTED');
         assert.equal(stored.ledgerTransferId, 'transfer-1');
       });
 
       it('fails to accept from a non-VALIDATED state', async () => {
-        const { intent, receivedPaymentId } =
-          makeIntentWithReceivedPayment('ACCEPTED');
+        const { intent, inboundPaymentId } =
+          makeIntentWithInboundPayment('ACCEPTED');
         await repo.storeMany([intent]);
 
-        const cmd = new AcceptReceivedPaymentCmd(
+        const cmd = new AcceptInboundPaymentCmd(
           {
-            receivedPaymentId,
+            inboundPaymentId,
             paymentIntentId: intent.id,
             ledgerTransferId: 'transfer-1'
           },
@@ -1265,15 +1403,15 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         );
         const { events } = await aggregate.handleBatch([cmd]);
 
-        assert.equal(events[0].msgName, ReceivedPaymentFailedEvent.name);
-        const payload = (events[0] as ReceivedPaymentFailedEvent).payload;
+        assert.equal(events[0].msgName, InboundPaymentFailedEvent.name);
+        const payload = (events[0] as InboundPaymentFailedEvent).payload;
         assert.equal(payload.errorName, 'PaymentInvalidStateError');
       });
 
       it('fails to accept when the payment intent is missing', async () => {
-        const cmd = new AcceptReceivedPaymentCmd(
+        const cmd = new AcceptInboundPaymentCmd(
           {
-            receivedPaymentId: crypto.randomUUID(),
+            inboundPaymentId: crypto.randomUUID(),
             paymentIntentId: 'nonexistent',
             ledgerTransferId: 'transfer-1'
           },
@@ -1281,18 +1419,18 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         );
         const { events } = await aggregate.handleBatch([cmd]);
 
-        assert.equal(events[0].msgName, ReceivedPaymentFailedEvent.name);
-        const payload = (events[0] as ReceivedPaymentFailedEvent).payload;
+        assert.equal(events[0].msgName, InboundPaymentFailedEvent.name);
+        const payload = (events[0] as InboundPaymentFailedEvent).payload;
         assert.equal(payload.errorName, 'PaymentIntentNotFoundError');
       });
 
-      it('fails to accept when the received payment is missing', async () => {
-        const { intent } = makeIntentWithReceivedPayment();
+      it('fails to accept when the inbound payment is missing', async () => {
+        const { intent } = makeIntentWithInboundPayment();
         await repo.storeMany([intent]);
 
-        const cmd = new AcceptReceivedPaymentCmd(
+        const cmd = new AcceptInboundPaymentCmd(
           {
-            receivedPaymentId: 'nonexistent',
+            inboundPaymentId: 'nonexistent',
             paymentIntentId: intent.id,
             ledgerTransferId: 'transfer-1'
           },
@@ -1300,18 +1438,18 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         );
         const { events } = await aggregate.handleBatch([cmd]);
 
-        assert.equal(events[0].msgName, ReceivedPaymentFailedEvent.name);
-        const payload = (events[0] as ReceivedPaymentFailedEvent).payload;
+        assert.equal(events[0].msgName, InboundPaymentFailedEvent.name);
+        const payload = (events[0] as InboundPaymentFailedEvent).payload;
         assert.equal(payload.errorName, 'PaymentNotFoundError');
       });
 
-      it('fails a VALIDATED received payment and persists failReason', async () => {
-        const { intent, receivedPaymentId } = makeIntentWithReceivedPayment();
+      it('fails a VALIDATED inbound payment and persists failReason', async () => {
+        const { intent, inboundPaymentId } = makeIntentWithInboundPayment();
         await repo.storeMany([intent]);
 
-        const cmd = new FailReceivedPaymentCmd(
+        const cmd = new FailInboundPaymentCmd(
           {
-            receivedPaymentId,
+            inboundPaymentId,
             paymentIntentId: intent.id,
             reason: 'Insufficient funds'
           },
@@ -1321,29 +1459,29 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         await aggregate.flush();
 
         assert.equal(events.length, 1);
-        assert.equal(events[0].msgName, ReceivedPaymentFailedEvent.name);
-        const payload = (events[0] as ReceivedPaymentFailedEvent).payload;
-        assert.equal(payload.receivedPaymentId, receivedPaymentId);
+        assert.equal(events[0].msgName, InboundPaymentFailedEvent.name);
+        const payload = (events[0] as InboundPaymentFailedEvent).payload;
+        assert.equal(payload.inboundPaymentId, inboundPaymentId);
         assert.equal(payload.packetId, 'packet-1');
         assert.equal(payload.message, 'Insufficient funds');
 
         const stored = repo
           .getAll()
-          .flatMap((p) => p.receivedPayments)
-          .find((rp) => rp.id === receivedPaymentId);
+          .flatMap((p) => p.inboundPayments)
+          .find((rp) => rp.id === inboundPaymentId);
         assert(stored);
         assert.equal(stored.state, 'FAILED');
         assert.equal(stored.failReason, 'Insufficient funds');
       });
 
-      it('fails an ACCEPTED received payment', async () => {
-        const { intent, receivedPaymentId } =
-          makeIntentWithReceivedPayment('ACCEPTED');
+      it('fails an ACCEPTED inbound payment', async () => {
+        const { intent, inboundPaymentId } =
+          makeIntentWithInboundPayment('ACCEPTED');
         await repo.storeMany([intent]);
 
-        const cmd = new FailReceivedPaymentCmd(
+        const cmd = new FailInboundPaymentCmd(
           {
-            receivedPaymentId,
+            inboundPaymentId,
             paymentIntentId: intent.id,
             reason: 'Ledger transfer rejected'
           },
@@ -1354,20 +1492,20 @@ describe('PaymentIntentAggregate.handleBatch', () => {
 
         const stored = repo
           .getAll()
-          .flatMap((p) => p.receivedPayments)
-          .find((rp) => rp.id === receivedPaymentId);
+          .flatMap((p) => p.inboundPayments)
+          .find((rp) => rp.id === inboundPaymentId);
         assert(stored);
         assert.equal(stored.state, 'FAILED');
       });
 
-      it('fails a FULFILLABLE received payment', async () => {
-        const { intent, receivedPaymentId } =
-          makeIntentWithReceivedPayment('FULFILLABLE');
+      it('fails a FULFILLABLE inbound payment', async () => {
+        const { intent, inboundPaymentId } =
+          makeIntentWithInboundPayment('FULFILLABLE');
         await repo.storeMany([intent]);
 
-        const cmd = new FailReceivedPaymentCmd(
+        const cmd = new FailInboundPaymentCmd(
           {
-            receivedPaymentId,
+            inboundPaymentId,
             paymentIntentId: intent.id,
             reason: 'ILP fulfillment failed'
           },
@@ -1378,20 +1516,20 @@ describe('PaymentIntentAggregate.handleBatch', () => {
 
         const stored = repo
           .getAll()
-          .flatMap((p) => p.receivedPayments)
-          .find((rp) => rp.id === receivedPaymentId);
+          .flatMap((p) => p.inboundPayments)
+          .find((rp) => rp.id === inboundPaymentId);
         assert(stored);
         assert.equal(stored.state, 'FAILED');
       });
 
-      it('cannot fail a FINALIZED received payment', async () => {
-        const { intent, receivedPaymentId } =
-          makeIntentWithReceivedPayment('FINALIZED');
+      it('cannot fail a FINALIZED inbound payment', async () => {
+        const { intent, inboundPaymentId } =
+          makeIntentWithInboundPayment('FINALIZED');
         await repo.storeMany([intent]);
 
-        const cmd = new FailReceivedPaymentCmd(
+        const cmd = new FailInboundPaymentCmd(
           {
-            receivedPaymentId,
+            inboundPaymentId,
             paymentIntentId: intent.id,
             reason: 'too late'
           },
@@ -1399,18 +1537,18 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         );
         const { events } = await aggregate.handleBatch([cmd]);
 
-        assert.equal(events[0].msgName, ReceivedPaymentFailedEvent.name);
-        const payload = (events[0] as ReceivedPaymentFailedEvent).payload;
+        assert.equal(events[0].msgName, InboundPaymentFailedEvent.name);
+        const payload = (events[0] as InboundPaymentFailedEvent).payload;
         assert.equal(payload.errorName, 'PaymentInvalidStateError');
       });
     });
 
-    describe('handleMarkReceivedPaymentFulfillableCommand', () => {
-      function makeIntentWithReceivedPayment(
-        state: IPaymentIntent['receivedPayments'][number]['state'] = 'ACCEPTED'
-      ): { intent: IPaymentIntent; receivedPaymentId: string } {
+    describe('handleMarkInboundPaymentFulfillableCommand', () => {
+      function makeIntentWithInboundPayment(
+        state: IPaymentIntent['inboundPayments'][number]['state'] = 'ACCEPTED'
+      ): { intent: IPaymentIntent; inboundPaymentId: string } {
         const intentId = crypto.randomUUID();
-        const receivedPaymentId = crypto.randomUUID();
+        const inboundPaymentId = crypto.randomUUID();
         const intent: IPaymentIntent = {
           id: intentId,
           receivedAmount: 0n,
@@ -1425,9 +1563,9 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           incomingAmount: null,
           quotes: [],
           sentPayments: [],
-          receivedPayments: [
+          inboundPayments: [
             {
-              id: receivedPaymentId,
+              id: inboundPaymentId,
               state,
               paymentIntentId: intentId,
               packetId: 'packet-1',
@@ -1441,26 +1579,26 @@ describe('PaymentIntentAggregate.handleBatch', () => {
             }
           ]
         };
-        return { intent, receivedPaymentId };
+        return { intent, inboundPaymentId };
       }
 
-      it('marks an ACCEPTED received payment FULFILLABLE and emits ReceivedPaymentFulfillableEvent', async () => {
-        const { intent, receivedPaymentId } = makeIntentWithReceivedPayment();
+      it('marks an ACCEPTED inbound payment FULFILLABLE and emits InboundPaymentFulfillableEvent', async () => {
+        const { intent, inboundPaymentId } = makeIntentWithInboundPayment();
         await repo.storeMany([intent]);
 
         const { events } = await aggregate.handleBatch([
-          new MarkReceivedPaymentFulfillableCmd(
-            { receivedPaymentId, paymentIntentId: intent.id },
+          new MarkInboundPaymentFulfillableCmd(
+            { inboundPaymentId, paymentIntentId: intent.id },
             crypto.randomUUID()
           )
         ]);
         await aggregate.flush();
 
         assert.equal(events.length, 1);
-        assert.equal(events[0].msgName, ReceivedPaymentFulfillableEvent.name);
-        const payload = (events[0] as ReceivedPaymentFulfillableEvent).payload;
+        assert.equal(events[0].msgName, InboundPaymentFulfillableEvent.name);
+        const payload = (events[0] as InboundPaymentFulfillableEvent).payload;
         assert.equal(payload.paymentIntentId, intent.id);
-        assert.equal(payload.receivedPaymentId, receivedPaymentId);
+        assert.equal(payload.inboundPaymentId, inboundPaymentId);
         assert.equal(payload.packetId, 'packet-1');
         assert.equal(payload.peerId, 'peer-1');
         assert.equal(payload.receiveAmount, '100');
@@ -1470,37 +1608,37 @@ describe('PaymentIntentAggregate.handleBatch', () => {
 
         const stored = repo.getAll().find((p) => p.id === intent.id);
         assert(stored);
-        assert.equal(stored.receivedPayments[0].state, 'FULFILLABLE');
+        assert.equal(stored.inboundPayments[0].state, 'FULFILLABLE');
         // receivedAmount is only credited at finalize, not here
         assert.equal(stored.receivedAmount, 0n);
       });
 
-      it('cannot mark a VALIDATED received payment fulfillable', async () => {
-        const { intent, receivedPaymentId } =
-          makeIntentWithReceivedPayment('VALIDATED');
+      it('cannot mark a VALIDATED inbound payment fulfillable', async () => {
+        const { intent, inboundPaymentId } =
+          makeIntentWithInboundPayment('VALIDATED');
         await repo.storeMany([intent]);
 
         const { events } = await aggregate.handleBatch([
-          new MarkReceivedPaymentFulfillableCmd(
-            { receivedPaymentId, paymentIntentId: intent.id },
+          new MarkInboundPaymentFulfillableCmd(
+            { inboundPaymentId, paymentIntentId: intent.id },
             crypto.randomUUID()
           )
         ]);
 
-        assert.equal(events[0].msgName, ReceivedPaymentFailedEvent.name);
-        const payload = (events[0] as ReceivedPaymentFailedEvent).payload;
+        assert.equal(events[0].msgName, InboundPaymentFailedEvent.name);
+        const payload = (events[0] as InboundPaymentFailedEvent).payload;
         assert.equal(payload.errorName, 'PaymentInvalidStateError');
       });
     });
 
-    describe('handleFinalizeReceivedPaymentCommand', () => {
-      function makeIntentWithReceivedPayment(overrides?: {
-        receivedPaymentState?: IPaymentIntent['receivedPayments'][number]['state'];
+    describe('handleFinalizeInboundPaymentCommand', () => {
+      function makeIntentWithInboundPayment(overrides?: {
+        inboundPaymentState?: IPaymentIntent['inboundPayments'][number]['state'];
         incomingAmount?: bigint | null;
         receiveAmount?: bigint;
-      }): { intent: IPaymentIntent; receivedPaymentId: string } {
+      }): { intent: IPaymentIntent; inboundPaymentId: string } {
         const intentId = crypto.randomUUID();
-        const receivedPaymentId = crypto.randomUUID();
+        const inboundPaymentId = crypto.randomUUID();
         const intent: IPaymentIntent = {
           id: intentId,
           receivedAmount: 0n,
@@ -1515,10 +1653,10 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           incomingAmount: overrides?.incomingAmount ?? null,
           quotes: [],
           sentPayments: [],
-          receivedPayments: [
+          inboundPayments: [
             {
-              id: receivedPaymentId,
-              state: overrides?.receivedPaymentState ?? 'FULFILLABLE',
+              id: inboundPaymentId,
+              state: overrides?.inboundPaymentState ?? 'FULFILLABLE',
               paymentIntentId: intentId,
               packetId: 'packet-1',
               peerId: 'peer-1',
@@ -1531,33 +1669,33 @@ describe('PaymentIntentAggregate.handleBatch', () => {
             }
           ]
         };
-        return { intent, receivedPaymentId };
+        return { intent, inboundPaymentId };
       }
 
       function makeFinalizeCmd(
-        receivedPaymentId: string,
+        inboundPaymentId: string,
         paymentIntentId: string
-      ): FinalizeReceivedPaymentCmd {
-        return new FinalizeReceivedPaymentCmd(
-          { receivedPaymentId, paymentIntentId },
+      ): FinalizeInboundPaymentCmd {
+        return new FinalizeInboundPaymentCmd(
+          { inboundPaymentId, paymentIntentId },
           crypto.randomUUID()
         );
       }
 
-      it('finalizes an ACCEPTED received payment and accumulates receivedAmount', async () => {
-        const { intent, receivedPaymentId } = makeIntentWithReceivedPayment();
+      it('finalizes an ACCEPTED inbound payment and accumulates receivedAmount', async () => {
+        const { intent, inboundPaymentId } = makeIntentWithInboundPayment();
         await repo.storeMany([intent]);
 
         const { events } = await aggregate.handleBatch([
-          makeFinalizeCmd(receivedPaymentId, intent.id)
+          makeFinalizeCmd(inboundPaymentId, intent.id)
         ]);
         await aggregate.flush();
 
         assert.equal(events.length, 1);
-        assert.equal(events[0].msgName, ReceivedPaymentFinalizedEvent.name);
-        const payload = (events[0] as ReceivedPaymentFinalizedEvent).payload;
+        assert.equal(events[0].msgName, InboundPaymentFinalizedEvent.name);
+        const payload = (events[0] as InboundPaymentFinalizedEvent).payload;
         assert.equal(payload.paymentIntentId, intent.id);
-        assert.equal(payload.receivedPaymentId, receivedPaymentId);
+        assert.equal(payload.inboundPaymentId, inboundPaymentId);
         assert.equal(payload.packetId, 'packet-1');
         assert.equal(payload.peerId, 'peer-1');
         assert.equal(payload.sourceAmount, '100');
@@ -1570,22 +1708,22 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         assert(stored);
         assert.equal(stored.receivedAmount, 100n);
         assert.equal(stored.state, 'CREATED'); // no incomingAmount -> not completed
-        assert.equal(stored.receivedPayments[0].state, 'FINALIZED');
+        assert.equal(stored.inboundPayments[0].state, 'FINALIZED');
       });
 
       it('completes the intent and emits PaymentIntentCompletedEvent when incomingAmount is met', async () => {
-        const { intent, receivedPaymentId } = makeIntentWithReceivedPayment({
+        const { intent, inboundPaymentId } = makeIntentWithInboundPayment({
           incomingAmount: 100n
         });
         await repo.storeMany([intent]);
 
         const { events } = await aggregate.handleBatch([
-          makeFinalizeCmd(receivedPaymentId, intent.id)
+          makeFinalizeCmd(inboundPaymentId, intent.id)
         ]);
         await aggregate.flush();
 
         assert.equal(events.length, 2);
-        assert.equal(events[0].msgName, ReceivedPaymentFinalizedEvent.name);
+        assert.equal(events[0].msgName, InboundPaymentFinalizedEvent.name);
         assert.equal(events[1].msgName, PaymentIntentCompletedEvent.name);
         const intentPayload = (events[1] as PaymentIntentCompletedEvent)
           .payload;
@@ -1626,7 +1764,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           incomingAmount: 120n,
           quotes: [],
           sentPayments: [],
-          receivedPayments: [rp('rp-1'), rp('rp-2')]
+          inboundPayments: [rp('rp-1'), rp('rp-2')]
         };
         await repo.storeMany([intent]);
 
@@ -1644,21 +1782,21 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         assert(stored);
         assert.equal(stored.receivedAmount, 120n);
         assert.equal(stored.state, 'COMPLETED');
-        assert(stored.receivedPayments.every((r) => r.state === 'FINALIZED'));
+        assert(stored.inboundPayments.every((r) => r.state === 'FINALIZED'));
       });
 
       it('fails to finalize from a non-ACCEPTED state', async () => {
-        const { intent, receivedPaymentId } = makeIntentWithReceivedPayment({
-          receivedPaymentState: 'VALIDATED'
+        const { intent, inboundPaymentId } = makeIntentWithInboundPayment({
+          inboundPaymentState: 'VALIDATED'
         });
         await repo.storeMany([intent]);
 
         const { events } = await aggregate.handleBatch([
-          makeFinalizeCmd(receivedPaymentId, intent.id)
+          makeFinalizeCmd(inboundPaymentId, intent.id)
         ]);
 
-        assert.equal(events[0].msgName, ReceivedPaymentFailedEvent.name);
-        const payload = (events[0] as ReceivedPaymentFailedEvent).payload;
+        assert.equal(events[0].msgName, InboundPaymentFailedEvent.name);
+        const payload = (events[0] as InboundPaymentFailedEvent).payload;
         assert.equal(payload.errorName, 'PaymentInvalidStateError');
       });
 
@@ -1667,21 +1805,21 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           makeFinalizeCmd(crypto.randomUUID(), 'nonexistent')
         ]);
 
-        assert.equal(events[0].msgName, ReceivedPaymentFailedEvent.name);
-        const payload = (events[0] as ReceivedPaymentFailedEvent).payload;
+        assert.equal(events[0].msgName, InboundPaymentFailedEvent.name);
+        const payload = (events[0] as InboundPaymentFailedEvent).payload;
         assert.equal(payload.errorName, 'PaymentIntentNotFoundError');
       });
 
-      it('fails to finalize when the received payment is missing', async () => {
-        const { intent } = makeIntentWithReceivedPayment();
+      it('fails to finalize when the inbound payment is missing', async () => {
+        const { intent } = makeIntentWithInboundPayment();
         await repo.storeMany([intent]);
 
         const { events } = await aggregate.handleBatch([
           makeFinalizeCmd('nonexistent', intent.id)
         ]);
 
-        assert.equal(events[0].msgName, ReceivedPaymentFailedEvent.name);
-        const payload = (events[0] as ReceivedPaymentFailedEvent).payload;
+        assert.equal(events[0].msgName, InboundPaymentFailedEvent.name);
+        const payload = (events[0] as InboundPaymentFailedEvent).payload;
         assert.equal(payload.errorName, 'PaymentNotFoundError');
       });
     });
@@ -1761,7 +1899,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           incomingAmount: null,
           quotes: [],
           sentPayments: [],
-          receivedPayments: [],
+          inboundPayments: [],
           destinationIlpAddress: 'g.peer.123',
           remoteUrl: REMOTE_URL
         };
@@ -1855,7 +1993,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           incomingAmount: null,
           quotes: [],
           sentPayments: [],
-          receivedPayments: []
+          inboundPayments: []
         };
         await repo.storeMany([paymentIntent]);
 
@@ -1887,7 +2025,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           incomingAmount: null,
           quotes: [],
           sentPayments: [],
-          receivedPayments: []
+          inboundPayments: []
         };
         await repo.storeMany([paymentIntent]);
 
@@ -1932,7 +2070,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
             }
           ],
           sentPayments: [],
-          receivedPayments: []
+          inboundPayments: []
         };
         await repo.storeMany([paymentIntent]);
 
@@ -1968,7 +2106,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           destinationIlpAddress: 'g.peer.123',
           quotes: [],
           sentPayments: [],
-          receivedPayments: []
+          inboundPayments: []
         };
         await repo.storeMany([paymentIntent]);
 
@@ -2015,7 +2153,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           expiresAt: new Date(Date.now() + 1000),
           incomingAmount: 100n,
           quotes: [],
-          receivedPayments: [],
+          inboundPayments: [],
           sentPayments: [
             {
               id: paymentId,
@@ -2082,7 +2220,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
               expiresAt: new Date(Date.now() + 60_000)
             }
           ],
-          receivedPayments: [],
+          inboundPayments: [],
           sentPayments: [
             {
               id: paymentId,
@@ -2147,7 +2285,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           expiresAt: new Date(Date.now() + 60_000),
           incomingAmount: null,
           quotes: [],
-          receivedPayments: [],
+          inboundPayments: [],
           sentPayments: [
             {
               id: paymentId,
@@ -2194,7 +2332,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           incomingAmount: null,
           destinationIlpAddress: 'g.peer.123',
           quotes: [],
-          receivedPayments: [],
+          inboundPayments: [],
           sentPayments: [
             {
               id: paymentId,
@@ -2246,7 +2384,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           destinationIlpAddress: 'g.peer.123',
           remoteUrl: 'https://remote.domain.com/incoming-payments/abc',
           quotes: [],
-          receivedPayments: [],
+          inboundPayments: [],
           sentPayments: [
             {
               id: paymentId,
@@ -2386,7 +2524,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           incomingAmount: null,
           destinationIlpAddress: 'g.peer.123',
           quotes: [],
-          receivedPayments: [],
+          inboundPayments: [],
           sentPayments: [
             {
               id: paymentId,
@@ -2488,7 +2626,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           incomingAmount: null,
           destinationIlpAddress: 'g.peer.123',
           quotes: [],
-          receivedPayments: [],
+          inboundPayments: [],
           sentPayments: [
             {
               id: paymentId,
@@ -2623,7 +2761,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           incomingAmount: null,
           destinationIlpAddress: 'g.peer.123',
           quotes: [],
-          receivedPayments: [],
+          inboundPayments: [],
           sentPayments: [
             {
               id: paymentId,
@@ -2713,7 +2851,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           incomingAmount,
           destinationIlpAddress: 'g.peer.123',
           quotes: [],
-          receivedPayments: [],
+          inboundPayments: [],
           sentPayments: [
             {
               id: paymentId,
@@ -2832,7 +2970,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           incomingAmount: null,
           destinationIlpAddress: 'g.peer.123',
           quotes: [],
-          receivedPayments: [],
+          inboundPayments: [],
           sentPayments: [
             {
               id: paymentId,
@@ -2899,7 +3037,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           expiresAt: new Date(Date.now() + 60_000),
           incomingAmount: 100n,
           quotes: [],
-          receivedPayments: [],
+          inboundPayments: [],
           sentPayments: [
             {
               id: paymentId,
@@ -3006,7 +3144,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           incomingAmount: null,
           quotes: [],
           sentPayments: [],
-          receivedPayments: [],
+          inboundPayments: [],
           destinationIlpAddress: ilpAddress
         };
       }
@@ -3041,7 +3179,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
             }
           ],
           sentPayments: [],
-          receivedPayments: [],
+          inboundPayments: [],
           destinationIlpAddress: 'g.peer.123'
         };
       }

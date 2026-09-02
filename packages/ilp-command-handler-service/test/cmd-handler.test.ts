@@ -29,8 +29,11 @@ import {
   ProcessRejectPacketCmd,
   ILPQuoteReceivedEvent,
   ILPQuoteFailedEvent,
+  ILPPaymentFailedEvent,
+  ILPPaymentConfirmedEvent,
   StartRemotePaymentCmd,
   StartRemoteQuoteCmd,
+  ProcessFulfillPacketCmd,
   UpdatePeerCmd,
   decodeInboundStreamPrepare
 } from 'ilp-domain-lib';
@@ -113,7 +116,7 @@ async function startedHandler() {
     new ConsoleLogger()
   );
   await handler.start();
-  return { producer, consumer };
+  return { producer, consumer, repo };
 }
 
 const dispatchedPacketId = (producer: MockProducer): string => {
@@ -400,6 +403,147 @@ describe('IlpCommandHandler — remote payment sending', () => {
     assert.equal(decoded.fulfillable, true);
   });
 
+  async function startRemotePayment(
+    consumer: MockConsumer,
+    producer: MockProducer,
+    expiresAt = new Date(Date.now() + 30_000).toISOString()
+  ) {
+    const sharedSecretBuf = Buffer.alloc(32, 9);
+    await consumer.deliver([
+      new StartRemotePaymentCmd(
+        {
+          peerId: 'peer-1',
+          paymentIntentId: 'intent-1',
+          paymentId: 'pay-1',
+          destinationIlpAddress: 'g.peer.bob',
+          amount: '100',
+          assetCode: 'USD',
+          assetScale: 2,
+          expiresAt,
+          sharedSecret: sharedSecretBuf.toString('base64url')
+        },
+        'req-pay-1'
+      )
+    ]);
+    const dispatch = producer.sent.find(
+      (m) => m.msgName === DispatchPreparePacketCmd.name
+    ) as DispatchPreparePacketCmd;
+    assert.ok(dispatch);
+    const decoded = decodeInboundStreamPrepare({
+      sharedSecret: sharedSecretBuf,
+      executionCondition: Buffer.from(
+        dispatch.payload.executionCondition,
+        'base64'
+      ),
+      data: Buffer.from(dispatch.payload.data!, 'base64')
+    });
+    assert.ok(decoded.fulfillment);
+    return {
+      dispatch,
+      fulfillment: decoded.fulfillment!.toString('base64')
+    };
+  }
+
+  test('outbound payment correlation stores the execution condition', async () => {
+    const { producer, consumer, repo } = await startedHandler();
+    const { dispatch } = await startRemotePayment(consumer, producer);
+    const stored = await repo.fetchPacketById(dispatch.payload.packetId);
+    assert.ok(stored);
+    assert.equal(stored!.kind, 'PAYMENT');
+    assert.equal(
+      stored!.executionCondition,
+      dispatch.payload.executionCondition
+    );
+  });
+
+  test('a matching outbound fulfill yields ILPPaymentConfirmedEvent', async () => {
+    const { producer, consumer } = await startedHandler();
+    const { dispatch, fulfillment } = await startRemotePayment(
+      consumer,
+      producer
+    );
+    producer.sent.length = 0;
+
+    await consumer.deliver([
+      new ProcessFulfillPacketCmd({
+        peerId: 'peer-1',
+        paymentIntentId: 'intent-1',
+        packetId: dispatch.payload.packetId,
+        fulfilledAt: new Date().toISOString(),
+        fulfillment
+      })
+    ]);
+
+    const confirmed = producer.sent.find(
+      (m) => m.msgName === ILPPaymentConfirmedEvent.name
+    ) as ILPPaymentConfirmedEvent;
+    assert.ok(confirmed);
+    assert.equal(confirmed.payload.paymentId, 'pay-1');
+    assert.equal(
+      producer.sent.filter((m) => m.msgName === ILPPaymentFailedEvent.name)
+        .length,
+      0
+    );
+  });
+
+  test('a mismatched outbound fulfill does not confirm the payment', async () => {
+    const { producer, consumer } = await startedHandler();
+    const { dispatch } = await startRemotePayment(consumer, producer);
+    producer.sent.length = 0;
+
+    await consumer.deliver([
+      new ProcessFulfillPacketCmd({
+        peerId: 'peer-1',
+        paymentIntentId: 'intent-1',
+        packetId: dispatch.payload.packetId,
+        fulfilledAt: new Date().toISOString(),
+        fulfillment: Buffer.alloc(32, 1).toString('base64')
+      })
+    ]);
+
+    assert.equal(
+      producer.sent.filter((m) => m.msgName === ILPPaymentConfirmedEvent.name)
+        .length,
+      0
+    );
+    const failed = producer.sent.find(
+      (m) => m.msgName === ILPPaymentFailedEvent.name
+    ) as ILPPaymentFailedEvent;
+    assert.ok(failed);
+    assert.equal(failed.payload.reason, 'REJECTED');
+  });
+
+  test('a late outbound fulfill does not confirm the payment', async () => {
+    const { producer, consumer } = await startedHandler();
+    const { dispatch, fulfillment } = await startRemotePayment(
+      consumer,
+      producer,
+      new Date(Date.now() - 1000).toISOString()
+    );
+    producer.sent.length = 0;
+
+    await consumer.deliver([
+      new ProcessFulfillPacketCmd({
+        peerId: 'peer-1',
+        paymentIntentId: 'intent-1',
+        packetId: dispatch.payload.packetId,
+        fulfilledAt: new Date().toISOString(),
+        fulfillment
+      })
+    ]);
+
+    assert.equal(
+      producer.sent.filter((m) => m.msgName === ILPPaymentConfirmedEvent.name)
+        .length,
+      0
+    );
+    const failed = producer.sent.find(
+      (m) => m.msgName === ILPPaymentFailedEvent.name
+    ) as ILPPaymentFailedEvent;
+    assert.ok(failed);
+    assert.equal(failed.payload.reason, 'EXPIRED');
+  });
+
   test('StartRemotePaymentCmd passes sharedSecret and STREAM fields on PaymentDispatch', async () => {
     const dispatches: PacketDispatch[] = [];
     const peeringClient: IPeeringClient = {
@@ -463,6 +607,91 @@ describe('IlpCommandHandler — remote payment sending', () => {
         true
       );
     }
+  });
+
+  test('a peer reject on a payment yields ILPPaymentFailedEvent with rejectCode', async () => {
+    const { producer, consumer } = await startedHandler();
+    const sharedSecret = Buffer.alloc(32, 9).toString('base64url');
+
+    await consumer.deliver([
+      new StartRemotePaymentCmd(
+        {
+          peerId: 'peer-1',
+          paymentIntentId: 'intent-1',
+          paymentId: 'pay-1',
+          destinationIlpAddress: 'g.peer.bob',
+          amount: '100',
+          assetCode: 'USD',
+          assetScale: 2,
+          expiresAt: new Date(Date.now() + 30_000).toISOString(),
+          sharedSecret
+        },
+        'req-pay-1'
+      )
+    ]);
+    const packetId = dispatchedPacketId(producer);
+
+    await consumer.deliver([
+      new ProcessRejectPacketCmd({
+        peerId: 'peer-1',
+        paymentIntentId: 'intent-1',
+        packetId,
+        rejectCode: 'F06',
+        rejectMessage: 'unexpected payment',
+        rejectedAt: new Date().toISOString()
+      })
+    ]);
+
+    const event = producer.sent.find(
+      (m) => m.msgName === ILPPaymentFailedEvent.name
+    ) as ILPPaymentFailedEvent;
+    assert.ok(event, 'expected ILPPaymentFailedEvent');
+    assert.equal(event.payload.reason, 'REJECTED');
+    assert.equal(event.payload.rejectCode, 'F06');
+    assert.equal(event.payload.rejectMessage, 'unexpected payment');
+    assert.equal(event.payload.paymentId, 'pay-1');
+    assert.equal(event.requestId, 'req-pay-1');
+  });
+
+  test('an R00 reject on a payment yields ILPPaymentFailedEvent with reason EXPIRED', async () => {
+    const { producer, consumer } = await startedHandler();
+    const sharedSecret = Buffer.alloc(32, 9).toString('base64url');
+
+    await consumer.deliver([
+      new StartRemotePaymentCmd(
+        {
+          peerId: 'peer-1',
+          paymentIntentId: 'intent-1',
+          paymentId: 'pay-1',
+          destinationIlpAddress: 'g.peer.bob',
+          amount: '100',
+          assetCode: 'USD',
+          assetScale: 2,
+          expiresAt: new Date(Date.now() + 30_000).toISOString(),
+          sharedSecret
+        },
+        'req-pay-1'
+      )
+    ]);
+    const packetId = dispatchedPacketId(producer);
+
+    await consumer.deliver([
+      new ProcessRejectPacketCmd({
+        peerId: 'peer-1',
+        paymentIntentId: 'intent-1',
+        packetId,
+        rejectCode: 'R00',
+        rejectMessage: 'no fulfill/reject callback received before expiry',
+        rejectedAt: new Date().toISOString()
+      })
+    ]);
+
+    const event = producer.sent.find(
+      (m) => m.msgName === ILPPaymentFailedEvent.name
+    ) as ILPPaymentFailedEvent;
+    assert.ok(event, 'expected ILPPaymentFailedEvent');
+    assert.equal(event.payload.reason, 'EXPIRED');
+    assert.equal(event.payload.rejectCode, 'R00');
   });
 });
 
@@ -533,6 +762,30 @@ describe('IlpCommandHandler — remote quote sending', () => {
     assert.equal(event.payload.rejectCode, 'F02');
     assert.equal(event.isErrorEvent, true);
     assert.equal(event.requestId, 'req-1');
+  });
+
+  test('an R00 reject on a quote marks ILPQuoteFailedEvent as expired', async () => {
+    const { producer, consumer } = await startedHandler();
+    await consumer.deliver([startQuote()]);
+    const packetId = dispatchedPacketId(producer);
+
+    await consumer.deliver([
+      new ProcessRejectPacketCmd({
+        peerId: 'peer-1',
+        paymentIntentId: 'intent-1',
+        packetId,
+        rejectCode: 'R00',
+        rejectMessage: 'timed out',
+        rejectedAt: new Date().toISOString()
+      })
+    ]);
+
+    const event = producer.sent.find(
+      (m) => m.msgName === ILPQuoteFailedEvent.name
+    ) as ILPQuoteFailedEvent;
+    assert.ok(event, 'expected a ILPQuoteFailedEvent');
+    assert.equal(event.payload.rejectCode, 'R00');
+    assert.equal(event.payload.expired, true);
   });
 
   test('an expiry with no response yields a ILPQuoteFailedEvent (timeout)', async () => {

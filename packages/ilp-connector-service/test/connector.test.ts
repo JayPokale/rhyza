@@ -185,6 +185,7 @@ describe('IlpConnector', () => {
     assert.equal(cmd.msgName, ProcessFulfillPacketCmd.name);
     assert.equal(cmd.payload.paymentIntentId, 'intent-1');
     assert.equal(cmd.msgKey, 'intent-1');
+    assert.equal(cmd.payload.fulfillment, Buffer.alloc(32).toString('base64'));
     assert.equal(
       await correlationStore.hasOutboundCorrelation('packet-1'),
       false
@@ -318,7 +319,7 @@ describe('IlpConnector', () => {
     assert.equal(transport.sentResponses[1].replyHandle, 'reply-handle-2');
   });
 
-  test('processExpiredOutboundPackets publishes T01 when no callback arrives', async () => {
+  test('processExpiredOutboundPackets publishes R00 when no callback arrives', async () => {
     await connector.handleConnectorCommands([
       dispatchPrepare({
         packetId: 'packet-expired',
@@ -330,7 +331,7 @@ describe('IlpConnector', () => {
 
     assert.equal(producer.sent.length, 1);
     const cmd = producer.sent[0] as ProcessRejectPacketCmd;
-    assert.equal(cmd.payload.rejectCode, 'T01');
+    assert.equal(cmd.payload.rejectCode, 'R00');
     assert.equal(cmd.payload.packetId, 'packet-expired');
   });
 });

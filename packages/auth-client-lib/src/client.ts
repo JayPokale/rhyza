@@ -2,27 +2,50 @@ import * as grpc from '@grpc/grpc-js';
 import { ServiceError } from '@grpc/grpc-js';
 import {
   RafikiAuthClient,
-  GrantRequest,
-  Grant,
-  GetGrantRequest,
-  AccessItem,
-  GrantRequestFinish,
-  Subject,
-  RevokeGrantResponse,
-  ContinueGrantResponse,
-  RotateTokenResponse,
-  RevokeTokenResponse,
-  CreateGrantResponse,
-  HandleInteractionChoiceResponse,
-  AcceptInteractionRequest,
-  RejectInteractionRequest,
-  ContinueGrantRequest,
-  RevokeGrantRequest,
-  IntrospectTokenResponse,
-  IntrospectTokenRequest,
-  RotateTokenRequest,
-  RevokeTokenRequest
+  GrantRequest as PbGrantRequest,
+  Grant as PbGrant,
+  GetGrantRequest as PbGetGrantRequest,
+  AccessLimits as PbAccessLimits,
+  Interaction as PbInteraction,
+  GrantRequestFinish as PbGrantRequestFinish,
+  SignatureData as PbSignatureData,
+  RevokeGrantResponse as PbRevokeGrantResponse,
+  ContinueGrantResponse as PbContinueGrantResponse,
+  RotateTokenResponse as PbRotateTokenResponse,
+  RevokeTokenResponse as PbRevokeTokenResponse,
+  CreateGrantResponse as PbCreateGrantResponse,
+  StartInteractionResponse as PbStartInteractionResponse,
+  StartInteractionRequest as PbStartInteractionRequest,
+  HandleInteractionChoiceResponse as PbHandleInteractionChoiceResponse,
+  AcceptInteractionRequest as PbAcceptInteractionRequest,
+  RejectInteractionRequest as PbRejectInteractionRequest,
+  ContinueGrantRequest as PbContinueGrantRequest,
+  RevokeGrantRequest as PbRevokeGrantRequest,
+  IntrospectTokenResponse as PbIntrospectTokenResponse,
+  IntrospectTokenRequest as PbIntrospectTokenRequest,
+  RotateTokenRequest as PbRotateTokenRequest,
+  RevokeTokenRequest as PbRevokeTokenRequest,
+  AccessItem as PbAccessItem,
+  SubjectId as PbSubjectId
 } from 'auth-public-types-lib';
+import {
+  AccessItem,
+  AccessLimits,
+  ContinueGrantResult,
+  CreateGrantOptions,
+  CreateGrantResult,
+  GetGrantResult,
+  GrantFinish,
+  HandleInteractionChoiceResult,
+  InteractionResult,
+  IntrospectTokenResult,
+  RevokeGrantResult,
+  RevokeTokenResult,
+  RotateTokenResult,
+  SignatureRequestData,
+  StartInteractionResult,
+  SubjectId
+} from './types';
 
 export class AuthClient {
   private readonly _serverUrl: string;
@@ -61,18 +84,18 @@ export class AuthClient {
     return Promise.resolve();
   }
 
-  getGrant(id: string): Promise<Grant> {
-    const request = new GetGrantRequest();
+  getGrant(id: string): Promise<GetGrantResult> {
+    const request = new PbGetGrantRequest();
     request.setId(id);
 
     return new Promise((resolve, reject) => {
       this._grpcClient.getGrant(
         request,
-        (error: ServiceError | null, response: Grant) => {
+        (error: ServiceError | null, response: PbGrant) => {
           if (error) {
             reject(error);
           } else {
-            resolve(response);
+            resolve(fromPbGrant(response));
           }
         }
       );
@@ -80,25 +103,32 @@ export class AuthClient {
   }
 
   createGrant(
-    access: AccessItem[],
     client: string,
-    subject: Subject,
-    finish: GrantRequestFinish
-  ): Promise<CreateGrantResponse> {
-    const request = new GrantRequest();
-    request.setAccessList(access);
+    signatureData: SignatureRequestData,
+    options: CreateGrantOptions
+  ): Promise<CreateGrantResult> {
+    const request = new PbGrantRequest();
+    if (options.access) {
+      request.setAccessList(options.access.map(toPbAccessItem));
+    }
     request.setClient(client);
-    request.setSubject(subject);
-    request.setFinish(finish);
+    if (options.subjectIds) {
+      request.setSubjectIdsList(options.subjectIds.map(toPbSubjectId));
+    }
+    if (options.finish) {
+      request.setFinish(toPbGrantRequestFinish(options.finish));
+    }
+
+    request.setSignatureData(this.toSignatureData(signatureData));
 
     return new Promise((resolve, reject) => {
       this._grpcClient.createGrant(
         request,
-        (error: ServiceError | null, response: CreateGrantResponse) => {
+        (error: ServiceError | null, response: PbCreateGrantResponse) => {
           if (error) {
             reject(error);
           } else {
-            resolve(response);
+            resolve(fromPbCreateGrantResponse(response));
           }
         }
       );
@@ -107,36 +137,50 @@ export class AuthClient {
 
   continueGrant(
     id: string,
+    signatureData: SignatureRequestData,
     continueId: string,
     continueToken: string,
-    interactRef: string
-  ): Promise<ContinueGrantResponse> {
-    const request = new ContinueGrantRequest();
+    interactRef?: string
+  ): Promise<ContinueGrantResult> {
+    const request = new PbContinueGrantRequest();
     request.setId(id);
     request.setContinueId(continueId);
     request.setContinueToken(continueToken);
-    request.setInteractRef(interactRef);
+    if (interactRef) request.setInteractRef(interactRef);
+    request.setSignatureData(this.toSignatureData(signatureData));
 
     return new Promise((resolve, reject) => {
       this._grpcClient.continueGrant(
         request,
-        (error: ServiceError | null, response: ContinueGrantResponse) => {
+        (error: ServiceError | null, response: PbContinueGrantResponse) => {
           if (error) {
             reject(error);
           } else {
-            resolve(response);
+            resolve(fromPbContinueGrantResponse(response));
           }
         }
       );
     });
   }
 
+  private toSignatureData(
+    signatureData: SignatureRequestData
+  ): PbSignatureData {
+    const msg = new PbSignatureData();
+    msg.setUrl(signatureData.url);
+    msg.setMethod(signatureData.method);
+    msg.setBody(signatureData.body);
+    msg.setKid(signatureData.kid);
+    msg.setHeaders(JSON.stringify(signatureData.headers));
+    return msg;
+  }
+
   revokeGrant(
     id: string,
     continueId: string,
     continueToken: string
-  ): Promise<RevokeGrantResponse> {
-    const request = new RevokeGrantRequest();
+  ): Promise<RevokeGrantResult> {
+    const request = new PbRevokeGrantRequest();
     request.setId(id);
     request.setContinueId(continueId);
     request.setContinueToken(continueToken);
@@ -144,11 +188,11 @@ export class AuthClient {
     return new Promise((resolve, reject) => {
       this._grpcClient.revokeGrant(
         request,
-        (error: ServiceError | null, response: RevokeGrantResponse) => {
+        (error: ServiceError | null, response: PbRevokeGrantResponse) => {
           if (error) {
             reject(error);
           } else {
-            resolve(response);
+            resolve({ id: response.getId() });
           }
         }
       );
@@ -159,20 +203,20 @@ export class AuthClient {
     id: string,
     tokenValue: string,
     access: AccessItem[]
-  ): Promise<IntrospectTokenResponse> {
-    const request = new IntrospectTokenRequest();
+  ): Promise<IntrospectTokenResult> {
+    const request = new PbIntrospectTokenRequest();
     request.setId(id);
     request.setTokenValue(tokenValue);
-    request.setAccessList(access);
+    request.setAccessList(access.map(toPbAccessItem));
 
     return new Promise((resolve, reject) => {
       this._grpcClient.introspectToken(
         request,
-        (error: ServiceError | null, response: IntrospectTokenResponse) => {
+        (error: ServiceError | null, response: PbIntrospectTokenResponse) => {
           if (error) {
             reject(error);
           } else {
-            resolve(response);
+            resolve(fromPbIntrospectTokenResponse(response));
           }
         }
       );
@@ -181,22 +225,24 @@ export class AuthClient {
 
   rotateToken(
     id: string,
+    signatureData: SignatureRequestData,
     tokenValue: string,
     managementId: string
-  ): Promise<RotateTokenResponse> {
-    const request = new RotateTokenRequest();
+  ): Promise<RotateTokenResult> {
+    const request = new PbRotateTokenRequest();
     request.setId(id);
     request.setTokenValue(tokenValue);
     request.setManagementId(managementId);
+    request.setSignatureData(this.toSignatureData(signatureData));
 
     return new Promise((resolve, reject) => {
       this._grpcClient.rotateToken(
         request,
-        (error: ServiceError | null, response: RotateTokenResponse) => {
+        (error: ServiceError | null, response: PbRotateTokenResponse) => {
           if (error) {
             reject(error);
           } else {
-            resolve(response);
+            resolve(fromPbRotateTokenResponse(response));
           }
         }
       );
@@ -205,22 +251,42 @@ export class AuthClient {
 
   revokeToken(
     id: string,
+    signatureData: SignatureRequestData,
     tokenValue: string,
     managementId: string
-  ): Promise<RevokeTokenResponse> {
-    const request = new RevokeTokenRequest();
+  ): Promise<RevokeTokenResult> {
+    const request = new PbRevokeTokenRequest();
     request.setId(id);
     request.setTokenValue(tokenValue);
     request.setManagementId(managementId);
+    request.setSignatureData(this.toSignatureData(signatureData));
 
     return new Promise((resolve, reject) => {
       this._grpcClient.revokeToken(
         request,
-        (error: ServiceError | null, response: RevokeTokenResponse) => {
+        (error: ServiceError | null, response: PbRevokeTokenResponse) => {
           if (error) {
             reject(error);
           } else {
-            resolve(response);
+            resolve({ id: response.getId() });
+          }
+        }
+      );
+    });
+  }
+
+  startInteraction(id: string): Promise<StartInteractionResult> {
+    const request = new PbStartInteractionRequest();
+    request.setId(id);
+
+    return new Promise((resolve, reject) => {
+      this._grpcClient.startInteraction(
+        request,
+        (error: ServiceError | null, response: PbStartInteractionResponse) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve({ id: response.getId(), nonce: response.getNonce() });
           }
         }
       );
@@ -231,8 +297,8 @@ export class AuthClient {
     id: string,
     interactRef: string,
     nonce: string
-  ): Promise<HandleInteractionChoiceResponse> {
-    const request = new AcceptInteractionRequest();
+  ): Promise<HandleInteractionChoiceResult> {
+    const request = new PbAcceptInteractionRequest();
     request.setId(id);
     request.setInteractRef(interactRef);
     request.setNonce(nonce);
@@ -242,12 +308,12 @@ export class AuthClient {
         request,
         (
           error: ServiceError | null,
-          response: HandleInteractionChoiceResponse
+          response: PbHandleInteractionChoiceResponse
         ) => {
           if (error) {
             reject(error);
           } else {
-            resolve(response);
+            resolve({ success: response.getSuccess() });
           }
         }
       );
@@ -257,8 +323,8 @@ export class AuthClient {
   rejectInteraction(
     id: string,
     nonce: string
-  ): Promise<HandleInteractionChoiceResponse> {
-    const request = new RejectInteractionRequest();
+  ): Promise<HandleInteractionChoiceResult> {
+    const request = new PbRejectInteractionRequest();
     request.setId(id);
     request.setNonce(nonce);
 
@@ -267,15 +333,206 @@ export class AuthClient {
         request,
         (
           error: ServiceError | null,
-          response: HandleInteractionChoiceResponse
+          response: PbHandleInteractionChoiceResponse
         ) => {
           if (error) {
             reject(error);
           } else {
-            resolve(response);
+            resolve({ success: response.getSuccess() });
           }
         }
       );
     });
   }
+}
+
+function toPbAccessLimits(input: AccessLimits): PbAccessLimits {
+  const accessLimits = new PbAccessLimits();
+  if (input.receiver) {
+    accessLimits.setReceiver(input.receiver);
+  }
+  if (input.interval) {
+    accessLimits.setInterval(input.interval);
+  }
+
+  if (input.debitAmount) {
+    accessLimits.setDebitAmountValue(input.debitAmount.value);
+    accessLimits.setAssetCode(input.debitAmount.assetCode);
+    accessLimits.setAssetScale(input.debitAmount.assetScale);
+  } else if (input.receiveAmount) {
+    accessLimits.setReceiveAmountValue(input.receiveAmount.value);
+    accessLimits.setAssetCode(input.receiveAmount.assetCode);
+    accessLimits.setAssetScale(input.receiveAmount.assetScale);
+  }
+
+  return accessLimits;
+}
+
+function fromPbAccessLimits(
+  accessLimits?: PbAccessLimits
+): AccessLimits | undefined {
+  if (!accessLimits) {
+    return undefined;
+  }
+
+  const limits: AccessLimits = {};
+  if (accessLimits.getReceiver()) {
+    limits.receiver = accessLimits.getReceiver();
+  }
+  if (accessLimits.getInterval()) {
+    limits.interval = accessLimits.getInterval();
+  }
+
+  if (accessLimits.getDebitAmountValue()) {
+    limits.debitAmount = {
+      value: accessLimits.getDebitAmountValue(),
+      assetCode: accessLimits.getAssetCode(),
+      assetScale: accessLimits.getAssetScale()
+    };
+  } else if (accessLimits.getReceiveAmountValue()) {
+    limits.receiveAmount = {
+      value: accessLimits.getReceiveAmountValue(),
+      assetCode: accessLimits.getAssetCode(),
+      assetScale: accessLimits.getAssetScale()
+    };
+  }
+
+  return limits;
+}
+
+function toPbAccessItem(input: AccessItem): PbAccessItem {
+  const accessItem = new PbAccessItem();
+  accessItem.setType(input.type);
+  accessItem.setActionsList(input.actions);
+  if (input.identifier) {
+    accessItem.setIdentifier(input.identifier);
+  }
+  if (input.limits) {
+    accessItem.setLimits(toPbAccessLimits(input.limits));
+  }
+  return accessItem;
+}
+
+function fromPbAccessItem(accessItem: PbAccessItem): AccessItem {
+  const item: AccessItem = {
+    type: accessItem.getType(),
+    actions: accessItem.getActionsList()
+  };
+
+  const identifier = accessItem.getIdentifier();
+  if (identifier) {
+    item.identifier = identifier;
+  }
+
+  const limits = fromPbAccessLimits(accessItem.getLimits());
+  if (limits) {
+    item.limits = limits;
+  }
+
+  return item;
+}
+
+function toPbSubjectId(input: SubjectId): PbSubjectId {
+  const subjectId = new PbSubjectId();
+  subjectId.setFormat(input.format);
+  subjectId.setId(input.id);
+  return subjectId;
+}
+
+function fromPbSubjectId(subjectId: PbSubjectId): SubjectId {
+  return { id: subjectId.getId(), format: subjectId.getFormat() };
+}
+
+function toPbGrantRequestFinish(input: GrantFinish): PbGrantRequestFinish {
+  const finish = new PbGrantRequestFinish();
+  finish.setFinish(input.method);
+  finish.setUri(input.uri);
+  finish.setNonce(input.nonce);
+  return finish;
+}
+
+function fromPbInteraction(
+  interaction?: PbInteraction
+): InteractionResult | undefined {
+  if (!interaction) {
+    return undefined;
+  }
+  return {
+    interactRef: interaction.getInteractRef(),
+    clientNonce: interaction.getClientNonce(),
+    state: interaction.getState(),
+    expiresAt: interaction.getExpiresAt()
+  };
+}
+
+function fromPbGrant(grant: PbGrant): GetGrantResult {
+  return {
+    id: grant.getId(),
+    startMethods: grant.getStartMethodsList(),
+    continueToken: grant.getContinueToken(),
+    continueId: grant.getContinueId(),
+    interactionNonce: grant.getInteractionNonce() || undefined,
+    state: grant.getState(),
+    finalizationReason: grant.getFinalizationReason(),
+    client: grant.getClient(),
+    subjectIds: grant.getSubjectIdsList().map(fromPbSubjectId),
+    accesses: grant.getAccessesList().map(fromPbAccessItem),
+    finishMethod: grant.getFinishMethod(),
+    finishUri: grant.getFinishUri(),
+    finishNonce: grant.getFinishNonce(),
+    interaction: fromPbInteraction(grant.getInteraction()),
+    lastContinuedAt: grant.getLastContinuedAt()
+  };
+}
+
+function fromPbCreateGrantResponse(
+  response: PbCreateGrantResponse
+): CreateGrantResult {
+  return {
+    id: response.getId(),
+    continueId: response.getContinueId(),
+    continueToken: response.getContinueToken(),
+    interactionNonce: response.getInteractionNonce() || undefined,
+    accessTokenValue: response.getAccessTokenValue() || undefined,
+    accessTokenManagementId: response.getAccessTokenManagementId() || undefined,
+    accessTokenExpiresIn: response.getAccessTokenExpiresIn() || undefined,
+    access: response.getAccessList().map(fromPbAccessItem),
+    subjectIds: response.getSubIdsList().map(fromPbSubjectId)
+  };
+}
+
+function fromPbContinueGrantResponse(
+  response: PbContinueGrantResponse
+): ContinueGrantResult {
+  return {
+    id: response.getId(),
+    accessTokenValue: response.getAccessTokenValue() || undefined,
+    accessTokenManagementId: response.getAccessTokenManagementId() || undefined,
+    accessTokenExpiresIn: response.getAccessTokenExpiresIn() || undefined,
+    access: response.getAccessList().map(fromPbAccessItem),
+    continueId: response.getContinueId(),
+    continueToken: response.getContinueToken()
+  };
+}
+
+function fromPbRotateTokenResponse(
+  response: PbRotateTokenResponse
+): RotateTokenResult {
+  return {
+    grantId: response.getGrantId(),
+    newAccessTokenValue: response.getNewAccessTokenValue(),
+    newAccessTokenManagementId: response.getNewAccessTokenManagementId(),
+    newAccessTokenExpiresIn: response.getNewAccessTokenExpiresIn(),
+    access: response.getAccessList().map(fromPbAccessItem)
+  };
+}
+
+function fromPbIntrospectTokenResponse(
+  response: PbIntrospectTokenResponse
+): IntrospectTokenResult {
+  return {
+    active: response.getActive(),
+    grantId: response.getGrantId(),
+    access: response.getAccessList().map(fromPbAccessItem)
+  };
 }

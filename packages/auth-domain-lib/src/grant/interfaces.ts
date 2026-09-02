@@ -1,3 +1,5 @@
+import { JWK } from '@interledger/http-signature-utils';
+
 export const AccessType = {
   INCOMING_PAYMENT: 'INCOMING_PAYMENT',
   OUTGOING_PAYMENT: 'OUTGOING_PAYMENT',
@@ -9,14 +11,24 @@ export const InteractiveAccessType: AccessType[] = [
   AccessType.OUTGOING_PAYMENT
 ] as const;
 
-export interface IAccessLimit {
+interface IBaseAccessLimit {
   receiver: string;
   assetCode: string;
   assetScale: number;
-  debitAmount?: bigint;
-  sendAmount?: bigint;
   interval?: string;
 }
+
+type IDebitAmountAccessLimit = IBaseAccessLimit & {
+  debitAmount: bigint;
+  receiveAmount?: bigint;
+};
+
+type IReceiveAmountAccessLimit = IBaseAccessLimit & {
+  debitAmount?: bigint;
+  receiveAmount: bigint;
+};
+
+export type IAccessLimit = IDebitAmountAccessLimit | IReceiveAmountAccessLimit;
 
 export const AccessAction = {
   CREATE: 'CREATE',
@@ -40,16 +52,13 @@ export interface ISubjectId {
   id: string;
 }
 
-export type InteractionChoice =
-  | typeof InteractionState.APPROVED
-  | typeof InteractionState.DENIED;
-
 export const InteractionState = {
   PENDING: 'PENDING',
   APPROVED: 'APPROVED',
-  DENIED: 'DENIED'
+  REJECTED: 'REJECTED'
 } as const;
 export type InteractionState = keyof typeof InteractionState;
+export type InteractionChoice = Exclude<InteractionState, 'PENDING'>;
 
 export interface IGrantContinuation {
   accessToken: {
@@ -86,56 +95,47 @@ export interface IAccessRequest {
 }
 
 export const GrantState = {
+  // transitional states
   PROCESSING: 'PROCESSING',
   PENDING: 'PENDING',
   APPROVED: 'APPROVED',
-  FINALIZED: 'FINALIZED'
-} as const;
-export type GrantState = keyof typeof GrantState;
-
-export const GrantFinalization = {
+  // finalized states
   ISSUED: 'ISSUED',
   REVOKED: 'REVOKED',
   REJECTED: 'REJECTED'
 } as const;
-export type GrantFinalization = keyof typeof GrantFinalization;
+export type GrantState = keyof typeof GrantState;
 
 export interface IInteraction {
   interactRef: string;
-  clientNonce: string;
   state: InteractionState;
-  expiresInMs: number;
+  createdAt: Date; // Unix timestamp
+  expiresAt: Date; // Unix timstamp
 }
-
-export type IGrantEntity = Omit<IGrant, 'id'>;
 
 export interface IGrant {
   id: string;
   startMethods: IStartMethod[];
   continueToken?: string;
   continueId?: string;
+  lastContinuedAt?: Date;
   state: GrantState;
-  finalizationReason?: GrantFinalization;
   client?: string | IJsonWebKey;
   subjectIds?: ISubjectId[];
   accesses?: IAccessItem[];
+  finishNonce?: string;
   finishMethod?: IFinishMethod;
   finishUri?: string;
+  interactionNonce?: string;
   interaction?: IInteraction;
-  lastContinuedAt?: Date;
-  accessTokens: Map<string, IAccessToken>;
+  accessTokens: IAccessToken[];
 }
-
-export type NewAccessToken = Omit<IAccessToken, 'revokedAt'>;
-
-export type RevokedAccessToken = IAccessToken & {
-  revokedAt: Date;
-};
 
 export interface IAccessToken {
   value: string;
   managementId: string;
   expiresInMs: number;
+  expiresAt: Date;
   createdAt: Date;
   revokedAt?: Date;
 }
@@ -149,7 +149,50 @@ export interface IJsonWebKey {
   x: string;
 }
 
+export function isJWK(obj: unknown): obj is JWK {
+  return (
+    typeof obj === 'object' &&
+    obj !== null &&
+    typeof (obj as Record<string, unknown>).kid === 'string' &&
+    (obj as Record<string, unknown>).alg === 'EdDSA' &&
+    (typeof (obj as Record<string, unknown>).use === 'string' ||
+      typeof (obj as Record<string, unknown>).use === 'undefined') &&
+    (obj as Record<string, unknown>).kty === 'OKP' &&
+    (obj as Record<string, unknown>).crv === 'Ed25519' &&
+    typeof (obj as Record<string, unknown>).x === 'string'
+  );
+}
+
 export interface IAccessRequest {
   actions: AccessAction[];
   identifier?: string;
+}
+
+export interface IWalletAddressService {
+  getWalletAddressKeys(url: string): Promise<IJsonWebKey[]>;
+}
+
+export interface IRotatedGrantUpdate {
+  id: string;
+  revokedToken: IAccessToken;
+  newToken: IAccessToken;
+}
+
+export interface IContinuedGrantUpdate {
+  id: string;
+  state: GrantState;
+  continueToken?: string;
+  continueId?: string;
+  lastContinuedAt?: Date;
+  accessToken?: IAccessToken;
+}
+
+export interface IGrantRepository {
+  storeMany(grants: IGrant[]): Promise<void>;
+  storeRotatedGrants(updates: IRotatedGrantUpdate[]): Promise<void>;
+  storeContinuedGrants(grants: IContinuedGrantUpdate[]): Promise<void>;
+  storeRevokedTokens(tokens: IAccessToken[]): Promise<void>;
+  fetchById(id: string): Promise<IGrant | undefined>;
+  fetchByIds(ids: string[]): Promise<IGrant[]>;
+  storeInteractions(grants: IGrant[]): Promise<void>;
 }

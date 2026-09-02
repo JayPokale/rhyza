@@ -16,11 +16,11 @@ export const SentPaymentState = {
 } as const;
 export type SentPaymentState = keyof typeof SentPaymentState;
 
-export const ReceivedPaymentState = {
+export const InboundPaymentState = {
   VALIDATED: 'VALIDATED',
   ACCEPTED: 'ACCEPTED',
   FULFILLABLE: 'FULFILLABLE',
   FINALIZED: 'FINALIZED',
   FAILED: 'FAILED'
 } as const;
-export type ReceivedPaymentState = keyof typeof ReceivedPaymentState;
+export type InboundPaymentState = keyof typeof InboundPaymentState;
