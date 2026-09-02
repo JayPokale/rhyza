@@ -124,6 +124,7 @@ export class MongoDbGrantRepo implements IGrantRepository {
       finishNonce: doc.finishNonce,
       finishMethod: doc.finishMethod,
       finishUri: doc.finishUri,
+      interactionNonce: doc.interactionNonce,
       interaction: doc.interaction,
       accessTokens: tokenDocs.map((token) => ({
         ...token,
@@ -155,6 +156,7 @@ export class MongoDbGrantRepo implements IGrantRepository {
           finishNonce: grant.finishNonce,
           finishMethod: grant.finishMethod,
           finishUri: grant.finishUri,
+          interactionNonce: grant.interactionNonce,
           interaction: grant.interaction
         }))
       );

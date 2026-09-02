@@ -103,7 +103,8 @@ describe('Auth Client', () => {
         signatureData,
         {
           access: [access],
-          subjectIds: [subjectId]
+          subjectIds: [subjectId],
+          start: ['redirect']
         }
       );
 
@@ -111,9 +112,8 @@ describe('Auth Client', () => {
       assert.ok(result.accessTokenValue);
       assert.ok(result.accessTokenManagementId);
       assert.ok(result.accessTokenExpiresIn);
-      assert.equal(result.interactionNonce, undefined);
-      assert.ok(result.continueId);
-      assert.ok(result.continueToken);
+      assert.equal(result.continueId, '');
+      assert.equal(result.continueToken, '');
       assert.deepStrictEqual(result.access, [access]);
       assert.deepStrictEqual(result.subjectIds, [subjectId]);
     });
@@ -151,7 +151,8 @@ describe('Auth Client', () => {
         signatureData,
         {
           access,
-          finish
+          finish,
+          start: ['redirect']
         }
       );
 
@@ -179,7 +180,8 @@ describe('Auth Client', () => {
           {
             access: [
               makeAccessItem({ type: 'INCOMING_PAYMENT', actions: ['CREATE'] })
-            ]
+            ],
+            start: ['redirect']
           }
         );
         assert.fail('expected error for invalid signature');
@@ -203,7 +205,7 @@ describe('Auth Client', () => {
       const result = await authClient.createGrant(
         JSON.stringify(keys.publicKey),
         signatureData,
-        { access: [access] }
+        { access: [access], start: ['redirect'] }
       );
       return {
         keys,
@@ -333,7 +335,7 @@ describe('Auth Client', () => {
       const result = await authClient.createGrant(
         JSON.stringify(keys.publicKey),
         signatureData,
-        { access: [access] }
+        { access: [access], start: ['redirect'] }
       );
       return {
         keys,
@@ -454,11 +456,13 @@ describe('Auth Client', () => {
 
       const createOptions: {
         access: AccessItem[];
+        start: string[];
         finish?: GrantFinish;
       } = {
         access: [
           makeAccessItem({ type: 'OUTGOING_PAYMENT', actions: ['CREATE'] })
-        ]
+        ],
+        start: ['redirect']
       };
 
       if (options.withFinish) {
@@ -570,7 +574,7 @@ describe('Auth Client', () => {
       const createResult = await authClient.createGrant(
         JSON.stringify(keys.publicKey),
         signatureData,
-        { access: [access] }
+        { access: [access], start: ['redirect'] }
       );
 
       const result = await authClient.getGrant(createResult.id);
@@ -604,7 +608,7 @@ describe('Auth Client', () => {
       const createResult = await authClient.createGrant(
         JSON.stringify(keys.publicKey),
         signatureData,
-        { access }
+        { access, start: ['redirect'] }
       );
 
       return {
@@ -697,7 +701,8 @@ describe('Auth Client', () => {
         {
           access: [
             makeAccessItem({ type: 'OUTGOING_PAYMENT', actions: ['CREATE'] })
-          ]
+          ],
+          start: ['redirect']
         }
       );
 

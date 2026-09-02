@@ -111,6 +111,8 @@ export class AuthClient {
     options: CreateGrantOptions
   ): Promise<CreateGrantResult> {
     const request = new PbGrantRequest();
+    request.setStartList(options.start);
+
     if (options.access) {
       request.setAccessList(options.access.map(toPbAccessItem));
     }
@@ -521,6 +523,7 @@ function fromPbCreateGrantResponse(
     id: response.getId(),
     continueId: response.getContinueId(),
     continueToken: response.getContinueToken(),
+    interactionNonce: response.getInteractionNonce() || undefined,
     accessTokenValue: response.getAccessTokenValue() || undefined,
     accessTokenManagementId: response.getAccessTokenManagementId() || undefined,
     accessTokenExpiresIn: response.getAccessTokenExpiresIn() || undefined,

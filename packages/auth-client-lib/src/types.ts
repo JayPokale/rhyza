@@ -41,6 +41,7 @@ export interface BaseCreateGrantOptions {
   finish?: GrantFinish;
   subjectIds?: SubjectId[];
   access?: AccessItem[];
+  start: string[];
 }
 
 export type CreateGrantOptions =
@@ -75,6 +76,7 @@ export interface CreateGrantResult {
   id: string;
   continueId: string;
   continueToken: string;
+  interactionNonce?: string;
   accessTokenValue?: string;
   accessTokenManagementId?: string;
   accessTokenExpiresIn?: number;

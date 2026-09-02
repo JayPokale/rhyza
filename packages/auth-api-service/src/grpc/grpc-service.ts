@@ -606,7 +606,10 @@ export class AuthServiceServer {
       const response = new CreateGrantResponse();
       const payload: GrantCreatedEvent['payload'] = event.payload;
       response.setId(payload.id);
-      response.setInteractive(payload.interactive);
+
+      if (payload.interactionNonce) {
+        response.setInteractionNonce(payload.interactionNonce);
+      }
 
       if (payload.continueToken) {
         response.setContinueToken(payload.continueToken);

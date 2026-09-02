@@ -170,8 +170,8 @@ describe('GrantAggregate.handleBatch', () => {
         assert.ok(payload.accessTokenValue);
         assert.ok(payload.accessTokenManagementId);
         assert.equal(payload.accessTokenExpiresIn, 10_000);
-        assert.ok(payload.continueId, undefined);
-        assert.ok(payload.continueToken, undefined);
+        assert.equal(payload.continueId, undefined);
+        assert.equal(payload.continueToken, undefined);
         assert.equal(payload.interactionNonce, undefined);
         assert.deepEqual(payload.access, cmd.payload.access);
       });
@@ -831,7 +831,6 @@ describe('GrantAggregate.handleBatch', () => {
       });
 
       it('returns active: false when the grant does not exist', async () => {
-        const storeInteractionsMock = mock.method(repo, 'storeInteractions');
         const id = randomUUID();
         const debugMock = mock.method(logger, 'debug', () => {});
 
@@ -961,7 +960,7 @@ describe('GrantAggregate.handleBatch', () => {
             state: InteractionState;
           }> = {}
         ): IGrant {
-          const createdAt = Date.now();
+          const createdAt = new Date();
           return {
             id: randomUUID(),
             startMethods: ['REDIRECT'],
@@ -973,7 +972,7 @@ describe('GrantAggregate.handleBatch', () => {
               interactRef: randomUUID(),
               nonce: 'correct-nonce',
               createdAt,
-              expiresAt: createdAt + 10_000,
+              expiresAt: new Date(createdAt.getTime() + 600_000),
               state: InteractionState.APPROVED,
               ...interactionOverrides
             }

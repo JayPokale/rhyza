@@ -727,14 +727,14 @@ describe('GrantEntity', () => {
       }
 
       it('transitions the grant to APPROVED when the interaction was approved', () => {
-        const createdAt = Date.now();
+        const createdAt = new Date();
         const nonce = generateNonce();
         const entity = makeGrant({
           interactionNonce: nonce,
           interaction: {
             interactRef: randomUUID(),
             createdAt,
-            expiresAt: createdAt + 600_000,
+            expiresAt: new Date(createdAt.getTime() + 600_000),
             state: InteractionState.APPROVED
           }
         });
@@ -748,13 +748,13 @@ describe('GrantEntity', () => {
 
       it('finalizes the grant as REJECTED when the interaction was rejected', () => {
         const nonce = generateNonce();
-        const createdAt = Date.now();
+        const createdAt = new Date();
         const entity = makeGrant({
           interactionNonce: nonce,
           interaction: {
             interactRef: randomUUID(),
             createdAt,
-            expiresAt: createdAt + 600_000,
+            expiresAt: new Date(createdAt.getTime() + 600_000),
             state: InteractionState.REJECTED
           }
         });
@@ -766,12 +766,12 @@ describe('GrantEntity', () => {
       });
 
       it('throws InvalidInteractionError when the interaction is still pending', () => {
-        const createdAt = Date.now();
+        const createdAt = new Date();
         const entity = makeGrant({
           interaction: {
             interactRef: randomUUID(),
             createdAt,
-            expiresAt: createdAt + 600_000,
+            expiresAt: new Date(createdAt.getTime() + 600_000),
             state: InteractionState.PENDING
           }
         });
@@ -800,13 +800,13 @@ describe('GrantEntity', () => {
       });
 
       it('throws UnknownInteractionError when the provided nonce does not match', () => {
-        const createdAt = Date.now();
+        const createdAt = new Date();
         const entity = makeGrant({
           interactionNonce: generateNonce(),
           interaction: {
             interactRef: randomUUID(),
             createdAt,
-            expiresAt: createdAt + 600_000,
+            expiresAt: new Date(createdAt.getTime() + 600_000),
             state: InteractionState.APPROVED
           }
         });
@@ -823,14 +823,14 @@ describe('GrantEntity', () => {
 
       it('throws InvalidGrantError when the grant is already FINALIZED', () => {
         const nonce = generateNonce();
-        const createdAt = Date.now();
+        const createdAt = new Date();
         const entity = makeGrant({
           state: GrantState.ISSUED,
           interactionNonce: nonce,
           interaction: {
             interactRef: randomUUID(),
             createdAt,
-            expiresAt: createdAt + 600_000,
+            expiresAt: new Date(createdAt.getTime() + 600_000),
             state: InteractionState.APPROVED
           }
         });
@@ -846,14 +846,14 @@ describe('GrantEntity', () => {
 
       it('throws InvalidGrantError when the grant is already APPROVED', () => {
         const nonce = generateNonce();
-        const createdAt = Date.now();
+        const createdAt = new Date();
         const entity = makeGrant({
           interactionNonce: nonce,
           state: GrantState.APPROVED,
           interaction: {
             interactRef: randomUUID(),
             createdAt,
-            expiresAt: createdAt + 600_000,
+            expiresAt: new Date(createdAt.getTime() + 600_000),
             state: InteractionState.APPROVED
           }
         });
