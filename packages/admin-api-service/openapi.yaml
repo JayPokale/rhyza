@@ -114,6 +114,56 @@ paths:
             schema:
               $ref: '#/components/schemas/WalletAddressCreate'
   /payment-intents:
+    get:
+      summary: List Payment Intents
+      description: >-
+        List payment intents with cursor pagination, ordered by creation
+        time ascending. Optionally filter by receiver wallet address id.
+      tags:
+        - payment-intents
+      operationId: PaymentIntents_listPaymentIntents
+      parameters:
+        - name: walletAddressId
+          in: query
+          description: Filter by receiver wallet address id
+          required: false
+          schema:
+            type: string
+        - name: cursor
+          in: query
+          description: Boundary resource id from a previous page's startCursor/endCursor
+          required: false
+          schema:
+            type: string
+        - name: first
+          in: query
+          description: Page size, paginating forward from the cursor. Mutually exclusive with last.
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+        - name: last
+          in: query
+          description: Page size, paginating backward from the cursor (requires cursor). Mutually exclusive with first.
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentIntentsPage'
+        '400':
+          description: Invalid pagination parameters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     post:
       summary: Create Payment Intent
       description: Create a new payment intent for a receiver's account.
@@ -236,6 +286,63 @@ paths:
             schema:
               $ref: '#/components/schemas/QuoteCreate'
   /payments:
+    get:
+      summary: List Payments
+      description: >-
+        List payments with cursor pagination, ordered by creation time
+        ascending. Optionally filter by sender wallet address id and/or
+        parent payment intent id.
+      tags:
+        - payments
+      operationId: Payments_listPayments
+      parameters:
+        - name: walletAddressId
+          in: query
+          description: Filter by sender wallet address id
+          required: false
+          schema:
+            type: string
+        - name: paymentIntentId
+          in: query
+          description: Filter by parent payment intent id
+          required: false
+          schema:
+            type: string
+        - name: cursor
+          in: query
+          description: Boundary resource id from a previous page's startCursor/endCursor
+          required: false
+          schema:
+            type: string
+        - name: first
+          in: query
+          description: Page size, paginating forward from the cursor. Mutually exclusive with last.
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+        - name: last
+          in: query
+          description: Page size, paginating backward from the cursor (requires cursor). Mutually exclusive with first.
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentsPage'
+        '400':
+          description: Invalid pagination parameters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     post:
       summary: Create Payment
       description: Create a payment for a sender's account.
@@ -820,3 +927,48 @@ components:
         failReason:
           type: string
           description: Failure detail when the payment failed.
+    PageInfo:
+      type: object
+      description: Cursor pagination metadata for a page of results.
+      required:
+        - hasNextPage
+        - hasPreviousPage
+      properties:
+        startCursor:
+          type: string
+          description: Cursor of the first item in the page; pass as cursor with last to page backward.
+        endCursor:
+          type: string
+          description: Cursor of the last item in the page; pass as cursor with first to page forward.
+        hasNextPage:
+          type: boolean
+          description: Whether more results exist after this page.
+        hasPreviousPage:
+          type: boolean
+          description: Whether more results exist before this page.
+    PaymentIntentsPage:
+      type: object
+      description: A page of payment intents in ascending creation order.
+      required:
+        - result
+        - pagination
+      properties:
+        result:
+          type: array
+          items:
+            $ref: '#/components/schemas/PaymentIntent'
+        pagination:
+          $ref: '#/components/schemas/PageInfo'
+    PaymentsPage:
+      type: object
+      description: A page of payments in ascending creation order.
+      required:
+        - result
+        - pagination
+      properties:
+        result:
+          type: array
+          items:
+            $ref: '#/components/schemas/Payment'
+        pagination:
+          $ref: '#/components/schemas/PageInfo'

@@ -9,6 +9,7 @@ import {
   httpStatusFromGrpcError,
   toClientApiErrorResponse
 } from 'payments-client-lib';
+import { PageQuerystring, parsePageQuery } from '../pagination';
 
 interface PaymentIntentRouteOptions extends FastifyPluginOptions {
   palClient: PalClient;
@@ -124,6 +125,27 @@ export async function paymentIntentRoutes(
       return reply.status(httpStatus).send({ error: error.description });
     }
   });
+
+  server.get<{ Querystring: PageQuerystring }>(
+    '/payment-intents',
+    async (request, reply) => {
+      try {
+        const page = await paymentsClient.getPaymentIntentsPage(
+          parsePageQuery(request.query)
+        );
+
+        return reply.status(200).send({
+          result: page.items.map(toPaymentIntentBody),
+          pagination: page.pagination
+        });
+      } catch (err) {
+        server.log.error(err);
+        const httpStatus = httpStatusFromGrpcError(err);
+        const { error } = toClientApiErrorResponse(err);
+        return reply.status(httpStatus).send({ error: error.description });
+      }
+    }
+  );
 
   server.get<{ Params: { id: string } }>(
     '/payment-intents/:id',
