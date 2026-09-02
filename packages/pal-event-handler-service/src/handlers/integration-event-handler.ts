@@ -103,9 +103,6 @@ export class IntegrationEventHandler {
       new CommitTransferCmd(evt.payload.assetCode, {
         requestId: evt.payload.requestId,
         transferId: evt.payload.ledgerTransferId,
-        peerId: evt.payload.peerId,
-        amount: evt.payload.debitAmount,
-        amountScale: evt.payload.assetScale,
         transferDirection: 'OUTGOING',
         paymentIntentId: evt.payload.paymentIntentId,
         paymentId: evt.payload.paymentId
@@ -120,9 +117,6 @@ export class IntegrationEventHandler {
       new RejectTransferCmd(evt.payload.assetCode, {
         requestId: evt.payload.requestId,
         transferId: evt.payload.ledgerTransferId,
-        peerId: evt.payload.peerId,
-        amount: evt.payload.debitAmount,
-        amountScale: evt.payload.assetScale,
         transferDirection: 'OUTGOING',
         paymentIntentId: evt.payload.paymentIntentId,
         paymentId: evt.payload.paymentId
@@ -154,9 +148,6 @@ export class IntegrationEventHandler {
       new CommitTransferCmd(evt.payload.receiveAssetCode, {
         requestId: evt.payload.requestId,
         transferId: evt.payload.ledgerTransferId,
-        peerId: evt.payload.peerId,
-        amount: evt.payload.receiveAmount,
-        amountScale: evt.payload.receiveAssetScale,
         transferDirection: 'INCOMING',
         paymentIntentId: evt.payload.paymentIntentId,
         paymentId: evt.payload.receivedPaymentId

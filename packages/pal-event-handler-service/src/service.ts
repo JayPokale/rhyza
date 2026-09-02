@@ -25,9 +25,13 @@ import {
 } from 'pal-domain-lib';
 import {
   AseFxServiceAdapter,
+  CheckBalanceAndReserveCmdSerde,
+  CommitTransferCmdSerde,
   CreateLedgerAccountForAssetCmdSerde,
   CreateLedgerAccountsForPeerCmdSerde,
   CreateLedgerCmdSerde,
+  DepositToAseCmdSerde,
+  DepositToPeerCmdSerde,
   KafkaLedgerEventSourcingRepository,
   LedgerAccountsCreatedStateEventSerde,
   LedgerCreatedStateEventSerde,
@@ -37,7 +41,10 @@ import {
   MongoDbFxRepo,
   MongoDbLedgerReadSideRepo,
   MongoDbPeerRepo,
-  PostTransactionCmdSerde
+  RejectTransferCmdSerde,
+  ReserveTransferCmdSerde,
+  WithdrawFromAseCmdSerde,
+  WithdrawFromPeerCmdSerde
 } from 'pal-implementations-lib';
 
 import {
@@ -203,9 +210,16 @@ export class PalLedgerEventHandlerService {
         .register(new LedgerTransactionRecordedStateEventSerde())
         // commands
         .register(new CreateLedgerCmdSerde())
-        .register(new PostTransactionCmdSerde())
         .register(new CreateLedgerAccountForAssetCmdSerde())
-        .register(new CreateLedgerAccountsForPeerCmdSerde());
+        .register(new CreateLedgerAccountsForPeerCmdSerde())
+        .register(new CheckBalanceAndReserveCmdSerde())
+        .register(new ReserveTransferCmdSerde())
+        .register(new CommitTransferCmdSerde())
+        .register(new RejectTransferCmdSerde())
+        .register(new DepositToAseCmdSerde())
+        .register(new WithdrawFromAseCmdSerde())
+        .register(new DepositToPeerCmdSerde())
+        .register(new WithdrawFromPeerCmdSerde());
 
       msgSerializationFactory = MessageSerializationFactory.instance();
     }

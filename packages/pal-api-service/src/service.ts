@@ -15,9 +15,17 @@ import { PalGrpcServer } from './grpc/grpc-service';
 import process from 'process';
 import {
   AseFxServiceAdapter,
-  CreateLedgerAccountForAssetCmdSerde,
   CreateLedgerAccountsForPeerCmdSerde,
+  CreateLedgerAccountForAssetCmdSerde,
   CreateLedgerCmdSerde,
+  CheckBalanceAndReserveCmdSerde,
+  CommitTransferCmdSerde,
+  RejectTransferCmdSerde,
+  ReserveTransferCmdSerde,
+  DepositToAseCmdSerde,
+  DepositToPeerCmdSerde,
+  WithdrawFromPeerCmdSerde,
+  WithdrawFromAseCmdSerde,
   MongoDbAssetRepo,
   MongoDbFxRepo,
   MongoDbLedgerReadSideRepo,
@@ -171,7 +179,15 @@ export class PalApiService {
         // we only need the commands
         .register(new CreateLedgerCmdSerde())
         .register(new CreateLedgerAccountForAssetCmdSerde())
-        .register(new CreateLedgerAccountsForPeerCmdSerde());
+        .register(new CreateLedgerAccountsForPeerCmdSerde())
+        .register(new CheckBalanceAndReserveCmdSerde())
+        .register(new ReserveTransferCmdSerde())
+        .register(new CommitTransferCmdSerde())
+        .register(new RejectTransferCmdSerde())
+        .register(new DepositToAseCmdSerde())
+        .register(new WithdrawFromAseCmdSerde())
+        .register(new DepositToPeerCmdSerde())
+        .register(new WithdrawFromPeerCmdSerde());
 
       msgSerializationFactory = MessageSerializationFactory.instance();
     }

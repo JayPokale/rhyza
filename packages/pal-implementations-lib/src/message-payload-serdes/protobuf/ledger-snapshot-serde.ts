@@ -3,6 +3,7 @@ import { ProtoBufBaseSnapshotEventSerializer } from 'implementations-lib';
 import { LedgerSnapshotPayload } from 'pal-domain-lib';
 import {
   PbLedgerAccountState,
+  PbLedgerPendingTransfer,
   PbLedgerSnapshotPayload
 } from '../../proto_generated';
 
@@ -29,7 +30,16 @@ export class LedgerSnapshotSerde extends ProtoBufBaseSnapshotEventSerializer<Led
         return pbAccount;
       })
     );
-
+    pbPayload.setPendingTransfersList(
+      typedPayload.pendingTransfers.map((t) => {
+        const pbPendingTransfer = new PbLedgerPendingTransfer();
+        pbPendingTransfer.setTransferId(t.transferId);
+        pbPendingTransfer.setPeerId(t.peerId);
+        pbPendingTransfer.setAmount(t.amount);
+        pbPendingTransfer.setAmountScale(t.amountScale);
+        return pbPendingTransfer;
+      })
+    );
     return pbPayload.serializeBinary();
   }
 
@@ -45,6 +55,7 @@ export class LedgerSnapshotSerde extends ProtoBufBaseSnapshotEventSerializer<Led
 
     const payload: LedgerSnapshotPayload = {
       accounts: [],
+      pendingTransfers: [],
       assetScale: pbPayload.getAssetScale(),
       transactionCount: pbPayload.getTransactionCount().toString()
     };
@@ -63,6 +74,15 @@ export class LedgerSnapshotSerde extends ProtoBufBaseSnapshotEventSerializer<Led
         assetDisplayScale: acc.getAssetDisplayScale(),
         creditedAmount: acc.getCreditedAmount(),
         debitedAmount: acc.getDebitedAmount()
+      };
+    });
+
+    payload.pendingTransfers = pbPayload.getPendingTransfersList().map((t) => {
+      return {
+        transferId: t.getTransferId(),
+        peerId: t.getPeerId(),
+        amount: t.getAmount(),
+        amountScale: t.getAmountScale()
       };
     });
 

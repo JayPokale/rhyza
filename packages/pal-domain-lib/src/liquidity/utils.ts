@@ -1,4 +1,4 @@
-import {LedgerPrecisionLossError} from "./errors";
+import { LedgerPrecisionLossError } from './errors';
 
 // Allows optional negative sign, digits, and optional decimal point with digits
 const STRICT_NUMBER_REGEX = /^\d*$/;
@@ -20,7 +20,6 @@ export function bigintToString(bigintValue: bigint, decimals: number): string {
 }
 */
 
-
 /**
  * Converts a string-represented amount with a given source scale into a BigInt scaled to DEFAULT_DISPLAY_ASSET_SCALE.
  *
@@ -30,12 +29,16 @@ export function bigintToString(bigintValue: bigint, decimals: number): string {
  * @returns BigInt scaled to DEFAULT_DISPLAY_ASSET_SCALE (20)
  */
 
-export function amountToBigIntOfSize(sourceAmount:string, sourceScale:number, targetScale: number): bigint {
+export function amountToBigIntOfSize(
+  sourceAmount: string,
+  sourceScale: number,
+  targetScale: number
+): bigint {
   const trimmed = sourceAmount.trim();
-  const isNegative = trimmed.startsWith("-");
+  const isNegative = trimmed.startsWith('-');
   const absoluteAmount = isNegative ? trimmed.slice(1) : trimmed;
 
-  if(absoluteAmount.length < sourceScale) {
+  if (absoluteAmount.length < sourceScale) {
     throw new LedgerPrecisionLossError(
       `Loss of precision: sourceAmount (${sourceAmount}) is smaller than sourceScale (${sourceScale}).`
     );
@@ -56,18 +59,17 @@ export function amountToBigIntOfSize(sourceAmount:string, sourceScale:number, ta
 
   // Parse directly as BigInt
   let baseAmount = BigInt(absoluteAmount);
-  if(isNegative) {
+  if (isNegative) {
     baseAmount = -baseAmount;
   }
 
   // Apply scale difference multiplier
   if (scaleDiff > 0) {
-    return baseAmount * (10n ** BigInt(scaleDiff));
+    return baseAmount * 10n ** BigInt(scaleDiff);
   }
 
   return baseAmount;
 }
-
 
 /**
  * Converts a raw BigInt amount from `sourceScale` into a formatted decimal string scaled to `targetScale`.
@@ -99,9 +101,8 @@ export function amountFromBigIntOfSize(
   }
 
   if (scaleDiff > 0) {
-    return (sourceAmount * (10n ** BigInt(scaleDiff))).toString();
+    return (sourceAmount * 10n ** BigInt(scaleDiff)).toString();
   }
 
   return sourceAmount.toString();
 }
-

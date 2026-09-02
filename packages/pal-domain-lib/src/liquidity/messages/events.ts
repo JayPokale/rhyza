@@ -6,8 +6,10 @@ import {
   MessageDataFormats
 } from 'common-types-lib';
 
+const DATAFORMAT = MessageDataFormats.JSON;
+
 export abstract class LedgerStateEvent extends StateEvent {
-  msgDataFormat: MessageDataFormats = MessageDataFormats.JSON;
+  msgDataFormat: MessageDataFormats = DATAFORMAT;
   msgTopic: string = StateEventTopics.LedgerStateEvents;
   protected constructor(aggId: string) {
     super(aggId);
@@ -30,7 +32,7 @@ export abstract class LedgerStateEvent extends StateEvent {
   }
 }
 export abstract class BaseLedgerSnapshotEvent extends SnapshotEvent {
-  msgDataFormat: MessageDataFormats = MessageDataFormats.PROTOBUF;
+  msgDataFormat: MessageDataFormats = DATAFORMAT;
   msgTopic: string = SnapshotEventTopics.LedgerSnapshotEvents;
   protected constructor(aggId: string, aggVersion: string) {
     super(aggId, aggVersion);
@@ -89,12 +91,17 @@ export class LedgerAccountsCreatedStateEvent extends LedgerStateEvent {
 export type LedgerTransactionRecordedStatePayload = {
   transaction: {
     id: string;
+    originatingCommandName: string;
     debitedAccountId: string;
     creditedAccountId: string;
     amount: string;
     amountScale: number;
     timestamp: number;
-    externalId?: string;
+    externalId?: string; // external liquidity id
+    isReservation: boolean;
+    voidsReservation: boolean;
+    peerId: string;
+    transferId?: string; //transferId for non-liquidity transaction
   };
 };
 export class LedgerTransactionRecordedStateEvent extends LedgerStateEvent {
@@ -124,6 +131,12 @@ export type LedgerSnapshotPayload = {
     assetDisplayScale: number;
     debitedAmount: string;
     creditedAmount: string;
+  }[];
+  pendingTransfers: {
+    transferId: string;
+    peerId: string;
+    amount: string;
+    amountScale: number;
   }[];
   transactionCount: string;
   assetScale: number;
