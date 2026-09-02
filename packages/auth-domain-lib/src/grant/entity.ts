@@ -1,7 +1,6 @@
 import * as crypto from 'crypto';
 import { isDeepStrictEqual } from 'util';
 import { v4 as uuid } from 'uuid';
-
 import {
   InvalidGrantError,
   InvalidInteractionError,
@@ -178,9 +177,6 @@ export class GrantEntity implements IGrant {
       const entity = new GrantEntity({
         ...input,
         state: GrantState.ISSUED,
-        continueToken: generateContinueToken(),
-        continueId: uuid(),
-        lastContinuedAt: new Date(),
         accessTokens: []
       });
 
@@ -224,12 +220,12 @@ export class GrantEntity implements IGrant {
       throw new InvalidGrantError();
     }
 
-    const createdAt = Date.now();
+    const createdAt = new Date();
 
     this._interaction = {
       interactRef: uuid(),
       createdAt,
-      expiresAt: createdAt + INTERACTION_EXPIRY_MS,
+      expiresAt: new Date(createdAt.getTime() + INTERACTION_EXPIRY_MS),
       state: InteractionState.PENDING
     };
     this._state = GrantState.PENDING;
@@ -243,7 +239,7 @@ export class GrantEntity implements IGrant {
       throw new UnknownInteractionError();
     }
 
-    if (Date.now() > this._interaction.expiresAt) {
+    if (Date.now() > this._interaction.expiresAt.getTime()) {
       throw new InvalidInteractionError();
     }
 
@@ -434,18 +430,21 @@ export class GrantEntity implements IGrant {
       throw new UnknownAccessTokenError();
     }
 
-    accessToken.revokedAt = new Date();
-    this._accessTokens.set(value, accessToken);
+    if (!accessToken.revokedAt) {
+      accessToken.revokedAt = new Date();
+      this._accessTokens.set(value, accessToken);
+    }
+
     return accessToken as IAccessToken;
   }
 
   rotateAccessToken(value: string, managementId: string): IAccessToken {
-    if (this.state !== GrantState.ISSUED) {
-      throw new InvalidGrantError();
-    }
-
     const accessToken = this._accessTokens.get(value);
-    if (!accessToken) {
+    if (
+      !accessToken ||
+      accessToken.revokedAt ||
+      accessToken.expiresAt.getTime() < Date.now()
+    ) {
       throw new UnknownAccessTokenError();
     }
 

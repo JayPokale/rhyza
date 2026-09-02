@@ -167,11 +167,11 @@ export interface FulfillInboundPaymentCmdPayload {
   peerId: string;
   packetId: string;
   paymentIntentId: string;
-  receivedPaymentId: string;
+  inboundPaymentId: string;
   requestId: string;
 }
 
-// Payments BC: received payment is fulfillable - dispatch stored STREAM fulfillment.
+// Payments BC: inbound payment is fulfillable - dispatch stored STREAM fulfillment.
 export class FulfillInboundPaymentCmd extends CommandMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateName: string = AGGREGATE_NAME;
@@ -191,13 +191,13 @@ export interface RejectInboundPaymentCmdPayload {
   peerId: string;
   packetId: string;
   paymentIntentId: string;
-  receivedPaymentId: string;
+  inboundPaymentId: string;
   requestId: string;
   rejectCode?: string;
   rejectMessage?: string;
 }
 
-// Payments BC: received payment failed after prepare was accepted — reject on the wire.
+// Payments BC: inbound payment failed after prepare was accepted — reject on the wire.
 export class RejectInboundPaymentCmd extends CommandMsg {
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateName: string = AGGREGATE_NAME;

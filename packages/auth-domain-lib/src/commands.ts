@@ -128,7 +128,8 @@ export class IntrospectTokenCmd extends AuthCmd {
   }
 }
 
-export interface RotateTokenCmdPayload {
+export interface RotateTokenCmdPayload
+  extends Omit<SignedCommandPayload, 'client'> {
   id: string;
   value: string;
   managementId: string;
@@ -143,7 +144,8 @@ export class RotateTokenCmd extends AuthCmd {
   }
 }
 
-export interface RevokeTokenCmdPayload {
+export interface RevokeTokenCmdPayload
+  extends Omit<SignedCommandPayload, 'client'> {
   id: string;
   value: string;
   managementId: string;

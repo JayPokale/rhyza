@@ -1,0 +1,112 @@
+name: Admin OpenAPI Checks
+
+on:
+  pull_request:
+    paths:
+      - 'docs/openapi/admin/admin-api.yaml'
+
+jobs:
+  check-client-generation:
+    name: Check if admin-client was generated
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout codebase
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate SDK
+        run: pnpm generate
+
+      - name: Check for unstaged changes
+        run: |
+          if [[ -n $(git status --porcelain) ]]; then
+             echo "ERROR: The generated admin client is out of sync with the API spec."
+             echo "Please run 'pnpm generate' locally and commit the updated files."
+             echo ""
+             echo "Files changed:"
+             git status --porcelain
+             
+             git diff
+             
+             exit 1
+           else
+             echo "Admin client is up to date!"
+           fi
+
+  check-changelog:
+    name: Check if admin changelog is up to date
+    runs-on: ubuntu-latest
+    env:
+      OPENAPI_SPEC_PATH: 'docs/openapi/admin/admin-api.yaml'
+      OPENAPI_CHANGELOG_PATH: 'docs/openapi/admin/CHANGELOG.md'
+      # TODO: replace main path to admin-api spec after merge
+      OPENAPI_SPEC_PATH_MAIN: 'packages/admin-api-service/openapi.yaml'
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ github.head_ref }}
+
+      - name: Fetch Base Branch
+        run: git fetch origin ${{ github.base_ref }}
+
+      - name: Check if version was updated
+        run: |
+          API_VERSION=$(yq '.info.version' $OPENAPI_SPEC_PATH)
+          API_VERSION_MAIN=$(git show origin/${{ github.base_ref }}:$OPENAPI_SPEC_PATH_MAIN | yq '.info.version')
+
+          if [ "$API_VERSION" <= "$API_VERSION_MAIN" ]; then
+            echo "ERROR: The API version in the admin spec has not changed. Please update it to reflect the changes."
+            exit 1
+          fi
+      - name: Generate OpenAPI Changelog Text
+        uses: oasdiff/oasdiff-action/changelog@v0
+        with:
+          base: 'origin/${{ github.base_ref }}:${{ env.OPENAPI_SPEC_PATH_MAIN}}'
+          revision: '${{ env.OPENAPI_SPEC_PATH}}'
+          format: markdown
+          output-to-file: 'oasdiff-changes.txt'
+
+      - name: Verify Changelog is Up to Date
+        run: |
+          python3 -c '
+          import sys, os, re
+
+          changelog_path = os.environ.get("OPENAPI_CHANGELOG_PATH")
+
+          try:
+              with open("oasdiff-changes.txt", "r", encoding="utf-8") as f:
+                  changes_raw = f.read()
+              with open(changelog_path, "r", encoding="utf-8") as f:
+                  changelog_raw = f.read()
+          except FileNotFoundError as e:
+              print(f"Error: {e}")
+              sys.exit(1)
+
+          def strip_whitespace(text):
+              return re.sub(r"\s+", "", text)
+
+          changes_stripped = strip_whitespace(changes_raw)
+          changelog_stripped = strip_whitespace(changelog_raw)
+
+          if not changes_stripped:
+              print("No changes detected. The changelog is up to date.")
+              sys.exit(0)
+
+          if changes_stripped in changelog_stripped:
+              print("Success: The changelog is up to date.")
+              sys.exit(0)
+          else:
+              print("Error: The changelog is incomplete. Please run `pnpm generate-admin-changelog` locally and add its result to `CHANGELOG.md`")
+              sys.exit(1)
+          '

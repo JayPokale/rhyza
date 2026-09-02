@@ -5,8 +5,9 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { GrantEntity } from '../src/grant/entity';
 import {
   InvalidGrantError,
-  NonInteractiveGrantError,
   InvalidInteractionError,
+  UnknownAccessTokenError,
+  NonInteractiveGrantError,
   UnknownInteractionError
 } from '../src/grant/errors';
 import {
@@ -80,8 +81,9 @@ describe('GrantEntity', () => {
       const { entity, accessToken } = GrantEntity.create(input);
 
       assert.equal(entity.state, 'ISSUED');
-      assert.ok(entity.continueToken);
-      assert.ok(entity.continueId);
+      assert.equal(entity.continueToken, undefined);
+      assert.equal(entity.continueId, undefined);
+      assert.equal(entity.lastContinuedAt, undefined);
 
       assert.equal(entity.interaction, undefined);
 
@@ -182,6 +184,82 @@ describe('GrantEntity', () => {
       assert.ok(entity.lastContinuedAt instanceof Date);
       assert.equal(entity.interaction, undefined); // This should not be initialized at this point.
       assert.equal(accessToken, undefined);
+    });
+  });
+
+  describe('rotateAccessToken', () => {
+    function makeIssuedGrant() {
+      const { entity, accessToken } = GrantEntity.create(
+        makeCreateGrantInput({
+          accesses: [
+            { type: AccessType.INCOMING_PAYMENT, actions: [AccessAction.READ] }
+          ]
+        })
+      );
+      assert.ok(accessToken);
+      return { entity, accessToken };
+    }
+
+    it('issues a new token, revokes the old one, and preserves grant state', () => {
+      const { entity, accessToken } = makeIssuedGrant();
+
+      const rotated = entity.rotateAccessToken(
+        accessToken.value,
+        accessToken.managementId
+      );
+
+      assert.ok(rotated.value);
+      assert.ok(rotated.managementId);
+      assert.notEqual(rotated.value, accessToken.value);
+      assert.notEqual(rotated.managementId, accessToken.managementId);
+      assert.ok(rotated.createdAt instanceof Date);
+      assert.equal(rotated.expiresInMs, 10_000);
+
+      // Old token is now revoked on the entity.
+      const revoked = entity.accessTokens.find(
+        (t) => t.value === accessToken.value
+      );
+      assert.ok(revoked);
+      assert.ok(revoked.revokedAt instanceof Date);
+
+      // New token is present on the entity.
+      const fresh = entity.accessTokens.find((t) => t.value === rotated.value);
+      assert.ok(fresh);
+      assert.equal(fresh.revokedAt, undefined);
+
+      // Grant state is unchanged.
+      assert.equal(entity.state, 'ISSUED');
+    });
+
+    it('throws UnknownAccessTokenError for an unknown token value', () => {
+      const { entity } = makeIssuedGrant();
+
+      assert.throws(
+        () => entity.rotateAccessToken('unknown-value', 'any-id'),
+        UnknownAccessTokenError
+      );
+    });
+
+    it('throws UnknownAccessTokenError when the managementId does not match', () => {
+      const { entity, accessToken } = makeIssuedGrant();
+
+      assert.throws(
+        () =>
+          entity.rotateAccessToken(accessToken.value, 'wrong-management-id'),
+        UnknownAccessTokenError
+      );
+    });
+
+    it('throws UnknownAccessTokenError when the token is already revoked', () => {
+      const { entity, accessToken } = makeIssuedGrant();
+
+      entity.revokeAccessToken(accessToken.value, accessToken.managementId);
+
+      assert.throws(
+        () =>
+          entity.rotateAccessToken(accessToken.value, accessToken.managementId),
+        UnknownAccessTokenError
+      );
     });
   });
 
@@ -333,6 +411,74 @@ describe('GrantEntity', () => {
     });
   });
 
+  describe('revokeAccessToken', () => {
+    function makeIssuedGrantWithToken() {
+      const { entity, accessToken } = GrantEntity.create(
+        makeCreateGrantInput()
+      );
+      assert.ok(accessToken);
+      return { entity, accessToken };
+    }
+
+    it('revokes a valid token when managementId matches', () => {
+      const { entity, accessToken } = makeIssuedGrantWithToken();
+
+      assert.equal(
+        entity.introspectAccessToken(accessToken.value).active,
+        true
+      );
+
+      const revoked = entity.revokeAccessToken(
+        accessToken.value,
+        accessToken.managementId
+      );
+
+      assert.ok(revoked.revokedAt);
+      assert.equal(
+        entity.accessTokens.find((t) => t.value === accessToken.value)
+          ?.revokedAt,
+        revoked.revokedAt
+      );
+      assert.equal(
+        entity.introspectAccessToken(accessToken.value).active,
+        false
+      );
+    });
+
+    it('is idempotent when the token is already revoked', () => {
+      const { entity, accessToken } = makeIssuedGrantWithToken();
+      const first = entity.revokeAccessToken(
+        accessToken.value,
+        accessToken.managementId
+      );
+      const second = entity.revokeAccessToken(
+        accessToken.value,
+        accessToken.managementId
+      );
+
+      assert.equal(second.revokedAt?.getTime(), first.revokedAt?.getTime());
+    });
+
+    it('rejects an unknown token value', () => {
+      const { entity, accessToken } = makeIssuedGrantWithToken();
+
+      assert.throws(
+        () =>
+          entity.revokeAccessToken('unknown-token', accessToken.managementId),
+        UnknownAccessTokenError
+      );
+    });
+
+    it('rejects a mismatched managementId', () => {
+      const { entity, accessToken } = makeIssuedGrantWithToken();
+
+      assert.throws(
+        () =>
+          entity.revokeAccessToken(accessToken.value, 'wrong-management-id'),
+        UnknownAccessTokenError
+      );
+    });
+  });
   describe('startInteraction', () => {
     it('creates a pending interaction and moves the grant to pending state', () => {
       const entity = makeContinuableGrant();
@@ -341,8 +487,11 @@ describe('GrantEntity', () => {
 
       assert.ok(interaction.interactRef);
       assert.equal(nonce, entity.interactionNonce);
-      assert.equal(typeof interaction.createdAt, 'number');
-      assert.equal(interaction.expiresAt, interaction.createdAt + 600_000); // Default interaction expiry
+      assert.equal(typeof interaction.createdAt.getTime(), 'number');
+      assert.equal(
+        interaction.expiresAt.getTime(),
+        interaction.createdAt.getTime() + 600_000
+      ); // Default interaction expiry
       assert.equal(interaction.state, InteractionState.PENDING);
 
       assert.equal(entity.state, GrantState.PENDING);
@@ -579,14 +728,14 @@ describe('GrantEntity', () => {
       }
 
       it('transitions the grant to APPROVED when the interaction was approved', () => {
-        const createdAt = Date.now();
+        const createdAt = new Date();
         const nonce = generateNonce();
         const entity = makeGrant({
           interactionNonce: nonce,
           interaction: {
             interactRef: randomUUID(),
             createdAt,
-            expiresAt: createdAt + 600_000,
+            expiresAt: new Date(createdAt.getTime() + 600_000),
             state: InteractionState.APPROVED
           }
         });
@@ -600,13 +749,13 @@ describe('GrantEntity', () => {
 
       it('finalizes the grant as REJECTED when the interaction was rejected', () => {
         const nonce = generateNonce();
-        const createdAt = Date.now();
+        const createdAt = new Date();
         const entity = makeGrant({
           interactionNonce: nonce,
           interaction: {
             interactRef: randomUUID(),
             createdAt,
-            expiresAt: createdAt + 600_000,
+            expiresAt: new Date(createdAt.getTime() + 600_000),
             state: InteractionState.REJECTED
           }
         });
@@ -618,12 +767,12 @@ describe('GrantEntity', () => {
       });
 
       it('throws InvalidInteractionError when the interaction is still pending', () => {
-        const createdAt = Date.now();
+        const createdAt = new Date();
         const entity = makeGrant({
           interaction: {
             interactRef: randomUUID(),
             createdAt,
-            expiresAt: createdAt + 600_000,
+            expiresAt: new Date(createdAt.getTime() + 600_000),
             state: InteractionState.PENDING
           }
         });
@@ -652,13 +801,13 @@ describe('GrantEntity', () => {
       });
 
       it('throws UnknownInteractionError when the provided nonce does not match', () => {
-        const createdAt = Date.now();
+        const createdAt = new Date();
         const entity = makeGrant({
           interactionNonce: generateNonce(),
           interaction: {
             interactRef: randomUUID(),
             createdAt,
-            expiresAt: createdAt + 600_000,
+            expiresAt: new Date(createdAt.getTime() + 600_000),
             state: InteractionState.APPROVED
           }
         });
@@ -675,14 +824,14 @@ describe('GrantEntity', () => {
 
       it('throws InvalidGrantError when the grant is already FINALIZED', () => {
         const nonce = generateNonce();
-        const createdAt = Date.now();
+        const createdAt = new Date();
         const entity = makeGrant({
           state: GrantState.ISSUED,
           interactionNonce: nonce,
           interaction: {
             interactRef: randomUUID(),
             createdAt,
-            expiresAt: createdAt + 600_000,
+            expiresAt: new Date(createdAt.getTime() + 600_000),
             state: InteractionState.APPROVED
           }
         });
@@ -698,14 +847,14 @@ describe('GrantEntity', () => {
 
       it('throws InvalidGrantError when the grant is already APPROVED', () => {
         const nonce = generateNonce();
-        const createdAt = Date.now();
+        const createdAt = new Date();
         const entity = makeGrant({
           interactionNonce: nonce,
           state: GrantState.APPROVED,
           interaction: {
             interactRef: randomUUID(),
             createdAt,
-            expiresAt: createdAt + 600_000,
+            expiresAt: new Date(createdAt.getTime() + 600_000),
             state: InteractionState.APPROVED
           }
         });
@@ -725,15 +874,15 @@ describe('GrantEntity', () => {
     function makeGrantWithInteraction(
       overrides: Partial<IInteraction> = {}
     ): GrantEntity {
-      const createdAt = Date.now();
+      const createdAt = new Date();
       return GrantEntity.fromObject({
         id: randomUUID(),
         state: 'PENDING',
         interaction: {
           interactRef: randomUUID(),
           state: 'PENDING',
-          createdAt: Date.now(),
-          expiresAt: createdAt + 10_000,
+          createdAt,
+          expiresAt: new Date(createdAt.getTime() + 600_000),
           ...overrides
         }
       } as IGrant);
@@ -772,8 +921,8 @@ describe('GrantEntity', () => {
 
     it('throws InvalidInteractionError when the interaction has expired', () => {
       const entity = makeGrantWithInteraction({
-        createdAt: Date.now() - 20_000,
-        expiresAt: Date.now() - 20_000
+        createdAt: new Date(Date.now() - 20_000),
+        expiresAt: new Date(Date.now() - 20_000)
       });
 
       assert.throws(

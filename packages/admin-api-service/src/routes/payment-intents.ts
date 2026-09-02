@@ -1,5 +1,10 @@
 'use strict';
 
+import {
+  GetPaymentIntentRequest,
+  PaymentIntentCreate,
+  CompletePaymentIntentRequest
+} from 'admin-client-lib';
 import { randomUUID } from 'crypto';
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { PalClient, parseAddressToDomainAndPathName } from 'pal-client-lib';
@@ -22,13 +27,7 @@ export async function paymentIntentRoutes(
   const { palClient, paymentsClient, openPaymentsUrl } = opts;
 
   server.post<{
-    Body: {
-      walletAddress: string;
-      id?: string;
-      incomingAmount?: number;
-      expiresAt?: string;
-      metadata?: string;
-    };
+    Body: PaymentIntentCreate;
   }>('/payment-intents', async (request, reply) => {
     const { walletAddress, incomingAmount, expiresAt, metadata } = request.body;
 
@@ -50,7 +49,7 @@ export async function paymentIntentRoutes(
         alias.walletAddressId,
         walletAddress,
         incomingAmount ? Number(incomingAmount) : undefined,
-        expiresAt,
+        expiresAt?.toISOString(),
         metadata
       );
 
@@ -71,72 +70,71 @@ export async function paymentIntentRoutes(
     }
   });
 
-  server.get<{ Params: { id: string } }>(
-    '/payment-intents/:id',
-    async (request, reply) => {
-      const { id } = request.params;
+  server.get<{
+    Params: GetPaymentIntentRequest;
+  }>('/payment-intents/:id', async (request, reply) => {
+    const { id } = request.params;
 
-      let paymentIntent;
-      try {
-        paymentIntent = await paymentsClient.getPaymentIntent(id);
-      } catch (err) {
-        server.log.error(err);
-        const httpStatus = httpStatusFromGrpcError(err);
-        const { error } = toClientApiErrorResponse(err);
-        return reply.status(httpStatus).send({ error: error.description });
-      }
-
-      const response: {
-        id: string;
-        state: string;
-        destination: string;
-        walletAddress: string;
-        incomingAmount?: {
-          value: string;
-          assetCode: string;
-          assetScale: number;
-        };
-        receivedAmount: {
-          value: string;
-          assetCode: string;
-          assetScale: number;
-        };
-        expiresAt?: string;
-        destinationIlpAddress?: string;
-      } = {
-        id: paymentIntent.id,
-        state: paymentIntent.state,
-        destination: paymentIntent.destination,
-        walletAddress: paymentIntent.receiverWalletAddress,
-        receivedAmount: {
-          value: String(paymentIntent.receivedAmount),
-          assetCode: paymentIntent.assetCode,
-          assetScale: paymentIntent.assetScale
-        }
-      };
-
-      if (paymentIntent.incomingAmount != null) {
-        response.incomingAmount = {
-          value: String(paymentIntent.incomingAmount),
-          assetCode: paymentIntent.assetCode,
-          assetScale: paymentIntent.assetScale
-        };
-      }
-
-      if (paymentIntent.expiresAt) {
-        response.expiresAt = paymentIntent.expiresAt;
-      }
-
-      if (paymentIntent.destinationIlpAddress) {
-        response.destinationIlpAddress = paymentIntent.destinationIlpAddress;
-      }
-
-      return reply.status(200).send(response);
+    let paymentIntent;
+    try {
+      paymentIntent = await paymentsClient.getPaymentIntent(id);
+    } catch (err) {
+      server.log.error(err);
+      const httpStatus = httpStatusFromGrpcError(err);
+      const { error } = toClientApiErrorResponse(err);
+      return reply.status(httpStatus).send({ error: error.description });
     }
-  );
+
+    const response: {
+      id: string;
+      state: string;
+      destination: string;
+      walletAddress: string;
+      incomingAmount?: {
+        value: string;
+        assetCode: string;
+        assetScale: number;
+      };
+      receivedAmount: {
+        value: string;
+        assetCode: string;
+        assetScale: number;
+      };
+      expiresAt?: string;
+      destinationIlpAddress?: string;
+    } = {
+      id: paymentIntent.id,
+      state: paymentIntent.state,
+      destination: paymentIntent.destination,
+      walletAddress: paymentIntent.receiverWalletAddress,
+      receivedAmount: {
+        value: String(paymentIntent.receivedAmount),
+        assetCode: paymentIntent.assetCode,
+        assetScale: paymentIntent.assetScale
+      }
+    };
+
+    if (paymentIntent.incomingAmount != null) {
+      response.incomingAmount = {
+        value: String(paymentIntent.incomingAmount),
+        assetCode: paymentIntent.assetCode,
+        assetScale: paymentIntent.assetScale
+      };
+    }
+
+    if (paymentIntent.expiresAt) {
+      response.expiresAt = paymentIntent.expiresAt;
+    }
+
+    if (paymentIntent.destinationIlpAddress) {
+      response.destinationIlpAddress = paymentIntent.destinationIlpAddress;
+    }
+
+    return reply.status(200).send(response);
+  });
 
   server.post<{
-    Params: { intentId: string; id: string };
+    Params: CompletePaymentIntentRequest;
     Body: { reason?: string };
   }>('/payment-intents/:id/complete', async (request, reply) => {
     const { id } = request.params;

@@ -109,8 +109,8 @@ export type GrantState = keyof typeof GrantState;
 export interface IInteraction {
   interactRef: string;
   state: InteractionState;
-  createdAt: number; // Unix timestamp
-  expiresAt: number; // Unix timstamp
+  createdAt: Date;
+  expiresAt: Date;
 }
 
 export interface IGrant {
@@ -172,6 +172,12 @@ export interface IWalletAddressService {
   getWalletAddressKeys(url: string): Promise<IJsonWebKey[]>;
 }
 
+export interface IRotatedGrantUpdate {
+  id: string;
+  revokedToken: IAccessToken;
+  newToken: IAccessToken;
+}
+
 export interface IContinuedGrantUpdate {
   id: string;
   state: GrantState;
@@ -181,9 +187,19 @@ export interface IContinuedGrantUpdate {
   accessToken?: IAccessToken;
 }
 
+export interface IFinishedInteractiveGrantUpdate {
+  id: string;
+  state: GrantState;
+}
+
 export interface IGrantRepository {
   storeMany(grants: IGrant[]): Promise<void>;
+  storeRotatedGrants(updates: IRotatedGrantUpdate[]): Promise<void>;
   storeContinuedGrants(grants: IContinuedGrantUpdate[]): Promise<void>;
+  storeFinishedInteractiveGrants(
+    grants: IFinishedInteractiveGrantUpdate[]
+  ): Promise<void>;
+  storeRevokedTokens(tokens: IAccessToken[]): Promise<void>;
   fetchById(id: string): Promise<IGrant | undefined>;
   fetchByIds(ids: string[]): Promise<IGrant[]>;
   storeInteractions(grants: IGrant[]): Promise<void>;

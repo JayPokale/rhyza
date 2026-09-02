@@ -5,6 +5,7 @@ import { PalClient } from 'pal-client-lib';
 import { IMessageProducer } from 'common-types-lib';
 import { PostTransactionCmd } from 'pal-domain-lib';
 import crypto from 'crypto';
+import { LiquidityDepositRequest } from 'admin-client-lib';
 
 interface LiquidityRouteOptions extends FastifyPluginOptions {
   palClient: PalClient;
@@ -20,11 +21,7 @@ export async function liquidityRoutes(
   // TODO: carve out a better path for depositing liquidity than dragging in kafka,
   // creating the command, and returning 202?
   server.post<{
-    Body: {
-      assetCode: string;
-      peerId: string;
-      amount: number;
-    };
+    Body: LiquidityDepositRequest;
   }>('/liquidity/deposit', async (request, reply) => {
     const { assetCode, peerId, amount } = request.body;
 

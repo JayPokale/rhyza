@@ -111,6 +111,8 @@ export class AuthClient {
     options: CreateGrantOptions
   ): Promise<CreateGrantResult> {
     const request = new PbGrantRequest();
+    request.setStartList(options.start);
+
     if (options.access) {
       request.setAccessList(options.access.map(toPbAccessItem));
     }
@@ -228,6 +230,7 @@ export class AuthClient {
 
   rotateToken(
     id: string,
+    signatureData: SignatureRequestData,
     tokenValue: string,
     managementId: string
   ): Promise<RotateTokenResult> {
@@ -235,6 +238,7 @@ export class AuthClient {
     request.setId(id);
     request.setTokenValue(tokenValue);
     request.setManagementId(managementId);
+    request.setSignatureData(this.toSignatureData(signatureData));
 
     return new Promise((resolve, reject) => {
       this._grpcClient.rotateToken(
@@ -252,6 +256,7 @@ export class AuthClient {
 
   revokeToken(
     id: string,
+    signatureData: SignatureRequestData,
     tokenValue: string,
     managementId: string
   ): Promise<RevokeTokenResult> {
@@ -259,6 +264,7 @@ export class AuthClient {
     request.setId(id);
     request.setTokenValue(tokenValue);
     request.setManagementId(managementId);
+    request.setSignatureData(this.toSignatureData(signatureData));
 
     return new Promise((resolve, reject) => {
       this._grpcClient.revokeToken(
@@ -487,7 +493,6 @@ function fromPbGrant(grant: PbGrant): GetGrantResult {
     startMethods: grant.getStartMethodsList(),
     continueToken: grant.getContinueToken(),
     continueId: grant.getContinueId(),
-    interactionNonce: grant.getInteractionNonce() || undefined,
     state: grant.getState(),
     finalizationReason: grant.getFinalizationReason(),
     client: grant.getClient(),

@@ -413,7 +413,7 @@ describe('IlpCommandHandler — remote quote receiving', () => {
         peerId: 'peer-1',
         packetId: 'packet-pay-2',
         paymentIntentId: PAYMENT_INTENT_ID,
-        receivedPaymentId: 'rp-1',
+        inboundPaymentId: 'rp-1',
         requestId: received.payload.requestId
       })
     ]);
@@ -433,7 +433,7 @@ describe('IlpCommandHandler — remote quote receiving', () => {
       (m) => m.msgName === ILPPaymentFulfillmentSentEvent.name
     ) as ILPPaymentFulfillmentSentEvent;
     assert.ok(sent);
-    assert.equal(sent.payload.receivedPaymentId, 'rp-1');
+    assert.equal(sent.payload.inboundPaymentId, 'rp-1');
     assert.equal(sent.payload.packetId, 'packet-pay-2');
   });
 
@@ -445,7 +445,7 @@ describe('IlpCommandHandler — remote quote receiving', () => {
         peerId: 'peer-1',
         packetId: 'missing-packet',
         paymentIntentId: PAYMENT_INTENT_ID,
-        receivedPaymentId: 'rp-missing',
+        inboundPaymentId: 'rp-missing',
         requestId: crypto.randomUUID()
       })
     ]);
@@ -489,7 +489,7 @@ describe('IlpCommandHandler — remote quote receiving', () => {
         peerId: 'peer-1',
         packetId: 'packet-pay-reject',
         paymentIntentId: PAYMENT_INTENT_ID,
-        receivedPaymentId: 'rp-fail-1',
+        inboundPaymentId: 'rp-fail-1',
         requestId: crypto.randomUUID(),
         rejectMessage: 'Ledger transfer failed'
       })

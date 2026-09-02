@@ -121,7 +121,7 @@ describe('PaymentIntent Entity', () => {
         expiresAt: new Date(Date.now() - 1000),
         quotes: [],
         sentPayments: [],
-        receivedPayments: []
+        inboundPayments: []
       });
 
       assert.equal(paymentIntent.isExpired, true);
@@ -160,7 +160,7 @@ describe('PaymentIntent Entity', () => {
         expiresAt: new Date(Date.now() + 60_000),
         quotes: [],
         sentPayments: [],
-        receivedPayments: []
+        inboundPayments: []
       });
 
       assert.throws(
@@ -188,7 +188,7 @@ describe('PaymentIntent Entity', () => {
         expiresAt: new Date(Date.now() + 60_000),
         quotes: [],
         sentPayments: [],
-        receivedPayments: []
+        inboundPayments: []
       });
 
       assert.throws(
@@ -216,7 +216,7 @@ describe('PaymentIntent Entity', () => {
         expiresAt: new Date(Date.now() - 1000),
         quotes: [],
         sentPayments: [],
-        receivedPayments: []
+        inboundPayments: []
       });
 
       assert.throws(
@@ -359,7 +359,7 @@ describe('PaymentIntent Entity', () => {
         expiresAt: new Date(Date.now() + 1000),
         quotes: [],
         sentPayments: [],
-        receivedPayments: []
+        inboundPayments: []
       });
 
       assert.throws(
@@ -399,7 +399,7 @@ describe('PaymentIntent Entity', () => {
         expiresAt: new Date(Date.now() - 1000), // in the past
         quotes: [],
         sentPayments: [],
-        receivedPayments: []
+        inboundPayments: []
       });
 
       assert.throws(
@@ -439,7 +439,7 @@ describe('PaymentIntent Entity', () => {
         expiresAt: new Date(Date.now() + 1000),
         quotes: [],
         sentPayments: [],
-        receivedPayments: []
+        inboundPayments: []
       });
 
       assert.throws(
@@ -893,7 +893,7 @@ describe('PaymentIntent Entity', () => {
             expiresAt: new Date(Date.now() + 1000 * 60)
           }
         ],
-        receivedPayments: [],
+        inboundPayments: [],
         sentPayments: [
           {
             id: crypto.randomUUID(),
@@ -959,7 +959,7 @@ describe('PaymentIntent Entity', () => {
           }
         ],
         sentPayments: [],
-        receivedPayments: []
+        inboundPayments: []
       });
 
       assert.throws(
@@ -1011,7 +1011,7 @@ describe('PaymentIntent Entity', () => {
           }
         ],
         sentPayments: [],
-        receivedPayments: []
+        inboundPayments: []
       });
 
       assert.throws(
@@ -1051,7 +1051,7 @@ describe('PaymentIntent Entity', () => {
         expiresAt: new Date(Date.now() + 1000 * 60),
         quotes: [],
         sentPayments: [],
-        receivedPayments: []
+        inboundPayments: []
       });
 
       assert.throws(
@@ -1091,7 +1091,7 @@ describe('PaymentIntent Entity', () => {
         expiresAt: new Date(Date.now() - 1000),
         quotes: [],
         sentPayments: [],
-        receivedPayments: []
+        inboundPayments: []
       });
 
       assert.throws(
@@ -1143,7 +1143,7 @@ describe('PaymentIntent Entity', () => {
           }
         ],
         sentPayments: [],
-        receivedPayments: []
+        inboundPayments: []
       });
 
       assert.throws(
@@ -1303,7 +1303,7 @@ describe('PaymentIntent Entity', () => {
             }
           ],
           sentPayments: overrides?.extraPayments ?? [],
-          receivedPayments: []
+          inboundPayments: []
         })
       };
     }
@@ -1524,7 +1524,7 @@ describe('PaymentIntent Entity', () => {
           }
         ],
         sentPayments: [],
-        receivedPayments: []
+        inboundPayments: []
       });
 
       assert.throws(
@@ -1659,7 +1659,7 @@ describe('PaymentIntent Entity', () => {
               expiresAt: new Date(Date.now() + 60_000)
             }
           ],
-          receivedPayments: [],
+          inboundPayments: [],
           sentPayments: [
             {
               id: paymentId,
@@ -1813,7 +1813,7 @@ describe('PaymentIntent Entity', () => {
           expiresAt: new Date(Date.now() + 60_000),
           destinationIlpAddress: 'g.peer.123',
           quotes: [],
-          receivedPayments: [],
+          inboundPayments: [],
           sentPayments: [
             {
               id: paymentId,
@@ -1924,7 +1924,7 @@ describe('PaymentIntent Entity', () => {
           expiresAt: new Date(Date.now() + 60_000),
           destinationIlpAddress: 'g.peer.123',
           quotes: [],
-          receivedPayments: [],
+          inboundPayments: [],
           sentPayments: [
             {
               id: paymentId,
@@ -2039,7 +2039,7 @@ describe('PaymentIntent Entity', () => {
           expiresAt: new Date(Date.now() + 60_000),
           destinationIlpAddress: 'g.peer.123',
           quotes: [],
-          receivedPayments: [],
+          inboundPayments: [],
           sentPayments: [
             {
               id: paymentId,
@@ -2128,7 +2128,7 @@ describe('PaymentIntent Entity', () => {
           expiresAt: new Date(Date.now() + 60_000),
           destinationIlpAddress: 'g.peer.123',
           quotes: [],
-          receivedPayments: [],
+          inboundPayments: [],
           sentPayments: [
             {
               id: paymentId,
@@ -2223,7 +2223,7 @@ describe('PaymentIntent Entity', () => {
           expiresAt: new Date(Date.now() + 60_000),
           destinationIlpAddress: 'g.peer.123',
           quotes: [],
-          receivedPayments: [],
+          inboundPayments: [],
           sentPayments: [
             {
               id: paymentId,
@@ -2428,7 +2428,7 @@ describe('PaymentIntent Entity', () => {
         expiresAt: new Date(Date.now() + 1000 * 60),
         quotes: [],
         sentPayments: [],
-        receivedPayments: []
+        inboundPayments: []
       });
 
       assert.throws(
@@ -2458,7 +2458,7 @@ describe('PaymentIntent Entity', () => {
         expiresAt: new Date(Date.now() - 1000),
         quotes: [],
         sentPayments: [],
-        receivedPayments: []
+        inboundPayments: []
       });
 
       assert.throws(
@@ -2511,7 +2511,7 @@ describe('PaymentIntent Entity', () => {
         createdAt: new Date(),
         expiresAt: new Date(Date.now() + 1000 * 60),
         quotes: [],
-        receivedPayments: [],
+        inboundPayments: [],
         sentPayments: [
           {
             id: 'payment-1',
@@ -2623,7 +2623,7 @@ describe('PaymentIntent Entity', () => {
         createdAt: new Date(),
         expiresAt: new Date(Date.now() + 1000 * 60),
         quotes: [],
-        receivedPayments: [],
+        inboundPayments: [],
         sentPayments: [
           {
             id: 'payment-1',
@@ -2671,7 +2671,7 @@ describe('PaymentIntent Entity', () => {
         createdAt: new Date(),
         expiresAt: new Date(Date.now() + 1000 * 60),
         quotes: [],
-        receivedPayments: [],
+        inboundPayments: [],
         sentPayments: [
           {
             id: 'payment-1',
@@ -2797,7 +2797,7 @@ describe('PaymentIntent Entity', () => {
         expiresAt: new Date(Date.now() + 1000 * 60),
         quotes: [],
         sentPayments: [],
-        receivedPayments: []
+        inboundPayments: []
       });
 
       assert.throws(
@@ -2837,7 +2837,7 @@ describe('PaymentIntent Entity', () => {
         expiresAt: new Date(Date.now() - 1000),
         quotes: [],
         sentPayments: [],
-        receivedPayments: []
+        inboundPayments: []
       });
 
       assert.throws(
@@ -3043,7 +3043,7 @@ describe('PaymentIntent Entity', () => {
           }
         ],
         sentPayments: [],
-        receivedPayments: []
+        inboundPayments: []
       });
 
       assert.throws(

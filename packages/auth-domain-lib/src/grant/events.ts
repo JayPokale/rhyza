@@ -75,6 +75,16 @@ export abstract class AuthDomainEvent extends DomainEvent {
     return evt.msgName === TokenRotationFailedEvent.name;
   }
 
+  static isTokenRevokedEvent(evt: DomainEvent): evt is TokenRevokedEvent {
+    return evt.msgName === TokenRevokedEvent.name;
+  }
+
+  static isTokenRevokeFailedEvent(
+    evt: DomainEvent
+  ): evt is TokenRevokeFailedEvent {
+    return evt.msgName === TokenRevokeFailedEvent.name;
+  }
+
   static isGrantInteractionStartedEvent(
     evt: DomainEvent
   ): evt is GrantInteractionStartedEvent {
@@ -132,7 +142,6 @@ export class GrantCreatedEvent extends AuthDomainEvent {
     super(payload.id, requestId);
     this.isErrorEvent = false;
     this.payload = payload;
-    this.requestId = requestId;
   }
 }
 
@@ -149,7 +158,6 @@ export class GrantCreateFailedEvent extends AuthDomainEvent {
     super(payload.grantId, requestId);
     this.isErrorEvent = true;
     this.payload = payload;
-    this.requestId = requestId;
   }
 }
 
@@ -199,9 +207,8 @@ export interface GrantRevokedPayload {
 export class GrantRevokedEvent extends AuthDomainEvent {
   payload: GrantRevokedPayload;
 
-  constructor(payload: GrantRevokedPayload, requestId?: string) {
+  constructor(payload: GrantRevokedPayload, requestId: string) {
     super(payload.id, requestId);
-    this.isErrorEvent = false;
     this.payload = payload;
   }
 }
@@ -215,7 +222,7 @@ export interface GrantRevokeFailedPayload {
 export class GrantRevokeFailedEvent extends AuthDomainEvent {
   payload: GrantRevokeFailedPayload;
 
-  constructor(payload: GrantRevokeFailedPayload, requestId?: string) {
+  constructor(payload: GrantRevokeFailedPayload, requestId: string) {
     super(payload.grantId, requestId);
     this.isErrorEvent = true;
     this.payload = payload;
@@ -252,7 +259,7 @@ export interface TokenRotatedPayload {
 export class TokenRotatedEvent extends AuthDomainEvent {
   payload: TokenRotatedPayload;
 
-  constructor(payload: TokenRotatedPayload, requestId?: string) {
+  constructor(payload: TokenRotatedPayload, requestId: string) {
     super(payload.id, requestId);
     this.isErrorEvent = false;
     this.payload = payload;
@@ -268,7 +275,7 @@ export interface TokenRotationFailedPayload {
 export class TokenRotationFailedEvent extends AuthDomainEvent {
   payload: TokenRotationFailedPayload;
 
-  constructor(payload: TokenRotationFailedPayload, requestId?: string) {
+  constructor(payload: TokenRotationFailedPayload, requestId: string) {
     super(payload.grantId, requestId);
     this.isErrorEvent = true;
     this.payload = payload;
@@ -283,7 +290,7 @@ export interface GrantInteractionStartedPayload {
 export class GrantInteractionStartedEvent extends AuthDomainEvent {
   payload: GrantInteractionStartedPayload;
 
-  constructor(payload: GrantInteractionStartedPayload, requestId?: string) {
+  constructor(payload: GrantInteractionStartedPayload, requestId: string) {
     super(payload.id, requestId);
     this.isErrorEvent = false;
     this.payload = payload;
@@ -299,7 +306,38 @@ export interface GrantInteractionStartFailedPayload {
 export class GrantInteractionStartFailedEvent extends AuthDomainEvent {
   payload: GrantInteractionStartFailedPayload;
 
-  constructor(payload: GrantInteractionStartFailedPayload, requestId?: string) {
+  constructor(payload: GrantInteractionStartFailedPayload, requestId: string) {
+    super(payload.grantId, requestId);
+    this.isErrorEvent = true;
+    this.payload = payload;
+    this.requestId = requestId;
+  }
+}
+
+export interface TokenRevokedPayload {
+  id: string;
+}
+
+export class TokenRevokedEvent extends AuthDomainEvent {
+  payload: TokenRevokedPayload;
+
+  constructor(payload: TokenRevokedPayload, requestId: string) {
+    super(payload.id, requestId);
+    this.payload = payload;
+    this.requestId = requestId;
+  }
+}
+
+export interface TokenRevokeFailedPayload {
+  grantId: string;
+  errorName: string;
+  message: string;
+}
+
+export class TokenRevokeFailedEvent extends AuthDomainEvent {
+  payload: TokenRevokeFailedPayload;
+
+  constructor(payload: TokenRevokeFailedPayload, requestId: string) {
     super(payload.grantId, requestId);
     this.isErrorEvent = true;
     this.payload = payload;
