@@ -146,7 +146,8 @@ export class PaymentsEventHandler {
         // TODO: auto-accepting. Design calls for marking pending-acceptance,
         // webhooking the ASE via Notifications, and the ASE accepting through
         // the admin API.
-        const payload = message.payload as LedgerHighLevelSuccessResponseEventPayload;
+        const payload =
+          message.payload as LedgerHighLevelSuccessResponseEventPayload;
         const cmd = new AcceptInboundPaymentCmd(
           {
             inboundPaymentId: payload.paymentId,
@@ -159,7 +160,8 @@ export class PaymentsEventHandler {
         break;
       }
       case LedgerIncomingTransferCommittedEvent.name: {
-        const payload = message.payload as LedgerHighLevelSuccessResponseEventPayload;
+        const payload =
+          message.payload as LedgerHighLevelSuccessResponseEventPayload;
         const cmd = new MarkInboundPaymentFulfillableCmd(
           {
             inboundPaymentId: payload.paymentId,
@@ -199,7 +201,8 @@ export class PaymentsEventHandler {
       }
       case LedgerIncomingTransferInsufficientFundsErrorEvent.name:
       case LedgerIncomingTransferRejectedEvent.name: {
-        const payload = message.payload as LedgerHighLevelFailureResponseEventPayload;
+        const payload =
+          message.payload as LedgerHighLevelFailureResponseEventPayload;
         const cmd = new FailInboundPaymentCmd(
           {
             inboundPaymentId: payload.paymentId,
@@ -226,7 +229,8 @@ export class PaymentsEventHandler {
         break;
       }
       case LedgerIncomingTransferCommitFailedEvent.name: {
-        const payload = message.payload as LedgerHighLevelFailureResponseEventPayload;
+        const payload =
+          message.payload as LedgerHighLevelFailureResponseEventPayload;
         const cmd = new FailInboundPaymentCmd(
           {
             inboundPaymentId: payload.paymentId,
@@ -308,7 +312,8 @@ export class PaymentsEventHandler {
         break;
       }
       case LedgerOutgoingTransferCommittedEvent.name: {
-        const payload = message.payload as LedgerHighLevelSuccessResponseEventPayload;
+        const payload =
+          message.payload as LedgerHighLevelSuccessResponseEventPayload;
         const cmd = new CompleteRemotePaymentCmd(
           {
             paymentIntentId: payload.paymentIntentId,
@@ -320,11 +325,12 @@ export class PaymentsEventHandler {
         break;
       }
       case LedgerOutgoingTransferRejectedEvent.name: {
-        const payload = message.payload as LedgerHighLevelSuccessResponseEventPayload;
+        const payload =
+          message.payload as LedgerHighLevelSuccessResponseEventPayload;
         const cmd = new FailRemotePaymentCmd(
           {
             paymentIntentId: payload.paymentIntentId,
-            paymentId: payload.paymentId,
+            paymentId: payload.paymentId
           },
           payload.requestId
         );

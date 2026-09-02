@@ -106,8 +106,7 @@ export class AdminApiService {
       paymentsClient: this.paymentsClient
     });
     this.server.register(liquidityRoutes, {
-      palClient: this.palClient,
-      producer: this.msgProducer
+      palClient: this.palClient
     });
 
     await this.server.listen({ port: PORT, host: HOST });
