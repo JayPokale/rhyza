@@ -728,4 +728,125 @@ describe('Auth Client', () => {
       }
     });
   });
+
+  describe('finishInteraction', () => {
+    const FINISH_NONCE = 'client-finish-nonce';
+
+    async function createInteractiveGrant(): Promise<{ id: string }> {
+      const keys = generateTestKeys();
+      const signatureData = await signedSignatureData(
+        keys.privateKey,
+        keys.publicKey.kid
+      );
+
+      const grant = await authClient.createGrant(
+        JSON.stringify(keys.publicKey),
+        signatureData,
+        {
+          access: [
+            makeAccessItem({ type: 'OUTGOING_PAYMENT', actions: ['CREATE'] })
+          ],
+          start: ['redirect'],
+          finish: {
+            method: 'redirect',
+            uri: 'https://client.example/finish',
+            nonce: FINISH_NONCE
+          }
+        }
+      );
+
+      return { id: grant.id };
+    }
+
+    async function startAndHandleInteraction(
+      id: string,
+      choice: 'accept' | 'reject'
+    ): Promise<{ nonce: string }> {
+      const { nonce } = await authClient.startInteraction(id);
+
+      if (choice === 'accept') {
+        await authClient.acceptInteraction(id, randomUUID(), nonce);
+      } else {
+        await authClient.rejectInteraction(id, nonce);
+      }
+
+      return { nonce };
+    }
+
+    test('finishes an accepted interaction and returns the interact and finish nonces', async () => {
+      const { id } = await createInteractiveGrant();
+      const { nonce } = await startAndHandleInteraction(id, 'accept');
+
+      const result = await authClient.finishInteraction(id, nonce);
+
+      assert.ok(result);
+      assert.equal(result.id, id);
+      assert.equal(result.interactNonce, nonce);
+      assert.equal(result.clientNonce, FINISH_NONCE);
+      assert.ok(result.interactRef);
+
+      const grant = await authClient.getGrant(id);
+      assert.equal(grant.state, 'APPROVED');
+    });
+
+    test('finishes a rejected interaction', async () => {
+      const { id } = await createInteractiveGrant();
+      const { nonce } = await startAndHandleInteraction(id, 'reject');
+
+      const result = await authClient.finishInteraction(id, nonce);
+
+      assert.ok(result);
+      assert.equal(result.id, id);
+
+      const grant = await authClient.getGrant(id);
+      assert.equal(grant.state, 'REJECTED');
+    });
+
+    test('unknown grant id is rejected', async () => {
+      try {
+        await authClient.finishInteraction(randomUUID(), 'some-nonce');
+        assert.fail('expected error for unknown grant');
+      } catch (e) {
+        assert.ok(e instanceof Error);
+      }
+    });
+
+    test('rejects finishing an interaction that has not yet been accepted or rejected', async () => {
+      const { id } = await createInteractiveGrant();
+      const { nonce } = await authClient.startInteraction(id);
+
+      try {
+        await authClient.finishInteraction(id, nonce);
+        assert.fail('expected error for a still-pending interaction');
+      } catch (e) {
+        assert.ok(e instanceof Error);
+      }
+    });
+
+    test('rejects an incorrect nonce', async () => {
+      const { id } = await createInteractiveGrant();
+      await startAndHandleInteraction(id, 'accept');
+
+      try {
+        await authClient.finishInteraction(id, 'incorrect-nonce');
+        assert.fail('expected error for incorrect nonce');
+      } catch (e) {
+        assert.ok(e instanceof Error);
+      }
+    });
+
+    test('rejects finishing an interaction that has already been finished', async () => {
+      const { id } = await createInteractiveGrant();
+      const { nonce } = await startAndHandleInteraction(id, 'accept');
+
+      await authClient.finishInteraction(id, nonce);
+
+      try {
+        await authClient.finishInteraction(id, nonce);
+        assert.fail('expected error for an already-finished interaction');
+      } catch (e) {
+        assert.ok(e instanceof Error);
+      }
+    });
+  });
 });
