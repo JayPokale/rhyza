@@ -8,9 +8,9 @@ import {
   MessageTypes
 } from 'common-types-lib';
 import {
-  ReceivedPaymentValidatedEvent,
-  ReceivedPaymentAcceptedEvent,
-  ReceivedPaymentFailedEvent,
+  InboundPaymentValidatedEvent,
+  InboundPaymentAcceptedEvent,
+  InboundPaymentFailedEvent,
   RemotePaymentSendApprovedEvent,
   RemotePaymentSendConfirmedEvent,
   RemotePaymentSendRejectedEvent
@@ -81,11 +81,11 @@ export class IntegrationEventHandler {
       await this._handleRemotePaymentSendConfirmed(evt);
     } else if (evt.msgName === RemotePaymentSendRejectedEvent.name) {
       await this._handleRemotePaymentSendRejected(evt);
-    } else if (evt.msgName === ReceivedPaymentValidatedEvent.name) {
-      await this._handleReceivedPaymentValidated(evt);
-    } else if (evt.msgName === ReceivedPaymentAcceptedEvent.name) {
-      await this._handleReceivedPaymentAccepted(evt);
-    } else if (evt.msgName === ReceivedPaymentFailedEvent.name) {
+    } else if (evt.msgName === InboundPaymentValidatedEvent.name) {
+      await this._handleInboundPaymentValidated(evt);
+    } else if (evt.msgName === InboundPaymentAcceptedEvent.name) {
+      await this._handleInboundPaymentAccepted(evt);
+    } else if (evt.msgName === InboundPaymentFailedEvent.name) {
       // RejectTransferCmd (INCOMING)
     }
   }
@@ -214,22 +214,22 @@ export class IntegrationEventHandler {
     );
   }
 
-  private async _handleReceivedPaymentValidated(
+  private async _handleInboundPaymentValidated(
     evt: DomainEvent
   ): Promise<void> {
-    const payload = evt.payload as ReceivedPaymentValidatedEvent['payload'];
+    const payload = evt.payload as InboundPaymentValidatedEvent['payload'];
 
     const peer = await this._peerAggregate.getPeer(payload.peerId);
     if (!peer?.ledgerAccounts) {
       const errorMessage = `No peer/ledger accounts for peer ${payload.peerId}`;
       this._logger.warn(
-        `ReceivedPaymentValidatedEvent (receivedPaymentId ${payload.receivedPaymentId}): ${errorMessage} — failing received payment`
+        `InboundPaymentValidatedEvent (inboundPaymentId ${payload.inboundPaymentId}): ${errorMessage} — failing inbound payment`
       );
       this._pendingMessages.push(
         new LedgerIncomingReserveFailedEvent(payload.receiveAssetCode, {
           requestId: payload.requestId,
           paymentIntentId: payload.paymentIntentId,
-          paymentId: payload.receivedPaymentId,
+          paymentId: payload.inboundPaymentId,
           errorMessage
         })
       );
@@ -246,21 +246,19 @@ export class IntegrationEventHandler {
         amountScale: payload.receiveAssetScale,
         transferDirection: 'INCOMING',
         paymentIntentId: payload.paymentIntentId,
-        paymentId: payload.receivedPaymentId
+        paymentId: payload.inboundPaymentId
       })
     );
   }
 
-  private async _handleReceivedPaymentAccepted(
-    evt: DomainEvent
-  ): Promise<void> {
-    const payload = evt.payload as ReceivedPaymentAcceptedEvent['payload'];
+  private async _handleInboundPaymentAccepted(evt: DomainEvent): Promise<void> {
+    const payload = evt.payload as InboundPaymentAcceptedEvent['payload'];
 
     const peer = await this._peerAggregate.getPeer(payload.peerId);
     if (!peer?.ledgerAccounts) {
       const errorMessage = `No peer/ledger accounts for peer ${payload.peerId}`;
       this._logger.warn(
-        `ReceivedPaymentAcceptedEvent (receivedPaymentId ${payload.receivedPaymentId}): ${errorMessage} — commit failed`
+        `InboundPaymentAcceptedEvent (inboundPaymentId ${payload.inboundPaymentId}): ${errorMessage} — commit failed`
       );
       this._pendingMessages.push(
         new LedgerIncomingTransferCommitFailedEvent(payload.receiveAssetCode, {
@@ -269,7 +267,7 @@ export class IntegrationEventHandler {
           isError: true,
           errorMessage,
           paymentIntentId: payload.paymentIntentId,
-          paymentId: payload.receivedPaymentId
+          paymentId: payload.inboundPaymentId
         })
       );
       return;
@@ -286,7 +284,7 @@ export class IntegrationEventHandler {
         amountScale: payload.receiveAssetScale,
         transferDirection: 'INCOMING',
         paymentIntentId: payload.paymentIntentId,
-        paymentId: payload.receivedPaymentId
+        paymentId: payload.inboundPaymentId
       })
     );
   }

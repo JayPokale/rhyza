@@ -18,6 +18,7 @@ export abstract class AuthDomainEvent extends DomainEvent {
   msgTopic: string = DomainEventTopics.AuthEvents;
   isErrorEvent: boolean = false;
 
+
   protected constructor(aggId: string, requestId?: string) {
     super(aggId);
     this.aggregateId = this.msgKey = aggId;

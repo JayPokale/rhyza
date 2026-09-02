@@ -15,29 +15,29 @@ sequenceDiagram
 
     Peer ->> ILPBC: Prepare packet
     ILPBC ->> ILPBC: Decode & determine peer
-    ILPBC ->> ILPBC: Publish payment received event
+    ILPBC ->> ILPBC: Publish ILPPaymentReceivedEvent
 
-    PBC -->> ILPBC: Read payment received event
+    PBC -->> ILPBC: Read ILPPaymentReceivedEvent
     PBC ->> PBC: Fetch payment intent
     PBC ->> PBC: Validate & persist payment
-    PBC ->> PBC: Publish received payment validated event
+    PBC ->> PBC: Publish InboundPaymentValidatedEvent
 
-    PAL -->> PBC: Read received payment validated event
+    PAL -->> PBC: Read InboundPaymentValidatedEvent
     PAL ->> PAL: Check liquidity & reserve
     PAL ->> PAL: Publish LedgerIncomingTransferReservedEvent
 
     PBC -->> PAL: Read LedgerIncomingTransferReservedEvent
     PBC ->> PBC: Mark payment as pending acceptance
-    PBC ->> PBC: Publish received payment acceptance started event
+    PBC ->> PBC: Publish inbound payment acceptance started event
 
-    NBC -->> PBC: Read received payment acceptance started event
-    NBC ->> ASE: Notify of received payment
+    NBC -->> PBC: Read inbound payment acceptance started event
+    NBC ->> ASE: Notify of inbound payment
     ASE ->> AAPI: Accept payment
     AAPI ->> PBC: Accept payment
     PBC ->> PBC: Mark payment as accepted
-    PBC ->> PBC: Publish received payment accepted event
+    PBC ->> PBC: Publish InboundPaymentAcceptedEvent
 
-    PAL -->> PBC: Read received payment accepted event
+    PAL -->> PBC: Read InboundPaymentAcceptedEvent
     PAL ->> PAL: Finalize liquidity transfer
     PAL ->> PAL: Publish LedgerIncomingTransferCommittedEvent
 
@@ -46,32 +46,32 @@ sequenceDiagram
 
 
     PBC ->> PBC: Mark payment as fulfillable
-    PBC ->> PBC: Publish received payment fulfillable event
-    ILPBC -->> PBC: Read received payment fulfillable event
+    PBC ->> PBC: Publish InboundPaymentFulfillableEvent
+    ILPBC -->> PBC: Read InboundPaymentFulfillableEvent
     ILPBC ->> ILPBC: Create fulfillment
     ILPBC ->> Peer: Return fulfillment
 
     alt Fulfilled payment
-    ILPBC ->> ILPBC: Publish payment fulfillment sent event
-    PBC -->> ILPBC: Read payment fulfillment sent event
+    ILPBC ->> ILPBC: Publish ILPPaymentFulfillmentSentEvent
+    PBC -->> ILPBC: Read ILPPaymentFulfillmentSentEvent
     PBC ->> PBC: Mark payment as finalized
-    PBC ->> PBC: Publish received payment finalized event
-    NBC -->> PBC: Read received payment finalized event
-    NBC ->> ASE: Notify of finalized received payment
+    PBC ->> PBC: Publish InboundPaymentFinalizedEvent
+    NBC -->> PBC: Read InboundPaymentFinalizedEvent
+    NBC ->> ASE: Notify of finalized inbound payment
     ASE ->> ASE: Credit user
 
     else Could not fulfill payment
-    ILPBC ->> ILPBC: Publish payment fulfillment failed event
-    PBC -->> ILPBC: Read payment fulfillment failed event
+    ILPBC ->> ILPBC: Publish ILPPaymentFulfillmentFailedEvent
+    PBC -->> ILPBC: Read ILPPaymentFulfillmentFailedEvent
     PBC ->> PBC: Mark payment as failed
-    PBC ->> PBC: Publish received payment failed event
+    PBC ->> PBC: Publish InboundPaymentFailedEvent
     par
-    PAL -->> PBC: Read received payment failed event
+    PAL -->> PBC: Read InboundPaymentFailedEvent
     PAL ->> PAL: Return/refund liquidity
     PAL ->> PAL: Publish LedgerIncomingTransferRefundedEvent
     and
-    NBC -->> PBC: Read received payment failed event
-    NBC ->> ASE: Notify of failed received payment
+    NBC -->> PBC: Read InboundPaymentFailedEvent
+    NBC ->> ASE: Notify of failed inbound payment
     end
     end
 ```
