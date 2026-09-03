@@ -94,15 +94,20 @@ export interface IAccessRequest {
   identifier?: string;
 }
 
+export const FinalizedGrantState = {
+  ISSUED: 'ISSUED',
+  REVOKED: 'REVOKED',
+  REJECTED: 'REJECTED'
+} as const;
+export type FinalizedGrantState = keyof typeof FinalizedGrantState;
+
 export const GrantState = {
   // transitional states
   PROCESSING: 'PROCESSING',
   PENDING: 'PENDING',
   APPROVED: 'APPROVED',
   // finalized states
-  ISSUED: 'ISSUED',
-  REVOKED: 'REVOKED',
-  REJECTED: 'REJECTED'
+  ...FinalizedGrantState
 } as const;
 export type GrantState = keyof typeof GrantState;
 

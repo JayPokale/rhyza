@@ -12,6 +12,7 @@ import {
 import {
   IAccessItem,
   IFinishMethod,
+  FinalizedGrantState,
   GrantState,
   IGrant,
   IInteraction,
@@ -209,18 +210,40 @@ export class GrantEntity implements IGrant {
     this._interaction.state = choice;
   }
 
+  private setState(state: GrantState): void {
+    this._state = state;
+
+    if (state in FinalizedGrantState) {
+      this._continueToken = undefined;
+      this._continueId = undefined;
+    }
+  }
+
+  private assertContinueCredentials(
+    continueToken: string,
+    continueId: string
+  ): void {
+    if (!this._continueToken || !this._continueId) {
+      throw new InvalidGrantError(
+        `Current state ${this._state} is a finalized state and cannot be changed`
+      );
+    }
+
+    if (
+      continueToken !== this._continueToken ||
+      continueId !== this._continueId
+    ) {
+      throw new InvalidGrantError('Invalid continue token or continue id');
+    }
+  }
+
   // Continues the grant, if an interaction was required.
   continue(
     continueToken: string,
     continueId: string,
     interactRef?: string
   ): IAccessToken | undefined {
-    if (
-      continueToken !== this._continueToken ||
-      continueId !== this._continueId
-    ) {
-      throw new InvalidGrantError();
-    }
+    this.assertContinueCredentials(continueToken, continueId);
 
     if (
       this._lastContinuedAt &&
@@ -245,8 +268,7 @@ export class GrantEntity implements IGrant {
       }
 
       if (this._state === GrantState.APPROVED) {
-        this._continueToken = undefined;
-        this._continueId = undefined;
+        this.setState(GrantState.ISSUED);
         return this.createAccessToken();
       }
 
@@ -269,37 +291,26 @@ export class GrantEntity implements IGrant {
       }
 
       if (this._interaction.state === InteractionState.APPROVED) {
-        this._state = GrantState.ISSUED;
+        this.setState(GrantState.ISSUED);
         return this.createAccessToken();
       }
 
       if (this._interaction.state === InteractionState.REJECTED) {
-        this._state = GrantState.REJECTED;
+        this.setState(GrantState.REJECTED);
       }
     }
   }
 
+  /**
+   * Revokes the grant and returns the revoked access tokens. Any continuable grant can be revoked.
+   * @param continueToken - The continue token to revoke the grant.
+   * @param continueId - The continue id to revoke the grant.
+   * @returns The revoked access tokens which will be persisted to the db in the aggregate.
+   */
   revoke(continueToken: string, continueId: string): IAccessToken[] {
-    if (
-      continueToken !== this._continueToken ||
-      continueId !== this._continueId
-    )
-      throw new InvalidGrantError('Invalid continue token or continue id');
+    this.assertContinueCredentials(continueToken, continueId);
 
-    if (this._state === GrantState.REVOKED) {
-      return [];
-    }
-
-    if (
-      this._state !== GrantState.APPROVED &&
-      this._state !== GrantState.ISSUED
-    ) {
-      throw new InvalidGrantError(
-        'Only approved and issued grants can be revoked'
-      );
-    }
-
-    this._state = GrantState.REVOKED;
+    this.setState(GrantState.REVOKED);
 
     const revokedTokens: IAccessToken[] = [];
     const now = new Date();
