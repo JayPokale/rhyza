@@ -2,12 +2,7 @@ import {
   CheckBalanceAndReserveTransferCmd,
   CheckBalanceAndReserveTransferCmdPayload,
   CommitTransferCmd,
-  CommitTransferCmdPayload,
-  CreateLedgerAccountForAssetCmd,
-  CreateLedgerAccountsForPeerCmd,
-  CreateLedgerCmd,
   DepositToAseCmd,
-  IPalPeerAccounts,
   LedgerCommand
 } from 'pal-domain-lib';
 import {
@@ -24,7 +19,6 @@ import {
 } from '../../';
 import {
   CommandMsg,
-  ConsoleLogger,
   DomainEvent,
   DomainEventTopics,
   ILogger,
@@ -34,7 +28,6 @@ import {
   ITelemetryHistogram,
   ITelemetryService,
   MessageTypes,
-  NullLogger,
   TELEMETRY_PROPS_CALL_NAME_PROP
 } from 'common-types-lib';
 import { DEFAULT_ASSET_SCALE, ISettingsData } from '../common';
@@ -62,15 +55,6 @@ const kafkaConsumerCommonOptions: KafkaConsumerOptions = {
   batchTimeoutMs: 200,
   batchSize: 500_000,
   autoOffsetReset: 'latest'
-};
-
-const ASSET_SYSTEM_ACC_ID = 'system';
-const peerAccounts: IPalPeerAccounts = {
-  peerLiquidityAccId: 'peerLiquidityAccId',
-  peerClearingAccId: 'peerClearingAccId',
-  aseLiquidityAccId: 'aseLiquidityAccId',
-  aseClearingAccId: 'aseClearingAccId',
-  suspenseAccId: 'suspenseAccId'
 };
 
 const RESPONSE_TOPICS_TO_LISTEN_TO = [DomainEventTopics.LedgerEvents];

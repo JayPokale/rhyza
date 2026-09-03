@@ -81,7 +81,6 @@ const REDIS_URL = process.env['REDIS_URL'] || 'redis://localhost:6379';
 
 const MAX_EVENTS_PER_SNAPSHOT = 10;
 const MAX_SECS_SINCE_LAST_SNAPSHOT = 600;
-const MIN_SECS_SINCE_LAST_SNAPSHOT = 10;
 
 // Message Consumer/Publisher
 const KAFKA_URL =
@@ -276,7 +275,7 @@ export class PalLedgerEventHandlerService {
     this._producer = producer;
 
     /*
-     * Instantiate state event habdlers - snapshotter and projector
+     * Instantiate state event handlers - snapshotter and projector
      */
 
     if (!stateEventsConsumer) {
@@ -291,27 +290,19 @@ export class PalLedgerEventHandlerService {
     }
     this._stateEventsConsumer = stateEventsConsumer;
 
-    // Instantiate the aggregate to be used by the snapshotter and read side projections
-    const ledgerAggregate = new LedgerAggregate(
-      this._esRepo,
-      this._producer,
-      logger,
-      this._telemetryService
-    );
-
     const configs: LedgerStateEventHandlerConfigs = {
       maxStateEventsBetweenSnapshots: MAX_EVENTS_PER_SNAPSHOT,
-      maxTimeBetweenSnapshotsMs: MAX_SECS_SINCE_LAST_SNAPSHOT * 1000,
-      minTimeBetweenSnapshotsMs: MIN_SECS_SINCE_LAST_SNAPSHOT * 1000
+      maxTimeBetweenSnapshotsMs: MAX_SECS_SINCE_LAST_SNAPSHOT * 1000
     };
 
     this._stateEventHandler = new LedgerStateEventHandler(
       configs,
-      ledgerAggregate,
       this._esRepo,
       this._stateEventsConsumer,
+      this._producer,
       this._readSideRepo,
-      this._logger
+      this._logger,
+      this._telemetryService
     );
 
     await this._stateEventHandler.init();

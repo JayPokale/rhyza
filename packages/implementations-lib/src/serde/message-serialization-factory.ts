@@ -17,6 +17,7 @@ import { JsonDomainEventSerializer } from './json/json-domain-event-serializer';
 import { JsonSnapshotSerializer } from './json/json-snapshot-serializer';
 import { JsonStateEventSerializer } from './json/json-state-event-serializer';
 import process from "process";
+import { JsonTimerEventSerializer } from './json/json-timer-event-serializer';
 
 const HISTOGRAM_NAME = 'MessageSerializationFactory_histo';
 
@@ -36,6 +37,7 @@ export class MessageSerializationFactory
     this.register(new JsonDomainEventSerializer());
     this.register(new JsonStateEventSerializer());
     this.register(new JsonSnapshotSerializer());
+    this.register(new JsonTimerEventSerializer());
   }
 
   static instance(): MessageSerializationFactory {

@@ -24,6 +24,7 @@ export interface ILedgerEventSourcingRepository {
 }
 
 export interface ILedgerReadSideRepository {
+  getAllLedgerIds(): Promise<string[]>;
   storeLedgers(ledgers: ILedgerDto[]): Promise<void>;
   fetchLedgers(ids: string[]): Promise<ILedgerDto[]>;
 

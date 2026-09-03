@@ -31,3 +31,9 @@ export enum StateEventTopics {
 export enum SnapshotEventTopics {
   'LedgerSnapshotEvents' = 'ledger-snapshot-events'
 }
+
+// For private timer related events, like check for expired transfers
+// or if a snapshot needed.
+export enum TimerEventTopics {
+  'LedgerTimerEvents' = 'ledger-timer-events'
+}

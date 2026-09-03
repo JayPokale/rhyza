@@ -117,7 +117,6 @@ export type CheckBalanceAndReserveTransferCmdPayload = {
   transferDirection: 'INCOMING' | 'OUTGOING';
   paymentIntentId: string;
   paymentId: string;
-  // expireBy: number; TODO add expireBy to CheckBalanceAndReserveTransferCmdPayload
 };
 export class CheckBalanceAndReserveTransferCmd extends LedgerCommand {
   payload: CheckBalanceAndReserveTransferCmdPayload;
