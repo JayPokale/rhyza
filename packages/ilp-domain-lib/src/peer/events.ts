@@ -212,6 +212,7 @@ export interface ILPPaymentReceivedPayload {
   paymentId: string;
   sourceAmount: string;
   requestId: string;
+  expiresAt: string;
 }
 
 export class ILPPaymentReceivedEvent extends DomainEvent {
@@ -234,7 +235,7 @@ export interface ILPPaymentFulfillmentSentPayload {
   packetId: string;
   paymentIntentId: string;
   paymentId: string;
-  receivedPaymentId: string;
+  inboundPaymentId: string;
   fulfilledAt: string;
   requestId: string;
 }
@@ -259,7 +260,7 @@ export interface ILPPaymentFulfillmentFailedPayload {
   packetId: string;
   paymentIntentId: string;
   paymentId: string;
-  receivedPaymentId: string;
+  inboundPaymentId: string;
   failedAt: string;
   reason: string;
   requestId: string;

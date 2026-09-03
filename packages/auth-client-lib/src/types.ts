@@ -41,6 +41,7 @@ export interface BaseCreateGrantOptions {
   finish?: GrantFinish;
   subjectIds?: SubjectId[];
   access?: AccessItem[];
+  start: string[];
 }
 
 export type CreateGrantOptions =
@@ -51,7 +52,7 @@ export interface InteractionResult {
   interactRef: string;
   clientNonce: string;
   state: string;
-  expiresInMs: number;
+  expiresAt: number;
 }
 
 export interface GetGrantResult {
@@ -76,20 +77,19 @@ export interface CreateGrantResult {
   id: string;
   continueId: string;
   continueToken: string;
-  interactionNonce: string;
-  accessTokenValue: string;
-  accessTokenManagementId: string;
-  accessTokenExpiresIn: number;
+  interactionNonce?: string;
+  accessTokenValue?: string;
+  accessTokenManagementId?: string;
+  accessTokenExpiresIn?: number;
   access: AccessItem[];
   subjectIds: SubjectId[];
 }
 
 export interface ContinueGrantResult {
   id: string;
-  finalizationReason: string;
-  accessTokenValue: string;
-  accessTokenManagementId: string;
-  accessTokenExpiresIn: number;
+  accessTokenValue?: string;
+  accessTokenManagementId?: string;
+  accessTokenExpiresIn?: number;
   access: AccessItem[];
   continueId: string;
   continueToken: string;
@@ -117,6 +117,18 @@ export interface RevokeTokenResult {
   id: string;
 }
 
+export interface StartInteractionResult {
+  id: string;
+  nonce: string;
+}
+
 export interface HandleInteractionChoiceResult {
   success: boolean;
+}
+
+export interface FinishInteractionResult {
+  id: string;
+  interactNonce: string;
+  clientNonce: string;
+  interactRef: string;
 }

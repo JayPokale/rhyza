@@ -1,5 +1,12 @@
 import { Collection, CollectionInfo, Db, MongoClient, WithId } from 'mongodb';
-import { IAccessToken, IGrant, IGrantRepository } from 'auth-domain-lib';
+import {
+  IAccessToken,
+  IGrant,
+  IGrantRepository,
+  IRotatedGrantUpdate,
+  IContinuedGrantUpdate,
+  IFinishedInteractiveGrantUpdate
+} from 'auth-domain-lib';
 import { ILogger } from 'common-types-lib';
 
 const DB_NAME = 'auth';
@@ -108,8 +115,10 @@ export class MongoDbGrantRepo implements IGrantRepository {
       startMethods: doc.startMethods,
       continueToken: doc.continueToken,
       continueId: doc.continueId,
+      lastContinuedAt: doc.lastContinuedAt
+        ? new Date(doc.lastContinuedAt)
+        : undefined,
       state: doc.state,
-      finalizationReason: doc.finalizationReason,
       client: doc.client,
       subjectIds: doc.subjectIds,
       accesses: doc.accesses,
@@ -118,8 +127,13 @@ export class MongoDbGrantRepo implements IGrantRepository {
       finishUri: doc.finishUri,
       interactionNonce: doc.interactionNonce,
       interaction: doc.interaction,
-      lastContinuedAt: doc.lastContinuedAt,
-      accessTokens: tokenDocs
+      accessTokens: tokenDocs.map((token) => ({
+        ...token,
+        expiresInMs: token.expiresInMs,
+        expiresAt: new Date(token.expiresAt),
+        createdAt: new Date(token.createdAt),
+        revokedAt: token.revokedAt ? new Date(token.revokedAt) : undefined
+      }))
     };
   }
 
@@ -135,8 +149,8 @@ export class MongoDbGrantRepo implements IGrantRepository {
           startMethods: grant.startMethods,
           continueToken: grant.continueToken,
           continueId: grant.continueId,
+          lastContinuedAt: grant.lastContinuedAt,
           state: grant.state,
-          finalizationReason: grant.finalizationReason,
           client: grant.client,
           subjectIds: grant.subjectIds,
           accesses: grant.accesses,
@@ -144,17 +158,17 @@ export class MongoDbGrantRepo implements IGrantRepository {
           finishMethod: grant.finishMethod,
           finishUri: grant.finishUri,
           interactionNonce: grant.interactionNonce,
-          interaction: grant.interaction,
-          lastContinuedAt: grant.lastContinuedAt
+          interaction: grant.interaction
         }))
       );
 
       const accessTokenDocs = grants.flatMap((grant) =>
-        [...grant.accessTokens.values()].map((token) => ({
+        grant.accessTokens.map((token) => ({
           grantId: grant.id,
           value: token.value,
           managementId: token.managementId,
           expiresInMs: token.expiresInMs,
+          expiresAt: token.expiresAt,
           createdAt: token.createdAt,
           revokedAt: token.revokedAt
         }))
@@ -167,6 +181,151 @@ export class MongoDbGrantRepo implements IGrantRepository {
       this._logger.error(err);
       throw new Error(
         `Unable to store grants - error: ${(err as Error).message}`
+      );
+    }
+  }
+
+  async storeRotatedGrants(updates: IRotatedGrantUpdate[]): Promise<void> {
+    this._checkInitialisedOrThrow();
+
+    if (updates.length === 0) return;
+
+    try {
+      const revokeOps = updates.map((u) => ({
+        updateOne: {
+          filter: { value: u.revokedToken.value },
+          update: { $set: { revokedAt: u.revokedToken.revokedAt } }
+        }
+      }));
+
+      await this._accessTokenCollection.bulkWrite(revokeOps, {
+        ordered: false
+      });
+
+      const newTokenDocs = updates.map((u) => ({
+        grantId: u.id,
+        value: u.newToken.value,
+        managementId: u.newToken.managementId,
+        expiresInMs: u.newToken.expiresInMs,
+        expiresAt: u.newToken.expiresAt,
+        createdAt: u.newToken.createdAt
+      }));
+
+      await this._accessTokenCollection.insertMany(newTokenDocs);
+    } catch (err) {
+      this._logger.error(err);
+      throw new Error(
+        `Unable to store rotated grants - error: ${(err as Error).message}`
+      );
+    }
+  }
+
+  async storeContinuedGrants(grants: IContinuedGrantUpdate[]): Promise<void> {
+    this._checkInitialisedOrThrow();
+
+    if (grants.length === 0) return;
+
+    try {
+      await this._grantCollection.bulkWrite(
+        grants.map((grant) => ({
+          updateOne: {
+            filter: { id: grant.id },
+            update: {
+              $set: {
+                state: grant.state,
+                continueToken: grant.continueToken,
+                continueId: grant.continueId,
+                lastContinuedAt: grant.lastContinuedAt
+              }
+            }
+          }
+        }))
+      );
+
+      const accessTokenWrites = grants.flatMap((grant) => {
+        if (!grant.accessToken) return [];
+        const token = grant.accessToken;
+        return [
+          {
+            updateOne: {
+              filter: { value: token.value },
+              update: {
+                $set: {
+                  grantId: grant.id,
+                  value: token.value,
+                  managementId: token.managementId,
+                  expiresInMs: token.expiresInMs,
+                  expiresAt: token.expiresAt,
+                  createdAt: token.createdAt,
+                  revokedAt: token.revokedAt
+                }
+              },
+              upsert: true
+            }
+          }
+        ];
+      });
+
+      if (accessTokenWrites.length > 0) {
+        await this._accessTokenCollection.bulkWrite(accessTokenWrites);
+      }
+    } catch (err) {
+      this._logger.error(err);
+      throw new Error(
+        `Unable to store continued grants - error: ${(err as Error).message}`
+      );
+    }
+  }
+
+  async storeFinishedInteractiveGrants(
+    grants: IFinishedInteractiveGrantUpdate[]
+  ): Promise<void> {
+    if (grants.length === 0) return;
+
+    try {
+      await this._grantCollection.bulkWrite(
+        grants.map((grant) => ({
+          updateOne: {
+            filter: { id: grant.id },
+            update: {
+              $set: {
+                state: grant.state
+              }
+            }
+          }
+        }))
+      );
+    } catch (err) {
+      this._logger.error(err);
+      throw new Error(
+        `Unable to store continued grants - error: ${(err as Error).message}`
+      );
+    }
+  }
+
+  async storeRevokedTokens(tokens: IAccessToken[]): Promise<void> {
+    this._checkInitialisedOrThrow();
+
+    if (tokens.length === 0) return;
+
+    try {
+      await this._accessTokenCollection.bulkWrite(
+        tokens.map((token) => ({
+          updateOne: {
+            filter: { value: token.value },
+            update: {
+              $set: {
+                revokedAt: token.revokedAt
+              }
+            }
+          }
+        })),
+        { ordered: false }
+      );
+    } catch (err) {
+      this._logger.error(err);
+      throw new Error(
+        `Unable to store revoked tokens - error: ${(err as Error).message}`
       );
     }
   }
@@ -222,6 +381,30 @@ export class MongoDbGrantRepo implements IGrantRepository {
       this._logger.error(err);
       throw new Error(
         `Unable to fetch grants - error: ${(err as Error).message}`
+      );
+    }
+  }
+
+  async storeInteractions(grants: IGrant[]): Promise<void> {
+    this._checkInitialisedOrThrow();
+
+    if (grants.length === 0) return;
+
+    try {
+      await this._grantCollection.bulkWrite(
+        grants.map((update) => ({
+          updateOne: {
+            filter: { id: update.id },
+            update: {
+              $set: { interaction: update.interaction }
+            }
+          }
+        }))
+      );
+    } catch (e) {
+      this._logger.error(e);
+      throw new Error(
+        `Unable to store interactions for grants - error: ${(e as Error).message}`
       );
     }
   }

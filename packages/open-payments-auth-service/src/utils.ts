@@ -15,29 +15,34 @@ export function decodeCompoundId(value: string): {
   const [grantId, otherId] = Buffer.from(value, 'base64url')
     .toString('utf-8')
     .split(DELIMITER);
+
   if (!grantId || !otherId) {
     throw new OpenPaymentsAuthServerRouteError(
       404,
-      `Malformed continuation id: ${value}`,
+      'Malformed id',
       'invalid_request'
     );
   }
   return { grantId, otherId };
 }
 
+interface CreateAccessTokenResponseArgs {
+  grantId: string;
+  accessTokenManagementId: string;
+  accessTokenValue: string;
+  accessTokenExpiresIn: number;
+  access: AccessItem[];
+  openPaymentsAuthServerUrl: string;
+}
+
 export function createAccessTokenResponse(
-  grantId: string,
-  accessTokenManagementId: string,
-  accessTokenValue: string,
-  accessTokenExpiresIn: number,
-  access: AccessItem[],
-  openPaymentsAuthServerUrl: string
+  args: CreateAccessTokenResponseArgs
 ): components['schemas']['access_token'] {
   return {
-    value: encodeCompoundId(grantId, accessTokenValue),
-    manage: `${openPaymentsAuthServerUrl}/token/${encodeCompoundId(grantId, accessTokenManagementId)}`,
-    expires_in: accessTokenExpiresIn,
-    access: access.map((a) => ({
+    value: encodeCompoundId(args.grantId, args.accessTokenValue),
+    manage: `${args.openPaymentsAuthServerUrl}/token/${encodeCompoundId(args.grantId, args.accessTokenManagementId)}`,
+    expires_in: args.accessTokenExpiresIn,
+    access: args.access.map((a) => ({
       actions: a.actions.map((action) =>
         action.toLowerCase().replace('_', '-')
       ),
@@ -48,6 +53,7 @@ export function createAccessTokenResponse(
 
 export function createContinueResponse(
   grantId: string,
+  continueId: string,
   continueTokenValue: string,
   openPaymentsAuthServerUrl: string
 ): components['schemas']['continue'] {
@@ -55,8 +61,8 @@ export function createContinueResponse(
     access_token: {
       value: continueTokenValue
     },
-    uri: `${openPaymentsAuthServerUrl}/continue/${grantId}`
     // TODO wait
+    uri: `${openPaymentsAuthServerUrl}/continue/${encodeCompoundId(grantId, continueId)}`
   };
 }
 

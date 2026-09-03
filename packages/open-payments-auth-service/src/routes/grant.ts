@@ -53,7 +53,9 @@ export async function grantRoutes(
   }>(
     '/',
     {
-      onRequest: requireSignatureHeaders,
+      onRequest: async (request) => {
+        requireSignatureHeaders(request);
+      },
       schema: {
         body: { $ref: '#/components/schemas/grant-request#' }
       }
@@ -83,8 +85,12 @@ export async function grantRoutes(
         : undefined;
 
       const options: CreateGrantOptions = access?.length
-        ? { access, subjectIds, finish }
-        : { subjectIds: subjectIds ?? [], finish };
+        ? { access, subjectIds, finish, start: interact?.start || [] }
+        : {
+            subjectIds: subjectIds ?? [],
+            finish,
+            start: interact?.start || []
+          };
 
       const result = await authClient.createGrant(
         resolveClientIdentifier(client),
@@ -94,6 +100,7 @@ export async function grantRoutes(
 
       const continueResponse = createContinueResponse(
         result.id,
+        result.continueId,
         result.continueToken,
         openPaymentsAuthServerUrl
       );
@@ -109,15 +116,27 @@ export async function grantRoutes(
         });
       }
 
+      if (
+        !result.accessTokenExpiresIn ||
+        !result.accessTokenValue ||
+        !result.accessTokenManagementId
+      ) {
+        throw new OpenPaymentsAuthServerRouteError(
+          500,
+          'Could not generate access token for grant request',
+          'request_denied'
+        );
+      }
+
       return reply.status(200).send({
-        access_token: createAccessTokenResponse(
-          result.id,
-          result.accessTokenManagementId,
-          result.accessTokenValue,
-          result.accessTokenExpiresIn,
-          result.access,
+        access_token: createAccessTokenResponse({
+          grantId: result.id,
+          accessTokenExpiresIn: result.accessTokenExpiresIn,
+          accessTokenManagementId: result.accessTokenManagementId,
+          accessTokenValue: result.accessTokenValue,
+          access: result.access,
           openPaymentsAuthServerUrl
-        ),
+        }),
         continue: continueResponse
       });
     }
@@ -130,7 +149,7 @@ export async function grantRoutes(
   }>(
     '/continue/:id',
     {
-      onRequest: (request) => {
+      onRequest: async (request) => {
         requireSignatureHeaders(request);
         getGnapTokenOrThrow(request);
       },
@@ -147,31 +166,36 @@ export async function grantRoutes(
 
       const result = await authClient.continueGrant(
         grantId,
+        extractSignatureData(request),
         continueId,
         continueToken,
-        request.body.interact_ref ?? ''
-        //TODO pass in http signature data
+        request.body.interact_ref
       );
 
       const continueResponse = createContinueResponse(
         result.id,
+        result.continueId,
         result.continueToken,
         openPaymentsAuthServerUrl
       );
 
-      if (!result.accessTokenValue) {
+      if (
+        !result.accessTokenValue ||
+        !result.accessTokenManagementId ||
+        !result.accessTokenExpiresIn
+      ) {
         return reply.status(200).send({ continue: continueResponse });
       }
 
       return reply.status(200).send({
-        access_token: createAccessTokenResponse(
-          result.id,
-          result.accessTokenValue,
-          result.accessTokenManagementId,
-          result.accessTokenExpiresIn,
-          result.access,
+        access_token: createAccessTokenResponse({
+          grantId: result.id,
+          accessTokenExpiresIn: result.accessTokenExpiresIn,
+          accessTokenManagementId: result.accessTokenManagementId,
+          accessTokenValue: result.accessTokenValue,
+          access: result.access,
           openPaymentsAuthServerUrl
-        ),
+        }),
         continue: continueResponse
       });
     }
@@ -182,7 +206,7 @@ export async function grantRoutes(
   }>(
     '/continue/:id',
     {
-      onRequest: (request) => {
+      onRequest: async (request) => {
         requireSignatureHeaders(request);
         getGnapTokenOrThrow(request);
       }

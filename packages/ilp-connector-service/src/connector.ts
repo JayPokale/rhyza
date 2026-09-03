@@ -180,7 +180,8 @@ export class IlpConnector {
       await this._producer.send(
         new ProcessFulfillPacketCmd({
           ...common,
-          fulfilledAt: new Date().toISOString()
+          fulfilledAt: new Date().toISOString(),
+          fulfillment: response.fulfillment
         })
       );
       return;

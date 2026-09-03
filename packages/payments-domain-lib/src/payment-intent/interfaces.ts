@@ -1,10 +1,10 @@
 import {
   PaymentIntentState,
   SentPaymentState,
-  ReceivedPaymentState
+  InboundPaymentState
 } from 'payments-public-types-lib';
 
-export { PaymentIntentState, SentPaymentState, ReceivedPaymentState };
+export { PaymentIntentState, SentPaymentState, InboundPaymentState };
 
 export const PaymentIntentDestination = {
   LOCAL: 'LOCAL',
@@ -72,9 +72,9 @@ export interface ISentPayment {
   failReason?: string;
 }
 
-export interface IReceivedPayment {
+export interface IInboundPayment {
   id: string;
-  state: ReceivedPaymentState;
+  state: InboundPaymentState;
   paymentIntentId: string;
   packetId: string;
   peerId: string;
@@ -83,6 +83,7 @@ export interface IReceivedPayment {
   sourceAmount: bigint;
   receiveAmount: bigint;
   createdAt: Date;
+  expiresAt?: Date;
   ledgerTransferId?: string;
   failReason?: string;
 }
@@ -101,7 +102,7 @@ export interface IPaymentIntent {
   receivedAmount: bigint;
   quotes: IQuote[];
   sentPayments: ISentPayment[];
-  receivedPayments: IReceivedPayment[];
+  inboundPayments: IInboundPayment[];
   destinationIlpAddress?: string;
   remoteUrl?: string;
   peerId?: string;
@@ -172,7 +173,7 @@ export interface IPaymentIntentRepository {
   ): Promise<void>;
   fetchByIds(
     ids: string[]
-  ): Promise<Omit<IPaymentIntent, 'sentPayments' | 'receivedPayments'>[]>;
+  ): Promise<Omit<IPaymentIntent, 'sentPayments' | 'inboundPayments'>[]>;
   fetchByIdsWithPayments(ids: string[]): Promise<IPaymentIntent[]>;
   fetchIdsByRemoteUrls(
     urls: string[]
@@ -183,43 +184,43 @@ export interface IPaymentIntentRepository {
   storeSentPayments(
     paymentUpdates: { paymentIds: string[]; paymentIntent: IPaymentIntent }[]
   ): Promise<void>;
-  storeReceivedPayments(
-    receivedPaymentUpdates: {
-      receivedPaymentIds: string[];
+  storeInboundPayments(
+    inboundPaymentUpdates: {
+      inboundPaymentIds: string[];
       paymentIntent: IPaymentIntent;
     }[]
   ): Promise<void>;
-  storeAcceptedReceivedPayments(
-    receivedPaymentUpdates: {
-      receivedPayments: {
+  storeAcceptedInboundPayments(
+    inboundPaymentUpdates: {
+      inboundPayments: {
         id: string;
-        state: ReceivedPaymentState;
+        state: InboundPaymentState;
         ledgerTransferId: string;
       }[];
     }[]
   ): Promise<void>;
-  storeFailedReceivedPayments(
-    receivedPaymentUpdates: {
-      receivedPayments: {
+  storeFailedInboundPayments(
+    inboundPaymentUpdates: {
+      inboundPayments: {
         id: string;
-        state: ReceivedPaymentState;
+        state: InboundPaymentState;
         failReason?: string;
       }[];
     }[]
   ): Promise<void>;
-  storeFulfillableReceivedPayments(
-    receivedPaymentUpdates: {
-      receivedPayments: { id: string; state: ReceivedPaymentState }[];
+  storeFulfillableInboundPayments(
+    inboundPaymentUpdates: {
+      inboundPayments: { id: string; state: InboundPaymentState }[];
     }[]
   ): Promise<void>;
-  storeFinalizedReceivedPayments(
-    receivedPaymentUpdates: {
+  storeFinalizedInboundPayments(
+    inboundPaymentUpdates: {
       paymentIntent: {
         id: string;
         receivedAmount: bigint;
         state: PaymentIntentState;
       };
-      receivedPayments: { id: string; state: ReceivedPaymentState }[];
+      inboundPayments: { id: string; state: InboundPaymentState }[];
     }[]
   ): Promise<void>;
   storeCompletedLocalPayments(

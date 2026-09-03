@@ -1,4 +1,3 @@
-import * as crypto from 'crypto';
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { AuthClient } from 'auth-client-lib';
 
@@ -20,10 +19,10 @@ export async function interactionRoutes(
   }>('/interaction/:grantId/start', async (request, reply) => {
     // TODO: implement
     const { authClient } = opts;
-    const { grantId } = request.params
+    const { grantId } = request.params;
     const { id } = await authClient.startInteraction(grantId);
 
-    request.session.interactionSessionId = id; 
+    request.session.interactionSessionId = id;
 
     const redirectUrl = new URL(IDP_URL as string);
     // Called interactId here because that was the name of the value in v1.
@@ -43,8 +42,11 @@ export async function interactionRoutes(
     if (request.session.interactionSessionId !== grant.interactionNonce) {
       return reply.status(401).send();
     }
-    const result = await authClient.finishInteraction(grantId);
-    
+    const result = await authClient.finishInteraction(
+      grantId,
+      grant.interactionNonce
+    );
+
     return reply.status(501).send();
   });
 }

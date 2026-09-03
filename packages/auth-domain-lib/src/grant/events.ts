@@ -1,16 +1,32 @@
 import { DomainEventTopics, DomainEvent } from 'common-types-lib';
-import { GrantFinalization, IAccessItem, ISubjectId } from './interfaces';
+import {
+  GrantState,
+  IAccessItem,
+  ISubjectId,
+  InteractionChoice
+} from './interfaces';
 
 const BOUNDED_CONTEXT_NAME = 'auth';
 const AGGREGATE_NAME = 'grant';
 
-export abstract class GrantDomainEvent extends DomainEvent {
-  msgTopic: string = DomainEventTopics.AuthEvents;
-  isErrorEvent = false;
+interface GrantDomainErrorPayload {
+  grantId: string;
+  errorName: string;
+  message: string;
+}
 
-  protected constructor(aggId: string) {
+export abstract class AuthDomainEvent extends DomainEvent {
+  contextName: string = BOUNDED_CONTEXT_NAME;
+  aggregateName: string = AGGREGATE_NAME;
+  aggregateId: string;
+  msgKey: string;
+  msgTopic: string = DomainEventTopics.AuthEvents;
+  isErrorEvent: boolean = false;
+
+  protected constructor(aggId: string, requestId?: string) {
     super(aggId);
-    this.msgKey = aggId;
+    this.aggregateId = this.msgKey = aggId;
+    this.requestId = requestId;
   }
 
   static isGrantCreatedEvent(evt: DomainEvent): evt is GrantCreatedEvent {
@@ -49,12 +65,6 @@ export abstract class GrantDomainEvent extends DomainEvent {
     return evt.msgName === TokenIntrospectedEvent.name;
   }
 
-  static isTokenIntrospectionFailedEvent(
-    evt: DomainEvent
-  ): evt is TokenIntrospectionFailedEvent {
-    return evt.msgName === TokenIntrospectionFailedEvent.name;
-  }
-
   static isTokenRotatedEvent(evt: DomainEvent): evt is TokenRotatedEvent {
     return evt.msgName === TokenRotatedEvent.name;
   }
@@ -63,6 +73,40 @@ export abstract class GrantDomainEvent extends DomainEvent {
     evt: DomainEvent
   ): evt is TokenRotationFailedEvent {
     return evt.msgName === TokenRotationFailedEvent.name;
+  }
+
+  static isTokenRevokedEvent(evt: DomainEvent): evt is TokenRevokedEvent {
+    return evt.msgName === TokenRevokedEvent.name;
+  }
+
+  static isTokenRevokeFailedEvent(
+    evt: DomainEvent
+  ): evt is TokenRevokeFailedEvent {
+    return evt.msgName === TokenRevokeFailedEvent.name;
+  }
+
+  static isGrantInteractionStartedEvent(
+    evt: DomainEvent
+  ): evt is GrantInteractionStartedEvent {
+    return evt.msgName === GrantInteractionStartedEvent.name;
+  }
+
+  static isGrantInteractionStartFailedEvent(
+    evt: DomainEvent
+  ): evt is GrantInteractionStartFailedEvent {
+    return evt.msgName === GrantInteractionStartFailedEvent.name;
+  }
+
+  static isGrantInteractionFinishedEvent(
+    evt: DomainEvent
+  ): evt is GrantInteractionFinishedEvent {
+    return evt.msgName === GrantInteractionFinishedEvent.name;
+  }
+
+  static isGrantInteractionFinishFailedEvent(
+    evt: DomainEvent
+  ): evt is GrantInteractionFinishFailedEvent {
+    return evt.msgName === GrantInteractionFinishFailedEvent.name;
   }
 
   static isGrantInteractionChoiceHandledEvent(
@@ -82,6 +126,7 @@ export interface GrantCreatedPayload {
   id: string;
   continueId?: string;
   continueToken?: string;
+  continueWaitMs?: number;
   interactionNonce?: string;
   accessTokenValue?: string;
   accessTokenManagementId?: string;
@@ -90,19 +135,13 @@ export interface GrantCreatedPayload {
   subjectIds?: ISubjectId[];
 }
 
-export class GrantCreatedEvent extends DomainEvent {
-  contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
-  aggregateName: string = AGGREGATE_NAME;
-  msgKey: string;
-  msgTopic: string = DomainEventTopics.AuthEvents;
+export class GrantCreatedEvent extends AuthDomainEvent {
   payload: GrantCreatedPayload;
 
   constructor(payload: GrantCreatedPayload, requestId?: string) {
-    super(payload.id);
-    this.aggregateId = this.msgKey = payload.id;
+    super(payload.id, requestId);
+    this.isErrorEvent = false;
     this.payload = payload;
-    this.requestId = requestId;
   }
 }
 
@@ -112,46 +151,35 @@ export interface GrantCreateFailedPayload {
   message: string;
 }
 
-export class GrantCreateFailedEvent extends DomainEvent {
-  contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateName: string = AGGREGATE_NAME;
-  msgKey: string;
-  msgTopic: string = DomainEventTopics.AuthEvents;
-  isErrorEvent: boolean = true;
+export class GrantCreateFailedEvent extends AuthDomainEvent {
   payload: GrantCreateFailedPayload;
 
   constructor(payload: GrantCreateFailedPayload, requestId?: string) {
-    super(payload.grantId);
-    this.aggregateId = this.msgKey = payload.grantId;
+    super(payload.grantId, requestId);
+    this.isErrorEvent = true;
     this.payload = payload;
-    this.requestId = requestId;
   }
 }
 
 export interface GrantContinuedPayload {
   id: string;
-  finalizationReason: GrantFinalization;
+  state: GrantState;
   accessTokenValue?: string;
   accessTokenManagementId?: string;
   accessTokenExpiresIn?: number;
   access?: IAccessItem[];
   continueId?: string;
   continueToken?: string;
+  continueWaitMs?: number;
 }
 
-export class GrantContinuedEvent extends DomainEvent {
-  contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
-  aggregateName: string = AGGREGATE_NAME;
-  msgKey: string;
-  msgTopic: string = DomainEventTopics.AuthEvents;
+export class GrantContinuedEvent extends AuthDomainEvent {
   payload: GrantContinuedPayload;
 
   constructor(payload: GrantContinuedPayload, requestId?: string) {
-    super(payload.id);
-    this.aggregateId = this.msgKey = payload.id;
+    super(payload.id, requestId);
+    this.isErrorEvent = false;
     this.payload = payload;
-    this.requestId = requestId;
   }
 }
 
@@ -161,18 +189,14 @@ export interface GrantContinueFailedPayload {
   message: string;
 }
 
-export class GrantContinueFailedEvent extends DomainEvent {
-  contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
-  aggregateName: string = AGGREGATE_NAME;
-  msgKey: string;
-  msgTopic: string = DomainEventTopics.AuthEvents;
+export class GrantContinueFailedEvent extends AuthDomainEvent {
   payload: GrantContinueFailedPayload;
 
-  constructor(payload: GrantContinueFailedPayload) {
+  constructor(payload: GrantContinueFailedPayload, requestId?: string) {
     super(payload.grantId);
     this.aggregateId = this.msgKey = payload.grantId;
     this.payload = payload;
+    this.requestId = requestId;
   }
 }
 
@@ -180,17 +204,11 @@ export interface GrantRevokedPayload {
   id: string;
 }
 
-export class GrantRevokedEvent extends DomainEvent {
-  contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
-  aggregateName: string = AGGREGATE_NAME;
-  msgKey: string;
-  msgTopic: string = DomainEventTopics.AuthEvents;
+export class GrantRevokedEvent extends AuthDomainEvent {
   payload: GrantRevokedPayload;
 
-  constructor(payload: GrantRevokedPayload) {
-    super(payload.id);
-    this.aggregateId = this.msgKey = payload.id;
+  constructor(payload: GrantRevokedPayload, requestId: string) {
+    super(payload.id, requestId);
     this.payload = payload;
   }
 }
@@ -201,60 +219,32 @@ export interface GrantRevokeFailedPayload {
   message: string;
 }
 
-export class GrantRevokeFailedEvent extends DomainEvent {
-  contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
-  aggregateName: string = AGGREGATE_NAME;
-  msgKey: string;
-  msgTopic: string = DomainEventTopics.AuthEvents;
+export class GrantRevokeFailedEvent extends AuthDomainEvent {
   payload: GrantRevokeFailedPayload;
 
-  constructor(payload: GrantRevokeFailedPayload) {
-    super(payload.grantId);
-    this.aggregateId = this.msgKey = payload.grantId;
+  constructor(payload: GrantRevokeFailedPayload, requestId: string) {
+    super(payload.grantId, requestId);
+    this.isErrorEvent = true;
     this.payload = payload;
   }
 }
 
 export interface TokenIntrospectedPayload {
   id: string;
+  value: string;
   active: boolean;
   access?: IAccessItem[];
 }
 
-export class TokenIntrospectedEvent extends DomainEvent {
-  contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
-  aggregateName: string = AGGREGATE_NAME;
-  msgKey: string;
-  msgTopic: string = DomainEventTopics.AuthEvents;
+export class TokenIntrospectedEvent extends AuthDomainEvent {
   payload: TokenIntrospectedPayload;
+  requestId: string;
 
-  constructor(payload: TokenIntrospectedPayload) {
+  constructor(payload: TokenIntrospectedPayload, requestId: string) {
     super(payload.id);
     this.aggregateId = this.msgKey = payload.id;
     this.payload = payload;
-  }
-}
-
-export interface TokenIntrospectionFailedPayload {
-  grantId: string;
-  errorName: string;
-  message: string;
-}
-
-export class TokenIntrospectionFailedEvent extends DomainEvent {
-  contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
-  aggregateName: string = AGGREGATE_NAME;
-  msgKey: string;
-  msgTopic: string = DomainEventTopics.AuthEvents;
-  payload: TokenIntrospectionFailedPayload;
-
-  constructor(payload: TokenIntrospectionFailedPayload) {
-    super(payload.grantId);
-    this.aggregateId = this.msgKey = payload.grantId;
-    this.payload = payload;
+    this.requestId = requestId;
   }
 }
 
@@ -266,17 +256,12 @@ export interface TokenRotatedPayload {
   access?: IAccessItem[];
 }
 
-export class TokenRotatedEvent extends DomainEvent {
-  contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
-  aggregateName: string = AGGREGATE_NAME;
-  msgKey: string;
-  msgTopic: string = DomainEventTopics.AuthEvents;
+export class TokenRotatedEvent extends AuthDomainEvent {
   payload: TokenRotatedPayload;
 
-  constructor(payload: TokenRotatedPayload) {
-    super(payload.id);
-    this.aggregateId = this.msgKey = payload.id;
+  constructor(payload: TokenRotatedPayload, requestId: string) {
+    super(payload.id, requestId);
+    this.isErrorEvent = false;
     this.payload = payload;
   }
 }
@@ -287,16 +272,105 @@ export interface TokenRotationFailedPayload {
   message: string;
 }
 
-export class TokenRotationFailedEvent extends DomainEvent {
-  contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
-  aggregateName: string = AGGREGATE_NAME;
-  msgKey: string;
-  msgTopic: string = DomainEventTopics.AuthEvents;
+export class TokenRotationFailedEvent extends AuthDomainEvent {
   payload: TokenRotationFailedPayload;
 
-  constructor(payload: TokenRotationFailedPayload) {
-    super(payload.grantId);
+  constructor(payload: TokenRotationFailedPayload, requestId: string) {
+    super(payload.grantId, requestId);
+    this.isErrorEvent = true;
+    this.payload = payload;
+  }
+}
+
+export interface GrantInteractionStartedPayload {
+  id: string;
+  nonce: string;
+}
+
+export class GrantInteractionStartedEvent extends AuthDomainEvent {
+  payload: GrantInteractionStartedPayload;
+
+  constructor(payload: GrantInteractionStartedPayload, requestId: string) {
+    super(payload.id, requestId);
+    this.isErrorEvent = false;
+    this.payload = payload;
+  }
+}
+
+export interface GrantInteractionStartFailedPayload {
+  grantId: string;
+  errorName: string;
+  message: string;
+}
+
+export class GrantInteractionStartFailedEvent extends AuthDomainEvent {
+  payload: GrantInteractionStartFailedPayload;
+
+  constructor(payload: GrantInteractionStartFailedPayload, requestId: string) {
+    super(payload.grantId, requestId);
+    this.isErrorEvent = true;
+    this.payload = payload;
+    this.requestId = requestId;
+  }
+}
+
+export interface TokenRevokedPayload {
+  id: string;
+}
+
+export class TokenRevokedEvent extends AuthDomainEvent {
+  payload: TokenRevokedPayload;
+
+  constructor(payload: TokenRevokedPayload, requestId: string) {
+    super(payload.id, requestId);
+    this.payload = payload;
+    this.requestId = requestId;
+  }
+}
+
+export interface TokenRevokeFailedPayload {
+  grantId: string;
+  errorName: string;
+  message: string;
+}
+
+export class TokenRevokeFailedEvent extends AuthDomainEvent {
+  payload: TokenRevokeFailedPayload;
+
+  constructor(payload: TokenRevokeFailedPayload, requestId: string) {
+    super(payload.grantId, requestId);
+    this.isErrorEvent = true;
+    this.payload = payload;
+  }
+}
+
+export interface GrantInteractionFinishedPayload {
+  id: string;
+  interactNonce: string;
+  clientNonce: string;
+  interactRef: string;
+}
+
+export class GrantInteractionFinishedEvent extends AuthDomainEvent {
+  payload: GrantInteractionFinishedPayload;
+
+  constructor(payload: GrantInteractionFinishedPayload, requestId?: string) {
+    super(payload.id, requestId);
+    this.payload = payload;
+  }
+}
+
+export type GrantInteractionFinishFailedPayload = GrantDomainErrorPayload;
+
+export class GrantInteractionFinishFailedEvent extends AuthDomainEvent {
+  payload: GrantInteractionFinishFailedPayload;
+  isErrorEvent = true;
+
+  constructor(
+    payload: GrantInteractionFinishFailedPayload,
+    requestId?: string
+  ) {
+    super(payload.grantId, requestId);
     this.aggregateId = this.msgKey = payload.grantId;
     this.payload = payload;
   }
@@ -304,20 +378,18 @@ export class TokenRotationFailedEvent extends DomainEvent {
 
 export interface GrantInteractionChoiceHandledPayload {
   id: string;
-  interactRef?: string;
+  choice: InteractionChoice;
 }
 
-export class GrantInteractionChoiceHandledEvent extends DomainEvent {
-  contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
-  aggregateName: string = AGGREGATE_NAME;
-  msgKey: string;
-  msgTopic: string = DomainEventTopics.AuthEvents;
+export class GrantInteractionChoiceHandledEvent extends AuthDomainEvent {
   payload: GrantInteractionChoiceHandledPayload;
 
-  constructor(payload: GrantInteractionChoiceHandledPayload) {
-    super(payload.id);
-    this.aggregateId = this.msgKey = payload.id;
+  constructor(
+    payload: GrantInteractionChoiceHandledPayload,
+    requestId?: string
+  ) {
+    super(payload.id, requestId);
+    this.isErrorEvent = false;
     this.payload = payload;
   }
 }
@@ -328,17 +400,15 @@ export interface GrantInteractionChoiceFailedPayload {
   message: string;
 }
 
-export class GrantInteractionChoiceFailedEvent extends DomainEvent {
-  contextName: string = BOUNDED_CONTEXT_NAME;
-  aggregateId: string;
-  aggregateName: string = AGGREGATE_NAME;
-  msgKey: string;
-  msgTopic: string = DomainEventTopics.AuthEvents;
+export class GrantInteractionChoiceFailedEvent extends AuthDomainEvent {
   payload: GrantInteractionChoiceFailedPayload;
 
-  constructor(payload: GrantInteractionChoiceFailedPayload) {
-    super(payload.grantId);
-    this.aggregateId = this.msgKey = payload.grantId;
+  constructor(
+    payload: GrantInteractionChoiceFailedPayload,
+    requestId?: string
+  ) {
+    super(payload.grantId, requestId);
+    this.isErrorEvent = true;
     this.payload = payload;
   }
 }

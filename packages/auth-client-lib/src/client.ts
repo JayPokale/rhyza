@@ -14,9 +14,13 @@ import {
   RotateTokenResponse as PbRotateTokenResponse,
   RevokeTokenResponse as PbRevokeTokenResponse,
   CreateGrantResponse as PbCreateGrantResponse,
+  StartInteractionResponse as PbStartInteractionResponse,
+  StartInteractionRequest as PbStartInteractionRequest,
   HandleInteractionChoiceResponse as PbHandleInteractionChoiceResponse,
   AcceptInteractionRequest as PbAcceptInteractionRequest,
   RejectInteractionRequest as PbRejectInteractionRequest,
+  FinishInteractionRequest as PbFinishInteractionRequest,
+  FinishInteractionResponse as PbFinishInteractionResponse,
   ContinueGrantRequest as PbContinueGrantRequest,
   RevokeGrantRequest as PbRevokeGrantRequest,
   IntrospectTokenResponse as PbIntrospectTokenResponse,
@@ -32,6 +36,7 @@ import {
   ContinueGrantResult,
   CreateGrantOptions,
   CreateGrantResult,
+  FinishInteractionResult,
   GetGrantResult,
   GrantFinish,
   HandleInteractionChoiceResult,
@@ -41,6 +46,7 @@ import {
   RevokeTokenResult,
   RotateTokenResult,
   SignatureRequestData,
+  StartInteractionResult,
   SubjectId
 } from './types';
 
@@ -105,6 +111,8 @@ export class AuthClient {
     options: CreateGrantOptions
   ): Promise<CreateGrantResult> {
     const request = new PbGrantRequest();
+    request.setStartList(options.start);
+
     if (options.access) {
       request.setAccessList(options.access.map(toPbAccessItem));
     }
@@ -116,13 +124,7 @@ export class AuthClient {
       request.setFinish(toPbGrantRequestFinish(options.finish));
     }
 
-    const signatureDataPb = new PbSignatureData();
-    signatureDataPb.setUrl(signatureData.url);
-    signatureDataPb.setMethod(signatureData.method);
-    signatureDataPb.setBody(signatureData.body);
-    signatureDataPb.setKid(signatureData.kid);
-    signatureDataPb.setHeaders(JSON.stringify(signatureData.headers));
-    request.setSignatureData(signatureDataPb);
+    request.setSignatureData(this.toSignatureData(signatureData));
 
     return new Promise((resolve, reject) => {
       this._grpcClient.createGrant(
@@ -140,15 +142,17 @@ export class AuthClient {
 
   continueGrant(
     id: string,
+    signatureData: SignatureRequestData,
     continueId: string,
     continueToken: string,
-    interactRef: string
+    interactRef?: string
   ): Promise<ContinueGrantResult> {
     const request = new PbContinueGrantRequest();
     request.setId(id);
     request.setContinueId(continueId);
     request.setContinueToken(continueToken);
-    request.setInteractRef(interactRef);
+    if (interactRef) request.setInteractRef(interactRef);
+    request.setSignatureData(this.toSignatureData(signatureData));
 
     return new Promise((resolve, reject) => {
       this._grpcClient.continueGrant(
@@ -162,6 +166,18 @@ export class AuthClient {
         }
       );
     });
+  }
+
+  private toSignatureData(
+    signatureData: SignatureRequestData
+  ): PbSignatureData {
+    const msg = new PbSignatureData();
+    msg.setUrl(signatureData.url);
+    msg.setMethod(signatureData.method);
+    msg.setBody(signatureData.body);
+    msg.setKid(signatureData.kid);
+    msg.setHeaders(JSON.stringify(signatureData.headers));
+    return msg;
   }
 
   revokeGrant(
@@ -214,6 +230,7 @@ export class AuthClient {
 
   rotateToken(
     id: string,
+    signatureData: SignatureRequestData,
     tokenValue: string,
     managementId: string
   ): Promise<RotateTokenResult> {
@@ -221,6 +238,7 @@ export class AuthClient {
     request.setId(id);
     request.setTokenValue(tokenValue);
     request.setManagementId(managementId);
+    request.setSignatureData(this.toSignatureData(signatureData));
 
     return new Promise((resolve, reject) => {
       this._grpcClient.rotateToken(
@@ -238,6 +256,7 @@ export class AuthClient {
 
   revokeToken(
     id: string,
+    signatureData: SignatureRequestData,
     tokenValue: string,
     managementId: string
   ): Promise<RevokeTokenResult> {
@@ -245,6 +264,7 @@ export class AuthClient {
     request.setId(id);
     request.setTokenValue(tokenValue);
     request.setManagementId(managementId);
+    request.setSignatureData(this.toSignatureData(signatureData));
 
     return new Promise((resolve, reject) => {
       this._grpcClient.revokeToken(
@@ -260,15 +280,54 @@ export class AuthClient {
     });
   }
 
-  acceptInteraction(
+  startInteraction(id: string): Promise<StartInteractionResult> {
+    const request = new PbStartInteractionRequest();
+    request.setId(id);
+
+    return new Promise((resolve, reject) => {
+      this._grpcClient.startInteraction(
+        request,
+        (error: ServiceError | null, response: PbStartInteractionResponse) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve({ id: response.getId(), nonce: response.getNonce() });
+          }
+        }
+      );
+    });
+  }
+
+  finishInteraction(
     id: string,
-    interactRef: string,
     nonce: string
-  ): Promise<HandleInteractionChoiceResult> {
+  ): Promise<FinishInteractionResult> {
+    const request = new PbFinishInteractionRequest();
+    request.setId(id);
+    request.setNonce(nonce);
+
+    return new Promise((resolve, reject) => {
+      this._grpcClient.finishInteraction(
+        request,
+        (error: ServiceError | null, response: PbFinishInteractionResponse) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve({
+              id: response.getId(),
+              interactNonce: response.getInteractNonce(),
+              clientNonce: response.getClientNonce(),
+              interactRef: response.getInteractRef()
+            });
+          }
+        }
+      );
+    });
+  }
+
+  acceptInteraction(id: string): Promise<HandleInteractionChoiceResult> {
     const request = new PbAcceptInteractionRequest();
     request.setId(id);
-    request.setInteractRef(interactRef);
-    request.setNonce(nonce);
 
     return new Promise((resolve, reject) => {
       this._grpcClient.acceptInteraction(
@@ -287,13 +346,9 @@ export class AuthClient {
     });
   }
 
-  rejectInteraction(
-    id: string,
-    nonce: string
-  ): Promise<HandleInteractionChoiceResult> {
+  rejectInteraction(id: string): Promise<HandleInteractionChoiceResult> {
     const request = new PbRejectInteractionRequest();
     request.setId(id);
-    request.setNonce(nonce);
 
     return new Promise((resolve, reject) => {
       this._grpcClient.rejectInteraction(
@@ -381,12 +436,22 @@ function toPbAccessItem(input: AccessItem): PbAccessItem {
 }
 
 function fromPbAccessItem(accessItem: PbAccessItem): AccessItem {
-  return {
+  const item: AccessItem = {
     type: accessItem.getType(),
-    actions: accessItem.getActionsList(),
-    identifier: accessItem.getIdentifier() || undefined,
-    limits: fromPbAccessLimits(accessItem.getLimits())
+    actions: accessItem.getActionsList()
   };
+
+  const identifier = accessItem.getIdentifier();
+  if (identifier) {
+    item.identifier = identifier;
+  }
+
+  const limits = fromPbAccessLimits(accessItem.getLimits());
+  if (limits) {
+    item.limits = limits;
+  }
+
+  return item;
 }
 
 function toPbSubjectId(input: SubjectId): PbSubjectId {
@@ -418,7 +483,7 @@ function fromPbInteraction(
     interactRef: interaction.getInteractRef(),
     clientNonce: interaction.getClientNonce(),
     state: interaction.getState(),
-    expiresInMs: interaction.getExpiresInMs()
+    expiresAt: interaction.getExpiresAt()
   };
 }
 
@@ -449,10 +514,10 @@ function fromPbCreateGrantResponse(
     id: response.getId(),
     continueId: response.getContinueId(),
     continueToken: response.getContinueToken(),
-    interactionNonce: response.getInteractionNonce(),
-    accessTokenValue: response.getAccessTokenValue(),
-    accessTokenManagementId: response.getAccessTokenManagementId(),
-    accessTokenExpiresIn: response.getAccessTokenExpiresIn(),
+    interactionNonce: response.getInteractionNonce() || undefined,
+    accessTokenValue: response.getAccessTokenValue() || undefined,
+    accessTokenManagementId: response.getAccessTokenManagementId() || undefined,
+    accessTokenExpiresIn: response.getAccessTokenExpiresIn() || undefined,
     access: response.getAccessList().map(fromPbAccessItem),
     subjectIds: response.getSubIdsList().map(fromPbSubjectId)
   };
@@ -463,10 +528,9 @@ function fromPbContinueGrantResponse(
 ): ContinueGrantResult {
   return {
     id: response.getId(),
-    finalizationReason: response.getFinalizationReason(),
-    accessTokenValue: response.getAccessTokenValue(),
-    accessTokenManagementId: response.getAccessTokenManagementId(),
-    accessTokenExpiresIn: response.getAccessTokenExpiresIn(),
+    accessTokenValue: response.getAccessTokenValue() || undefined,
+    accessTokenManagementId: response.getAccessTokenManagementId() || undefined,
+    accessTokenExpiresIn: response.getAccessTokenExpiresIn() || undefined,
     access: response.getAccessList().map(fromPbAccessItem),
     continueId: response.getContinueId(),
     continueToken: response.getContinueToken()

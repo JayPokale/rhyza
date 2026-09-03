@@ -52,16 +52,13 @@ export interface ISubjectId {
   id: string;
 }
 
-export type InteractionChoice =
-  | typeof InteractionState.APPROVED
-  | typeof InteractionState.DENIED;
-
 export const InteractionState = {
   PENDING: 'PENDING',
   APPROVED: 'APPROVED',
-  DENIED: 'DENIED'
+  REJECTED: 'REJECTED'
 } as const;
 export type InteractionState = keyof typeof InteractionState;
+export type InteractionChoice = Exclude<InteractionState, 'PENDING'>;
 
 export interface IGrantContinuation {
   accessToken: {
@@ -98,34 +95,31 @@ export interface IAccessRequest {
 }
 
 export const GrantState = {
+  // transitional states
   PROCESSING: 'PROCESSING',
   PENDING: 'PENDING',
   APPROVED: 'APPROVED',
-  FINALIZED: 'FINALIZED'
-} as const;
-export type GrantState = keyof typeof GrantState;
-
-export const GrantFinalization = {
+  // finalized states
   ISSUED: 'ISSUED',
   REVOKED: 'REVOKED',
   REJECTED: 'REJECTED'
 } as const;
-export type GrantFinalization = keyof typeof GrantFinalization;
+export type GrantState = keyof typeof GrantState;
 
 export interface IInteraction {
   interactRef: string;
   state: InteractionState;
-  expiresInMs: number;
-  clientNonce: string;
+  createdAt: Date;
+  expiresAt: Date;
 }
 
 export interface IGrant {
   id: string;
   startMethods: IStartMethod[];
-  continueToken: string;
-  continueId: string;
+  continueToken?: string;
+  continueId?: string;
+  lastContinuedAt?: Date;
   state: GrantState;
-  finalizationReason?: GrantFinalization;
   client?: string | IJsonWebKey;
   subjectIds?: ISubjectId[];
   accesses?: IAccessItem[];
@@ -134,20 +128,14 @@ export interface IGrant {
   finishUri?: string;
   interactionNonce?: string;
   interaction?: IInteraction;
-  lastContinuedAt?: Date;
   accessTokens: IAccessToken[];
 }
-
-export type NewAccessToken = Omit<IAccessToken, 'revokedAt'>;
-
-export type RevokedAccessToken = IAccessToken & {
-  revokedAt: Date;
-};
 
 export interface IAccessToken {
   value: string;
   managementId: string;
   expiresInMs: number;
+  expiresAt: Date;
   createdAt: Date;
   revokedAt?: Date;
 }
@@ -184,8 +172,35 @@ export interface IWalletAddressService {
   getWalletAddressKeys(url: string): Promise<IJsonWebKey[]>;
 }
 
+export interface IRotatedGrantUpdate {
+  id: string;
+  revokedToken: IAccessToken;
+  newToken: IAccessToken;
+}
+
+export interface IContinuedGrantUpdate {
+  id: string;
+  state: GrantState;
+  continueToken?: string;
+  continueId?: string;
+  lastContinuedAt?: Date;
+  accessToken?: IAccessToken;
+}
+
+export interface IFinishedInteractiveGrantUpdate {
+  id: string;
+  state: GrantState;
+}
+
 export interface IGrantRepository {
   storeMany(grants: IGrant[]): Promise<void>;
+  storeRotatedGrants(updates: IRotatedGrantUpdate[]): Promise<void>;
+  storeContinuedGrants(grants: IContinuedGrantUpdate[]): Promise<void>;
+  storeFinishedInteractiveGrants(
+    grants: IFinishedInteractiveGrantUpdate[]
+  ): Promise<void>;
+  storeRevokedTokens(tokens: IAccessToken[]): Promise<void>;
   fetchById(id: string): Promise<IGrant | undefined>;
   fetchByIds(ids: string[]): Promise<IGrant[]>;
+  storeInteractions(grants: IGrant[]): Promise<void>;
 }

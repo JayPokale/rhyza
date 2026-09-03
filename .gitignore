@@ -42,8 +42,7 @@ tmp
 
 dist
 **/src/proto_generated/
-**/src/types/generated/
-
+**/src/types/generated/*
 .agents
 
 # Docs

@@ -4,6 +4,13 @@ import { randomUUID } from 'crypto';
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { PalClient, parseAddressToDomainAndPathName } from 'pal-client-lib';
 import {
+  ApprovePaymentRequest,
+  CancelPaymentRequest,
+  GetPaymentRequest,
+  PaymentCancel,
+  PaymentCreate
+} from 'admin-client-lib';
+import {
   PaymentsClient,
   httpStatusFromGrpcError,
   toClientApiErrorResponse
@@ -21,13 +28,7 @@ export async function paymentRoutes(
   const { palClient, paymentsClient } = opts;
 
   server.post<{
-    Body: {
-      walletAddress: string;
-      paymentIntentId: string;
-      id?: string;
-      quoteId?: string;
-      debitAmount?: number;
-    };
+    Body: PaymentCreate;
   }>('/payments', async (request, reply) => {
     const { walletAddress, paymentIntentId, quoteId, debitAmount } =
       request.body;
@@ -61,41 +62,40 @@ export async function paymentRoutes(
     }
   });
 
-  server.get<{ Params: { intentId: string; id: string } }>(
-    '/payment-intents/:intentId/payments/:id',
-    async (request, reply) => {
-      const { intentId, id } = request.params;
+  server.get<{
+    Params: GetPaymentRequest;
+  }>('/payment-intents/:intentId/payments/:id', async (request, reply) => {
+    const { intentId, id } = request.params;
 
-      let payment;
-      try {
-        payment = await paymentsClient.getPayment(intentId, id);
-      } catch (err) {
-        server.log.error(err);
-        const httpStatus = httpStatusFromGrpcError(err);
-        const { error } = toClientApiErrorResponse(err);
-        return reply.status(httpStatus).send({ error: error.description });
-      }
-
-      return reply.status(200).send({
-        id: payment.id,
-        state: payment.state,
-        senderWalletAddress: payment.senderWalletAddress,
-        assetCode: payment.assetCode,
-        assetScale: payment.assetScale,
-        quoteId: payment.quoteId,
-        debitAmount: String(payment.debitAmount),
-        receiveAmount: String(payment.receiveAmount),
-        sentAmount: String(payment.sentAmount)
-      });
+    let payment;
+    try {
+      payment = await paymentsClient.getPayment(intentId, id);
+    } catch (err) {
+      server.log.error(err);
+      const httpStatus = httpStatusFromGrpcError(err);
+      const { error } = toClientApiErrorResponse(err);
+      return reply.status(httpStatus).send({ error: error.description });
     }
-  );
+
+    return reply.status(200).send({
+      id: payment.id,
+      state: payment.state,
+      senderWalletAddress: payment.senderWalletAddress,
+      assetCode: payment.assetCode,
+      assetScale: payment.assetScale,
+      quoteId: payment.quoteId,
+      debitAmount: String(payment.debitAmount),
+      receiveAmount: String(payment.receiveAmount),
+      sentAmount: String(payment.sentAmount)
+    });
+  });
 
   server.post<{
-    Params: { intentId: string; id: string };
+    Params: ApprovePaymentRequest;
   }>(
     '/payment-intents/:intentId/payments/:id/approve',
     async (request, reply) => {
-      const { intentId, id } = request.params;
+      const { id, intentId } = request.params;
 
       try {
         const result = await paymentsClient.approvePayment(intentId, id);
@@ -110,12 +110,12 @@ export async function paymentRoutes(
   );
 
   server.post<{
-    Params: { intentId: string; id: string };
-    Body: { reason?: string };
+    Params: CancelPaymentRequest;
+    Body: PaymentCancel;
   }>(
     '/payment-intents/:intentId/payments/:id/cancel',
     async (request, reply) => {
-      const { intentId, id } = request.params;
+      const { id, intentId } = request.params;
       const { reason } = request.body ?? {};
 
       try {
