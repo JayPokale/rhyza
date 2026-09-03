@@ -223,8 +223,11 @@ export class Ledger {
     );
 
     // load pending transfers from the snapshot to the in memory state
-    if(snapshot.payload.pendingTransfers && snapshot.payload.pendingTransfers.length){
-      snapshot.payload.pendingTransfers.forEach(item =>{
+    if (
+      snapshot.payload.pendingTransfers &&
+      snapshot.payload.pendingTransfers.length
+    ) {
+      snapshot.payload.pendingTransfers.forEach((item) => {
         this._pendingTransfers.set(item.transferId, item);
       });
     }
@@ -234,10 +237,8 @@ export class Ledger {
     );
     this._transactionCount = BigInt(snapshot.payload.transactionCount);
 
-    if (!this.verify()){
-      throw new Error(
-        'Ledger failed verification - erroneous state found'
-      );
+    if (!this.verify()) {
+      throw new Error('Ledger failed verification - erroneous state found');
     }
 
     this._logger.debug(
@@ -808,9 +809,7 @@ export class Ledger {
   private async _processCommitTransferCmd(
     cmd: CommitTransferCmd
   ): Promise<void> {
-    const pendingTransfer = this._pendingTransfers.get(
-      cmd.payload.transferId
-    );
+    const pendingTransfer = this._pendingTransfers.get(cmd.payload.transferId);
     if (!pendingTransfer) {
       this._failHighLevelTransaction(cmd, 'PENDING');
       return;
@@ -899,9 +898,7 @@ export class Ledger {
   private async _processRejectTransferCmd(
     cmd: RejectTransferCmd
   ): Promise<void> {
-    const pendingTransfer = this._pendingTransfers.get(
-      cmd.payload.transferId
-    );
+    const pendingTransfer = this._pendingTransfers.get(cmd.payload.transferId);
     if (!pendingTransfer) {
       this._failHighLevelTransaction(cmd, 'PENDING');
       return;
@@ -1175,19 +1172,19 @@ export class Ledger {
       return false;
     }
 
-    if(snapshot) {
+    if (snapshot) {
       this._applySnapshot(snapshot);
     }
-    if(events.length){
+    if (events.length) {
       this.applyEvents(events, replayed);
     }
 
     let logMsg = `Ledger ${this.id} - loaded from `;
-    if(snapshot && events.length){
+    if (snapshot && events.length) {
       logMsg += 'snapshot and events';
-    }else if(!snapshot && events.length){
+    } else if (!snapshot && events.length) {
       logMsg += 'events';
-    }else{
+    } else {
       logMsg += 'snapshot';
     }
     this._logger.info(
@@ -1271,7 +1268,7 @@ export class Ledger {
         assetScale: this._assetScale,
         accounts: this._accounts.map(LedgerAccountDtoSerializer.toDTO),
         transactionCount: this._transactionCount.toString(),
-        pendingTransfers: Array.from(this._pendingTransfers.values()),
+        pendingTransfers: Array.from(this._pendingTransfers.values())
       }
     );
 

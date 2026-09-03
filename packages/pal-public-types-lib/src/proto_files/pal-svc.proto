@@ -29,11 +29,6 @@ service PalGrpc {
 
   // ledger liquidity management requests
   rpc ExecuteLedgerLiquidityManagementRequest(PbLedgerLiquidityManagementRequest) returns (PbLedgerLiquidityManagementResponse);
-
-//  rpc LedgerDepositToAseRequest(PbLedgerLiquidityManagementRequest) returns (PbLedgerLiquidityManagementResponse);
-//  rpc LedgerDepositToPeerRequest(PbLedgerLiquidityManagementRequest) returns (PbLedgerLiquidityManagementResponse);
-//  rpc LedgerWithdrawFromAseRequest(PbLedgerLiquidityManagementRequest) returns (PbLedgerLiquidityManagementResponse);
-//  rpc LedgerWithdrawFromPeerRequest(PbLedgerLiquidityManagementRequest) returns (PbLedgerLiquidityManagementResponse);
 }
 
 /*

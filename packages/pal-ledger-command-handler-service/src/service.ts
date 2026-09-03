@@ -20,7 +20,15 @@ import {
   KafkaLedgerEventSourcingRepository,
   LedgerCreatedStateEventSerde,
   LedgerSnapshotSerde,
-  LedgerAccountsCreatedStateEventSerde
+  LedgerAccountsCreatedStateEventSerde,
+  CheckBalanceAndReserveCmdSerde,
+  ReserveTransferCmdSerde,
+  CommitTransferCmdSerde,
+  RejectTransferCmdSerde,
+  DepositToAseCmdSerde,
+  WithdrawFromAseCmdSerde,
+  DepositToPeerCmdSerde,
+  WithdrawFromPeerCmdSerde
 } from 'pal-implementations-lib';
 import { LedgerTransactionRecordedStateEventSerde } from 'pal-implementations-lib';
 import crypto from 'crypto';
@@ -149,7 +157,15 @@ export class PalLedgerCommandHandlerService {
         // commands
         .register(new CreateLedgerCmdSerde())
         .register(new CreateLedgerAccountForAssetCmdSerde())
-        .register(new CreateLedgerAccountsForPeerCmdSerde());
+        .register(new CreateLedgerAccountsForPeerCmdSerde())
+        .register(new CheckBalanceAndReserveCmdSerde())
+        .register(new ReserveTransferCmdSerde())
+        .register(new CommitTransferCmdSerde())
+        .register(new RejectTransferCmdSerde())
+        .register(new DepositToAseCmdSerde())
+        .register(new WithdrawFromAseCmdSerde())
+        .register(new DepositToPeerCmdSerde())
+        .register(new WithdrawFromPeerCmdSerde());
 
       msgSerializationFactory = MessageSerializationFactory.instance();
       msgSerializationFactory.setTelemetry(this._telemetryService);

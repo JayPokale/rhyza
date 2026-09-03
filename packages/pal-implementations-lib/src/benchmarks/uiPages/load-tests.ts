@@ -28,7 +28,7 @@ export class LoadTestsPage implements IUiPage {
   private _log!: Log;
   // private _setupLedgerBtn!: Button;
   // private _startBtn!: Button;
-  // private _stopBtn!: Button;
+  // private _stopBtn!: Buttons;
 
   constructor(data: ISettingsData, loadTests: LoadTests) {
     this._data = data;
@@ -153,65 +153,9 @@ export class LoadTestsPage implements IUiPage {
       scrollOnInput: true
     });
 
-    // const commonButton: Partial<ButtonOptions> = {
-    //   parent: this._containerBox,
-    //   shrink: true,
-    //   mouse: true,
-    //   padding: {
-    //     top: 1,
-    //     right: 2,
-    //     bottom: 1,
-    //     left: 2
-    //   },
-    //   focusable: true,
-    //   style: {
-    //     bold: true,
-    //     fg: 'red',
-    //     bg: 'white',
-    //     focus: {
-    //       inverse: true
-    //     }
-    //   }
-    // };
-    //
-    //
-    //   this._startBtn = new Button({
-    //     ...commonButton,
-    //     name: 'start',
-    //     content: 'Start',
-    //     bottom: 0,
-    //     left: 16
-    //   });
-    //   this._stopBtn = new Button({
-    //     ...commonButton,
-    //     name: 'stop',
-    //     content: 'Stop',
-    //     bottom: 0,
-    //     right: 26
-    //   });
   }
 
   private _hookUiHandlers() {
-    // this._setupLedgerBtn.on('press', async () => {
-    //   await this._loadTests.setupLedger();
-    //   this._log.log(`Start button pressed - ${Date.now()}`);
-    // });
-    //
-    // this._startBtn.on('press', async () => {
-    //   this._log.log(`Start button pressed - ${Date.now()}`);
-    //   await this._loadTests.start();
-    //
-    //   this._stopBtn.sattr({
-    //     bg: 'red',
-    //     fg: 'white'
-    //   });
-    //   this._startBtn.screen.render();
-    // });
-    //
-    // this._stopBtn.on('press', () => {
-    //   this._loadTests.stop();
-    //   this._log.log(`Start button pressed - ${Date.now()}`);
-    // });
     this._text1.on("submit", (data:string)=>{
       console.log(data);
       this._loadTests.perSecCount = parseInt(data);

@@ -218,7 +218,9 @@ export class LedgerAggregate {
 
     let partitionAndOffset: { partition: number; offset: number } | undefined =
       undefined;
-    if (snapshot?.lastEventIndexOffset && snapshot?.lastEventIndexPartition) {
+    if (snapshot?.lastEventIndexOffset != undefined &&
+      snapshot?.lastEventIndexPartition != undefined
+    ) {
       partitionAndOffset = {
         partition: snapshot.lastEventIndexPartition,
         offset: snapshot.lastEventIndexOffset + 1 // we want to start reading the next message, not the last one that made it to the snapshot
@@ -242,7 +244,7 @@ export class LedgerAggregate {
     this._ledgers.set(ledgerId, ledger);
 
     this._logger.info(
-      `LedgerAggregate: ledger loading took: ${Date.now() - startTs}ms`
+      `LedgerAggregate: ${ledgerId} ledger loading took: ${Date.now() - startTs}ms`
     );
     return ledger;
   }

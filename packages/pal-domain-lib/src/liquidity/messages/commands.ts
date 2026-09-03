@@ -117,7 +117,6 @@ export type CheckBalanceAndReserveTransferCmdPayload = {
   transferDirection: 'INCOMING' | 'OUTGOING';
   paymentIntentId: string;
   paymentId: string;
-  // expireBy: number; TODO add expireBy to CheckBalanceAndReserveTransferCmdPayload
 };
 export class CheckBalanceAndReserveTransferCmd extends LedgerCommand {
   payload: CheckBalanceAndReserveTransferCmdPayload;
@@ -134,8 +133,6 @@ export type ReserveTransferCmdPayload = {
   requestId: string;
   transferId: string;
   peerId: string;
-  // payerClearingAccountId: string;
-  // suspenseAccountId: string;
   amount: string;
   amountScale: number;
   transferDirection: 'INCOMING' | 'OUTGOING';
@@ -150,42 +147,24 @@ export class ReserveTransferCmd extends LedgerCommand {
   }
 }
 
-export type CommitTransferCmdPayload = {
+export type CommitOrRejectTransferCmdPayload = {
   requestId: string;
   transferId: string;
-  // peerId: string;
-  // payerClearingAccountId: string;
-  // suspenseAccountId: string;
-  // payeeClearingAccountId: string;
-  // amount: string;
-  // amountScale: number;
   transferDirection: 'INCOMING' | 'OUTGOING';
   paymentIntentId: string;
   paymentId: string;
 };
 export class CommitTransferCmd extends LedgerCommand {
-  payload: CommitTransferCmdPayload;
-  constructor(aggId: string, payload: CommitTransferCmdPayload) {
+  payload: CommitOrRejectTransferCmdPayload;
+  constructor(aggId: string, payload: CommitOrRejectTransferCmdPayload) {
     super(aggId);
     this.payload = payload;
   }
 }
 
-export type RejectTransferCmdPayload = {
-  requestId: string;
-  transferId: string;
-  // peerId: string;
-  // payerClearingAccountId: string;
-  // suspenseAccountId: string;
-  // amount: string;
-  // amountScale: number;
-  transferDirection: 'INCOMING' | 'OUTGOING';
-  paymentIntentId: string;
-  paymentId: string;
-};
 export class RejectTransferCmd extends LedgerCommand {
-  payload: RejectTransferCmdPayload;
-  constructor(aggId: string, payload: RejectTransferCmdPayload) {
+  payload: CommitOrRejectTransferCmdPayload;
+  constructor(aggId: string, payload: CommitOrRejectTransferCmdPayload) {
     super(aggId);
     this.payload = payload;
   }

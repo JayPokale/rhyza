@@ -3,7 +3,9 @@ import {
   SnapshotEvent,
   SnapshotEventTopics,
   StateEventTopics,
-  MessageDataFormats
+  MessageDataFormats,
+  TimerEventTopics,
+  TimerEvent
 } from 'common-types-lib';
 
 const DATAFORMAT = MessageDataFormats.JSON;
@@ -154,3 +156,13 @@ export class LedgerSnapshotEvent extends BaseLedgerSnapshotEvent {
     this.payload = payload;
   }
 }
+
+export class LedgerSnapshotCheckTimerEvent extends TimerEvent {
+  msgTopic: string = TimerEventTopics.LedgerTimerEvents;
+  payload: undefined = undefined;
+
+  constructor(aggId: string) {
+    super(aggId);
+  }
+}
+
