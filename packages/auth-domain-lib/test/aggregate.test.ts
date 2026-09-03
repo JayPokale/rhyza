@@ -16,7 +16,8 @@ import {
   IntrospectTokenCmdPayload,
   RevokeGrantCmd,
   RevokeTokenCmd,
-  RotateTokenCmd
+  RotateTokenCmd,
+  StartInteractionCmd
 } from '../src/commands';
 import {
   GrantCreatedEvent,
@@ -27,7 +28,9 @@ import {
   TokenRevokedEvent,
   TokenRevokeFailedEvent,
   TokenRotatedEvent,
-  TokenRotationFailedEvent
+  TokenRotationFailedEvent,
+  GrantInteractionStartedEvent,
+  GrantInteractionStartFailedEvent
 } from '../src/grant/events';
 import { AccessAction, AccessType, GrantState } from '../src/grant/interfaces';
 import { MockGrantRepo, MockWalletAddressService } from './mocks';
@@ -1046,6 +1049,88 @@ describe('GrantAggregate.handleBatch', () => {
         assert.equal(payload.id, id);
         assert.equal(payload.active, false);
         assert.equal(errorMock.mock.callCount(), 1);
+        describe('handleStartInteractionCommand', async () => {
+          async function createInteractiveGrant(): Promise<{
+            id: string;
+          }> {
+            const keys = generateTestKeys();
+            const cmd = makeCreateGrantCmd({
+              client: JSON.stringify(keys.publicKey),
+              signatureData: await signedSignatureData(
+                keys.privateKey,
+                keys.publicKey.kid
+              ),
+              access: [
+                {
+                  type: AccessType.OUTGOING_PAYMENT,
+                  actions: [AccessAction.CREATE]
+                }
+              ],
+              interact: { start: ['REDIRECT'] }
+            });
+            const { events } = await aggregate.handleBatch([cmd]);
+            const payload = (events[0] as GrantCreatedEvent).payload;
+            return {
+              id: payload.id
+            };
+          }
+
+          it('starts the interaction and returns GrantInteractionStartedEvent when the nonce matches', async () => {
+            const storeInteractionsMock = mock.method(
+              repo,
+              'storeInteractions'
+            );
+
+            const { id } = await createInteractiveGrant();
+            const requestId = randomUUID();
+
+            const { events } = await aggregate.handleBatch([
+              new StartInteractionCmd({ id }, requestId)
+            ]);
+
+            assert.equal(events.length, 1);
+            assert.equal(events[0].msgName, GrantInteractionStartedEvent.name);
+            const payload = (events[0] as GrantInteractionStartedEvent).payload;
+            assert.equal(payload.id, id);
+            assert.ok(payload.nonce);
+            assert.equal(events[0].requestId, requestId);
+
+            assert.equal(storeInteractionsMock.mock.callCount(), 0);
+
+            await aggregate.flush();
+
+            assert.equal(storeInteractionsMock.mock.callCount(), 1);
+            const updates = storeInteractionsMock.mock.calls[0].arguments[0];
+            assert.equal(updates.length, 1);
+            assert.equal(updates[0].id, id);
+            assert.ok(updates[0].interaction?.interactRef);
+          });
+
+          it('fails with GrantNotFoundError when the grant does not exist', async () => {
+            const storeInteractionsMock = mock.method(
+              repo,
+              'storeInteractions'
+            );
+            const requestId = randomUUID();
+
+            const { events } = await aggregate.handleBatch([
+              new StartInteractionCmd({ id: randomUUID() }, requestId)
+            ]);
+
+            assert.equal(events.length, 1);
+            assert.equal(
+              events[0].msgName,
+              GrantInteractionStartFailedEvent.name
+            );
+            const payload = (events[0] as GrantInteractionStartFailedEvent)
+              .payload;
+            assert.equal(payload.errorName, 'GrantNotFoundError');
+            assert.equal(events[0].requestId, requestId);
+            await aggregate.flush();
+
+            assert.equal(storeInteractionsMock.mock.callCount(), 0);
+          });
+        });
       });
     });
   });

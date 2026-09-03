@@ -387,4 +387,28 @@ export class MongoDbGrantRepo implements IGrantRepository {
       );
     }
   }
+
+  async storeInteractions(grants: IGrant[]): Promise<void> {
+    this._checkInitialisedOrThrow();
+
+    if (grants.length === 0) return;
+
+    try {
+      await this._grantCollection.bulkWrite(
+        grants.map((update) => ({
+          updateOne: {
+            filter: { id: update.id },
+            update: {
+              $set: { interaction: update.interaction }
+            }
+          }
+        }))
+      );
+    } catch (e) {
+      this._logger.error(e);
+      throw new Error(
+        `Unable to store interactions for grants - error: ${(e as Error).message}`
+      );
+    }
+  }
 }

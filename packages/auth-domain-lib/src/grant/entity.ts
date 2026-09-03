@@ -1,7 +1,6 @@
 import * as crypto from 'crypto';
 import { isDeepStrictEqual } from 'util';
 import { v4 as uuid } from 'uuid';
-
 import {
   InvalidGrantError,
   InvalidInteractionError,
@@ -27,7 +26,7 @@ import {
 } from './interfaces';
 
 export const GRANT_POLL_MS = 5_000; // 5 seconds
-const INTERACTION_EXPIRY_MS = 10_000; // 10 seconds
+const INTERACTION_EXPIRY_MS = 600_000; // 10 minutes
 const ACCESS_TOKEN_EXPIRY_MS = 10_000; // 10 seconds
 
 function generateContinueToken(): string {
@@ -36,6 +35,10 @@ function generateContinueToken(): string {
 
 function generateAccessToken(): string {
   return crypto.randomBytes(10).toString('hex').toUpperCase();
+}
+
+function generateNonce(): string {
+  return crypto.randomBytes(16).toString('hex').toUpperCase();
 }
 
 function compareAccessItems(
@@ -103,7 +106,6 @@ export class GrantEntity implements IGrant {
     this._finishMethod = input.finishMethod;
     this._finishUri = input.finishUri;
     this._interactionNonce = input.interactionNonce;
-    this._interaction = input.interaction;
 
     if (input.accessTokens) {
       for (const accessToken of input.accessTokens) {
@@ -138,7 +140,7 @@ export class GrantEntity implements IGrant {
     if (isInteractiveGrant) {
       const entity = new GrantEntity({
         ...input,
-        interactionNonce: crypto.randomBytes(16).toString('hex').toUpperCase(),
+        interactionNonce: generateNonce(),
         accessTokens: []
       });
       entity.stateTransition(GrantState.PENDING);
@@ -178,19 +180,31 @@ export class GrantEntity implements IGrant {
   }
 
   // Generates an interaction for the grant.
-  startInteraction(clientNonce: string): IInteraction {
-    if (!this._startMethods) {
+  startInteraction(): IInteraction & { nonce: string } {
+    if (!this._interactionNonce || !this._startMethods) {
       throw new NonInteractiveGrantError();
     }
 
+    if (
+      this._state === GrantState.APPROVED ||
+      this._state === GrantState.ISSUED ||
+      this._state === GrantState.REVOKED ||
+      this._state === GrantState.REJECTED
+    ) {
+      throw new InvalidGrantError();
+    }
+
+    const createdAt = new Date();
+
     this._interaction = {
-      clientNonce,
       interactRef: uuid(),
-      expiresInMs: INTERACTION_EXPIRY_MS,
+      createdAt,
+      expiresAt: new Date(createdAt.getTime() + INTERACTION_EXPIRY_MS),
       state: InteractionState.PENDING
     };
+    this._state = GrantState.PENDING;
 
-    return this._interaction;
+    return { ...this._interaction, nonce: this._interactionNonce };
   }
 
   // Updates the approval state of the interaction.

@@ -51,7 +51,7 @@ export interface InteractionResult {
   interactRef: string;
   clientNonce: string;
   state: string;
-  expiresInMs: number;
+  expiresAt: number;
 }
 
 export interface GetGrantResult {
@@ -114,6 +114,11 @@ export interface RotateTokenResult {
 
 export interface RevokeTokenResult {
   id: string;
+}
+
+export interface StartInteractionResult {
+  id: string;
+  nonce: string;
 }
 
 export interface HandleInteractionChoiceResult {

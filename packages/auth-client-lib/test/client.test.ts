@@ -114,6 +114,8 @@ describe('Auth Client', () => {
       assert.ok(result.continueId);
       assert.ok(result.continueToken);
       assert.equal(result.interactionNonce, undefined);
+      assert.ok(result.continueId);
+      assert.ok(result.continueToken);
       assert.deepStrictEqual(result.access, [access]);
       assert.deepStrictEqual(result.subjectIds, [subjectId]);
     });
@@ -158,7 +160,6 @@ describe('Auth Client', () => {
       assert.ok(result);
       assert.ok(result.continueId);
       assert.ok(result.continueToken);
-      assert.ok(result.interactionNonce);
       assert.equal(result.accessTokenValue, undefined);
       assert.equal(result.accessTokenManagementId, undefined);
       assert.equal(result.accessTokenExpiresIn, undefined);
@@ -808,6 +809,48 @@ describe('Auth Client', () => {
       );
 
       assert.equal(result.active, false);
+    });
+  });
+  describe('startInteraction', () => {
+    async function createInteractiveGrant(): Promise<{
+      id: string;
+    }> {
+      const keys = generateTestKeys();
+      const signatureData = await signedSignatureData(
+        keys.privateKey,
+        keys.publicKey.kid
+      );
+
+      const grant = await authClient.createGrant(
+        JSON.stringify(keys.publicKey),
+        signatureData,
+        {
+          access: [
+            makeAccessItem({ type: 'OUTGOING_PAYMENT', actions: ['CREATE'] })
+          ]
+        }
+      );
+
+      return {
+        id: grant.id
+      };
+    }
+
+    test('starts the interaction for a pending interactive grant', async () => {
+      const { id } = await createInteractiveGrant();
+      const result = await authClient.startInteraction(id);
+
+      assert.ok(result);
+      assert.equal(result.id, id);
+    });
+
+    test('unknown grant id is rejected', async () => {
+      try {
+        await authClient.startInteraction(randomUUID());
+        assert.fail('expected error for unknown grant');
+      } catch (e) {
+        assert.ok(e instanceof Error);
+      }
     });
   });
 });
