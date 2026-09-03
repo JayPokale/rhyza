@@ -55,7 +55,7 @@ function makeContinuableGrant(overrides: Partial<IGrant> = {}): GrantEntity {
 
 describe('GrantEntity', () => {
   describe('create', () => {
-    it('finalizes the grant and issues an access token if the grant is non-interactive', () => {
+    it('issues an access token and continue credentials if the grant is non-interactive', () => {
       const id = randomUUID();
       const client = 'https://wallet.example/alice';
       const subjectIds = [{ format: 'email', id: 'alice@example.com' }];
@@ -74,9 +74,9 @@ describe('GrantEntity', () => {
       const { entity, accessToken } = GrantEntity.create(input);
 
       assert.equal(entity.state, 'ISSUED');
-      assert.equal(entity.continueToken, undefined);
-      assert.equal(entity.continueId, undefined);
-      assert.equal(entity.lastContinuedAt, undefined);
+      assert.ok(entity.continueToken);
+      assert.ok(entity.continueId);
+      assert.ok(entity.lastContinuedAt instanceof Date);
 
       assert.equal(entity.interactionNonce, undefined);
       assert.equal(entity.interaction, undefined);
@@ -300,6 +300,25 @@ describe('GrantEntity', () => {
       assert.equal(entity.accessTokens.length, 0);
     });
 
+    it('rotates the continue token when the grant is issued and no interact ref is provided', () => {
+      const { entity: created } = GrantEntity.create(makeCreateGrantInput());
+      const entity = GrantEntity.fromObject({
+        ...created.toObject(),
+        lastContinuedAt: new Date(0)
+      });
+      const prevToken = entity.continueToken!;
+      const prevId = entity.continueId!;
+
+      const accessToken = entity.continue(prevToken, prevId);
+
+      assert.equal(accessToken, undefined);
+      assert.equal(entity.state, GrantState.ISSUED);
+      assert.ok(entity.continueToken);
+      assert.notEqual(entity.continueToken, prevToken);
+      assert.notEqual(entity.continueId, prevId);
+      assert.equal(entity.accessTokens.length, 1);
+    });
+
     it('issues an access token and marks the grant issued when approved without an interact ref', () => {
       const entity = makeContinuableGrant({ state: GrantState.APPROVED });
       const token = entity.continueToken!;
@@ -308,6 +327,10 @@ describe('GrantEntity', () => {
       const accessToken = entity.continue(token, id);
 
       assert.equal(entity.state, GrantState.ISSUED);
+      assert.ok(entity.continueToken);
+      assert.ok(entity.continueId);
+      assert.notEqual(entity.continueToken, token);
+      assert.notEqual(entity.continueId, id);
       assert.ok(accessToken);
       assert.ok(accessToken.value);
       assert.ok(accessToken.managementId);
@@ -320,8 +343,8 @@ describe('GrantEntity', () => {
       );
     });
 
-    it('rejects continuation without an interact ref when the grant is not pending or approved', () => {
-      const entity = makeContinuableGrant({ state: GrantState.ISSUED });
+    it('rejects continuation without an interact ref when the grant is not pending, issued, or approved', () => {
+      const entity = makeContinuableGrant({ state: GrantState.PROCESSING });
 
       assert.throws(
         () => entity.continue(entity.continueToken!, entity.continueId!),
@@ -355,14 +378,20 @@ describe('GrantEntity', () => {
       const entity = makeContinuableGrant();
       const interaction = entity.startInteraction(randomUUID());
       entity.handleInteraction(InteractionState.APPROVED);
+      const prevToken = entity.continueToken!;
+      const prevId = entity.continueId!;
 
       const accessToken = entity.continue(
-        entity.continueToken!,
-        entity.continueId!,
+        prevToken,
+        prevId,
         interaction.interactRef
       );
 
       assert.equal(entity.state, GrantState.ISSUED);
+      assert.ok(entity.continueToken);
+      assert.ok(entity.continueId);
+      assert.notEqual(entity.continueToken, prevToken);
+      assert.notEqual(entity.continueId, prevId);
       assert.ok(accessToken);
       assert.equal(entity.accessTokens.length, 1);
       assert.equal(
@@ -386,6 +415,8 @@ describe('GrantEntity', () => {
 
       assert.equal(accessToken, undefined);
       assert.equal(entity.state, GrantState.REJECTED);
+      assert.equal(entity.continueToken, undefined);
+      assert.equal(entity.continueId, undefined);
       assert.equal(entity.accessTokens.length, 0);
     });
 
@@ -403,6 +434,96 @@ describe('GrantEntity', () => {
       assert.throws(
         () => entity.continue(token, id, interaction.interactRef),
         InvalidInteractionError
+      );
+    });
+  });
+
+  describe('revoke', () => {
+    it('finalizes the grant as revoked and clears continue credentials', () => {
+      const entity = makeContinuableGrant();
+      const token = entity.continueToken!;
+      const id = entity.continueId!;
+
+      const revokedTokens = entity.revoke(token, id);
+
+      assert.equal(entity.state, GrantState.REVOKED);
+      assert.equal(entity.continueToken, undefined);
+      assert.equal(entity.continueId, undefined);
+      assert.deepEqual(revokedTokens, []);
+    });
+
+    it('revokes an issued grant using its continue credentials', () => {
+      const { entity: created, accessToken } = GrantEntity.create(
+        makeCreateGrantInput()
+      );
+      assert.ok(accessToken);
+      const entity = GrantEntity.fromObject({
+        ...created.toObject(),
+        lastContinuedAt: new Date(0)
+      });
+
+      const revokedTokens = entity.revoke(
+        entity.continueToken!,
+        entity.continueId!
+      );
+
+      assert.equal(entity.state, GrantState.REVOKED);
+      assert.equal(entity.continueToken, undefined);
+      assert.equal(entity.continueId, undefined);
+      assert.equal(revokedTokens.length, 1);
+      assert.equal(revokedTokens[0].value, accessToken.value);
+    });
+
+    it('revokes active access tokens on the grant', () => {
+      const continuable = makeContinuableGrant();
+      const { accessToken } = GrantEntity.create(makeCreateGrantInput());
+      assert.ok(accessToken);
+
+      const entity = GrantEntity.fromObject({
+        ...continuable.toObject(),
+        accessTokens: [accessToken]
+      });
+
+      const revokedTokens = entity.revoke(
+        entity.continueToken!,
+        entity.continueId!
+      );
+
+      assert.equal(entity.state, GrantState.REVOKED);
+      assert.equal(entity.continueToken, undefined);
+      assert.equal(entity.continueId, undefined);
+      assert.equal(revokedTokens.length, 1);
+      assert.equal(revokedTokens[0].value, accessToken.value);
+      assert.ok(revokedTokens[0].revokedAt instanceof Date);
+    });
+
+    it('rejects an invalid continue token or continue id', () => {
+      const entity = makeContinuableGrant();
+
+      assert.throws(
+        () => entity.revoke('wrong-token', entity.continueId!),
+        (err: Error) =>
+          err instanceof InvalidGrantError &&
+          err.message === 'Invalid continue token or continue id'
+      );
+      assert.throws(
+        () => entity.revoke(entity.continueToken!, 'wrong-id'),
+        (err: Error) =>
+          err instanceof InvalidGrantError &&
+          err.message === 'Invalid continue token or continue id'
+      );
+    });
+
+    it('rejects revoking a grant that has already been finalized', () => {
+      const entity = makeContinuableGrant();
+      entity.revoke(entity.continueToken!, entity.continueId!);
+
+      assert.throws(
+        () => entity.revoke('token', 'id'),
+        (err: Error) =>
+          err instanceof InvalidGrantError &&
+          err.message ===
+            `Current state ${GrantState.REVOKED} is a finalized state and cannot be changed`
       );
     });
   });

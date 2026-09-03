@@ -95,7 +95,6 @@ export interface IAccessRequest {
 }
 
 export const FinalizedGrantState = {
-  ISSUED: 'ISSUED',
   REVOKED: 'REVOKED',
   REJECTED: 'REJECTED'
 } as const;
@@ -106,6 +105,7 @@ export const GrantState = {
   PROCESSING: 'PROCESSING',
   PENDING: 'PENDING',
   APPROVED: 'APPROVED',
+  ISSUED: 'ISSUED',
   // finalized states
   ...FinalizedGrantState
 } as const;

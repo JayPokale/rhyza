@@ -289,7 +289,9 @@ export class MongoDbGrantRepo implements IGrantRepository {
             filter: { id: grant.id },
             update: {
               $set: {
-                state: grant.state
+                state: grant.state,
+                continueToken: undefined,
+                continueId: undefined
               }
             }
           }

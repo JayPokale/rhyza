@@ -89,13 +89,13 @@ export class GrantEntity implements IGrant {
     IAccessToken
   >();
 
-  private constructor(input: IGrant) {
+  private constructor(input: Omit<IGrant, 'state'> & { state?: GrantState }) {
     this._id = input.id;
     this._startMethods = input.startMethods;
     this._continueToken = input.continueToken;
     this._continueId = input.continueId;
     this._lastContinuedAt = input.lastContinuedAt;
-    this._state = input.state;
+    this._state = input.state ?? GrantState.PROCESSING;
     this._client = input.client;
     this._subjectIds = input.subjectIds;
     this._accesses = input.accesses;
@@ -138,23 +138,19 @@ export class GrantEntity implements IGrant {
     if (isInteractiveGrant) {
       const entity = new GrantEntity({
         ...input,
-        state: GrantState.PENDING,
-        continueToken: generateContinueToken(),
-        continueId: uuid(),
-        lastContinuedAt: new Date(),
         interactionNonce: crypto.randomBytes(16).toString('hex').toUpperCase(),
         accessTokens: []
       });
-
+      entity.stateTransition(GrantState.PENDING);
       return {
         entity
       };
     } else {
       const entity = new GrantEntity({
         ...input,
-        state: GrantState.ISSUED,
         accessTokens: []
       });
+      entity.stateTransition(GrantState.ISSUED);
 
       const accessToken = entity.createAccessToken();
       return { entity, accessToken };
@@ -210,12 +206,16 @@ export class GrantEntity implements IGrant {
     this._interaction.state = choice;
   }
 
-  private setState(state: GrantState): void {
-    this._state = state;
+  private stateTransition(newState: GrantState): void {
+    this._state = newState;
 
-    if (state in FinalizedGrantState) {
+    if (newState in FinalizedGrantState) {
       this._continueToken = undefined;
       this._continueId = undefined;
+    } else {
+      this._continueToken = generateContinueToken();
+      this._continueId = uuid();
+      this._lastContinuedAt = new Date();
     }
   }
 
@@ -259,16 +259,16 @@ export class GrantEntity implements IGrant {
         );
       }
 
-      this._lastContinuedAt = new Date();
-
-      if (this._state === GrantState.PENDING) {
-        this._continueToken = generateContinueToken();
-        this._continueId = uuid();
+      if (
+        this._state === GrantState.PENDING ||
+        this._state === GrantState.ISSUED
+      ) {
+        this.stateTransition(this._state);
         return;
       }
 
       if (this._state === GrantState.APPROVED) {
-        this.setState(GrantState.ISSUED);
+        this.stateTransition(GrantState.ISSUED);
         return this.createAccessToken();
       }
 
@@ -291,18 +291,19 @@ export class GrantEntity implements IGrant {
       }
 
       if (this._interaction.state === InteractionState.APPROVED) {
-        this.setState(GrantState.ISSUED);
+        this.stateTransition(GrantState.ISSUED);
         return this.createAccessToken();
       }
 
       if (this._interaction.state === InteractionState.REJECTED) {
-        this.setState(GrantState.REJECTED);
+        this.stateTransition(GrantState.REJECTED);
       }
     }
   }
 
   /**
-   * Revokes the grant and returns the revoked access tokens. Any continuable grant can be revoked.
+   * 1. Updates the state of the grant if it was not a final state.
+   * 2. Revokes any active access tokens on the grant.
    * @param continueToken - The continue token to revoke the grant.
    * @param continueId - The continue id to revoke the grant.
    * @returns The revoked access tokens which will be persisted to the db in the aggregate.
@@ -310,7 +311,7 @@ export class GrantEntity implements IGrant {
   revoke(continueToken: string, continueId: string): IAccessToken[] {
     this.assertContinueCredentials(continueToken, continueId);
 
-    this.setState(GrantState.REVOKED);
+    this.stateTransition(GrantState.REVOKED);
 
     const revokedTokens: IAccessToken[] = [];
     const now = new Date();

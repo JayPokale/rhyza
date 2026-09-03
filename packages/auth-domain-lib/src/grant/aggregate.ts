@@ -45,7 +45,8 @@ import {
   IStartMethod,
   ISubjectId,
   IWalletAddressService,
-  IRotatedGrantUpdate
+  IRotatedGrantUpdate,
+  IRevokedGrantUpdate
 } from './interfaces';
 import { GRANT_POLL_MS, GrantEntity } from './entity';
 import { JWK, validateSignature } from '@interledger/http-signature-utils';
@@ -416,7 +417,7 @@ export class GrantAggregate {
       return new GrantRevokeFailedEvent(
         {
           grantId: id,
-          errorName: (error as Error).name,
+          errorName: (error as Error).constructor.name,
           message: (error as Error).message
         },
         cmd.requestId
@@ -685,7 +686,7 @@ export class GrantAggregate {
     }
 
     if (this.revokedGrantIds.size > 0) {
-      const revokedGrants = [];
+      const revokedGrants: IRevokedGrantUpdate[] = [];
       for (const id of this.revokedGrantIds) {
         const grant = this.grantMap.get(id);
         if (!grant) {

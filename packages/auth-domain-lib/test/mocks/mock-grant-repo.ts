@@ -56,7 +56,9 @@ export class MockGrantRepo implements IGrantRepository {
 
       this._store.set(update.id, {
         ...existing,
-        state: update.state
+        state: update.state,
+        continueToken: undefined,
+        continueId: undefined
       });
     }
   }
