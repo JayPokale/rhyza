@@ -1,0 +1,11 @@
+meta {
+  name: List Payment Intents
+  type: http
+  seq: 10
+}
+
+get {
+  url: http://{{adminApiUrl}}/payment-intents?first=20
+  body: none
+  auth: none
+}

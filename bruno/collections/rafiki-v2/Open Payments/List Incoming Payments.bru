@@ -1,0 +1,11 @@
+meta {
+  name: List Incoming Payments
+  type: http
+  seq: 7
+}
+
+get {
+  url: http://{{openPaymentsResourceServerUrl}}/incoming-payments?wallet-address=https://test.com/receiver&first=20
+  body: none
+  auth: none
+}

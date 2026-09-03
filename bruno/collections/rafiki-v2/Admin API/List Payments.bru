@@ -1,0 +1,11 @@
+meta {
+  name: List Payments
+  type: http
+  seq: 11
+}
+
+get {
+  url: http://{{adminApiUrl}}/payments?first=20
+  body: none
+  auth: none
+}

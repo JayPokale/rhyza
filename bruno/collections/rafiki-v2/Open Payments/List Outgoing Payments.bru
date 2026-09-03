@@ -1,0 +1,11 @@
+meta {
+  name: List Outgoing Payments
+  type: http
+  seq: 8
+}
+
+get {
+  url: http://{{openPaymentsResourceServerUrl}}/outgoing-payments?wallet-address=https://test.com/sender&first=20
+  body: none
+  auth: none
+}
