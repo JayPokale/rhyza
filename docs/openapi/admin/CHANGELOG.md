@@ -1,3 +1,40 @@
+# API Changelog 0.0.1 vs. 0.1.0
+
+
+## API Changes
+
+### GET /payment-intents
+-  endpoint added
+
+
+### GET /payment-intents/{id}
+-  added the required property `createdAt` to the response with the `200` status
+
+
+### GET /payment-intents/{intentId}/payments/{id}
+- :warning: the `debitAmount` response's property `type` changed from `string` to `object` for status `200`
+- :warning: the `receiveAmount` response's property `type` changed from `string` to `object` for status `200`
+- :warning: the `sentAmount` response's property `type` changed from `string` to `object` for status `200`
+- :warning: removed the required property `assetCode` from the response with the `200` status
+- :warning: removed the required property `assetScale` from the response with the `200` status
+-  added the optional property `failReason` to the response with the `200` status
+-  added the required property `createdAt` to the response with the `200` status
+-  added the required property `debitAmount/assetCode` to the response with the `200` status
+-  added the required property `debitAmount/assetScale` to the response with the `200` status
+-  added the required property `debitAmount/value` to the response with the `200` status
+-  added the required property `paymentIntentId` to the response with the `200` status
+-  added the required property `receiveAmount/assetCode` to the response with the `200` status
+-  added the required property `receiveAmount/assetScale` to the response with the `200` status
+-  added the required property `receiveAmount/value` to the response with the `200` status
+-  added the required property `sentAmount/assetCode` to the response with the `200` status
+-  added the required property `sentAmount/assetScale` to the response with the `200` status
+-  added the required property `sentAmount/value` to the response with the `200` status
+
+
+### GET /payments
+-  endpoint added
+
+
 # API Changelog 0.0.0 vs. 0.0.1
 
 
