@@ -53,7 +53,7 @@ describe('MongoDbPaymentIntentRepo keyset pagination', () => {
       receivedAmount: 0n,
       quotes: [],
       sentPayments: [],
-      receivedPayments: []
+      inboundPayments: []
     };
   }
 
@@ -125,11 +125,31 @@ describe('MongoDbPaymentIntentRepo keyset pagination', () => {
     // Five sent payments across two intents; ascending order is p1..p5.
     // Ties: p1/p2 share T0; p4/p5 share T0+2ms.
     const payments = [
-      makeSentPayment({ id: pid(1), paymentIntentId: intentA, createdAt: new Date(T0) }),
-      makeSentPayment({ id: pid(2), paymentIntentId: intentB, createdAt: new Date(T0) }),
-      makeSentPayment({ id: pid(3), paymentIntentId: intentA, createdAt: new Date(T0 + 1) }),
-      makeSentPayment({ id: pid(4), paymentIntentId: intentB, createdAt: new Date(T0 + 2) }),
-      makeSentPayment({ id: pid(5), paymentIntentId: intentA, createdAt: new Date(T0 + 2) })
+      makeSentPayment({
+        id: pid(1),
+        paymentIntentId: intentA,
+        createdAt: new Date(T0)
+      }),
+      makeSentPayment({
+        id: pid(2),
+        paymentIntentId: intentB,
+        createdAt: new Date(T0)
+      }),
+      makeSentPayment({
+        id: pid(3),
+        paymentIntentId: intentA,
+        createdAt: new Date(T0 + 1)
+      }),
+      makeSentPayment({
+        id: pid(4),
+        paymentIntentId: intentB,
+        createdAt: new Date(T0 + 2)
+      }),
+      makeSentPayment({
+        id: pid(5),
+        paymentIntentId: intentA,
+        createdAt: new Date(T0 + 2)
+      })
     ];
     const carrier = makeIntent({
       id: `${run}-carrier`,
@@ -200,12 +220,18 @@ describe('MongoDbPaymentIntentRepo keyset pagination', () => {
         limit: 10,
         backwards: false
       });
-      assert.deepEqual(afterMidTie.items.map((i) => i.id), [iid(5), iid(6)]);
+      assert.deepEqual(
+        afterMidTie.items.map((i) => i.id),
+        [iid(5), iid(6)]
+      );
     });
 
     test('forward pages walk the full set without gaps or duplicates', async () => {
       const page1 = await fetchIntents({ limit: 2, backwards: false });
-      assert.deepEqual(page1.items.map((i) => i.id), [iid(1), iid(2)]);
+      assert.deepEqual(
+        page1.items.map((i) => i.id),
+        [iid(1), iid(2)]
+      );
       assert.equal(page1.hasNextPage, true);
       assert.equal(page1.hasPreviousPage, false);
 
@@ -214,7 +240,10 @@ describe('MongoDbPaymentIntentRepo keyset pagination', () => {
         limit: 2,
         backwards: false
       });
-      assert.deepEqual(page2.items.map((i) => i.id), [iid(3), iid(4)]);
+      assert.deepEqual(
+        page2.items.map((i) => i.id),
+        [iid(3), iid(4)]
+      );
       assert.equal(page2.hasNextPage, true);
       assert.equal(page2.hasPreviousPage, true);
 
@@ -223,7 +252,10 @@ describe('MongoDbPaymentIntentRepo keyset pagination', () => {
         limit: 2,
         backwards: false
       });
-      assert.deepEqual(page3.items.map((i) => i.id), [iid(5), iid(6)]);
+      assert.deepEqual(
+        page3.items.map((i) => i.id),
+        [iid(5), iid(6)]
+      );
       assert.equal(page3.hasNextPage, false);
       assert.equal(page3.hasPreviousPage, true);
     });
@@ -234,7 +266,10 @@ describe('MongoDbPaymentIntentRepo keyset pagination', () => {
         limit: 2,
         backwards: true
       });
-      assert.deepEqual(page.items.map((i) => i.id), [iid(4), iid(5)]);
+      assert.deepEqual(
+        page.items.map((i) => i.id),
+        [iid(4), iid(5)]
+      );
       assert.equal(page.hasPreviousPage, true);
       assert.equal(page.hasNextPage, true);
     });
@@ -246,7 +281,10 @@ describe('MongoDbPaymentIntentRepo keyset pagination', () => {
         limit: 10,
         backwards: true
       });
-      assert.deepEqual(beforeSecond.items.map((i) => i.id), [iid(1)]);
+      assert.deepEqual(
+        beforeSecond.items.map((i) => i.id),
+        [iid(1)]
+      );
       assert.equal(beforeSecond.hasPreviousPage, false);
       assert.equal(beforeSecond.hasNextPage, true);
 
@@ -291,7 +329,10 @@ describe('MongoDbPaymentIntentRepo keyset pagination', () => {
         limit: 10,
         backwards: false
       });
-      assert.deepEqual(page.items.map((i) => i.id), [`${run}-other`]);
+      assert.deepEqual(
+        page.items.map((i) => i.id),
+        [`${run}-other`]
+      );
     });
 
     test('unknown wallet address yields an empty page', async () => {
@@ -345,7 +386,10 @@ describe('MongoDbPaymentIntentRepo keyset pagination', () => {
         limit: 2,
         backwards: true
       });
-      assert.deepEqual(beforeLast.items.map((p) => p.id), [pid(3), pid(4)]);
+      assert.deepEqual(
+        beforeLast.items.map((p) => p.id),
+        [pid(3), pid(4)]
+      );
       assert.equal(beforeLast.hasPreviousPage, true);
       assert.equal(beforeLast.hasNextPage, true);
     });
@@ -369,14 +413,20 @@ describe('MongoDbPaymentIntentRepo keyset pagination', () => {
         limit: 10,
         backwards: false
       });
-      assert.deepEqual(afterFirst.items.map((p) => p.id), [pid(3), pid(5)]);
+      assert.deepEqual(
+        afterFirst.items.map((p) => p.id),
+        [pid(3), pid(5)]
+      );
 
       const justIntent = await repo.fetchSentPaymentsPage({
         paymentIntentId: intentB,
         limit: 10,
         backwards: false
       });
-      assert.deepEqual(justIntent.items.map((p) => p.id), [pid(2), pid(4)]);
+      assert.deepEqual(
+        justIntent.items.map((p) => p.id),
+        [pid(2), pid(4)]
+      );
     });
 
     test('unknown cursor throws InvalidCursorError', async () => {

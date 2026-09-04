@@ -364,7 +364,7 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
 
   async fetchPaymentIntentsPage(
     opts: IPageOpts
-  ): Promise<IPage<Omit<IPaymentIntent, 'sentPayments' | 'receivedPayments'>>> {
+  ): Promise<IPage<Omit<IPaymentIntent, 'sentPayments' | 'inboundPayments'>>> {
     this._checkInitialisedOrThrow();
 
     try {

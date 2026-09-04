@@ -105,7 +105,7 @@ export class MockPaymentIntentRepo implements IPaymentIntentRepository {
 
   async fetchPaymentIntentsPage(
     opts: IPageOpts
-  ): Promise<IPage<Omit<IPaymentIntent, 'sentPayments' | 'receivedPayments'>>> {
+  ): Promise<IPage<Omit<IPaymentIntent, 'sentPayments' | 'inboundPayments'>>> {
     const all = this.getAll();
     const filtered =
       opts.walletAddressId == null
@@ -115,9 +115,9 @@ export class MockPaymentIntentRepo implements IPaymentIntentRepository {
     return {
       ...page,
       items: page.items.map((p) => {
-        const { sentPayments, receivedPayments, ...rest } = p;
+        const { sentPayments, inboundPayments, ...rest } = p;
         void sentPayments;
-        void receivedPayments;
+        void inboundPayments;
         return rest;
       })
     };

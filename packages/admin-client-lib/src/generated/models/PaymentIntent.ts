@@ -41,6 +41,12 @@ export interface PaymentIntent {
      */
     id: string;
     /**
+     * When the payment intent was created.
+     * @type {Date}
+     * @memberof PaymentIntent
+     */
+    createdAt: Date;
+    /**
      * The current status of the payment intent.
      * @type {PaymentIntentState}
      * @memberof PaymentIntent
@@ -91,6 +97,7 @@ export interface PaymentIntent {
  */
 export function instanceOfPaymentIntent(value: object): value is PaymentIntent {
     if (!('id' in value) || value['id'] === undefined) return false;
+    if (!('createdAt' in value) || value['createdAt'] === undefined) return false;
     if (!('state' in value) || value['state'] === undefined) return false;
     if (!('destination' in value) || value['destination'] === undefined) return false;
     if (!('walletAddress' in value) || value['walletAddress'] === undefined) return false;
@@ -109,6 +116,7 @@ export function PaymentIntentFromJSONTyped(json: any, ignoreDiscriminator: boole
     return {
         
         'id': json['id'],
+        'createdAt': (new Date(json['createdAt'])),
         'state': PaymentIntentStateFromJSON(json['state']),
         'destination': json['destination'],
         'walletAddress': json['walletAddress'],
@@ -131,6 +139,7 @@ export function PaymentIntentToJSONTyped(value?: PaymentIntent | null, ignoreDis
     return {
         
         'id': value['id'],
+        'createdAt': value['createdAt'].toISOString(),
         'state': PaymentIntentStateToJSON(value['state']),
         'destination': value['destination'],
         'walletAddress': value['walletAddress'],

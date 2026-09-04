@@ -15,6 +15,7 @@ models/CancelPayment200Response.ts
 models/ErrorResponse.ts
 models/LiquidityDeposit202Response.ts
 models/LiquidityDepositRequest.ts
+models/PageInfo.ts
 models/Payment.ts
 models/PaymentCancel.ts
 models/PaymentCreate.ts
@@ -24,7 +25,9 @@ models/PaymentIntentCompleteResponse.ts
 models/PaymentIntentCreate.ts
 models/PaymentIntentCreateResponse.ts
 models/PaymentIntentState.ts
+models/PaymentIntentsPage.ts
 models/PaymentState.ts
+models/PaymentsPage.ts
 models/PeerCreate.ts
 models/PeerCreateResponse.ts
 models/PeerHttp.ts

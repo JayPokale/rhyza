@@ -48,6 +48,11 @@ import {
     PaymentCreateResponseFromJSON,
     PaymentCreateResponseToJSON,
 } from '../models/PaymentCreateResponse';
+import {
+    type PaymentsPage,
+    PaymentsPageFromJSON,
+    PaymentsPageToJSON,
+} from '../models/PaymentsPage';
 
 export interface ApprovePaymentRequest {
     intentId: string;
@@ -67,6 +72,14 @@ export interface CreatePaymentRequest {
 export interface GetPaymentRequest {
     intentId: string;
     id: string;
+}
+
+export interface PaymentsListPaymentsRequest {
+    walletAddressId?: string;
+    paymentIntentId?: string;
+    cursor?: string;
+    first?: number;
+    last?: number;
 }
 
 /**
@@ -295,6 +308,65 @@ export class PaymentsApi extends runtime.BaseAPI {
      */
     async getPayment(intentId: string, id: string, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Payment> {
         const response = await this.getPaymentRaw({ intentId: intentId, id: id }, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Creates request options for paymentsListPayments without sending the request
+     */
+    async paymentsListPaymentsRequestOpts(requestParameters: PaymentsListPaymentsRequest): Promise<runtime.RequestOpts> {
+        const queryParameters: any = {};
+
+        if (requestParameters['walletAddressId'] != null) {
+            queryParameters['walletAddressId'] = requestParameters['walletAddressId'];
+        }
+
+        if (requestParameters['paymentIntentId'] != null) {
+            queryParameters['paymentIntentId'] = requestParameters['paymentIntentId'];
+        }
+
+        if (requestParameters['cursor'] != null) {
+            queryParameters['cursor'] = requestParameters['cursor'];
+        }
+
+        if (requestParameters['first'] != null) {
+            queryParameters['first'] = requestParameters['first'];
+        }
+
+        if (requestParameters['last'] != null) {
+            queryParameters['last'] = requestParameters['last'];
+        }
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+
+        let urlPath = `/payments`;
+
+        return {
+            path: urlPath,
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        };
+    }
+
+    /**
+     * List payments with cursor pagination, ordered by creation time ascending. Optionally filter by sender wallet address id and/or parent payment intent id.
+     * List Payments
+     */
+    async paymentsListPaymentsRaw(requestParameters: PaymentsListPaymentsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<PaymentsPage>> {
+        const requestOptions = await this.paymentsListPaymentsRequestOpts(requestParameters);
+        const response = await this.request(requestOptions, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => PaymentsPageFromJSON(jsonValue));
+    }
+
+    /**
+     * List payments with cursor pagination, ordered by creation time ascending. Optionally filter by sender wallet address id and/or parent payment intent id.
+     * List Payments
+     */
+    async paymentsListPayments(walletAddressId?: string, paymentIntentId?: string, cursor?: string, first?: number, last?: number, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<PaymentsPage> {
+        const response = await this.paymentsListPaymentsRaw({ walletAddressId: walletAddressId, paymentIntentId: paymentIntentId, cursor: cursor, first: first, last: last }, initOverrides);
         return await response.value();
     }
 

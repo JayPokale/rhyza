@@ -696,9 +696,8 @@ describe('Payments Client', () => {
     let firstIntentId: string;
 
     before(async () => {
-      const { domain, pathName } = parseAddressToDomainAndPathName(
-        PAGE_SENDER_ADDRESS
-      );
+      const { domain, pathName } =
+        parseAddressToDomainAndPathName(PAGE_SENDER_ADDRESS);
       await palClient.createWalletAddress(
         domain,
         pathName,

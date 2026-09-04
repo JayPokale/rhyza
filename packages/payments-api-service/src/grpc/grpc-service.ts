@@ -485,7 +485,7 @@ export class PaymentsServiceServer {
   }
 
   private _toPbPaymentIntent(
-    paymentIntent: Omit<IPaymentIntent, 'sentPayments' | 'receivedPayments'>
+    paymentIntent: Omit<IPaymentIntent, 'sentPayments' | 'inboundPayments'>
   ): PaymentIntent {
     const pbPaymentIntent = new PaymentIntent();
     pbPaymentIntent.setId(paymentIntent.id);

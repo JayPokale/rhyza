@@ -195,7 +195,7 @@ export interface IPaymentIntentRepository {
   /** Keyset-paginated payment intents, filterable by receiverWalletAddressId. */
   fetchPaymentIntentsPage(
     opts: IPageOpts
-  ): Promise<IPage<Omit<IPaymentIntent, 'sentPayments' | 'receivedPayments'>>>;
+  ): Promise<IPage<Omit<IPaymentIntent, 'sentPayments' | 'inboundPayments'>>>;
   /** Keyset-paginated sent payments, filterable by senderWalletAddressId and/or paymentIntentId. */
   fetchSentPaymentsPage(
     opts: IPageOpts & { paymentIntentId?: string }

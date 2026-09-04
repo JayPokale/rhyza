@@ -1,16 +1,13 @@
-export interface PageQuerystring {
-  walletAddressId?: string;
-  cursor?: string;
-  first?: string;
-  last?: string;
-}
+import { PaymentIntentsListPaymentIntentsRequest } from 'admin-client-lib';
+import { IPageQuery } from 'payments-client-lib';
 
-export function parsePageQuery(query: PageQuerystring): {
-  walletAddressId?: string;
-  cursor?: string;
-  first?: number;
-  last?: number;
-} {
+/**
+ * The generated client types `first`/`last` as numbers, but they arrive as
+ * strings on the wire, so they are coerced here.
+ */
+export function parsePageQuery(
+  query: PaymentIntentsListPaymentIntentsRequest
+): IPageQuery {
   return {
     walletAddressId: query.walletAddressId,
     cursor: query.cursor,
