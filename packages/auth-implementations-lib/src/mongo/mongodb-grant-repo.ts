@@ -1,9 +1,10 @@
 import { Collection, CollectionInfo, Db, MongoClient, WithId } from 'mongodb';
 import {
-  IContinuedGrantUpdate,
   IAccessToken,
   IGrant,
-  IGrantRepository
+  IGrantRepository,
+  IRotatedGrantUpdate,
+  IContinuedGrantUpdate
 } from 'auth-domain-lib';
 import { ILogger } from 'common-types-lib';
 
@@ -183,6 +184,41 @@ export class MongoDbGrantRepo implements IGrantRepository {
     }
   }
 
+  async storeRotatedGrants(updates: IRotatedGrantUpdate[]): Promise<void> {
+    this._checkInitialisedOrThrow();
+
+    if (updates.length === 0) return;
+
+    try {
+      const revokeOps = updates.map((u) => ({
+        updateOne: {
+          filter: { value: u.revokedToken.value },
+          update: { $set: { revokedAt: u.revokedToken.revokedAt } }
+        }
+      }));
+
+      await this._accessTokenCollection.bulkWrite(revokeOps, {
+        ordered: false
+      });
+
+      const newTokenDocs = updates.map((u) => ({
+        grantId: u.id,
+        value: u.newToken.value,
+        managementId: u.newToken.managementId,
+        expiresInMs: u.newToken.expiresInMs,
+        expiresAt: u.newToken.expiresAt,
+        createdAt: u.newToken.createdAt
+      }));
+
+      await this._accessTokenCollection.insertMany(newTokenDocs);
+    } catch (err) {
+      this._logger.error(err);
+      throw new Error(
+        `Unable to store rotated grants - error: ${(err as Error).message}`
+      );
+    }
+  }
+
   async storeContinuedGrants(grants: IContinuedGrantUpdate[]): Promise<void> {
     this._checkInitialisedOrThrow();
 
@@ -240,6 +276,33 @@ export class MongoDbGrantRepo implements IGrantRepository {
     }
   }
 
+  async storeRevokedTokens(tokens: IAccessToken[]): Promise<void> {
+    this._checkInitialisedOrThrow();
+
+    if (tokens.length === 0) return;
+
+    try {
+      await this._accessTokenCollection.bulkWrite(
+        tokens.map((token) => ({
+          updateOne: {
+            filter: { value: token.value },
+            update: {
+              $set: {
+                revokedAt: token.revokedAt
+              }
+            }
+          }
+        })),
+        { ordered: false }
+      );
+    } catch (err) {
+      this._logger.error(err);
+      throw new Error(
+        `Unable to store revoked tokens - error: ${(err as Error).message}`
+      );
+    }
+  }
+
   async fetchById(id: string): Promise<IGrant | undefined> {
     this._checkInitialisedOrThrow();
 
@@ -291,6 +354,30 @@ export class MongoDbGrantRepo implements IGrantRepository {
       this._logger.error(err);
       throw new Error(
         `Unable to fetch grants - error: ${(err as Error).message}`
+      );
+    }
+  }
+
+  async storeInteractions(grants: IGrant[]): Promise<void> {
+    this._checkInitialisedOrThrow();
+
+    if (grants.length === 0) return;
+
+    try {
+      await this._grantCollection.bulkWrite(
+        grants.map((update) => ({
+          updateOne: {
+            filter: { id: update.id },
+            update: {
+              $set: { interaction: update.interaction }
+            }
+          }
+        }))
+      );
+    } catch (e) {
+      this._logger.error(e);
+      throw new Error(
+        `Unable to store interactions for grants - error: ${(e as Error).message}`
       );
     }
   }

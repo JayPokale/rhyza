@@ -8,8 +8,27 @@ import {
 } from '@interledger/http-signature-utils';
 
 import { GrantAggregate } from '../src/grant/aggregate';
-import { CreateGrantCmd, CreateGrantCmdPayload } from '../src/commands';
-import { GrantCreatedEvent, GrantCreateFailedEvent } from '../src/grant/events';
+import { GrantEntity } from '../src/grant/entity';
+import {
+  CreateGrantCmd,
+  CreateGrantCmdPayload,
+  IntrospectTokenCmd,
+  IntrospectTokenCmdPayload,
+  RevokeTokenCmd,
+  RotateTokenCmd,
+  StartInteractionCmd
+} from '../src/commands';
+import {
+  GrantCreatedEvent,
+  GrantCreateFailedEvent,
+  TokenIntrospectedEvent,
+  TokenRevokedEvent,
+  TokenRevokeFailedEvent,
+  TokenRotatedEvent,
+  TokenRotationFailedEvent,
+  GrantInteractionStartedEvent,
+  GrantInteractionStartFailedEvent
+} from '../src/grant/events';
 import { AccessAction, AccessType } from '../src/grant/interfaces';
 import { MockGrantRepo, MockWalletAddressService } from './mocks';
 import { PinoLogger } from 'implementations-lib';
@@ -65,6 +84,14 @@ function makeCreateGrantCmd(
     },
     requestId
   );
+}
+
+function makeIntrospectTokenCmd(
+  payload: Partial<IntrospectTokenCmdPayload> &
+    Pick<IntrospectTokenCmdPayload, 'id' | 'tokenValue'>,
+  requestId: string = randomUUID()
+): IntrospectTokenCmd {
+  return new IntrospectTokenCmd(payload, requestId);
 }
 
 describe('GrantAggregate.handleBatch', () => {
@@ -266,9 +293,6 @@ describe('GrantAggregate.handleBatch', () => {
         });
 
         it('fails with UnauthorizedRequestError when the resolved key does not validate the signature', async () => {
-          // The request is actually signed by signerKeys, but the wallet
-          // address lookup resolves to a different (wrong) public key that
-          // happens to share the requested kid.
           const signerKeys = generateTestKeys();
           const wrongKeys = generateTestKeys();
           const walletAddress = 'https://wallet.example/carol';
@@ -340,6 +364,581 @@ describe('GrantAggregate.handleBatch', () => {
         assert.equal(events[0].msgName, GrantCreatedEvent.name);
         const payload = (events[0] as GrantCreatedEvent).payload;
         assert.deepEqual(payload.subjectIds, subjectIds);
+      });
+    });
+
+    describe('handleRotateTokenCommand', async () => {
+      async function createIssuedGrant(
+        keys: ReturnType<typeof generateTestKeys>
+      ) {
+        const createCmd = makeCreateGrantCmd({
+          client: JSON.stringify(keys.publicKey),
+          signatureData: await signedSignatureData(
+            keys.privateKey,
+            keys.publicKey.kid
+          )
+        });
+        const { events } = await aggregate.handleBatch([createCmd]);
+        await aggregate.flush();
+        assert.equal(events[0].msgName, GrantCreatedEvent.name);
+        const payload = (events[0] as GrantCreatedEvent).payload;
+        return {
+          grantId: payload.id,
+          tokenValue: payload.accessTokenValue!,
+          managementId: payload.accessTokenManagementId!
+        };
+      }
+
+      it('rotates the token and emits TokenRotatedEvent with a new value and managementId', async () => {
+        const keys = generateTestKeys();
+        const { grantId, tokenValue, managementId } =
+          await createIssuedGrant(keys);
+
+        const cmd = new RotateTokenCmd(
+          {
+            id: grantId,
+            value: tokenValue,
+            managementId,
+            signatureData: await signedSignatureData(
+              keys.privateKey,
+              keys.publicKey.kid
+            )
+          },
+          randomUUID()
+        );
+
+        const { events } = await aggregate.handleBatch([cmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, TokenRotatedEvent.name);
+        const payload = (events[0] as TokenRotatedEvent).payload;
+        assert.equal(payload.id, grantId);
+        assert.ok(payload.newAccessTokenValue);
+        assert.ok(payload.newAccessTokenManagementId);
+        assert.notEqual(payload.newAccessTokenValue, tokenValue);
+        assert.notEqual(payload.newAccessTokenManagementId, managementId);
+        assert.equal(payload.newAccessTokenExpiresIn, 10_000);
+      });
+
+      it('fails with UnknownAccessTokenError for an unknown token value', async () => {
+        const keys = generateTestKeys();
+        const { grantId, managementId } = await createIssuedGrant(keys);
+
+        const cmd = new RotateTokenCmd(
+          {
+            id: grantId,
+            value: 'wrong-token-value',
+            managementId,
+            signatureData: await signedSignatureData(
+              keys.privateKey,
+              keys.publicKey.kid
+            )
+          },
+          randomUUID()
+        );
+
+        const { events } = await aggregate.handleBatch([cmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, TokenRotationFailedEvent.name);
+        const payload = (events[0] as TokenRotationFailedEvent).payload;
+        assert.equal(payload.errorName, 'UnknownAccessTokenError');
+        assert.equal(payload.grantId, grantId);
+      });
+
+      it('fails with UnknownAccessTokenError when managementId does not match', async () => {
+        const keys = generateTestKeys();
+        const { grantId, tokenValue } = await createIssuedGrant(keys);
+
+        const cmd = new RotateTokenCmd(
+          {
+            id: grantId,
+            value: tokenValue,
+            managementId: 'wrong-management-id',
+            signatureData: await signedSignatureData(
+              keys.privateKey,
+              keys.publicKey.kid
+            )
+          },
+          randomUUID()
+        );
+
+        const { events } = await aggregate.handleBatch([cmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, TokenRotationFailedEvent.name);
+        const payload = (events[0] as TokenRotationFailedEvent).payload;
+        assert.equal(payload.errorName, 'UnknownAccessTokenError');
+      });
+
+      it('fails with UnauthorizedRequestError when the signature is invalid', async () => {
+        const keys = generateTestKeys();
+        const signerKeys = generateTestKeys();
+        const { grantId, tokenValue, managementId } =
+          await createIssuedGrant(keys);
+
+        const cmd = new RotateTokenCmd(
+          {
+            id: grantId,
+            value: tokenValue,
+            managementId,
+            signatureData: await signedSignatureData(
+              signerKeys.privateKey,
+              keys.publicKey.kid
+            )
+          },
+          randomUUID()
+        );
+
+        const { events } = await aggregate.handleBatch([cmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, TokenRotationFailedEvent.name);
+        const payload = (events[0] as TokenRotationFailedEvent).payload;
+        assert.equal(payload.errorName, 'UnauthorizedRequestError');
+      });
+
+      it('fails with UnknownAccessTokenError when rotating an already-revoked token', async () => {
+        const keys = generateTestKeys();
+        const { grantId, tokenValue, managementId } =
+          await createIssuedGrant(keys);
+
+        // Issue the first rotation and the replay attempt in the same batch so
+        // the aggregate's in-memory grant map carries the revoked state into
+        // the second command without needing cross-batch persistence.
+        const firstCmd = new RotateTokenCmd(
+          {
+            id: grantId,
+            value: tokenValue,
+            managementId,
+            signatureData: await signedSignatureData(
+              keys.privateKey,
+              keys.publicKey.kid
+            )
+          },
+          randomUUID()
+        );
+        const replayCmd = new RotateTokenCmd(
+          {
+            id: grantId,
+            value: tokenValue,
+            managementId,
+            signatureData: await signedSignatureData(
+              keys.privateKey,
+              keys.publicKey.kid
+            )
+          },
+          randomUUID()
+        );
+        const { events } = await aggregate.handleBatch([firstCmd, replayCmd]);
+
+        // Two events: first succeeds, second fails.
+        assert.equal(events.length, 2);
+        assert.equal(events[0].msgName, TokenRotatedEvent.name);
+        assert.equal(events[1].msgName, TokenRotationFailedEvent.name);
+        const failPayload = (events[1] as TokenRotationFailedEvent).payload;
+        assert.equal(failPayload.errorName, 'UnknownAccessTokenError');
+        assert.equal(failPayload.grantId, grantId);
+      });
+    });
+
+    describe('handleRevokeTokenCommand', () => {
+      async function createIssuedGrant() {
+        const keys = generateTestKeys();
+        const createCmd = makeCreateGrantCmd({
+          client: JSON.stringify(keys.publicKey),
+          signatureData: await signedSignatureData(
+            keys.privateKey,
+            keys.publicKey.kid
+          )
+        });
+        const { events } = await aggregate.handleBatch([createCmd]);
+        await aggregate.flush();
+
+        const created = events[0] as GrantCreatedEvent;
+        assert.ok(created.payload.accessTokenValue);
+        assert.ok(created.payload.accessTokenManagementId);
+
+        return {
+          keys,
+          grantId: created.payload.id,
+          tokenValue: created.payload.accessTokenValue!,
+          managementId: created.payload.accessTokenManagementId!
+        };
+      }
+
+      it('revokes a valid token and persists the revocation', async () => {
+        const { keys, grantId, tokenValue, managementId } =
+          await createIssuedGrant();
+
+        const before = await aggregate.handleBatch([
+          makeIntrospectTokenCmd({ id: grantId, tokenValue })
+        ]);
+        assert.equal(before.events[0].msgName, TokenIntrospectedEvent.name);
+        assert.equal(
+          (before.events[0] as TokenIntrospectedEvent).payload.active,
+          true
+        );
+
+        const { events } = await aggregate.handleBatch([
+          new RevokeTokenCmd(
+            {
+              id: grantId,
+              value: tokenValue,
+              managementId,
+              signatureData: await signedSignatureData(
+                keys.privateKey,
+                keys.publicKey.kid
+              )
+            },
+            randomUUID()
+          )
+        ]);
+        await aggregate.flush();
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, TokenRevokedEvent.name);
+        assert.equal((events[0] as TokenRevokedEvent).payload.id, grantId);
+
+        const stored = await repo.fetchById(grantId);
+        assert.ok(stored);
+        const revoked = stored.accessTokens.find((t) => t.value === tokenValue);
+        assert.ok(revoked?.revokedAt);
+
+        const after = await aggregate.handleBatch([
+          makeIntrospectTokenCmd({ id: grantId, tokenValue })
+        ]);
+        assert.equal(after.events[0].msgName, TokenIntrospectedEvent.name);
+        assert.equal(
+          (after.events[0] as TokenIntrospectedEvent).payload.active,
+          false
+        );
+      });
+
+      it('fails with UnauthorizedRequestError for an invalid signature', async () => {
+        const { grantId, tokenValue, managementId } = await createIssuedGrant();
+        const wrongKeys = generateTestKeys();
+
+        const { events } = await aggregate.handleBatch([
+          new RevokeTokenCmd(
+            {
+              id: grantId,
+              value: tokenValue,
+              managementId,
+              signatureData: await signedSignatureData(
+                wrongKeys.privateKey,
+                wrongKeys.publicKey.kid
+              )
+            },
+            randomUUID()
+          )
+        ]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, TokenRevokeFailedEvent.name);
+        const payload = (events[0] as TokenRevokeFailedEvent).payload;
+        assert.equal(payload.errorName, 'UnauthorizedRequestError');
+        assert.equal(payload.grantId, grantId);
+      });
+
+      it('fails with UnknownAccessTokenError for an unknown token value', async () => {
+        const { keys, grantId, managementId } = await createIssuedGrant();
+
+        const { events } = await aggregate.handleBatch([
+          new RevokeTokenCmd(
+            {
+              id: grantId,
+              value: 'unknown-token-value',
+              managementId,
+              signatureData: await signedSignatureData(
+                keys.privateKey,
+                keys.publicKey.kid
+              )
+            },
+            randomUUID()
+          )
+        ]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, TokenRevokeFailedEvent.name);
+        const payload = (events[0] as TokenRevokeFailedEvent).payload;
+        assert.equal(payload.errorName, 'UnknownAccessTokenError');
+      });
+
+      it('fails with UnknownAccessTokenError for a mismatched managementId', async () => {
+        const { keys, grantId, tokenValue } = await createIssuedGrant();
+
+        const { events } = await aggregate.handleBatch([
+          new RevokeTokenCmd(
+            {
+              id: grantId,
+              value: tokenValue,
+              managementId: 'wrong-management-id',
+              signatureData: await signedSignatureData(
+                keys.privateKey,
+                keys.publicKey.kid
+              )
+            },
+            randomUUID()
+          )
+        ]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, TokenRevokeFailedEvent.name);
+        const payload = (events[0] as TokenRevokeFailedEvent).payload;
+        assert.equal(payload.errorName, 'UnknownAccessTokenError');
+      });
+
+      it('fails with GrantNotFoundError when the grant does not exist', async () => {
+        const keys = generateTestKeys();
+        const missingGrantId = randomUUID();
+
+        const { events } = await aggregate.handleBatch([
+          new RevokeTokenCmd(
+            {
+              id: missingGrantId,
+              value: 'token',
+              managementId: 'management-id',
+              signatureData: await signedSignatureData(
+                keys.privateKey,
+                keys.publicKey.kid
+              )
+            },
+            randomUUID()
+          )
+        ]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, TokenRevokeFailedEvent.name);
+        const payload = (events[0] as TokenRevokeFailedEvent).payload;
+        assert.equal(payload.errorName, 'GrantNotFoundError');
+        assert.equal(payload.grantId, missingGrantId);
+      });
+    });
+
+    describe('handleIntrospectTokenCommand', async () => {
+      async function createAndFlushIssuedGrant(
+        access: CreateGrantCmdPayload['access'] = [
+          { type: AccessType.INCOMING_PAYMENT, actions: [AccessAction.READ] }
+        ]
+      ): Promise<{ id: string; tokenValue: string }> {
+        const keys = generateTestKeys();
+        const createCmd = makeCreateGrantCmd({
+          client: JSON.stringify(keys.publicKey),
+          signatureData: await signedSignatureData(
+            keys.privateKey,
+            keys.publicKey.kid
+          ),
+          access
+        });
+        const { events } = await aggregate.handleBatch([createCmd]);
+        const payload = (events[0] as GrantCreatedEvent).payload;
+
+        await aggregate.flush();
+
+        return {
+          id: createCmd.payload.id,
+          tokenValue: payload.accessTokenValue as string
+        };
+      }
+
+      it('returns active: true for a valid access token', async () => {
+        const access = [
+          { type: AccessType.INCOMING_PAYMENT, actions: [AccessAction.READ] }
+        ];
+        const { id, tokenValue } = await createAndFlushIssuedGrant(access);
+
+        const { events } = await aggregate.handleBatch([
+          makeIntrospectTokenCmd({ id, tokenValue })
+        ]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, TokenIntrospectedEvent.name);
+        const payload = (events[0] as TokenIntrospectedEvent).payload;
+        assert.equal(payload.id, id);
+        assert.equal(payload.active, true);
+        assert.deepEqual(payload.access, access);
+      });
+
+      it('returns active: false for an access token value that does not match', async () => {
+        const { id } = await createAndFlushIssuedGrant();
+
+        const { events } = await aggregate.handleBatch([
+          makeIntrospectTokenCmd({ id, tokenValue: 'unknown-token-value' })
+        ]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, TokenIntrospectedEvent.name);
+        const payload = (events[0] as TokenIntrospectedEvent).payload;
+        assert.equal(payload.active, false);
+        assert.equal(payload.access, undefined);
+      });
+
+      it('restricts the returned access to the requested access items', async () => {
+        const access = [
+          { type: AccessType.INCOMING_PAYMENT, actions: [AccessAction.READ] },
+          { type: AccessType.QUOTE, actions: [AccessAction.CREATE] }
+        ];
+        const { id, tokenValue } = await createAndFlushIssuedGrant(access);
+
+        const { events } = await aggregate.handleBatch([
+          makeIntrospectTokenCmd({
+            id,
+            tokenValue,
+            access: [access[0]]
+          })
+        ]);
+
+        assert.equal(events[0].msgName, TokenIntrospectedEvent.name);
+        const payload = (events[0] as TokenIntrospectedEvent).payload;
+        assert.equal(payload.active, true);
+        assert.deepEqual(payload.access, [access[0]]);
+      });
+
+      it('returns active: false when the requested access items are not fully covered by the grant', async () => {
+        const access = [
+          { type: AccessType.INCOMING_PAYMENT, actions: [AccessAction.READ] }
+        ];
+        const { id, tokenValue } = await createAndFlushIssuedGrant(access);
+
+        const { events } = await aggregate.handleBatch([
+          makeIntrospectTokenCmd({
+            id,
+            tokenValue,
+            access: [
+              ...access,
+              { type: AccessType.QUOTE, actions: [AccessAction.CREATE] }
+            ]
+          })
+        ]);
+
+        assert.equal(events[0].msgName, TokenIntrospectedEvent.name);
+        const payload = (events[0] as TokenIntrospectedEvent).payload;
+        assert.equal(payload.active, false);
+      });
+
+      it('returns active: false when the grant does not exist', async () => {
+        const id = randomUUID();
+        const debugMock = mock.method(logger, 'debug', () => {});
+
+        const { events } = await aggregate.handleBatch([
+          makeIntrospectTokenCmd({ id, tokenValue: 'some-token-value' })
+        ]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, TokenIntrospectedEvent.name);
+        const payload = (events[0] as TokenIntrospectedEvent).payload;
+        assert.equal(payload.id, id);
+        assert.equal(payload.active, false);
+        assert.equal(
+          debugMock.mock.calls.some(
+            (call) =>
+              call.arguments[0] ===
+              `Grant ${id} not found - command: IntrospectTokenCmd`
+          ),
+          true
+        );
+      });
+
+      it('returns active: false and logs the error when introspection fails unexpectedly', async () => {
+        const { id, tokenValue } = await createAndFlushIssuedGrant();
+        const errorMock = mock.method(logger, 'error', () => {});
+        mock.method(GrantEntity.prototype, 'introspectAccessToken', () => {
+          throw new Error('unexpected failure');
+        });
+
+        const { events } = await aggregate.handleBatch([
+          makeIntrospectTokenCmd({ id, tokenValue })
+        ]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, TokenIntrospectedEvent.name);
+        const payload = (events[0] as TokenIntrospectedEvent).payload;
+        assert.equal(payload.id, id);
+        assert.equal(payload.active, false);
+        assert.equal(errorMock.mock.callCount(), 1);
+        describe('handleStartInteractionCommand', async () => {
+          async function createInteractiveGrant(): Promise<{
+            id: string;
+          }> {
+            const keys = generateTestKeys();
+            const cmd = makeCreateGrantCmd({
+              client: JSON.stringify(keys.publicKey),
+              signatureData: await signedSignatureData(
+                keys.privateKey,
+                keys.publicKey.kid
+              ),
+              access: [
+                {
+                  type: AccessType.OUTGOING_PAYMENT,
+                  actions: [AccessAction.CREATE]
+                }
+              ],
+              interact: { start: ['REDIRECT'] }
+            });
+            const { events } = await aggregate.handleBatch([cmd]);
+            const payload = (events[0] as GrantCreatedEvent).payload;
+            return {
+              id: payload.id
+            };
+          }
+
+          it('starts the interaction and returns GrantInteractionStartedEvent when the nonce matches', async () => {
+            const storeInteractionsMock = mock.method(
+              repo,
+              'storeInteractions'
+            );
+
+            const { id } = await createInteractiveGrant();
+            const requestId = randomUUID();
+
+            const { events } = await aggregate.handleBatch([
+              new StartInteractionCmd({ id }, requestId)
+            ]);
+
+            assert.equal(events.length, 1);
+            assert.equal(events[0].msgName, GrantInteractionStartedEvent.name);
+            const payload = (events[0] as GrantInteractionStartedEvent).payload;
+            assert.equal(payload.id, id);
+            assert.ok(payload.nonce);
+            assert.equal(events[0].requestId, requestId);
+
+            assert.equal(storeInteractionsMock.mock.callCount(), 0);
+
+            await aggregate.flush();
+
+            assert.equal(storeInteractionsMock.mock.callCount(), 1);
+            const updates = storeInteractionsMock.mock.calls[0].arguments[0];
+            assert.equal(updates.length, 1);
+            assert.equal(updates[0].id, id);
+            assert.ok(updates[0].interaction?.interactRef);
+          });
+
+          it('fails with GrantNotFoundError when the grant does not exist', async () => {
+            const storeInteractionsMock = mock.method(
+              repo,
+              'storeInteractions'
+            );
+            const requestId = randomUUID();
+
+            const { events } = await aggregate.handleBatch([
+              new StartInteractionCmd({ id: randomUUID() }, requestId)
+            ]);
+
+            assert.equal(events.length, 1);
+            assert.equal(
+              events[0].msgName,
+              GrantInteractionStartFailedEvent.name
+            );
+            const payload = (events[0] as GrantInteractionStartFailedEvent)
+              .payload;
+            assert.equal(payload.errorName, 'GrantNotFoundError');
+            assert.equal(events[0].requestId, requestId);
+            await aggregate.flush();
+
+            assert.equal(storeInteractionsMock.mock.callCount(), 0);
+          });
+        });
       });
     });
   });
