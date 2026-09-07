@@ -15,10 +15,60 @@ import { randomUUID } from 'crypto';
 
 type StreamServer = ReturnType<typeof createStreamServer>;
 
+type PaymentIntentResult = Awaited<
+  ReturnType<PaymentsClient['getPaymentIntent']>
+>;
+
 interface IncomingPaymentRouteOptions extends FastifyPluginOptions {
   palClient: PalClient;
   paymentsClient: PaymentsClient;
   streamServer: StreamServer;
+}
+
+function toIncomingPaymentResponse(
+  paymentIntent: PaymentIntentResult,
+  streamServer: StreamServer
+): components['schemas']['incoming-payment'] & {
+  destinationIlpAddress: string;
+  sharedSecret: string;
+} {
+  const streamCredentials = generateStreamCredentials(streamServer, {
+    paymentIntentId: paymentIntent.id,
+    assetCode: paymentIntent.assetCode,
+    assetScale: paymentIntent.assetScale
+  });
+
+  const response: components['schemas']['incoming-payment'] & {
+    destinationIlpAddress: string;
+    sharedSecret: string;
+  } = {
+    id: paymentIntent.id,
+    expiresAt: paymentIntent.expiresAt,
+    completed: paymentIntent.state === 'COMPLETED',
+    walletAddress: paymentIntent.receiverWalletAddress,
+    createdAt: new Date().toISOString(),
+    receivedAmount: {
+      value: String(paymentIntent.receivedAmount),
+      assetCode: paymentIntent.assetCode,
+      assetScale: paymentIntent.assetScale
+    },
+    sharedSecret: streamCredentials.sharedSecret,
+    destinationIlpAddress: streamCredentials.ilpAddress
+  };
+
+  if (paymentIntent.incomingAmount != null) {
+    response.incomingAmount = {
+      value: String(paymentIntent.incomingAmount),
+      assetCode: paymentIntent.assetCode,
+      assetScale: paymentIntent.assetScale
+    };
+  }
+
+  if (paymentIntent.expiresAt) {
+    response.expiresAt = paymentIntent.expiresAt;
+  }
+
+  return response;
 }
 
 export async function incomingPaymentRoutes(
@@ -124,43 +174,9 @@ export async function incomingPaymentRoutes(
       return reply.status(httpStatus).send(toClientApiErrorResponse(err));
     }
 
-    const streamCredentials = generateStreamCredentials(streamServer, {
-      paymentIntentId: paymentIntent.id,
-      assetCode: paymentIntent.assetCode,
-      assetScale: paymentIntent.assetScale
-    });
-
-    const response: components['schemas']['incoming-payment'] & {
-      destinationIlpAddress: string;
-      sharedSecret: string;
-    } = {
-      id: paymentIntent.id,
-      expiresAt: paymentIntent.expiresAt,
-      completed: paymentIntent.state === 'COMPLETED',
-      walletAddress: paymentIntent.receiverWalletAddress,
-      createdAt: new Date().toISOString(),
-      receivedAmount: {
-        value: String(paymentIntent.receivedAmount),
-        assetCode: paymentIntent.assetCode,
-        assetScale: paymentIntent.assetScale
-      },
-      sharedSecret: streamCredentials.sharedSecret,
-      destinationIlpAddress: streamCredentials.ilpAddress
-    };
-
-    if (paymentIntent.incomingAmount != null) {
-      response.incomingAmount = {
-        value: String(paymentIntent.incomingAmount),
-        assetCode: paymentIntent.assetCode,
-        assetScale: paymentIntent.assetScale
-      };
-    }
-
-    if (paymentIntent.expiresAt) {
-      response.expiresAt = paymentIntent.expiresAt;
-    }
-
-    return reply.status(200).send(response);
+    return reply
+      .status(200)
+      .send(toIncomingPaymentResponse(paymentIntent, streamServer));
   });
 
   server.post<{
@@ -173,57 +189,16 @@ export async function incomingPaymentRoutes(
   }>('/incoming-payments/:id/complete', async (request, reply) => {
     const { id } = request.params;
 
-    try {
-      await paymentsClient.completePaymentIntent(id);
-    } catch (err) {
-      const httpStatus = httpStatusFromGrpcError(err);
-      return reply.status(httpStatus).send(toClientApiErrorResponse(err));
-    }
-
     let paymentIntent;
     try {
-      paymentIntent = await paymentsClient.getPaymentIntent(id);
+      paymentIntent = await paymentsClient.completePaymentIntent(id);
     } catch (err) {
       const httpStatus = httpStatusFromGrpcError(err);
       return reply.status(httpStatus).send(toClientApiErrorResponse(err));
     }
 
-    const streamCredentials = generateStreamCredentials(streamServer, {
-      paymentIntentId: paymentIntent.id,
-      assetCode: paymentIntent.assetCode,
-      assetScale: paymentIntent.assetScale
-    });
-
-    const response: components['schemas']['incoming-payment'] & {
-      destinationIlpAddress: string;
-      sharedSecret: string;
-    } = {
-      id: paymentIntent.id,
-      expiresAt: paymentIntent.expiresAt,
-      completed: paymentIntent.state === 'COMPLETED',
-      walletAddress: paymentIntent.receiverWalletAddress,
-      createdAt: new Date().toISOString(),
-      receivedAmount: {
-        value: String(paymentIntent.receivedAmount),
-        assetCode: paymentIntent.assetCode,
-        assetScale: paymentIntent.assetScale
-      },
-      sharedSecret: streamCredentials.sharedSecret,
-      destinationIlpAddress: streamCredentials.ilpAddress
-    };
-
-    if (paymentIntent.incomingAmount != null) {
-      response.incomingAmount = {
-        value: String(paymentIntent.incomingAmount),
-        assetCode: paymentIntent.assetCode,
-        assetScale: paymentIntent.assetScale
-      };
-    }
-
-    if (paymentIntent.expiresAt) {
-      response.expiresAt = paymentIntent.expiresAt;
-    }
-
-    return reply.status(200).send(response);
+    return reply
+      .status(200)
+      .send(toIncomingPaymentResponse(paymentIntent, streamServer));
   });
 }

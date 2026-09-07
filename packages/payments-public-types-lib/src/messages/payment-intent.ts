@@ -213,9 +213,12 @@ export type PaymentIntentCompletedPayload = {
   createdAt: Date;
   expiresAt: Date;
   incomingAmount: string | null;
-  receivedAmount: string | null;
+  receivedAmount: string;
   state: PaymentIntentState;
+  receiverWalletAddress: string;
   receiverWalletAddressId?: string;
+  destination: string;
+  destinationIlpAddress?: string;
   assetCode: string;
   assetScale: number;
 };

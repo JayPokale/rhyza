@@ -6,7 +6,6 @@ import {
   CreatePaymentIntentRequest,
   CreatePaymentIntentResponse,
   CompletePaymentIntentRequest,
-  CompletePaymentIntentResponse,
   PaymentsGrpcClient,
   CreateQuoteRequest,
   CreateQuoteResponse,
@@ -113,9 +112,15 @@ export class PaymentsClient {
     });
   }
 
-  async completePaymentIntent(
-    id: string
-  ): Promise<CompletePaymentIntentResponse.AsObject> {
+  async completePaymentIntent(id: string): Promise<
+    Omit<
+      GetPaymentIntentResponse.AsObject,
+      'receivedAmount' | 'incomingAmount'
+    > & {
+      receivedAmount: bigint;
+      incomingAmount: bigint | undefined;
+    }
+  > {
     const request = new CompletePaymentIntentRequest();
     request.setId(id);
 
@@ -124,17 +129,14 @@ export class PaymentsClient {
         request,
         (
           error: ServiceError | null,
-          response: CompletePaymentIntentResponse
+          response: GetPaymentIntentResponse
         ) => {
           if (error) {
             console.error(error);
             return reject(error);
           }
 
-          return resolve({
-            id: response.getId(),
-            state: response.getState()
-          });
+          return resolve(this._mapPaymentIntentResponse(response));
         }
       );
     });
@@ -331,25 +333,35 @@ export class PaymentsClient {
             return reject(error);
           }
 
-          const incomingAmount = response.getIncomingAmount();
-          const expiresAt = response.getExpiresAt();
-          const destinationIlpAddress = response.getDestinationIlpAddress();
-
-          return resolve({
-            id: response.getId(),
-            receiverWalletAddress: response.getReceiverWalletAddress(),
-            state: response.getState(),
-            destination: response.getDestination(),
-            receivedAmount: BigInt(response.getReceivedAmount()),
-            assetCode: response.getAssetCode(),
-            assetScale: response.getAssetScale(),
-            incomingAmount: incomingAmount ? BigInt(incomingAmount) : undefined,
-            expiresAt: expiresAt || undefined,
-            destinationIlpAddress: destinationIlpAddress || undefined
-          });
+          return resolve(this._mapPaymentIntentResponse(response));
         }
       );
     });
+  }
+
+  private _mapPaymentIntentResponse(response: GetPaymentIntentResponse): Omit<
+    GetPaymentIntentResponse.AsObject,
+    'receivedAmount' | 'incomingAmount'
+  > & {
+    receivedAmount: bigint;
+    incomingAmount: bigint | undefined;
+  } {
+    const incomingAmount = response.getIncomingAmount();
+    const expiresAt = response.getExpiresAt();
+    const destinationIlpAddress = response.getDestinationIlpAddress();
+
+    return {
+      id: response.getId(),
+      receiverWalletAddress: response.getReceiverWalletAddress(),
+      state: response.getState(),
+      destination: response.getDestination(),
+      receivedAmount: BigInt(response.getReceivedAmount()),
+      assetCode: response.getAssetCode(),
+      assetScale: response.getAssetScale(),
+      incomingAmount: incomingAmount ? BigInt(incomingAmount) : undefined,
+      expiresAt: expiresAt || undefined,
+      destinationIlpAddress: destinationIlpAddress || undefined
+    };
   }
 
   async getPayment(

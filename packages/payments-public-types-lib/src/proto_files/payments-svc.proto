@@ -7,7 +7,7 @@ service PaymentsGrpc {
   rpc CreatePaymentIntent(CreatePaymentIntentRequest) returns (CreatePaymentIntentResponse);
 
   // Completes a payment intent.
-  rpc CompletePaymentIntent(CompletePaymentIntentRequest) returns (CompletePaymentIntentResponse);
+  rpc CompletePaymentIntent(CompletePaymentIntentRequest) returns (GetPaymentIntentResponse);
 
   // Creates a new quote.
   rpc CreateQuote(CreateQuoteRequest) returns (CreateQuoteResponse);
@@ -50,11 +50,6 @@ message CreatePaymentIntentResponse {
 // Request to complete a payment intent.
 message CompletePaymentIntentRequest{
   string id = 1;
-}
-
-message CompletePaymentIntentResponse {
-  string id = 1;
-  string state = 2;
 }
 
 /*

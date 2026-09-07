@@ -14,7 +14,6 @@ import {
   CreatePaymentIntentRequest,
   CreatePaymentIntentResponse,
   CompletePaymentIntentRequest,
-  CompletePaymentIntentResponse,
   CreateQuoteRequest,
   CreateQuoteResponse,
   CreatePaymentRequest,
@@ -465,9 +464,23 @@ export class PaymentsServiceServer {
         this._toServiceError(evt.payload)
       );
     } else if (PaymentIntentDomainEvent.isPaymentIntentCompletedEvent(evt)) {
-      const response = new CompletePaymentIntentResponse()
-        .setId(evt.payload.id)
-        .setState(evt.payload.state);
+      const response = new GetPaymentIntentResponse();
+      response.setId(evt.payload.id);
+      response.setReceiverWalletAddress(evt.payload.receiverWalletAddress);
+      response.setState(evt.payload.state);
+      response.setDestination(evt.payload.destination);
+      response.setReceivedAmount(Number(evt.payload.receivedAmount));
+      response.setAssetCode(evt.payload.assetCode);
+      response.setAssetScale(evt.payload.assetScale);
+      if (evt.payload.incomingAmount != null) {
+        response.setIncomingAmount(Number(evt.payload.incomingAmount));
+      }
+      if (evt.payload.expiresAt) {
+        response.setExpiresAt(new Date(evt.payload.expiresAt).toISOString());
+      }
+      if (evt.payload.destinationIlpAddress) {
+        response.setDestinationIlpAddress(evt.payload.destinationIlpAddress);
+      }
       this._resolvePendingResponse(pending, requestId, null, response);
     } else if (
       PaymentIntentDomainEvent.isPaymentIntentCompleteFailedEvent(evt)
