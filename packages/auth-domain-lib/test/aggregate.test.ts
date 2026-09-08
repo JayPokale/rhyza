@@ -109,6 +109,29 @@ async function makeCreateGrantCmd(
   );
 }
 
+async function makeInteractiveGrantCmd(
+  walletAddressService: MockWalletAddressService,
+  overrides: Partial<CreateGrantCmdPayload> = {}
+): Promise<CreateGrantCmd> {
+  const keys = generateTestKeys();
+  const walletAddress = `https://wallet.example/${randomUUID()}`;
+  walletAddressService.setKeys(walletAddress, [keys.publicKey]);
+  walletAddressService.setPublicName(walletAddress, 'Test Client');
+
+  return makeCreateGrantCmd({
+    client: walletAddress,
+    signatureData: await signedSignatureData(
+      keys.privateKey,
+      keys.publicKey.kid
+    ),
+    access: [
+      { type: AccessType.OUTGOING_PAYMENT, actions: [AccessAction.CREATE] }
+    ],
+    interact: { start: ['REDIRECT'] },
+    ...overrides
+  });
+}
+
 function makeIntrospectTokenCmd(
   payload: Partial<IntrospectTokenCmdPayload> &
     Pick<IntrospectTokenCmdPayload, 'id' | 'tokenValue'>,
@@ -184,15 +207,7 @@ describe('GrantAggregate.handleBatch', () => {
       });
 
       it('creates an interactive grant pending continuation for OUTGOING_PAYMENT access', async () => {
-        const cmd = await makeCreateGrantCmd({
-          access: [
-            {
-              type: AccessType.OUTGOING_PAYMENT,
-              actions: [AccessAction.CREATE]
-            }
-          ],
-          interact: { start: ['REDIRECT'] }
-        });
+        const cmd = await makeInteractiveGrantCmd(walletAddressService);
         const { events } = await aggregate.handleBatch([cmd]);
 
         assert.equal(events.length, 1);
@@ -205,6 +220,68 @@ describe('GrantAggregate.handleBatch', () => {
         assert.equal(payload.accessTokenValue, undefined);
         assert.equal(payload.accessTokenManagementId, undefined);
         assert.equal(payload.accessTokenExpiresIn, undefined);
+      });
+
+      describe('interactive grant input validation', () => {
+        it('fails with InvalidGrantInputError when the client is a raw JWK', async () => {
+          const cmd = await makeCreateGrantCmd({
+            access: [
+              {
+                type: AccessType.OUTGOING_PAYMENT,
+                actions: [AccessAction.CREATE]
+              }
+            ],
+            interact: { start: ['REDIRECT'] }
+          });
+          const { events } = await aggregate.handleBatch([cmd]);
+
+          assert.equal(events.length, 1);
+          assert.equal(events[0].msgName, GrantCreateFailedEvent.name);
+          const payload = (events[0] as GrantCreateFailedEvent).payload;
+          assert.equal(payload.errorName, 'InvalidGrantInputError');
+          assert.equal(payload.grantId, cmd.payload.id);
+        });
+
+        it('fails with InvalidGrantInputError when startMethods is missing', async () => {
+          const cmd = await makeInteractiveGrantCmd(walletAddressService, {
+            interact: { start: [] }
+          });
+          const { events } = await aggregate.handleBatch([cmd]);
+
+          assert.equal(events.length, 1);
+          assert.equal(events[0].msgName, GrantCreateFailedEvent.name);
+          const payload = (events[0] as GrantCreateFailedEvent).payload;
+          assert.equal(payload.errorName, 'InvalidGrantInputError');
+          assert.equal(payload.grantId, cmd.payload.id);
+        });
+
+        it('fails with InvalidGrantInputError when a client name cannot be resolved for the wallet address', async () => {
+          const keys = generateTestKeys();
+          const walletAddress = 'https://wallet.example/no-public-name';
+          walletAddressService.setKeys(walletAddress, [keys.publicKey]);
+
+          const cmd = await makeCreateGrantCmd({
+            client: walletAddress,
+            signatureData: await signedSignatureData(
+              keys.privateKey,
+              keys.publicKey.kid
+            ),
+            access: [
+              {
+                type: AccessType.OUTGOING_PAYMENT,
+                actions: [AccessAction.CREATE]
+              }
+            ],
+            interact: { start: ['REDIRECT'] }
+          });
+          const { events } = await aggregate.handleBatch([cmd]);
+
+          assert.equal(events.length, 1);
+          assert.equal(events[0].msgName, GrantCreateFailedEvent.name);
+          const payload = (events[0] as GrantCreateFailedEvent).payload;
+          assert.equal(payload.errorName, 'InvalidGrantInputError');
+          assert.equal(payload.grantId, cmd.payload.id);
+        });
       });
 
       describe('client key provided through directed identity', () => {
@@ -843,21 +920,7 @@ describe('GrantAggregate.handleBatch', () => {
           async function createInteractiveGrant(): Promise<{
             id: string;
           }> {
-            const keys = generateTestKeys();
-            const cmd = await makeCreateGrantCmd({
-              client: JSON.stringify(keys.publicKey),
-              signatureData: await signedSignatureData(
-                keys.privateKey,
-                keys.publicKey.kid
-              ),
-              access: [
-                {
-                  type: AccessType.OUTGOING_PAYMENT,
-                  actions: [AccessAction.CREATE]
-                }
-              ],
-              interact: { start: ['REDIRECT'] }
-            });
+            const cmd = await makeInteractiveGrantCmd(walletAddressService);
             const { events } = await aggregate.handleBatch([cmd]);
             const payload = (events[0] as GrantCreatedEvent).payload;
             return {
@@ -1045,21 +1108,7 @@ describe('GrantAggregate.handleBatch', () => {
         async function createInteractiveGrant(): Promise<{
           id: string;
         }> {
-          const keys = generateTestKeys();
-          const cmd = await makeCreateGrantCmd({
-            client: JSON.stringify(keys.publicKey),
-            signatureData: await signedSignatureData(
-              keys.privateKey,
-              keys.publicKey.kid
-            ),
-            access: [
-              {
-                type: AccessType.OUTGOING_PAYMENT,
-                actions: [AccessAction.CREATE]
-              }
-            ],
-            interact: { start: ['REDIRECT'] }
-          });
+          const cmd = await makeInteractiveGrantCmd(walletAddressService);
           const { events } = await aggregate.handleBatch([cmd]);
           const payload = (events[0] as GrantCreatedEvent).payload;
           return {
@@ -1242,15 +1291,7 @@ describe('GrantAggregate.handleBatch', () => {
       async function createGrantWithStartedInteraction(): Promise<{
         id: string;
       }> {
-        const cmd = await makeCreateGrantCmd({
-          access: [
-            {
-              type: AccessType.OUTGOING_PAYMENT,
-              actions: [AccessAction.CREATE]
-            }
-          ],
-          interact: { start: ['REDIRECT'] }
-        });
+        const cmd = await makeInteractiveGrantCmd(walletAddressService);
         const { events } = await aggregate.handleBatch([cmd]);
         const createdPayload = (events[0] as GrantCreatedEvent).payload;
         const id = createdPayload.id;
@@ -1316,15 +1357,7 @@ describe('GrantAggregate.handleBatch', () => {
       });
 
       it('fails with UnknownInteractionError when the interaction was never started', async () => {
-        const cmd = await makeCreateGrantCmd({
-          access: [
-            {
-              type: AccessType.OUTGOING_PAYMENT,
-              actions: [AccessAction.CREATE]
-            }
-          ],
-          interact: { start: ['REDIRECT'] }
-        });
+        const cmd = await makeInteractiveGrantCmd(walletAddressService);
         const { events: createEvents } = await aggregate.handleBatch([cmd]);
         const id = (createEvents[0] as GrantCreatedEvent).payload.id;
         const requestId = randomUUID();

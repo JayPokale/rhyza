@@ -5,6 +5,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { GrantEntity } from '../src/grant/entity';
 import {
   InvalidGrantError,
+  InvalidGrantInputError,
   InvalidInteractionError,
   UnknownAccessTokenError,
   NonInteractiveGrantError,
@@ -16,6 +17,7 @@ import {
   GrantState,
   IFinishMethod,
   IGrant,
+  IJsonWebKey,
   InteractionState,
   IInteraction
 } from '../src/grant/interfaces';
@@ -43,6 +45,7 @@ function makeInteractiveCreateInput(
 ) {
   return makeCreateGrantInput({
     startMethods: ['REDIRECT'],
+    clientName: 'Test Client',
     accesses: [
       { type: AccessType.OUTGOING_PAYMENT, actions: [AccessAction.CREATE] }
     ],
@@ -132,6 +135,7 @@ describe('GrantEntity', () => {
       const input = makeCreateGrantInput({
         id,
         client,
+        clientName: 'Test Client',
         subjectIds,
         accesses,
         finishUri,
@@ -168,6 +172,7 @@ describe('GrantEntity', () => {
     it('treats the grant as continuable if any requested access is interactive', () => {
       const input = makeCreateGrantInput({
         startMethods: ['REDIRECT'],
+        clientName: 'Test Client',
         accesses: [
           { type: AccessType.INCOMING_PAYMENT, actions: [AccessAction.READ] },
           {
@@ -184,6 +189,31 @@ describe('GrantEntity', () => {
       assert.ok(entity.lastContinuedAt instanceof Date);
       assert.equal(entity.interaction, undefined); // This should not be initialized at this point.
       assert.equal(accessToken, undefined);
+    });
+
+    it('throws InvalidGrantInputError when creating an interactive grant with a client that is a JWK', () => {
+      const jwkClient: IJsonWebKey = {
+        kty: 'OKP',
+        kid: 'test-key',
+        alg: 'EdDSA',
+        crv: 'Ed25519',
+        x: 'test-x-value'
+      };
+      const input = makeInteractiveCreateInput({ client: jwkClient });
+
+      assert.throws(() => GrantEntity.create(input), InvalidGrantInputError);
+    });
+
+    it('throws InvalidGrantInputError when creating an interactive grant without a clientName', () => {
+      const input = makeInteractiveCreateInput({ clientName: undefined });
+
+      assert.throws(() => GrantEntity.create(input), InvalidGrantInputError);
+    });
+
+    it('throws InvalidGrantInputError when creating an interactive grant without startMethods', () => {
+      const input = makeInteractiveCreateInput({ startMethods: [] });
+
+      assert.throws(() => GrantEntity.create(input), InvalidGrantInputError);
     });
   });
 
@@ -483,10 +513,13 @@ describe('GrantEntity', () => {
     it('creates a pending interaction and moves the grant to pending state', () => {
       const entity = makeContinuableGrant();
 
-      const { nonce, ...interaction } = entity.startInteraction();
+      const { nonce, clientUri, clientName, ...interaction } =
+        entity.startInteraction();
 
       assert.ok(interaction.interactRef);
       assert.equal(nonce, entity.interactionNonce);
+      assert.equal(clientUri, entity.client);
+      assert.equal(clientName, entity.clientName);
       assert.equal(typeof interaction.createdAt.getTime(), 'number');
       assert.equal(
         interaction.expiresAt.getTime(),

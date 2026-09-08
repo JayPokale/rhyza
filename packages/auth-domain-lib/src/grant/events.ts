@@ -285,6 +285,8 @@ export class TokenRotationFailedEvent extends AuthDomainEvent {
 export interface GrantInteractionStartedPayload {
   id: string;
   nonce: string;
+  clientUri: string;
+  clientName: string;
 }
 
 export class GrantInteractionStartedEvent extends AuthDomainEvent {
@@ -349,6 +351,7 @@ export interface GrantInteractionFinishedPayload {
   interactNonce: string;
   clientNonce: string;
   interactRef: string;
+  clientFinishUri?: string;
 }
 
 export class GrantInteractionFinishedEvent extends AuthDomainEvent {

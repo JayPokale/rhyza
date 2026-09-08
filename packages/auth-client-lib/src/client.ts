@@ -291,7 +291,7 @@ export class AuthClient {
           if (error) {
             reject(error);
           } else {
-            resolve({ id: response.getId(), nonce: response.getNonce() });
+            resolve(fromPbStartInteractionResponse(response));
           }
         }
       );
@@ -317,7 +317,8 @@ export class AuthClient {
               id: response.getId(),
               interactNonce: response.getInteractNonce(),
               clientNonce: response.getClientNonce(),
-              interactRef: response.getInteractRef()
+              interactRef: response.getInteractRef(),
+              finishUri: response.getFinishUri() || undefined
             });
           }
         }
@@ -556,5 +557,16 @@ function fromPbIntrospectTokenResponse(
     active: response.getActive(),
     grantId: response.getGrantId(),
     access: response.getAccessList().map(fromPbAccessItem)
+  };
+}
+
+function fromPbStartInteractionResponse(
+  response: PbStartInteractionResponse
+): StartInteractionResult {
+  return {
+    id: response.getId(),
+    nonce: response.getNonce(),
+    clientUri: response.getClientUri(),
+    clientName: response.getClientName()
   };
 }

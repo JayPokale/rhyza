@@ -1,5 +1,6 @@
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { AuthClient } from 'auth-client-lib';
+import { calculateInteractionHash } from '../utils';
 
 interface InteractionRouteOptions extends FastifyPluginOptions {
   authClient: AuthClient;
@@ -35,7 +36,6 @@ export async function interactionRoutes(
   server.post<{
     Params: { grantId: string };
   }>('/interaction/:grantId/finish', async (request, reply) => {
-    // TODO: implement
     const { authClient } = opts;
     const { grantId } = request.params;
     const grant = await authClient.getGrant(grantId);
@@ -47,6 +47,21 @@ export async function interactionRoutes(
       grant.interactionNonce
     );
 
-    return reply.status(501).send();
+    if (result.finishUri) {
+      const interactionHash = calculateInteractionHash(
+        result.clientNonce,
+        result.interactNonce,
+        result.interactRef,
+        opts.openPaymentsAuthServerUrl
+      );
+
+      const redirectUrl = new URL(result.finishUri);
+      redirectUrl.searchParams.set('hash', interactionHash);
+      redirectUrl.searchParams.set('interact_ref', result.interactRef);
+
+      return reply.redirect(redirectUrl.toString());
+    } else {
+      return reply.status(202).send();
+    }
   });
 }

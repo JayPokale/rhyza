@@ -80,7 +80,7 @@ export class OpenPaymentsAuthServer {
     this.server.register(fastifyCookie);
     this.server.register(fastifySession, {
       cookieName: 'interactionSessionId',
-      secret: 'test-secret-replace-me'
+      secret: 'test-secret-replace-me-i-need-to-be-32-characters-long'
       // TODO: { cookie: { maxAge: MAX_SESSION_LENGTH }}
     });
 

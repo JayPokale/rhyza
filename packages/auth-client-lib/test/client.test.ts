@@ -3,6 +3,7 @@
 import { after, before, describe, test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import * as http from 'node:http';
 import {
   createHeaders,
   generateTestKeys
@@ -70,15 +71,93 @@ describe('Auth Client', () => {
     };
   }
 
+  const WALLET_ADDRESS_HOST = 'http://host.docker.internal:4499';
+
   let authClient: AuthClient;
+  let walletAddressServer: http.Server;
+  let currentWalletAddressKey: ReturnType<typeof generateTestKeys>['publicKey'];
+  let currentWalletAddressPublicName: string;
+
+  function registerWalletAddress(
+    key: ReturnType<typeof generateTestKeys>['publicKey'],
+    publicName: string = 'Test Client'
+  ): string {
+    currentWalletAddressKey = key;
+    currentWalletAddressPublicName = publicName;
+    return WALLET_ADDRESS_HOST;
+  }
+
+  async function createInteractiveGrant(
+    keys: ReturnType<typeof generateTestKeys> = generateTestKeys(),
+    options: { withFinish?: boolean } = {}
+  ) {
+    const signatureData = await signedSignatureData(
+      keys.privateKey,
+      keys.publicKey.kid
+    );
+
+    const createOptions: {
+      access: AccessItem[];
+      start: string[];
+      finish?: GrantFinish;
+    } = {
+      access: [
+        makeAccessItem({ type: 'OUTGOING_PAYMENT', actions: ['CREATE'] })
+      ],
+      start: ['redirect']
+    };
+
+    if (options.withFinish) {
+      createOptions.finish = {
+        uri: 'https://client.example/finish',
+        nonce: 'finish-nonce',
+        method: 'redirect'
+      };
+    }
+
+    return authClient.createGrant(
+      registerWalletAddress(keys.publicKey, `Test Client ${randomUUID()}`),
+      signatureData,
+      createOptions
+    );
+  }
 
   before(async () => {
     authClient = new AuthClient(AUTH_GRPC_URL);
     await authClient.init();
+
+    walletAddressServer = http.createServer((req, res) => {
+      res.setHeader('Content-Type', 'application/json');
+
+      if (req.url === '/jwks.json') {
+        res.writeHead(200);
+        res.end(JSON.stringify({ keys: [currentWalletAddressKey] }));
+        return;
+      }
+
+      res.writeHead(200);
+      res.end(
+        JSON.stringify({
+          id: WALLET_ADDRESS_HOST,
+          publicName: currentWalletAddressPublicName,
+          assetCode: 'USD',
+          assetScale: 2,
+          authServer: WALLET_ADDRESS_HOST,
+          resourceServer: WALLET_ADDRESS_HOST
+        })
+      );
+    });
+
+    await new Promise<void>((resolve) => {
+      walletAddressServer.listen(4499, '0.0.0.0', resolve);
+    });
   });
 
   after(async () => {
     await authClient.disconnect();
+    await new Promise<void>((resolve, reject) => {
+      walletAddressServer.close((error) => (error ? reject(error) : resolve()));
+    });
   });
 
   describe('createGrant', () => {
@@ -148,7 +227,7 @@ describe('Auth Client', () => {
       ];
 
       const result = await authClient.createGrant(
-        JSON.stringify(keys.publicKey),
+        registerWalletAddress(keys.publicKey, `Test Client ${randomUUID()}`),
         signatureData,
         {
           access,
@@ -447,41 +526,6 @@ describe('Auth Client', () => {
   });
 
   describe('continueGrant', () => {
-    async function createInteractiveGrant(
-      keys: ReturnType<typeof generateTestKeys>,
-      options: { withFinish?: boolean } = {}
-    ) {
-      const signatureData = await signedSignatureData(
-        keys.privateKey,
-        keys.publicKey.kid
-      );
-
-      const createOptions: {
-        access: AccessItem[];
-        start: string[];
-        finish?: GrantFinish;
-      } = {
-        access: [
-          makeAccessItem({ type: 'OUTGOING_PAYMENT', actions: ['CREATE'] })
-        ],
-        start: ['redirect']
-      };
-
-      if (options.withFinish) {
-        createOptions.finish = {
-          uri: 'https://client.example/finish',
-          nonce: 'finish-nonce',
-          method: 'redirect'
-        };
-      }
-
-      return authClient.createGrant(
-        JSON.stringify(keys.publicKey),
-        signatureData,
-        createOptions
-      );
-    }
-
     test('continues pending grant and rotates continue token', async () => {
       const keys = generateTestKeys();
       const created = await createInteractiveGrant(keys);
@@ -688,31 +732,6 @@ describe('Auth Client', () => {
     });
   });
   describe('startInteraction', () => {
-    async function createInteractiveGrant(): Promise<{
-      id: string;
-    }> {
-      const keys = generateTestKeys();
-      const signatureData = await signedSignatureData(
-        keys.privateKey,
-        keys.publicKey.kid
-      );
-
-      const grant = await authClient.createGrant(
-        JSON.stringify(keys.publicKey),
-        signatureData,
-        {
-          access: [
-            makeAccessItem({ type: 'OUTGOING_PAYMENT', actions: ['CREATE'] })
-          ],
-          start: ['redirect']
-        }
-      );
-
-      return {
-        id: grant.id
-      };
-    }
-
     test('starts the interaction for a pending interactive grant', async () => {
       const { id } = await createInteractiveGrant();
       const result = await authClient.startInteraction(id);
@@ -741,7 +760,7 @@ describe('Auth Client', () => {
     );
 
     const grant = await authClient.createGrant(
-      JSON.stringify(keys.publicKey),
+      registerWalletAddress(keys.publicKey, `Test Client ${randomUUID()}`),
       signatureData,
       {
         access: [
@@ -830,7 +849,7 @@ describe('Auth Client', () => {
       );
 
       const grant = await authClient.createGrant(
-        JSON.stringify(keys.publicKey),
+        registerWalletAddress(keys.publicKey, `Test Client ${randomUUID()}`),
         signatureData,
         {
           access: [
