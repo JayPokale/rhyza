@@ -42,8 +42,8 @@ importers:
         specifier: ^0.42.0
         version: 0.42.0(@astrojs/markdown-remark@7.3.0)(astro@7.2.10(@astrojs/markdown-remark@7.3.0)(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@24.10.11)(ioredis@5.10.1)(jiti@2.7.0)(tsx@4.19.3)(yaml@2.9.0))(typescript@5.9.3)
       '@interledger/docs-design-system':
-        specifier: ^0.14.0
-        version: 0.14.0
+        specifier: ^0.14.1
+        version: 0.14.1
       '@scalar/astro':
         specifier: ^0.4.4
         version: 0.4.4(astro@7.2.10(@astrojs/markdown-remark@7.3.0)(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@24.10.11)(ioredis@5.10.1)(jiti@2.7.0)(tsx@4.19.3)(yaml@2.9.0))
@@ -2056,8 +2056,8 @@ packages:
     resolution: {integrity: sha512-MzICLu4yS7V8AA61sANROZ9vT1H3ooca5dSmI1FjZkzq7o/koMsRfQSzRtFo+F3Ao4Sf1C0bpLKejpKB/+j6MA==}
     engines: {node: '>=18'}
 
-  '@interledger/docs-design-system@0.14.0':
-    resolution: {integrity: sha512-p1re1GZ+SYQK+MINbonNdQG3hbhN4FLZkjtwBOBqdFUEOiilL5gJV1IeON5sJ5PeXXsUpsYUJFKytN/fz0joWA==}
+  '@interledger/docs-design-system@0.14.1':
+    resolution: {integrity: sha512-IW2/Sq+z+xAPxzEQmsMKlVJdTLj2RALORwlDPzrQbnVTW8eQl6fXKdoaG+gWNIBhULyGQHCf/e07fKz0B5sWOQ==}
 
   '@interledger/http-signature-utils@2.0.3':
     resolution: {integrity: sha512-/vn6+FxZ3g1A5ZC3vOVivjFns5A6F4lhEmdAGg3W9mD2uADXI575rIBcMdqI3wTOJo7qOXRutPXOG/jXONFs/Q==}
@@ -8084,7 +8084,7 @@ snapshots:
     dependencies:
       mute-stream: 1.0.0
 
-  '@interledger/docs-design-system@0.14.0':
+  '@interledger/docs-design-system@0.14.1':
     dependencies:
       mermaid: 11.17.2
 
