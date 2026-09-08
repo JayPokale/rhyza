@@ -91,7 +91,8 @@ const KAFKA_URL =
 // kafka common options
 const kafkaProducerCommonOptions: KafkaProducerOptions = {
   queueBufferingMaxMessages: 500_000,
-  compressionCodec: KafkaProducerCompressionCodecs.LZ,
+  compressionCodec: KafkaProducerCompressionCodecs.ZSTD,
+  compressionLevel: 3,
   messageMaxBytes: 20971520
 };
 const kafkaConsumerCommonOptions: KafkaConsumerOptions = {
@@ -126,6 +127,7 @@ export class PalLedgerCommandHandlerService {
       logger = new PinoLogger({
         bcName: BC_NAME,
         appName: APP_NAME,
+        appVersion: APP_VERSION,
         instanceId: INSTANCE_ID
       });
     }

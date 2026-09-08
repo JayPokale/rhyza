@@ -1,14 +1,5 @@
-import {
-  Box,
-  Form,
-  Screen,
-  Text,
-  Textbox,
-  Button,
-} from '@unblessed/node';
+import { Box, Form, Screen, Text, Textbox, Button } from '@unblessed/node';
 import { ISettingsData, IUiPage } from '../common';
-
-
 
 export class SettingsPage implements IUiPage {
   private _containerBox: Box;
@@ -126,6 +117,7 @@ export class SettingsPage implements IUiPage {
       }
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     submitBtn.on('press', (data: any) => {
       this._formSubmit(data);
     });
@@ -133,7 +125,7 @@ export class SettingsPage implements IUiPage {
       this._formReset();
     });
 
-    this._form.on('submit', (data: any) => {
+    this._form.on('submit', (data: never) => {
       this._formSubmit(data);
     });
   }
@@ -146,6 +138,7 @@ export class SettingsPage implements IUiPage {
     this._containerBox.render();
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars,@typescript-eslint/no-explicit-any
   private _formSubmit(data: any) {
     console.log('form submit');
     this._data.testIdPrefix = this._textBoxTestPrefix.getValue();
@@ -163,7 +156,7 @@ export class SettingsPage implements IUiPage {
     labelWidth: number = 15
   ): Textbox {
     // we need it to start from 0
-      new Text({
+    new Text({
       parent: this._form,
       top: order * 4 + 1,
       left: 0,

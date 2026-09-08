@@ -165,4 +165,3 @@ export class LedgerSnapshotCheckTimerEvent extends TimerEvent {
     super(aggId);
   }
 }
-

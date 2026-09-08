@@ -65,7 +65,6 @@ import {
   LedgerWithdrawFromPeerFailedWithInsufficientFundsEvent,
   LedgerWithdrawFromAseFailedWithInsufficientFundsEvent
 } from 'pal-public-types-lib';
-import {amountToBigIntOfSize, amountFromBigIntOfSize} from "../utils";
 
 const DEFAULT_DISPLAY_ASSET_SCALE = 2;
 
@@ -91,7 +90,7 @@ export class Ledger {
   private readonly _pendingTransfers: Map<string, IPendingTransfer>;
 
   private constructor(id: string, assetScale: number, logger: ILogger) {
-    this._logger = logger;
+    this._logger = logger.child(this.constructor.name);
     this._version = 0n; // we start at version 1 because there is already the LedgerCreatedStateEvent
     this._lastSnapshotVersion = 0n;
     this._accounts = [];

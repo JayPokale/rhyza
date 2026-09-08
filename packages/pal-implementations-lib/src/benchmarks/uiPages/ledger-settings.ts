@@ -8,7 +8,6 @@ import {
 } from 'pal-public-types-lib';
 import { LoadTests } from '../load';
 
-
 export class LedgerSettingsPage implements IUiPage {
   private _data: ISettingsData;
   private _loadTests: LoadTests;
@@ -116,10 +115,7 @@ export class LedgerSettingsPage implements IUiPage {
     //   });
   }
 
-  private _hookUiHandlers() {
-
-
-  }
+  private _hookUiHandlers() {}
 
   async activate(screen: Screen): Promise<void> {
     screen.append(this._containerBox);
@@ -135,24 +131,25 @@ export class LedgerSettingsPage implements IUiPage {
     //   this._log.screen.render();
     // });
 
-    if(!this._loadTests.connected){
+    if (!this._loadTests.connected) {
       this._log.log('Connecting to api...');
       await this._loadTests.init();
       this._log.log('Connected to api.');
     }
 
-    if(this._loadTests.asset){
+    if (this._loadTests.asset) {
       this._log.log(`Asset: ${this._loadTests.asset.code} exists.`);
     }
-    if(this._loadTests.peer){
+    if (this._loadTests.peer) {
       this._log.log(`Peer: ${this._loadTests.peer.name} exists.`);
     }
-    if(this._loadTests.accounts.length > 0){
-      this._log.log(`Accounts: ${this._loadTests.accounts.length} accounts found.`);
+    if (this._loadTests.accounts.length > 0) {
+      this._log.log(
+        `Accounts: ${this._loadTests.accounts.length} accounts found.`
+      );
     }
 
     this._log.screen.render();
-
 
     screen.render();
   }

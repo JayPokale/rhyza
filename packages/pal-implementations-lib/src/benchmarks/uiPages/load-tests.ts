@@ -1,20 +1,7 @@
-import {
-  Box,
-  Screen,
-  Text,
-  Button,
-  Log,
-  ButtonOptions,
-  Static,
-  Alignment,
-  BoxOptions,
-  Textbox
-} from '@unblessed/node';
+import { Box, Screen, Text, Log, BoxOptions, Textbox } from '@unblessed/node';
 
 import { ISettingsData, IUiPage } from '../common';
 import { ILoadTestStats, LoadTests } from '../load';
-
-
 
 export class LoadTestsPage implements IUiPage {
   // private _buttonsBox: Element;
@@ -23,9 +10,13 @@ export class LoadTestsPage implements IUiPage {
 
   private _containerBox!: Box;
   private _text1!: Textbox;
-  private _text2!: Text;
-  private _text3!: Text;
+  private _textAvgRespTime!: Text;
+  private _textPending!: Text;
+  private _textAseClearing!: Text;
+  private _textPeerClearing!: Text;
+  private _textErrorCount!: Text;
   private _log!: Log;
+
   // private _setupLedgerBtn!: Button;
   // private _startBtn!: Button;
   // private _stopBtn!: Buttons;
@@ -43,15 +34,30 @@ export class LoadTestsPage implements IUiPage {
       this._log.screen.render();
     });
 
-    this._loadTests.on('statsAvailable', (stats: ILoadTestStats) => {
-      // this._text1.setContent(
-      //   `${stats.isRunning ? '{green-fg}' : '{red-fg}'}${stats.perSecCount}{/}`
-      // );
-      this._text2.setContent(
+    this._loadTests.on('statsAvailable', this._updateUi.bind(this));
+  }
+
+  private _updateUi(stats?: ILoadTestStats) {
+    if (stats) {
+      this._textAvgRespTime.setContent(
         Math.round(stats.avgTimePerMessageMs).toString() + ' ms'
       );
-      this._text3.setContent(Math.round(stats.totalMessagesPending).toString());
-    });
+      this._textPending.setContent(
+        Math.round(stats.totalMessagesPending).toString()
+      );
+    }
+
+    this._textAseClearing.setContent(this._loadTests.balances.aseCle || 'n/a');
+    this._textAseClearing.style.fg =
+      this._loadTests.balances.aseCle?.startsWith('-') ? 'red' : 'green';
+    this._textPeerClearing.setContent(
+      this._loadTests.balances.peerCle || 'n/a'
+    );
+    this._textPeerClearing.style.fg =
+      this._loadTests.balances.peerCle?.startsWith('-') ? 'red' : 'green';
+    this._textErrorCount.setContent(
+      this._loadTests.errorResponseCount.toString()
+    );
   }
 
   private _createUiElements() {
@@ -89,16 +95,16 @@ export class LoadTestsPage implements IUiPage {
     new Box({
       ...commonText,
       left: 1,
-      label:  'Req/sec',
+      label: 'Req/sec'
     });
     this._text1 = new Textbox({
       parent: this._containerBox,
-      name: "reqspersec",
+      name: 'reqspersec',
       top: 1,
       left: 2,
       height: 1,
       width: 18,
-      align: "right",
+      align: 'right',
       shadow: true,
       inputOnFocus: true,
       value: this._loadTests.perSecCount.toString(),
@@ -111,18 +117,43 @@ export class LoadTestsPage implements IUiPage {
       }
     });
 
-    this._text2 = new Box({
+    this._textAvgRespTime = new Box({
       ...commonText,
       left: 21,
       label: 'Avg resp time'
     });
 
-    this._text3 = new Box({
+    this._textPending = new Box({
       ...commonText,
       left: 41,
       label: 'Pending',
       style: {
         fg: 'red'
+      }
+    });
+    this._textErrorCount = new Box({
+      ...commonText,
+      left: 61,
+      label: 'ErrorCount',
+      style: {
+        fg: 'red'
+      }
+    });
+
+    this._textAseClearing = new Box({
+      ...commonText,
+      left: 81,
+      label: 'ASE Clearing',
+      style: {
+        fg: 'red'
+      }
+    });
+    this._textPeerClearing = new Box({
+      ...commonText,
+      left: 101,
+      label: 'Peer Clearing',
+      style: {
+        fg: 'green'
       }
     });
 
@@ -147,16 +178,15 @@ export class LoadTestsPage implements IUiPage {
         ch: '█',
         style: { bg: 'cyan' },
         track: {
-          bg: 'yellow',
-        },
+          bg: 'yellow'
+        }
       },
       scrollOnInput: true
     });
-
   }
 
   private _hookUiHandlers() {
-    this._text1.on("submit", (data:string)=>{
+    this._text1.on('submit', (data: string) => {
       console.log(data);
       this._loadTests.perSecCount = parseInt(data);
     });
@@ -171,6 +201,8 @@ export class LoadTestsPage implements IUiPage {
     };
 
     await this._loadTests.init();
+
+    this._updateUi();
     screen.render();
   }
   async deactivate(screen: Screen): Promise<void> {

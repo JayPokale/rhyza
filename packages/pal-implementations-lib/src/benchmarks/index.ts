@@ -7,9 +7,7 @@ import {
   setRuntime,
   Listbar
 } from '@unblessed/node';
-import {
-  SettingsPage
-} from './uiPages/settings';
+import { SettingsPage } from './uiPages/settings';
 
 import { LoadTestsPage } from './uiPages/load-tests';
 import { ISettingsData, IUiPage } from './common';
@@ -24,7 +22,6 @@ import { PalClient } from 'pal-client-lib';
 // should not have to do this, but it fails without it
 const runtime = new NodeRuntime();
 setRuntime(runtime);
-
 
 const BC_NAME = 'PAL';
 const APP_NAME = `${BC_NAME}_LEDGER_LOAD_TEST`;
@@ -43,7 +40,6 @@ const KAFKA_URL =
   process.env['KAFKA_URL'] || '127.0.0.1:29092,127.0.0.1:39092,127.0.0.1:49092';
 const OPEN_TELEMETRY_COLLECTOR_URL =
   process.env['OPEN_TELEMETRY_COLLECTOR_URL'] || 'http://127.0.0.1:4317';
-
 
 const settingsData: ISettingsData = {
   testIdPrefix: `${randomBytes(3).toString('hex')}_`,
@@ -156,8 +152,8 @@ const footer = new Box({
   }
 });
 
-function updateFooter(){
-  const separator = " {gray-fg}|{/} ";
+function updateFooter() {
+  const separator = ' {gray-fg}|{/} ';
   const connState = loadTests.connected
     ? '{center}{green-fg}● connected'
     : '{center}{red-fg}● disconnected';
@@ -165,16 +161,15 @@ function updateFooter(){
     ? `{green-fg}● ${loadTests.perSecCount}/sec `
     : '{red-fg}● (not running)';
 
-  const shortcuts = "{yellow-fg}Press H for help | Ctrl+C to exit{/}{/center}";
+  const shortcuts = '{yellow-fg}Press H for help | Ctrl+C to exit{/}{/center}';
   footer.content = connState + separator + runState + separator + shortcuts;
   screen.render();
 }
 updateFooter();
 
-loadTests.on('stateChanged', ()=>{
+loadTests.on('stateChanged', () => {
   updateFooter();
 });
-
 
 // Content Box Pages (Right Panel)
 const settingsPage = new SettingsPage(settingsData);
@@ -187,7 +182,7 @@ const ledgerSettingsPage = new LedgerSettingsPage(
 
 let currentPage: IUiPage;
 async function navigateToPage(newPage: IUiPage) {
-  if(currentPage) await currentPage.deactivate(screen)
+  if (currentPage) await currentPage.deactivate(screen);
   await newPage.activate(screen);
   currentPage = newPage;
   screen.render();
@@ -237,7 +232,6 @@ screen.key(['C-r'], async () => {
   screen.render();
 });
 
-
 // Handle quit shortcuts
 screen.key(['q', 'C-c'], () => {
   return process.exit(0);
@@ -253,7 +247,7 @@ screen.key(['r'], () => {
 });
 
 screen.key(['h'], () => {
-// Create a box perfectly centered horizontally and vertically.
+  // Create a box perfectly centered horizontally and vertically.
   const box = new Box({
     top: 'center',
     left: 'center',
@@ -284,7 +278,7 @@ screen.key(['h'], () => {
     }
   });
 
-// Append our box to the screen.
+  // Append our box to the screen.
   screen.append(box);
   box.focus();
   screen.render();
@@ -299,8 +293,6 @@ navigateToPage(settingsPage);
 menu.focus();
 // Initial screen render
 screen.render();
-
-
 
 process.on('uncaughtException', (err) => {
   screen.destroy();

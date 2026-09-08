@@ -20,7 +20,7 @@ export class WalletAddressAggregate {
   private readonly _uncommittedDomainEvents: WalletAddressDomainEvent[];
 
   constructor(repo: IPalWalletAddressRepository, logger: ILogger) {
-    this._logger = logger;
+    this._logger = logger.child(this.constructor.name);
     this._repo = repo;
     this._uncommittedDomainEvents = [];
   }

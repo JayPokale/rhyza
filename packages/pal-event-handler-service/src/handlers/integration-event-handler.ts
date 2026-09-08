@@ -36,7 +36,7 @@ export class IntegrationEventHandler {
     msgProducer: IMessageProducer,
     logger: ILogger
   ) {
-    this._logger = logger;
+    this._logger = logger.child(this.constructor.name);
     this._msgConsumer = messageConsumer;
     this._msgProducer = msgProducer;
   }

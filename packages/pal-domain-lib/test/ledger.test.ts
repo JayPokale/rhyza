@@ -1,5 +1,6 @@
 import { beforeEach, test } from 'node:test';
 import * as assert from 'node:assert/strict';
+import crypto from 'crypto';
 import {
   MockLedgerEventSourcingRepository,
   MockMessageProducer,
@@ -538,9 +539,6 @@ test('PAL Ledger Domain HighLevel API - Outgoing - Commit Transfer', async () =>
   const cmd: CommitTransferCmd = new CommitTransferCmd(EUR_LEDGER_ID, {
     requestId: reqId,
     transferId: transferId,
-    amount: AMOUNT.toString(),
-    amountScale: AMOUNT_SCALE,
-    peerId: PEER_ONE_ID,
     transferDirection: 'OUTGOING',
     paymentIntentId: 'intent-1',
     paymentId: 'payment-1'
@@ -644,9 +642,6 @@ test('PAL Ledger Domain HighLevel API - Outgoing - Reject Transfer', async () =>
   const cmd: RejectTransferCmd = new RejectTransferCmd(EUR_LEDGER_ID, {
     requestId: reqId,
     transferId: transferId,
-    amount: AMOUNT.toString(),
-    amountScale: AMOUNT_SCALE,
-    peerId: PEER_ONE_ID,
     transferDirection: 'OUTGOING',
     paymentIntentId: 'intent-1',
     paymentId: 'payment-1'
@@ -752,9 +747,6 @@ test('PAL Ledger Domain HighLevel API - Outgoing - Commit Transfer with wrong tr
   const cmd: CommitTransferCmd = new CommitTransferCmd(EUR_LEDGER_ID, {
     requestId: reqId,
     transferId: 'otherTransferId',
-    amount: AMOUNT.toString(),
-    amountScale: AMOUNT_SCALE,
-    peerId: PEER_ONE_ID,
     transferDirection: 'OUTGOING',
     paymentIntentId: 'intent-1',
     paymentId: 'payment-1'
@@ -850,9 +842,6 @@ test('PAL Ledger Domain HighLevel API - Outgoing - Reject Transfer with wrong tr
   const cmd: RejectTransferCmd = new RejectTransferCmd(EUR_LEDGER_ID, {
     requestId: reqId,
     transferId: 'otherTransferId',
-    amount: AMOUNT.toString(),
-    amountScale: AMOUNT_SCALE,
-    peerId: PEER_ONE_ID,
     transferDirection: 'OUTGOING',
     paymentIntentId: 'intent-1',
     paymentId: 'payment-1'
@@ -1467,9 +1456,6 @@ test('PAL Ledger Domain HighLevel API - Incoming - Commit Transfer', async () =>
   const cmd: CommitTransferCmd = new CommitTransferCmd(EUR_LEDGER_ID, {
     requestId: reqId,
     transferId: 'otherTransferId',
-    amount: AMOUNT.toString(),
-    amountScale: AMOUNT_SCALE,
-    peerId: PEER_ONE_ID,
     transferDirection: 'INCOMING',
     paymentIntentId: 'intent-1',
     paymentId: 'payment-1'
@@ -1567,9 +1553,6 @@ test('PAL Ledger Domain HighLevel API - Incoming - Reject Transfer', async () =>
   const cmd: RejectTransferCmd = new RejectTransferCmd(EUR_LEDGER_ID, {
     requestId: reqId,
     transferId: transferId,
-    amount: AMOUNT.toString(),
-    amountScale: AMOUNT_SCALE,
-    peerId: PEER_ONE_ID,
     transferDirection: 'INCOMING',
     paymentIntentId: 'intent-1',
     paymentId: 'payment-1'
@@ -1664,9 +1647,6 @@ test('PAL Ledger Domain HighLevel API - Incoming - Commit Transfer with wrong tr
   const cmd: CommitTransferCmd = new CommitTransferCmd(EUR_LEDGER_ID, {
     requestId: reqId,
     transferId: transferId,
-    amount: AMOUNT.toString(),
-    amountScale: AMOUNT_SCALE,
-    peerId: PEER_ONE_ID,
     transferDirection: 'INCOMING',
     paymentIntentId: 'intent-1',
     paymentId: 'payment-1'
@@ -1763,9 +1743,6 @@ test('PAL Ledger Domain HighLevel API - Incoming - Reject Transfer with wrong tr
   const cmd: RejectTransferCmd = new RejectTransferCmd(EUR_LEDGER_ID, {
     requestId: reqId,
     transferId: 'otherTransferId',
-    amount: AMOUNT.toString(),
-    amountScale: AMOUNT_SCALE,
-    peerId: PEER_ONE_ID,
     transferDirection: 'INCOMING',
     paymentIntentId: 'intent-1',
     paymentId: 'payment-1'

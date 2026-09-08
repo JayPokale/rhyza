@@ -42,7 +42,7 @@ export class LedgerAggregate {
   ) {
     this._esRepo = esRepo;
     this._msgProducer = msgProducer;
-    this._logger = logger;
+    this._logger = logger.child(this.constructor.name);
     this._telemetryService = telemetryService;
     this._ledgers = new Map<string, Ledger>();
     this._uncommittedStateEvents = [];
@@ -123,7 +123,7 @@ export class LedgerAggregate {
    * in-memory state before accepting new commands.
    */
   async clearInMemoryState(): Promise<void> {
-    if(this._ledgers.size === 0) return;
+    if (this._ledgers.size === 0) return;
 
     // wait for the batch processing to finish before clearing the state
     // eslint-disable-next-line no-async-promise-executor
@@ -133,7 +133,9 @@ export class LedgerAggregate {
         await new Promise((resolve) => setTimeout(resolve, 1));
       }
       const ids = Array.from(this._ledgers.keys());
-      this._logger.info(`Clearing in-memory state, currently ${ids.length} ledgers are loaded: ${ids.join(',')}`);
+      this._logger.info(
+        `Clearing in-memory state, currently ${ids.length} ledgers are loaded: ${ids.join(',')}`
+      );
 
       // clear the ledgers and set them to null to force memory release
       ids.forEach((ledgerId) => {
@@ -143,9 +145,7 @@ export class LedgerAggregate {
         this._ledgers.delete(ledgerId);
       });
 
-      this._logger.info(
-        'Clearing in-memory state complete.'
-      );
+      this._logger.info('Clearing in-memory state complete.');
       resolve();
     });
   }
@@ -209,7 +209,9 @@ export class LedgerAggregate {
       return loadedLedger;
     }
 
-    this._logger.info(`LedgerAggregate: loading ledger ${ledgerId} from snapshot/events...`);
+    this._logger.info(
+      `LedgerAggregate: loading ledger ${ledgerId} from snapshot/events...`
+    );
 
     const startTs = Date.now();
 
@@ -218,7 +220,8 @@ export class LedgerAggregate {
 
     let partitionAndOffset: { partition: number; offset: number } | undefined =
       undefined;
-    if (snapshot?.lastEventIndexOffset != undefined &&
+    if (
+      snapshot?.lastEventIndexOffset != undefined &&
       snapshot?.lastEventIndexPartition != undefined
     ) {
       partitionAndOffset = {

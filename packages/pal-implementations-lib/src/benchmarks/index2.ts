@@ -1,4 +1,3 @@
-
 import { ILoadTestStats, LoadTests } from './load';
 import { ISettingsData } from './common';
 import { randomBytes } from 'node:crypto';
@@ -50,17 +49,16 @@ const settingsData: ISettingsData = {
 async function main() {
   await loadTests.init();
 
-  if (CREATE_LEDGER_AND_ACCOUNTS){
+  if (CREATE_LEDGER_AND_ACCOUNTS) {
     await loadTests.setupLedger();
   }
 
   loadTests.on('statsAvailable', (stats: ILoadTestStats) => {
-    console.log(format("%j", stats))
+    console.log(format('%j', stats));
   });
   loadTests.on('logAvailable', (logLine: string) => {
     console.log(`LOG: ${logLine}`);
   });
-
 
   await loadTests.start();
 }
@@ -75,13 +73,10 @@ const loadTests = new LoadTests(
   OpenTelemetryService.getInstance()
 );
 
-
 main().then(() => {
   console.debug('Done');
   process.exit(0);
 });
-
-
 
 /**
  * process termination and cleanup

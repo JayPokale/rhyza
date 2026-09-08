@@ -12,7 +12,6 @@ import {
 } from 'implementations-lib';
 import {
   ILedgerEventSourcingRepository,
-  LedgerAggregate,
   ILedgerReadSideRepository,
   PeerAggregate,
   IPalPeerRepository,
@@ -280,7 +279,7 @@ export class PalLedgerEventHandlerService {
 
     if (!stateEventsConsumer) {
       const consumerOpts: KafkaLowLevelConsumerOptions = {
-        consumerGroupId: kafkaConsumerCommonOptions.consumerGroupId,
+        consumerGroupId: `${kafkaConsumerCommonOptions.consumerGroupId}_stateEventHandler`,
         batchSize: kafkaConsumerCommonOptions.batchSize,
         batchTimeoutMs: kafkaConsumerCommonOptions.batchTimeoutMs,
         autoOffsetReset: kafkaConsumerCommonOptions.autoOffsetReset
@@ -316,7 +315,7 @@ export class PalLedgerEventHandlerService {
 
     if (!internalEventsConsumer) {
       const consumerOpts: KafkaLowLevelConsumerOptions = {
-        consumerGroupId: kafkaConsumerCommonOptions.consumerGroupId,
+        consumerGroupId: `${kafkaConsumerCommonOptions.consumerGroupId}_internalEventHandler`,
         batchSize: kafkaConsumerCommonOptions.batchSize,
         batchTimeoutMs: kafkaConsumerCommonOptions.batchTimeoutMs,
         autoOffsetReset: kafkaConsumerCommonOptions.autoOffsetReset
@@ -390,7 +389,7 @@ export class PalLedgerEventHandlerService {
      */
     if (!integrationEventsConsumer) {
       const consumerOpts: KafkaLowLevelConsumerOptions = {
-        consumerGroupId: kafkaConsumerCommonOptions.consumerGroupId,
+        consumerGroupId: `${kafkaConsumerCommonOptions.consumerGroupId}_integrationEventHandler`,
         batchSize: kafkaConsumerCommonOptions.batchSize,
         batchTimeoutMs: kafkaConsumerCommonOptions.batchTimeoutMs,
         autoOffsetReset: kafkaConsumerCommonOptions.autoOffsetReset

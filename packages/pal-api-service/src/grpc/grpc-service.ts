@@ -133,7 +133,7 @@ export class PalGrpcServer {
     this._msgProducer = producer;
     this._msgConsumer = consumer;
     this._ledgerReadSideRepo = ledgerReadSideRepo;
-    this._logger = logger;
+    this._logger = logger.child(this.constructor.name);
     this._telemetryService = telemetryService;
     this._responseTimeoutMs = DEFAULT_RESPONSE_TIMEOUT_MS;
 

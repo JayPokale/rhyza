@@ -21,7 +21,8 @@ import {
   LedgerTransactionRecordedStateEvent,
   ILedgerReadSideRepository,
   LedgerAccountsCreatedStateEvent,
-  LedgerAccountDtoSerializer, LedgerSnapshotCheckTimerEvent
+  LedgerAccountDtoSerializer,
+  LedgerSnapshotCheckTimerEvent
 } from 'pal-domain-lib';
 import { ILedgerDto } from 'pal-public-types-lib';
 import { clearInterval } from 'node:timers';
@@ -39,16 +40,6 @@ export type LedgerStateEventHandlerConfigs = {
  * 1. Snapshotter - takes snapshots of the ledger state when needed
  * 2. Projector - updates the read side projections of the ledger state
  *    from the applied event states
- *
- * Scenarios for the snapshoter:
- *   ---------------------------------------------------------------------------------------------------
- *   |                                      | Without snapshot timer event | With snapshot timer event |
- *   ---------------------------------------------------------------------------------------------------
- *   | State evts and either time or count  | Yes                          | Yes                       |
- *   | State evts but no time nor count     | No                           | No                        |
- *   | No state evts and time               | (n/a)                        | Yes                       |
- *   | No state evts but no time            | (n/a)                        | No                        |
- *   ---------------------------------------------------------------------------------------------------
  */
 
 export class LedgerStateEventHandler {
@@ -83,7 +74,7 @@ export class LedgerStateEventHandler {
     logger: ILogger,
     telemetryService: ITelemetryService
   ) {
-    this._logger = logger;
+    this._logger = logger.child(this.constructor.name);
     this._configs = configs;
     this._esRepo = esRepo;
     this._messageConsumer = rawMessageConsumer;
@@ -121,7 +112,7 @@ export class LedgerStateEventHandler {
     }
 
     // load state events, already loaded evts/versions will be ignored
-    if(stateEvents.length > 0){
+    if (stateEvents.length > 0) {
       ledger.applyEvents(stateEvents, true);
     }
     return ledger;
@@ -131,27 +122,22 @@ export class LedgerStateEventHandler {
     // have enough state events been applied?
     if (
       ledger.version >
-        ledger.lastSnapshotVersion +
-          BigInt(this._configs.maxStateEventsBetweenSnapshots) ||
-      this._lastSnapshotTakenAt == null
+      ledger.lastSnapshotVersion +
+        BigInt(this._configs.maxStateEventsBetweenSnapshots)
     ) {
       return true;
     }
 
     // has enough time passed?
-    const msSinceLastSnapshot = Date.now() - this._lastSnapshotTakenAt;
-    if (msSinceLastSnapshot >= this._configs.maxTimeBetweenSnapshotsMs) {
-      return true;
-    }
-
-    return false;
+    const msSinceLastSnapshot = Date.now() - (this._lastSnapshotTakenAt || 0);
+    return msSinceLastSnapshot >= this._configs.maxTimeBetweenSnapshotsMs;
   }
 
   private async _snapshotIfNeeded(
     ledger: Ledger,
     stateEvents: LedgerStateEvent[]
-  ) {
-    if (!this._isSnapshotNeeded) {
+  ): Promise<void> {
+    if (!this._isSnapshotNeeded(ledger)) {
       return;
     }
 
@@ -169,8 +155,13 @@ export class LedgerStateEventHandler {
       snapshot.lastEventIndexOffset = lastEvent.msgOffset;
     }
 
+    this._logger.debug(
+      `Snapshot created for ledger: ${ledger.id} v${ledger.version}, with lastEventIndexPartition: ${snapshot.lastEventIndexPartition} and lastEventIndexOffset: ${snapshot.lastEventIndexOffset}`
+    );
+
     this._uncommittedSnapshots.push(snapshot);
     this._lastSnapshotMap.set(ledger.id, snapshot);
+    this._lastSnapshotTakenAt = snapshot.msgTimestamp;
   }
 
   private async _updateReadSideProjections(
@@ -208,8 +199,6 @@ export class LedgerStateEventHandler {
     });
   }
 
-/*
-
   private async _handleMessages(messages: IMessage[]): Promise<void> {
     const startTs = Date.now();
     const stateEventsByLedgerId = new Map<string, LedgerStateEvent[]>();
@@ -218,51 +207,7 @@ export class LedgerStateEventHandler {
     // Get state events sorted by ledger id and find timer events
     for (const msg of messages) {
       // find state events
-      if (
-        msg.msgType === MessageTypes.STATE_EVENT &&
-        msg.msgName === LedgerStateEvent.name
-      ) {
-        const aggregateId = (msg as StateEvent).aggregateId;
-        if (!aggregateId) {
-          this._logger.warn('Invalid aggregateId in StateEvent');
-          continue;
-        }
-
-        const aggEvents = stateEventsByLedgerId.get(aggregateId) || [];
-        aggEvents.push(msg as LedgerStateEvent);
-        stateEventsByLedgerId.set(aggregateId, aggEvents);
-      }
-
-      // find timer based snapshot check events
-      if (
-        msg.msgType === MessageTypes.TIMER &&
-        msg.msgName === LedgerSnapshotCheckTimerEvent.name
-      ) {
-        const aggregateId = (msg as LedgerSnapshotCheckTimerEvent).msgKey;
-        if (!aggregateId) {
-          this._logger.warn('Invalid msgKey in LedgerSnapshotCheckTimerEvent');
-          continue;
-        }
-
-        timerSnapshotCheckReqs.add(aggregateId);
-      }
-    }
-  }
-*/
-
-
-  private async _handleMessages(messages: IMessage[]): Promise<void> {
-    const startTs = Date.now();
-    const stateEventsByLedgerId = new Map<string, LedgerStateEvent[]>();
-    const timerSnapshotCheckReqs = new Set<string>();
-
-    // Get state events sorted by ledger id and find timer events
-    for (const msg of messages) {
-      // find state events
-      if (
-        msg.msgType === MessageTypes.STATE_EVENT &&
-        msg.msgName === LedgerStateEvent.name
-      ) {
+      if (msg.msgType === MessageTypes.STATE_EVENT) {
         const aggregateId = (msg as StateEvent).aggregateId;
         if (!aggregateId) {
           this._logger.warn('Invalid aggregateId in StateEvent');
@@ -306,15 +251,15 @@ export class LedgerStateEventHandler {
       await this._updateReadSideProjections(ledger, stateEvents);
     }
 
-    // go through the snapshot timer based requests
+    // go through the snapshot timer-based requests
     for (const aggregateId of timerSnapshotCheckReqs) {
       const ledger = await this._aggregate.getOrLoadLedger(aggregateId, true);
-      if(!ledger) {
+      if (!ledger) {
         continue;
       }
 
       const wasAlreadySnapshot = this._uncommittedSnapshots.some(
-        evt => evt.aggregateId === aggregateId
+        (evt) => evt.aggregateId === aggregateId
       );
       if (wasAlreadySnapshot) continue;
 
@@ -326,10 +271,11 @@ export class LedgerStateEventHandler {
     }
 
     // persist the read side projections for anything that has changed
-    await this._persistReadSideProjections();
-
-    // publish snapshots if available
-    await this._publishSnapshots();
+    // and publish snapshots if available
+    await Promise.all([
+      this._persistReadSideProjections(),
+      this._publishSnapshots()
+    ]);
 
     this._logger.debug(
       `State event handler completed processing ${messages.length} messages in ${Date.now() - startTs}ms`
@@ -387,11 +333,18 @@ export class LedgerStateEventHandler {
     await this._messageConsumer.connect();
     await this._messageConsumer.startAndWaitForRebalance();
 
+    // use the minimum of the snapshot check interval and the max time between snapshots
+    const snapshotCheckIntervalMs = Math.min(
+      SNAPSHOT_NEEDED_CHECK_INTERVAL_MS,
+      this._configs.maxTimeBetweenSnapshotsMs
+    );
+
     // start the timer that sends timer events
     this._checkSnapshotTimer = setInterval(async () => {
       /*
       Get all ledgers from the read side, we cannot use only what's
-      in memory in this instance, as we can have multiple instances.
+      in memory in this instance, as we can have multiple instances
+      with other ledgers.
       */
       const ledgerIds = await this._readSideRepo.getAllLedgerIds();
       if (ledgerIds.length <= 0) return;
@@ -400,7 +353,7 @@ export class LedgerStateEventHandler {
         (ledgerId) => new LedgerSnapshotCheckTimerEvent(ledgerId)
       );
       await this._messageProducer.send(msgs);
-    }, SNAPSHOT_NEEDED_CHECK_INTERVAL_MS);
+    }, snapshotCheckIntervalMs);
 
     this._logger.info(`${this.constructor.name} initialized`);
   }

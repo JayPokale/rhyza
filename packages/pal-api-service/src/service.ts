@@ -83,7 +83,8 @@ const KAFKA_URL =
 // kafka common options
 const kafkaProducerCommonOptions: KafkaProducerOptions = {
   queueBufferingMaxMessages: 100_000,
-  compressionCodec: KafkaProducerCompressionCodecs.GZIP,
+  compressionCodec: KafkaProducerCompressionCodecs.ZSTD,
+  compressionLevel: 3,
   messageMaxBytes: 20971520
 };
 const kafkaConsumerCommonOptions: KafkaConsumerOptions = {

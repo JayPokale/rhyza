@@ -4,7 +4,7 @@ import {
   MessageDataFormats
 } from 'common-types-lib';
 
-const DATAFORMAT = MessageDataFormats.PROTOBUF;
+const DATAFORMAT = MessageDataFormats.JSON;
 
 export abstract class LedgerCommand extends CommandMsg {
   msgDataFormat: MessageDataFormats = DATAFORMAT;

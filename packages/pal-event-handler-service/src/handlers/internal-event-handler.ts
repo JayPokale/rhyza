@@ -54,7 +54,7 @@ export class InternalEventHandler {
     logger: ILogger,
     telemetryService: ITelemetryService
   ) {
-    this._logger = logger;
+    this._logger = logger.child(this.constructor.name);
     this._telemetryService = telemetryService;
     this._peerAggregate = peerAggregate;
     this._assetAggregate = assetAggregate;

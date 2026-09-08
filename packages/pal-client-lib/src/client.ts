@@ -442,6 +442,31 @@ export class PalClient {
     return this._executeLedgerLiquidityManagementResp(pbReq);
   }
 
+  /**
+   * Convert an amount in integer string notation from the ledger to the
+   * correct string representation with the provided amount scale.
+   * @param amountStr Integer amount string
+   * @param displayScale precision scale
+   */
+  amountStrToDisplayAmountStr(amountStr: string, displayScale: number): string {
+    if (displayScale < 0) {
+      throw new Error('Display scale must be greater than or equal to zero');
+    }
+
+    if (displayScale == 0) {
+      return amountStr;
+    } else if (amountStr.length > displayScale) {
+      return (
+        amountStr.slice(0, -displayScale) + '.' + amountStr.slice(-displayScale)
+      );
+    } else if (amountStr.length == displayScale) {
+      return '0.' + amountStr;
+    }
+
+    const diff = displayScale - amountStr.length;
+    return '0.' + '0'.repeat(diff) + amountStr;
+  }
+
   /*
    * Peer related functions
    * */

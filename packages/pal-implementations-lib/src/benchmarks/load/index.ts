@@ -2,7 +2,6 @@ import {
   CheckBalanceAndReserveTransferCmd,
   CheckBalanceAndReserveTransferCmdPayload,
   CommitTransferCmd,
-  DepositToAseCmd,
   LedgerCommand
 } from 'pal-domain-lib';
 import {
@@ -13,9 +12,13 @@ import {
   MessageSerializationFactory
 } from 'implementations-lib';
 import {
-  CreateLedgerAccountForAssetCmdSerde, CreateLedgerAccountsForPeerCmdSerde,
-  CreateLedgerCmdSerde, LedgerAccountsCreatedStateEventSerde, LedgerCreatedStateEventSerde, LedgerSnapshotSerde,
-  LedgerTransactionRecordedStateEventSerde,
+  CreateLedgerAccountForAssetCmdSerde,
+  CreateLedgerAccountsForPeerCmdSerde,
+  CreateLedgerCmdSerde,
+  LedgerAccountsCreatedStateEventSerde,
+  LedgerCreatedStateEventSerde,
+  LedgerSnapshotSerde,
+  LedgerTransactionRecordedStateEventSerde
 } from '../../';
 import {
   CommandMsg,
@@ -33,7 +36,8 @@ import {
 import { DEFAULT_ASSET_SCALE, ISettingsData } from '../common';
 import {
   ILedgerAccountDto,
-  IPalAssetDto, IPalPeerDto,
+  IPalAssetDto,
+  IPalPeerDto,
   LedgerHighLevelSuccessResponseEventPayload,
   LedgerOutgoingTransferCommittedEvent,
   LedgerOutgoingTransferReservedEvent,
@@ -45,21 +49,30 @@ import { PalClient } from 'pal-client-lib';
 
 // kafka common options
 const kafkaProducerCommonOptions: KafkaProducerOptions = {
-  compressionCodec: KafkaProducerCompressionCodecs.GZIP,
+  compressionCodec: KafkaProducerCompressionCodecs.ZSTD,
+  compressionLevel: 3,
   queueBufferingMaxMessages: 500_000,
   messageMaxBytes: 20971520 * 2,
   skipAcknowledgements: false
 };
 const kafkaConsumerCommonOptions: KafkaConsumerOptions = {
   consumerGroupId: `ES_LEDGER_LOAD_TESTS_${crypto.randomUUID()}`,
-  batchTimeoutMs: 200,
+  batchTimeoutMs: 100,
   batchSize: 500_000,
   autoOffsetReset: 'latest'
 };
 
 const RESPONSE_TOPICS_TO_LISTEN_TO = [DomainEventTopics.LedgerEvents];
-const RESPONSES_HISTOGRAM_NAME = "LoadTestsResponses_histo";
+const RESPONSES_HISTOGRAM_NAME = 'LoadTestsResponses_histo';
 const ASSET_SCALE = 2;
+
+export interface IAccBalances {
+  aseLiq?: string;
+  aseCle?: string;
+  peerLiq?: string;
+  peerCle?: string;
+  susp?: string;
+}
 
 export interface ILoadTestStats {
   isRunning: boolean;
@@ -90,12 +103,15 @@ export class LoadTests extends EventEmitter<ILoadTestEvents> {
   private _telemetryService: ITelemetryService | null = null;
   private _responsesHisto: ITelemetryHistogram | null = null;
 
-  private _asset: IPalAssetDto | null;
-  private _peer: IPalPeerDto | null;
-  private _accounts: ILedgerAccountDto[];
+  private _asset: IPalAssetDto | null = null;
+  private _peer: IPalPeerDto | null = null;
+  private _accounts: ILedgerAccountDto[] = [];
+
+  private _balances: IAccBalances = {};
 
   private _totalMessagesSent = 0;
-  private _pendingResponses = 0;
+  private _pendingResponseCount = 0;
+  private _errorResponseCount = 0;
   private _totalTimeMs = 0;
   private _runStartTs: number = 0;
   private _lastPublishCycleTookTs: number = 0;
@@ -114,16 +130,13 @@ export class LoadTests extends EventEmitter<ILoadTestEvents> {
     telemetryService?: ITelemetryService
   ) {
     super();
-    this._logger = logger;
+    this._logger = logger.child(this.constructor.name);
     this._settings = settings;
     this._perSecCount = perSecCount;
     this._instanceId =
       instanceId ?? `ES_LEDGER_POC_TEST__${crypto.randomUUID()}`;
 
     this._apiClient = apiClient;
-    this._asset = null;
-    this._peer = null;
-    this._accounts = [];
 
     if (telemetryService) {
       this._telemetryService = telemetryService;
@@ -157,6 +170,12 @@ export class LoadTests extends EventEmitter<ILoadTestEvents> {
   public get accounts(): ILedgerAccountDto[] {
     return this._accounts;
   }
+  public get balances(): IAccBalances {
+    return this._balances;
+  }
+  public get errorResponseCount(): number {
+    return this._errorResponseCount;
+  }
 
   async init(): Promise<void> {
     if (this._connected) return;
@@ -164,8 +183,11 @@ export class LoadTests extends EventEmitter<ILoadTestEvents> {
     await this._apiClient.init();
     await this._fetchAssetAndPeerFromApi();
     await this._fetchAccountsFromApi();
-    if(this.checkSetupRequired()) {
-      this._logger.debug('No asset, peer or accounts exists, should run setup?');
+    await this._updateAccountBalances();
+    if (this.checkSetupRequired()) {
+      this._logger.debug(
+        'No asset, peer or accounts exists, should run setup?'
+      );
     }
 
     MessageSerializationFactory.instance()
@@ -207,42 +229,48 @@ export class LoadTests extends EventEmitter<ILoadTestEvents> {
     this.emit('stateChanged');
   }
 
-  checkSetupRequired():boolean{
+  checkSetupRequired(): boolean {
     return !this._asset || !this._peer || this._accounts.length === 0;
   }
 
   async setupLedger(): Promise<void> {
+    const startTs = Date.now();
+
     if (!this._msgProducer) {
       throw new Error('Producer not initialized');
     }
-    if(!this._asset){
+    if (!this._asset) {
       this._log('Asset not found, creating...');
       await this._apiClient.createAsset(
         this._settings.assetCode,
         DEFAULT_ASSET_SCALE
       );
       this._asset = await this._apiClient.getAsset(this._settings.assetCode);
-      this._log(`Asset created: ${JSON.stringify(this._asset)}`);
-    }else{
+      this._log(
+        `Asset created: ${this._asset?.code} scale: ${this._asset?.scale}`
+      );
+    } else {
       this._log('Asset found, skipping creation.');
     }
 
-    if(!this._peer){
+    if (!this._peer) {
       this._log('Peer not found, creating...');
       await this._apiClient.createPeer(
         this._settings.peerId,
         `Benchmarks Test Peer - ${this._settings.testIdPrefix}`,
         this._settings.assetCode,
         DEFAULT_ASSET_SCALE,
-        "ilpPrefix"
+        'ilpPrefix'
       );
       this._peer = await this._apiClient.getPeer(this._settings.peerId);
-      this._log(`Peer created: ${JSON.stringify(this._peer)}`);
-    }else{
+      this._log(
+        `Peer created: ${this._peer?.name} - active: ${this._peer?.active}`
+      );
+    } else {
       this._log('Peer found, skipping creation.');
     }
 
-    if(!this._accounts.length){
+    if (!this._accounts.length) {
       this._log('Accounts not found, creating...');
       let tries = 0;
       while (true) {
@@ -257,34 +285,20 @@ export class LoadTests extends EventEmitter<ILoadTestEvents> {
         }
         await new Promise((resolve) => setTimeout(resolve, 1000));
       }
-    }else{
+    } else {
       this._log('Accounts found, skipping creation.');
     }
 
     this._log('Requesting ASE deposit...');
 
-    const cmds: CommandMsg[] = [
-      // new CreateLedgerCmd({ id: this._settings.assetCode }),
-      // new CreateLedgerAccountForAssetCmd(this._settings.assetCode, {
-      //   id: ASSET_SYSTEM_ACC_ID,
-      //   assetCode: this._settings.assetCode
-      // }),
-      // new CreateLedgerAccountsForPeerCmd(this._settings.assetCode, {
-      //   ...peerAccounts,
-      //   assetCode: this._settings.assetCode,
-      //   peerId: this._settings.peerId
-      // }),
-      new DepositToAseCmd({
-        requestId: randomUUID(),
-        assetCode: this._settings.assetCode,
-        peerId: this._settings.peerId,
-        amount: Number.MAX_SAFE_INTEGER.toString(),
-        amountScale: ASSET_SCALE
-      })
-    ];
+    await this._apiClient.ledgerDepositToAse({
+      requestId: randomUUID(),
+      assetCode: this._settings.assetCode,
+      peerId: this._settings.peerId,
+      amount: Number.MAX_SAFE_INTEGER.toString(),
+      amountScale: ASSET_SCALE
+    });
 
-    const startTs = Date.now();
-    await this._msgProducer.send(cmds);
     const endTs = Date.now();
     this._log(`Setup - Created ledger and accounts in ${endTs - startTs}ms`);
   }
@@ -338,7 +352,7 @@ export class LoadTests extends EventEmitter<ILoadTestEvents> {
 
       sendStartTs = Date.now();
       await this._msgProducer!.send(cmds);
-      this._pendingResponses += cmds.length;
+      this._pendingResponseCount += cmds.length;
       this._totalMessagesSent += cmds.length;
       sendDuration = Date.now() - sendStartTs;
       this._lastPublishCycleTookTs = Date.now() - cycleStartTs;
@@ -356,6 +370,12 @@ export class LoadTests extends EventEmitter<ILoadTestEvents> {
         );
       }
 
+      // update balances from API every X seconds
+      const secs = 5;
+      if (new Date().getSeconds() % secs === 0) {
+        await this._updateAccountBalances();
+      }
+
       this._calcStatsAndNotify();
     }
   }
@@ -365,6 +385,8 @@ export class LoadTests extends EventEmitter<ILoadTestEvents> {
     this._totalMessagesSent = 0;
     this._lastPublishCycleTookTs = 0;
     this._lastConsumeCycleTookMs = 0;
+    this._errorResponseCount = 0;
+    this._pendingResponseCount = 0;
   }
 
   private async _fetchAssetAndPeerFromApi(): Promise<void> {
@@ -372,9 +394,7 @@ export class LoadTests extends EventEmitter<ILoadTestEvents> {
 
     this._asset = await this._apiClient.getAsset(this._settings.assetCode);
     if (this._asset) {
-      this._log(
-        `Got asset data for assetCode: ${this._asset.code} - ${JSON.stringify(this._asset)}`
-      );
+      this._log(`Got asset data for assetCode: ${this._asset.code}`);
 
       if (this._asset.ledgerAccountId) {
         accountIds.push(this._asset.ledgerAccountId);
@@ -384,7 +404,7 @@ export class LoadTests extends EventEmitter<ILoadTestEvents> {
     this._peer = await this._apiClient.getPeer(this._settings.peerId);
     if (this._peer) {
       this._log(
-        `Got peer data for peerId: ${this._peer.id} - ${JSON.stringify(this._peer)}`
+        `Got peer data for peerId: ${this._peer.id} name: ${this._peer.name}`
       );
 
       if (this._peer.ledgerAccounts) {
@@ -402,11 +422,38 @@ export class LoadTests extends EventEmitter<ILoadTestEvents> {
       this._accounts = await this._apiClient.getLedgerAccounts(accountIds);
 
       if (this._accounts) {
-        this._log(
-          `Got accounts data for accountIds: ${accountIds} - ${JSON.stringify(this._accounts)}`
-        );
+        this._log(`Got accounts data for accountIds: ${accountIds}`);
       }
     }
+  }
+
+  private async _updateAccountBalances(): Promise<void> {
+    if (!this._accounts || this._accounts.length <= 0) return;
+
+    const ids = this._accounts.map((a) => a.id);
+    const accs = await this._apiClient.getLedgerAccounts(ids);
+
+    accs.forEach((acc) => {
+      const deb = BigInt(acc.debitedAmount);
+      const cred = BigInt(acc.creditedAmount);
+      const bal = (cred - deb).toString();
+      const balStr = this._apiClient.amountStrToDisplayAmountStr(
+        bal,
+        acc.assetDisplayScale
+      );
+
+      if (acc.type === 'ASE_LIQUIDITY_ACCOUNT') {
+        this._balances.aseLiq = balStr;
+      } else if (acc.type === 'ASE_CLEARING_ACCOUNT') {
+        this._balances.aseCle = balStr;
+      } else if (acc.type === 'PEER_LIQUIDITY_ACCOUNT') {
+        this._balances.peerLiq = balStr;
+      } else if (acc.type === 'PEER_CLEARING_ACCOUNT') {
+        this._balances.peerCle = balStr;
+      } else if (acc.type === 'SUSPENSE_ACCOUNT') {
+        this._balances.susp = balStr;
+      }
+    });
   }
 
   private async _fetchAccountsFromApi(): Promise<void> {
@@ -430,9 +477,8 @@ export class LoadTests extends EventEmitter<ILoadTestEvents> {
       this._accounts = await this._apiClient.getLedgerAccounts(accountIds);
 
       if (this._accounts) {
-        this._log(
-          `Got accounts data for accountIds: ${accountIds} - ${JSON.stringify(this._accounts)}`
-        );
+        const str = this._accounts.map((a) => `${a.name} - ${a.type}`);
+        this._log(`Got accounts data for accountIds: ${str}`);
       }
     }
   }
@@ -445,9 +491,10 @@ export class LoadTests extends EventEmitter<ILoadTestEvents> {
       lastConsumeCycleTookMs: this._lastConsumeCycleTookMs,
       runningForSecs: (Date.now() - this._runStartTs) / 1000,
       totalMessagesSent: this._totalMessagesSent,
-      totalMessagesPending: this._pendingResponses,
+      totalMessagesPending: this._pendingResponseCount,
       avgTimePerMessageMs:
-        this._totalTimeMs / (this._totalMessagesSent - this._pendingResponses)
+        this._totalTimeMs /
+        (this._totalMessagesSent - this._pendingResponseCount)
     };
 
     this.emit('statsAvailable', stats);
@@ -464,7 +511,12 @@ export class LoadTests extends EventEmitter<ILoadTestEvents> {
       }
 
       // this._handleSimpleTransactionLedgerEvents(event as DomainEvent);
-      this._handleComplexTransactionLedgerEvent(event as DomainEvent);
+      const retCommands = this._handleComplexTransactionLedgerEvent(
+        event as DomainEvent
+      );
+      if (retCommands.length > 0) {
+        await this._msgProducer!.send(retCommands);
+      }
     }
 
     this._lastConsumeCycleTookMs = Date.now() - cycleStartTs;
@@ -487,7 +539,7 @@ export class LoadTests extends EventEmitter<ILoadTestEvents> {
     }
 
     if (originalCmd) {
-      this._pendingResponses--;
+      this._pendingResponseCount--;
       const timeTakenMs = Date.now() - originalCmd.msgTimestamp;
       this._totalTimeMs += timeTakenMs;
       this._responsesHisto?.observe(timeTakenMs * 10 ** 6, {
@@ -535,10 +587,12 @@ export class LoadTests extends EventEmitter<ILoadTestEvents> {
         originalCmd = this._commandsSent[index];
         this._commandsSent.splice(index, 1);
       }
+    } else if (event.isErrorEvent) {
+      this._errorResponseCount++;
     }
 
     if (originalCmd) {
-      this._pendingResponses--;
+      this._pendingResponseCount--;
       const timeTakenMs = Date.now() - originalCmd.msgTimestamp;
       this._totalTimeMs += timeTakenMs;
       this._responsesHisto?.observe(timeTakenMs * 10 ** 6, {

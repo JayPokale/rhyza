@@ -34,7 +34,7 @@ export class WalletAddressGrpcHandler {
   ) {
     this._walletAddressAggregate = walletAddressAggregate;
     this._assetAggregate = assetAggregate;
-    this._logger = logger;
+    this._logger = logger.child(this.constructor.name);
     this._telemetryService = telemetryService;
 
     this._logger.info('WalletAddressGrpcHandler created');
