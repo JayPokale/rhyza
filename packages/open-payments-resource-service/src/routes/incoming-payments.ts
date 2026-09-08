@@ -6,7 +6,8 @@ import {
   httpStatusFromGrpcError,
   isGrpcServiceError,
   toClientApiErrorResponse,
-  PaymentsClient
+  PaymentsClient,
+  GetPaymentIntentResult
 } from 'payments-client-lib';
 import { OpenPaymentsResourceServerRouteError } from '../errors.js';
 import { components } from '../types/generated/resource-server-types.js';
@@ -15,10 +16,6 @@ import { randomUUID } from 'crypto';
 
 type StreamServer = ReturnType<typeof createStreamServer>;
 
-type PaymentIntentResult = Awaited<
-  ReturnType<PaymentsClient['getPaymentIntent']>
->;
-
 interface IncomingPaymentRouteOptions extends FastifyPluginOptions {
   palClient: PalClient;
   paymentsClient: PaymentsClient;
@@ -26,7 +23,7 @@ interface IncomingPaymentRouteOptions extends FastifyPluginOptions {
 }
 
 function toIncomingPaymentResponse(
-  paymentIntent: PaymentIntentResult,
+  paymentIntent: GetPaymentIntentResult,
   streamServer: StreamServer
 ): components['schemas']['incoming-payment'] & {
   destinationIlpAddress: string;

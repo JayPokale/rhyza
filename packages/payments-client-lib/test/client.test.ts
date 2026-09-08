@@ -223,11 +223,33 @@ describe('Payments Client', () => {
     });
 
     test('completes a CREATED local intent', async () => {
-      const id = await createPaymentIntent();
+      const id = randomUUID();
+      const incomingAmount = 100;
+      const expiresAt = new Date(Date.now() + 1000 * 60 * 5).toISOString();
+      await paymentsClient.createPaymentIntent(
+        id,
+        receiverWalletAddressId,
+        RECEIVER_WALLET_ADDRESS,
+        incomingAmount,
+        expiresAt
+      );
+
       const result = await paymentsClient.completePaymentIntent(id);
 
       assert.equal(result.id, id);
       assert.equal(result.state, 'COMPLETED');
+      assert.equal(result.receiverWalletAddress, RECEIVER_WALLET_ADDRESS);
+      assert.equal(result.destination, 'LOCAL');
+      assert.equal(result.receivedAmount, 0n);
+      assert.equal(result.assetCode, ASSET_CODE);
+      assert.equal(result.assetScale, ASSET_SCALE);
+      assert.equal(result.incomingAmount, BigInt(incomingAmount));
+      assert.ok(result.expiresAt);
+      assert.equal(
+        new Date(result.expiresAt!).getTime(),
+        new Date(expiresAt).getTime()
+      );
+      assert.equal(result.destinationIlpAddress, undefined);
     });
 
     test('completing an already COMPLETED intent returns FAILED_PRECONDITION ServiceError', async () => {
