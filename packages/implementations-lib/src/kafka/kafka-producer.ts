@@ -4,39 +4,37 @@ import {
   IMessage,
   IMessageProducer,
   IMessageProducerAcks,
-  IRawMessageSerializerFactory, ITelemetryHistogram, ITelemetryService, TELEMETRY_PROPS_CALL_NAME_PROP
+  IRawMessageSerializerFactory,
+  ITelemetryHistogram,
+  ITelemetryService,
+  TELEMETRY_PROPS_CALL_NAME_PROP
 } from 'common-types-lib';
 import { KafkaUtil } from './kafka-util';
-import process from "process";
+import process from 'process';
 
 const HISTOGRAM_NAME = 'KafkaProducer_histo';
 
 export class KafkaProducer implements IMessageProducer {
   private readonly _logger: ILogger;
   private readonly _producer: KafkaJS.Producer;
-  private readonly _kafka: KafkaJS.Kafka;
   private readonly _serializerFactory: IRawMessageSerializerFactory;
-  private readonly _telemetryService: ITelemetryService | null  = null;
+  private readonly _telemetryService: ITelemetryService | null = null;
   private _histogram: ITelemetryHistogram | null = null;
 
   constructor(
-    kafka: KafkaJS.Kafka,
     producer: KafkaJS.Producer,
     serializerFactory: IRawMessageSerializerFactory,
     logger: ILogger,
     telemetryService: ITelemetryService | null = null
   ) {
-    this._logger = logger;
+    this._logger = logger.child(this.constructor.name);
     this._telemetryService = telemetryService;
     this._serializerFactory = serializerFactory;
 
-    this._kafka = kafka;
     this._producer = producer;
 
-    if(this._telemetryService) {
-      this._histogram = this._telemetryService.getHistogram(
-        HISTOGRAM_NAME
-      );
+    if (this._telemetryService) {
+      this._histogram = this._telemetryService.getHistogram(HISTOGRAM_NAME);
     }
   }
 
@@ -74,9 +72,13 @@ export class KafkaProducer implements IMessageProducer {
       throw e;
     });
 
-    if(this._histogram) {
-      this._histogram.observe(Number(process.hrtime.bigint()-startTs), {[TELEMETRY_PROPS_CALL_NAME_PROP]:'sendWithoutAcks'});
-      this._histogram.observe(convertTookNs, {[TELEMETRY_PROPS_CALL_NAME_PROP]:'sendWithoutAcks_convert'});
+    if (this._histogram) {
+      this._histogram.observe(Number(process.hrtime.bigint() - startTs), {
+        [TELEMETRY_PROPS_CALL_NAME_PROP]: 'sendWithoutAcks'
+      });
+      this._histogram.observe(convertTookNs, {
+        [TELEMETRY_PROPS_CALL_NAME_PROP]: 'sendWithoutAcks_convert'
+      });
     }
   }
 
@@ -105,9 +107,13 @@ export class KafkaProducer implements IMessageProducer {
       }
     );
 
-    if(this._histogram) {
-      this._histogram.observe(Number(process.hrtime.bigint()-startTs), {[TELEMETRY_PROPS_CALL_NAME_PROP]:'send'});
-      this._histogram.observe(convertTookNs, {[TELEMETRY_PROPS_CALL_NAME_PROP]:'send_convert'});
+    if (this._histogram) {
+      this._histogram.observe(Number(process.hrtime.bigint() - startTs), {
+        [TELEMETRY_PROPS_CALL_NAME_PROP]: 'send'
+      });
+      this._histogram.observe(convertTookNs, {
+        [TELEMETRY_PROPS_CALL_NAME_PROP]: 'send_convert'
+      });
     }
 
     return resIMessageProducerSendAcks;

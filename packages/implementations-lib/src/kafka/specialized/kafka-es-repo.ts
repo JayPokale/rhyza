@@ -6,7 +6,6 @@ import {
 import {
   ICache,
   ILogger,
-  IMessage,
   IMessageProducer,
   SnapshotEvent,
   SnapshotEventTopics,
@@ -38,7 +37,7 @@ export class KafkaEventSourcingRepo<
     cachePrefix: string,
     logger: ILogger
   ) {
-    this._logger = logger;
+    this._logger = logger.child(this.constructor.name);
     this._kafkaBuilder = kafkaBuilder;
     this._cache = cache;
     this._cachePrefix = cachePrefix;

@@ -2,9 +2,13 @@ import {
   IMessage,
   IRawMessage,
   IRawMessageHeader,
-  IRawMessageSerializerFactory, ITelemetryHistogram, ITelemetryService,
+  IRawMessageSerializerFactory,
+  ITelemetryHistogram,
+  ITelemetryService,
   MessageDataFormats,
-  MissingSerializerError, TELEMETRY_PROPS_CALL_NAME_PROP, TELEMETRY_PROPS_DATA_FORMAT_PROP
+  MissingSerializerError,
+  TELEMETRY_PROPS_CALL_NAME_PROP,
+  TELEMETRY_PROPS_DATA_FORMAT_PROP
 } from 'common-types-lib';
 import {
   IRawMessageSerializer,
@@ -16,7 +20,7 @@ import { JsonCommandSerializer } from './json/json-command-serializer';
 import { JsonDomainEventSerializer } from './json/json-domain-event-serializer';
 import { JsonSnapshotSerializer } from './json/json-snapshot-serializer';
 import { JsonStateEventSerializer } from './json/json-state-event-serializer';
-import process from "process";
+import process from 'process';
 import { JsonTimerEventSerializer } from './json/json-timer-event-serializer';
 
 const HISTOGRAM_NAME = 'MessageSerializationFactory_histo';
@@ -72,11 +76,9 @@ export class MessageSerializationFactory
     return header ? header[name].toString() : null;
   }
 
-  setTelemetry(telemetryService: ITelemetryService):void{
+  setTelemetry(telemetryService: ITelemetryService): void {
     this._telemetryService = telemetryService;
-    this._serdeHisto = this._telemetryService.getHistogram(
-      HISTOGRAM_NAME
-    );
+    this._serdeHisto = this._telemetryService.getHistogram(HISTOGRAM_NAME);
   }
 
   register(newSerde: IRawMessageSerializer): this {
@@ -133,7 +135,7 @@ export class MessageSerializationFactory
       headers: headers
     };
 
-    if(this._serdeHisto) {
+    if (this._serdeHisto) {
       const elapsedNs = Number(process.hrtime.bigint() - start);
       this._serdeHisto.observe(elapsedNs, {
         [TELEMETRY_PROPS_CALL_NAME_PROP]: `${msg.msgName}_serialize`,
@@ -178,7 +180,7 @@ export class MessageSerializationFactory
     msg.msgTopic = rawMsg.topic;
     msg.msgKey = rawMsg.key ? rawMsg.key.toString() : null;
 
-    if(this._serdeHisto) {
+    if (this._serdeHisto) {
       const elapsedNs = Number(process.hrtime.bigint() - start);
       this._serdeHisto.observe(elapsedNs, {
         [TELEMETRY_PROPS_CALL_NAME_PROP]: `${msg.msgName}_deserialize`,

@@ -1,6 +1,8 @@
 import { KafkaJS } from '@confluentinc/kafka-javascript';
 import { ILogger } from 'common-types-lib';
 import { IKafkaAdmin } from './types';
+import { AdminConstructorConfig } from '@confluentinc/kafka-javascript/types/kafkajs';
+import { KafkaLoggerWrapper } from './kafka-logger-wrapper';
 
 const DEFAULT_TIMEOUT_MS = 10000;
 
@@ -9,8 +11,14 @@ export class KafkaAdmin implements IKafkaAdmin {
   private readonly _admin: KafkaJS.Admin;
 
   constructor(kafka: KafkaJS.Kafka, logger: ILogger) {
-    this._logger = logger;
-    this._admin = kafka.admin();
+    this._logger = logger.child(this.constructor.name);
+    const loggerWrapper = new KafkaLoggerWrapper(this._logger);
+
+    const config: AdminConstructorConfig = {
+      kafkaJS: { logger: loggerWrapper }
+    };
+
+    this._admin = kafka.admin(config);
   }
 
   async connect(): Promise<void> {

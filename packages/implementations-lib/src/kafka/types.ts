@@ -1,5 +1,4 @@
 import {
-  IMessage,
   IMessageConsumer,
   IMessageFetcher,
   IMessageProducer,
@@ -49,6 +48,7 @@ export class KafkaProducerOptions {
   skipAcknowledgements?: boolean;
   messageMaxBytes?: number;
   compressionCodec?: KafkaProducerCompressionCodecs;
+  compressionLevel?: number;
   partitioner?: KafkaProducerPartitioner;
   queueBufferingMaxMs?: number;
   queueBufferingMaxMessages?: number;
