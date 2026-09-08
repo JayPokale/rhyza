@@ -6,6 +6,7 @@ import {
   StateEvent
 } from 'common-types-lib';
 
+
 export class MockMessageProducer implements IMessageProducer {
   private _messages: IMessage[] = [];
 

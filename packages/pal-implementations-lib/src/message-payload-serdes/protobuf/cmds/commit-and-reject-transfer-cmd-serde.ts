@@ -1,6 +1,8 @@
 import { Any as PbAny } from 'google-protobuf/google/protobuf/any_pb';
 import { ProtoBufBaseCommandSerializer } from 'implementations-lib';
-import { CommitOrRejectTransferCmdPayload } from 'pal-domain-lib';
+import {
+  CommitOrRejectTransferCmdPayload
+} from 'pal-domain-lib';
 import { PbCommitOrRejectCmdPayload } from '../../../proto_generated';
 
 export class CommitTransferCmdSerde extends ProtoBufBaseCommandSerializer<CommitOrRejectTransferCmdPayload> {
