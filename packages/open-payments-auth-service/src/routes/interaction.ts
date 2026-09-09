@@ -18,18 +18,17 @@ export async function interactionRoutes(
     Params: { grantId: string };
     session: { authenticated: boolean };
   }>('/interaction/:grantId/start', async (request, reply) => {
-    // TODO: implement
     const { authClient } = opts;
     const { grantId } = request.params;
-    const { id } = await authClient.startInteraction(grantId);
+    const { id, nonce, clientUri, clientName } =
+      await authClient.startInteraction(grantId);
 
-    request.session.interactionSessionId = id;
+    request.session.interactionSessionId = nonce;
 
     const redirectUrl = new URL(IDP_URL as string);
-    // Called interactId here because that was the name of the value in v1.
-    // Could change it if we are comfortable with that kind of breaking change for idp integration.
-    redirectUrl.searchParams.set('interactId', grantId);
-    // TODO: set client name & uri here. Though this could be relocated to the "get grant" call the idp will make.
+    redirectUrl.searchParams.set('interactId', id);
+    redirectUrl.searchParams.set('clientName', clientName);
+    redirectUrl.searchParams.set('clientUri', clientUri);
     return reply.redirect(redirectUrl.toString());
   });
 
