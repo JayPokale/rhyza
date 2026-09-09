@@ -64,6 +64,7 @@ const kafkaConsumerCommonOptions: KafkaConsumerOptions = {
 
 const RESPONSE_TOPICS_TO_LISTEN_TO = [DomainEventTopics.LedgerEvents];
 const RESPONSES_HISTOGRAM_NAME = 'LoadTestsResponses_histo';
+const DEPOSIT_AMOUNT = 100_000_000;
 const ASSET_SCALE = 2;
 
 export interface IAccBalances {
@@ -295,7 +296,7 @@ export class LoadTests extends EventEmitter<ILoadTestEvents> {
       requestId: randomUUID(),
       assetCode: this._settings.assetCode,
       peerId: this._settings.peerId,
-      amount: Number.MAX_SAFE_INTEGER.toString(),
+      amount: BigInt(Math.round(DEPOSIT_AMOUNT) * 10 ** ASSET_SCALE).toString(),
       amountScale: ASSET_SCALE
     });
 
@@ -631,7 +632,9 @@ export class LoadTests extends EventEmitter<ILoadTestEvents> {
     const cmds: CommandMsg[] = [];
 
     for (let i = 0; i < this._perSecCount; i++) {
-      const amount = BigInt(Math.round(Math.random() * 1000)).toString();
+      const amount = BigInt(
+        Math.round(Math.random() * 1000) * 10 ** ASSET_SCALE
+      ).toString();
       const reqId = `${this._settings.testIdPrefix}_${i + this._totalMessagesSent}`;
 
       cmds.push(
@@ -643,7 +646,7 @@ export class LoadTests extends EventEmitter<ILoadTestEvents> {
           peerId: this._settings.peerId,
           transferDirection: 'OUTGOING',
           amount: amount,
-          amountScale: 2
+          amountScale: ASSET_SCALE
         })
       );
     }
