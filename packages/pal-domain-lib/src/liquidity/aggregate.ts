@@ -123,7 +123,7 @@ export class LedgerAggregate {
    * in-memory state before accepting new commands.
    */
   async clearInMemoryState(): Promise<void> {
-    if(this._ledgers.size === 0) return;
+    if (this._ledgers.size === 0) return;
 
     // wait for the batch processing to finish before clearing the state
     // eslint-disable-next-line no-async-promise-executor
@@ -133,7 +133,9 @@ export class LedgerAggregate {
         await new Promise((resolve) => setTimeout(resolve, 1));
       }
       const ids = Array.from(this._ledgers.keys());
-      this._logger.info(`Clearing in-memory state, currently ${ids.length} ledgers are loaded: ${ids.join(',')}`);
+      this._logger.info(
+        `Clearing in-memory state, currently ${ids.length} ledgers are loaded: ${ids.join(',')}`
+      );
 
       // clear the ledgers and set them to null to force memory release
       ids.forEach((ledgerId) => {
@@ -143,9 +145,7 @@ export class LedgerAggregate {
         this._ledgers.delete(ledgerId);
       });
 
-      this._logger.info(
-        'Clearing in-memory state complete.'
-      );
+      this._logger.info('Clearing in-memory state complete.');
       resolve();
     });
   }
