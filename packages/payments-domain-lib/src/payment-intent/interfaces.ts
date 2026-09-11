@@ -24,6 +24,7 @@ export interface IBaseQuote {
   state: QuoteState;
   senderWalletAddress: string;
   senderWalletAddressId: string;
+  createdAt: Date;
 }
 
 export interface IPendingQuote extends IBaseQuote {
@@ -178,6 +179,11 @@ export interface IPaymentIntentRepository {
   fetchIdsByRemoteUrls(
     urls: string[]
   ): Promise<Array<{ id: string; remoteUrl: string }>>;
+  fetchByQuoteId(
+    quoteId: string
+  ): Promise<
+    Omit<IPaymentIntent, 'sentPayments' | 'inboundPayments'> | undefined
+  >;
   storeQuotes(
     quoteUpdates: { quoteIds: string[]; paymentIntent: IPaymentIntent }[]
   ): Promise<void>;

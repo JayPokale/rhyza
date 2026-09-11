@@ -8,6 +8,8 @@ import {
   CompletePaymentIntentRequest as PbCompletePaymentIntentRequest,
   CompletePaymentIntentResponse as PbCompletePaymentIntentResponse,
   PaymentsGrpcClient,
+  GetQuoteRequest as PbGetQuoteRequest,
+  GetQuoteResponse as PbGetQuoteResponse,
   CreateQuoteRequest as PbCreateQuoteRequest,
   CreateQuoteResponse as PbCreateQuoteResponse,
   CreatePaymentRequest as PbCreatePaymentRequest,
@@ -30,6 +32,7 @@ import {
   CreateQuoteResult,
   GetPaymentIntentResult,
   GetPaymentResult,
+  GetQuoteResult,
   IncomingPaymentInput
 } from './local-types';
 
@@ -343,6 +346,61 @@ export class PaymentsClient {
             incomingAmount: incomingAmount ? BigInt(incomingAmount) : undefined,
             expiresAt: expiresAt || undefined,
             destinationIlpAddress: destinationIlpAddress || undefined
+          });
+        }
+      );
+    });
+  }
+
+  async getQuote(id: string): Promise<GetQuoteResult> {
+    const request = new PbGetQuoteRequest();
+    request.setId(id);
+
+    return new Promise((resolve, reject) => {
+      this._grpcClient.getQuote(
+        request,
+        (error: ServiceError | null, response: PbGetQuoteResponse) => {
+          if (error) {
+            console.error(error);
+            return reject(error);
+          }
+
+          return resolve({
+            id: response.getId(),
+            paymentIntentId: response.getPaymentIntentId(),
+            state: response.getState(),
+            senderWalletAddress: response.getSenderWalletAddress(),
+            senderWalletAddressId: response.getSenderWalletAddressId(),
+            createdAt: response.getCreatedAt(),
+            expiresAt: response.hasExpiresAt()
+              ? response.getExpiresAt()
+              : undefined,
+            debitAmount: response.hasDebitAmount()
+              ? BigInt(response.getDebitAmount()!)
+              : undefined,
+            receiveAmount: response.hasReceiveAmount()
+              ? BigInt(response.getReceiveAmount()!)
+              : undefined,
+            exchangeRate: response.hasExchangeRate()
+              ? response.getExchangeRate()
+              : undefined,
+            peerId: response.hasPeerId() ? response.getPeerId() : undefined,
+            peerAssetCode: response.hasPeerAssetCode()
+              ? response.getPeerAssetCode()
+              : undefined,
+            peerAssetScale: response.hasPeerAssetScale()
+              ? response.getPeerAssetScale()
+              : undefined,
+            sourceAmount: response.hasSourceAmount()
+              ? BigInt(response.getSourceAmount()!)
+              : undefined,
+            senderAssetCode: response.hasSenderAssetCode()
+              ? response.getSenderAssetCode()
+              : undefined,
+            errorName: response.hasErrorName()
+              ? response.getErrorName()
+              : undefined,
+            message: response.hasMessage() ? response.getMessage() : undefined
           });
         }
       );

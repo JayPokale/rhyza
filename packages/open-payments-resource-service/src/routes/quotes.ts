@@ -3,7 +3,11 @@
 import { randomUUID } from 'crypto';
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { PalClient, parseAddressToDomainAndPathName } from 'pal-client-lib';
-import { PaymentsClient } from 'payments-client-lib';
+import {
+  httpStatusFromGrpcError,
+  PaymentsClient,
+  toClientApiErrorResponse
+} from 'payments-client-lib';
 import { OpenPaymentsResourceServerRouteError } from '../errors';
 import { components } from '../types/generated/resource-server-types';
 
@@ -17,6 +21,75 @@ export async function quoteRoutes(
   opts: QuoteRouteOptions
 ): Promise<void> {
   const { palClient, paymentsClient } = opts;
+
+  server.get<{
+    Params: { id: string };
+    Reply:
+      | components['schemas']['quote']
+      | components['schemas']['error-response'];
+  }>('/quotes/:id', async (request, reply) => {
+    const { id } = request.params;
+
+    try {
+      const quote = await paymentsClient.getQuote(id);
+
+      if (quote.state !== 'COMPLETED') {
+        throw new OpenPaymentsResourceServerRouteError(
+          404,
+          'Quote is not completed',
+          'not_found'
+        );
+      }
+
+      const paymentIntent = await paymentsClient.getPaymentIntent(
+        quote.paymentIntentId
+      );
+
+      const walletAddresses = await palClient.getWalletAddresses([
+        quote.senderWalletAddressId,
+        paymentIntent.receiverWalletAddress
+      ]);
+
+      const senderWallet = walletAddresses.find(
+        (wallet) => wallet.id === quote.senderWalletAddressId
+      );
+
+      const receiverWallet = walletAddresses.find(
+        (wallet) => wallet.id === paymentIntent.receiverWalletAddress
+      );
+
+      if (!senderWallet || !receiverWallet) {
+        throw new OpenPaymentsResourceServerRouteError(
+          404,
+          'Wallet address not found',
+          'not_found'
+        );
+      }
+
+      const response: components['schemas']['quote'] = {
+        id: quote.id,
+        walletAddress: quote.senderWalletAddress,
+        expiresAt: quote.expiresAt,
+        debitAmount: {
+          value: String(quote.debitAmount),
+          assetCode: senderWallet.assetCode,
+          assetScale: senderWallet.assetScale
+        },
+        receiveAmount: {
+          value: String(quote.receiveAmount),
+          assetCode: receiverWallet.assetCode,
+          assetScale: receiverWallet.assetScale
+        },
+        method: 'ilp',
+        createdAt: quote.createdAt,
+        receiver: paymentIntent.receiverWalletAddress
+      };
+      return reply.status(200).send(response);
+    } catch (err: unknown) {
+      const httpStatus = httpStatusFromGrpcError(err);
+      return reply.status(httpStatus).send(toClientApiErrorResponse(err));
+    }
+  });
 
   server.post<{
     Body: components['schemas']['create-quote-request'];

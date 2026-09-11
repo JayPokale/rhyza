@@ -1,4 +1,4 @@
-import { Collection, CollectionInfo, Db, MongoClient } from 'mongodb';
+import { Collection, CollectionInfo, Db, MongoClient, WithId } from 'mongodb';
 import {
   FinalizedRemoteQuoteUpdate,
   ISentPayment,
@@ -74,6 +74,11 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
         await this._paymentIntentCollection.createIndex(
           { remoteUrl: 1 },
           { unique: true, sparse: true }
+        );
+
+        await this._paymentIntentCollection.createIndex(
+          { 'quotes.id': 1 },
+          { unique: true }
         );
       }
 
@@ -323,6 +328,25 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
     }
   }
 
+  async fetchByQuoteId(
+    quoteId: string
+  ): Promise<
+    WithId<Omit<IPaymentIntent, 'sentPayments' | 'inboundPayments'>> | undefined
+  > {
+    this._checkInitialisedOrThrow();
+    try {
+      const doc = await this._paymentIntentCollection.findOne({
+        quotes: { $elemMatch: { id: quoteId } }
+      });
+      return doc ?? undefined;
+    } catch (err) {
+      this._logger.error(err);
+      throw new Error(
+        `Unable to fetch payment intent by quote id - error: ${(err as Error).message}`
+      );
+    }
+  }
+
   async fetchIdsByRemoteUrls(
     urls: string[]
   ): Promise<Array<{ id: string; remoteUrl: string }>> {
@@ -362,9 +386,12 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
             update: {
               $push: {
                 quotes: {
-                  $each: update.paymentIntent.quotes.filter((q) =>
-                    update.quoteIds.includes(q.id)
-                  )
+                  $each: update.paymentIntent.quotes
+                    .filter((q) => update.quoteIds.includes(q.id))
+                    .map((q) => ({
+                      ...q,
+                      createdAt: q.createdAt ?? new Date()
+                    }))
                 }
               }
             }

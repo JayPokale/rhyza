@@ -55,6 +55,26 @@ export interface GetPaymentIntentResult {
   destinationIlpAddress?: string;
 }
 
+export interface GetQuoteResult {
+  id: string;
+  paymentIntentId: string;
+  state: string;
+  senderWalletAddress: string;
+  senderWalletAddressId: string;
+  createdAt: string;
+  expiresAt?: string;
+  debitAmount?: bigint;
+  receiveAmount?: bigint;
+  exchangeRate?: number;
+  peerId?: string;
+  peerAssetCode?: string;
+  peerAssetScale?: number;
+  sourceAmount?: bigint;
+  senderAssetCode?: string;
+  errorName?: string;
+  message?: string;
+}
+
 export interface GetPaymentResult {
   id: string;
   state: string;

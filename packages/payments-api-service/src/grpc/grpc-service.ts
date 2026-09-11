@@ -31,7 +31,9 @@ import {
   HealthCheckResponse,
   HealthService,
   PaymentsGrpcService,
-  PaymentIntentDomainEvent
+  PaymentIntentDomainEvent,
+  GetQuoteRequest,
+  GetQuoteResponse
 } from 'payments-public-types-lib';
 import { IPaymentIntentRepository } from 'payments-domain-lib';
 import {
@@ -129,6 +131,7 @@ export class PaymentsServiceServer {
       approvePayment: this._handleUnary.bind(this),
       cancelPayment: this._handleUnary.bind(this),
       getPaymentIntent: this._handleGetPaymentIntent.bind(this),
+      getQuote: this._handleGetQuote.bind(this),
       getPayment: this._handleGetPayment.bind(this)
     });
   }
@@ -347,6 +350,76 @@ export class PaymentsServiceServer {
       }
       if (paymentIntent.destinationIlpAddress) {
         response.setDestinationIlpAddress(paymentIntent.destinationIlpAddress);
+      }
+
+      callback(null, response);
+    } catch (err) {
+      callback({ code: grpc.status.INTERNAL, message: (err as Error).message });
+    }
+  }
+
+  private async _handleGetQuote(
+    call: ServerUnaryCall<GetQuoteRequest, GetQuoteResponse>,
+    callback: sendUnaryData<GetQuoteResponse>
+  ): Promise<void> {
+    const id = call.request.getId();
+    try {
+      const paymentIntent = await this._repo.fetchByQuoteId(id);
+      if (!paymentIntent) {
+        callback({
+          code: grpc.status.NOT_FOUND,
+          message: `Payment intent for quote '${id}' not found`
+        });
+        return;
+      }
+
+      const quote = paymentIntent.quotes.find((q) => q.id === id);
+      if (!quote) {
+        callback({
+          code: grpc.status.NOT_FOUND,
+          message: `Quote '${id}' not found`
+        });
+        return;
+      }
+
+      const response = new GetQuoteResponse();
+      response.setId(quote.id);
+      response.setPaymentIntentId(paymentIntent.id);
+      response.setState(quote.state);
+      response.setSenderWalletAddress(quote.senderWalletAddress);
+      response.setSenderWalletAddressId(quote.senderWalletAddressId);
+      response.setCreatedAt(new Date(quote.createdAt).toISOString());
+
+      if (quote.state === 'COMPLETED') {
+        response.setExpiresAt(new Date(quote.expiresAt).toISOString());
+        response.setDebitAmount(Number(quote.debitAmount));
+        response.setReceiveAmount(Number(quote.receiveAmount));
+        response.setExchangeRate(quote.exchangeRate);
+      } else if (quote.state === 'PENDING') {
+        if (quote.debitAmount != null) {
+          response.setDebitAmount(Number(quote.debitAmount));
+        }
+        if (quote.receiveAmount != null) {
+          response.setReceiveAmount(Number(quote.receiveAmount));
+        }
+        if (quote.peerId) {
+          response.setPeerId(quote.peerId);
+        }
+        if (quote.peerAssetCode) {
+          response.setPeerAssetCode(quote.peerAssetCode);
+        }
+        if (quote.peerAssetScale != null) {
+          response.setPeerAssetScale(quote.peerAssetScale);
+        }
+        if (quote.sourceAmount != null) {
+          response.setSourceAmount(Number(quote.sourceAmount));
+        }
+        if (quote.senderAssetCode) {
+          response.setSenderAssetCode(quote.senderAssetCode);
+        }
+      } else if (quote.state === 'FAILED') {
+        response.setErrorName(quote.errorName);
+        response.setMessage(quote.message);
       }
 
       callback(null, response);
