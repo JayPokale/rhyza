@@ -203,6 +203,42 @@ describe('Payments Client', () => {
     });
   });
 
+  describe('getQuote', () => {
+    test('returns quote', async () => {
+      const paymentIntentId = await createPaymentIntent(100);
+      const quoteId = randomUUID();
+      const created = await paymentsClient.createQuote(
+        quoteId,
+        { incomingPaymentId: paymentIntentId },
+        senderWalletAddressId,
+        SENDER_WALLET_ADDRESS
+      );
+
+      const result = await paymentsClient.getQuote(paymentIntentId, quoteId);
+
+      assert.equal(result.id, quoteId);
+      assert.equal(result.paymentIntentId, paymentIntentId);
+      assert.equal(result.state, 'COMPLETED');
+      assert.equal(result.senderWalletAddress, SENDER_WALLET_ADDRESS);
+      assert.equal(result.senderWalletAddressId, senderWalletAddressId);
+      assert.equal(result.debitAmount, created.debitAmount);
+      assert.equal(result.receiveAmount, created.receiveAmount);
+      assert.equal(result.exchangeRate, created.exchangeRate);
+      assert.equal(result.expiresAt, created.expiresAt);
+      assert.ok(result.createdAt);
+      assert.ok(!Number.isNaN(Date.parse(result.createdAt)));
+    });
+
+    test('unknown id returns NOT_FOUND ServiceError', async () => {
+      try {
+        await paymentsClient.getQuote(randomUUID(), randomUUID());
+        assert.fail('expected NOT_FOUND ServiceError');
+      } catch (e) {
+        assertGrpcServiceError(e, status.NOT_FOUND);
+      }
+    });
+  });
+
   describe('completePaymentIntent', () => {
     test('invalid uuid returns INVALID_ARGUMENT ServiceError', async () => {
       try {

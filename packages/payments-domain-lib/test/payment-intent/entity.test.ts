@@ -268,10 +268,17 @@ describe('PaymentIntent Entity', () => {
       assert.equal(quote.debitAmount, 200n);
       assert.equal(quote.senderWalletAddress, 'sender');
       assert.equal(quote.senderWalletAddressId, senderWalletAddressId);
+      assert.ok(quote.createdAt instanceof Date);
+      assert.equal(quote.createdAt.getTime(), now);
 
       const expectedExpiry = new Date(now + 1000 * 60 * 10); // Default quote expiry is 10 mins
       assert.equal(quote.expiresAt?.getTime(), expectedExpiry.getTime());
       assert.ok(quote.expiresAt.getTime() < paymentIntent.expiresAt.getTime());
+
+      const retrieved = paymentIntent.quotes.find((q) => q.id === quoteId);
+      assert.ok(retrieved);
+      assert.equal(retrieved.id, quoteId);
+      assert.equal(retrieved.createdAt.getTime(), now);
     });
 
     it('caps quote expiry at payment intent expiry if intent expires sooner', () => {
@@ -956,7 +963,8 @@ describe('PaymentIntent Entity', () => {
             id: 'pending-quote',
             state: 'PENDING',
             senderWalletAddress: 'sender',
-            senderWalletAddressId
+            senderWalletAddressId,
+          createdAt: new Date()
           }
         ],
         sentPayments: [],
@@ -1008,7 +1016,8 @@ describe('PaymentIntent Entity', () => {
             exchangeRate: 0.5,
             expiresAt: new Date(Date.now() - 1000),
             senderWalletAddress: 'sender',
-            senderWalletAddressId
+            senderWalletAddressId,
+          createdAt: new Date()
           }
         ],
         sentPayments: [],
@@ -1140,7 +1149,8 @@ describe('PaymentIntent Entity', () => {
             exchangeRate: 0.5,
             expiresAt: new Date(Date.now() + 1000),
             senderWalletAddress: 'sender',
-            senderWalletAddressId: crypto.randomUUID()
+            senderWalletAddressId: crypto.randomUUID(),
+          createdAt: new Date()
           }
         ],
         sentPayments: [],
@@ -1522,7 +1532,8 @@ describe('PaymentIntent Entity', () => {
             id: quoteId,
             state: 'PENDING',
             senderWalletAddress: 'sender',
-            senderWalletAddressId
+            senderWalletAddressId,
+          createdAt: new Date()
           }
         ],
         sentPayments: [],
@@ -3042,7 +3053,8 @@ describe('PaymentIntent Entity', () => {
             id: quoteId,
             state: 'PENDING',
             senderWalletAddress: 'sender',
-            senderWalletAddressId: crypto.randomUUID()
+            senderWalletAddressId: crypto.randomUUID(),
+          createdAt: new Date()
           }
         ],
         sentPayments: [],

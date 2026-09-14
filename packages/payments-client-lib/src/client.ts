@@ -352,8 +352,12 @@ export class PaymentsClient {
     });
   }
 
-  async getQuote(id: string): Promise<GetQuoteResult> {
+  async getQuote(
+    paymentIntentId: string,
+    id: string
+  ): Promise<GetQuoteResult> {
     const request = new PbGetQuoteRequest();
+    request.setPaymentIntentId(paymentIntentId);
     request.setId(id);
 
     return new Promise((resolve, reject) => {

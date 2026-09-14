@@ -8,8 +8,9 @@ import {
   PaymentsClient,
   toClientApiErrorResponse
 } from 'payments-client-lib';
-import { OpenPaymentsResourceServerRouteError } from '../errors';
-import { components } from '../types/generated/resource-server-types';
+import { OpenPaymentsResourceServerRouteError } from '../errors.js';
+import { components } from '../types/generated/resource-server-types.js';
+import { decodeCompoundId, encodeCompoundId } from '../utils.js';
 
 interface QuoteRouteOptions extends FastifyPluginOptions {
   palClient: PalClient;
@@ -31,7 +32,8 @@ export async function quoteRoutes(
     const { id } = request.params;
 
     try {
-      const quote = await paymentsClient.getQuote(id);
+      const { paymentIntentId, quoteId } = decodeCompoundId(id);
+      const quote = await paymentsClient.getQuote(paymentIntentId, quoteId);
 
       if (quote.state !== 'COMPLETED') {
         throw new OpenPaymentsResourceServerRouteError(
@@ -42,7 +44,7 @@ export async function quoteRoutes(
       }
 
       const paymentIntent = await paymentsClient.getPaymentIntent(
-        quote.paymentIntentId
+        paymentIntentId
       );
 
       const walletAddresses = await palClient.getWalletAddresses([
@@ -67,7 +69,7 @@ export async function quoteRoutes(
       }
 
       const response: components['schemas']['quote'] = {
-        id: quote.id,
+        id: encodeCompoundId(quote.paymentIntentId, quote.id),
         walletAddress: quote.senderWalletAddress,
         expiresAt: quote.expiresAt,
         debitAmount: {
@@ -86,6 +88,14 @@ export async function quoteRoutes(
       };
       return reply.status(200).send(response);
     } catch (err: unknown) {
+      if (err instanceof OpenPaymentsResourceServerRouteError) {
+        return reply.status(err.status).send({
+          error: {
+            code: err.code,
+            description: err.message
+          }
+        });
+      }
       const httpStatus = httpStatusFromGrpcError(err);
       return reply.status(httpStatus).send(toClientApiErrorResponse(err));
     }
@@ -164,7 +174,9 @@ export async function quoteRoutes(
         receiveAmountValue
       );
 
-      return reply.status(201).send({ id: result.id });
+      return reply.status(201).send({
+        id: encodeCompoundId(result.paymentIntentId, result.id)
+      });
     }
   );
 }

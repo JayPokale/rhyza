@@ -160,6 +160,7 @@ message GetPaymentIntentResponse {
 // Request to fetch a quote by ID.
 message GetQuoteRequest {
   string id = 1;
+  string payment_intent_id = 2;
 }
 
 // Response containing quote details.

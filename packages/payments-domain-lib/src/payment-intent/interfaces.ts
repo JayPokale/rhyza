@@ -179,11 +179,6 @@ export interface IPaymentIntentRepository {
   fetchIdsByRemoteUrls(
     urls: string[]
   ): Promise<Array<{ id: string; remoteUrl: string }>>;
-  fetchByQuoteId(
-    quoteId: string
-  ): Promise<
-    Omit<IPaymentIntent, 'sentPayments' | 'inboundPayments'> | undefined
-  >;
   storeQuotes(
     quoteUpdates: { quoteIds: string[]; paymentIntent: IPaymentIntent }[]
   ): Promise<void>;

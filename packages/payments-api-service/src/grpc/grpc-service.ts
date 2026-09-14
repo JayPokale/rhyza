@@ -362,13 +362,14 @@ export class PaymentsServiceServer {
     call: ServerUnaryCall<GetQuoteRequest, GetQuoteResponse>,
     callback: sendUnaryData<GetQuoteResponse>
   ): Promise<void> {
+    const paymentIntentId = call.request.getPaymentIntentId();
     const id = call.request.getId();
     try {
-      const paymentIntent = await this._repo.fetchByQuoteId(id);
+      const [paymentIntent] = await this._repo.fetchByIds([paymentIntentId]);
       if (!paymentIntent) {
         callback({
           code: grpc.status.NOT_FOUND,
-          message: `Payment intent for quote '${id}' not found`
+          message: `Payment intent '${paymentIntentId}' not found`
         });
         return;
       }

@@ -75,11 +75,6 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
           { remoteUrl: 1 },
           { unique: true, sparse: true }
         );
-
-        await this._paymentIntentCollection.createIndex(
-          { 'quotes.id': 1 },
-          { unique: true }
-        );
       }
 
       const paymentsCollectionExists = collections.some(
@@ -324,25 +319,6 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
       this._logger.error(err);
       throw new Error(
         `Unable to fetch payment intents - error: ${(err as Error).message}`
-      );
-    }
-  }
-
-  async fetchByQuoteId(
-    quoteId: string
-  ): Promise<
-    WithId<Omit<IPaymentIntent, 'sentPayments' | 'inboundPayments'>> | undefined
-  > {
-    this._checkInitialisedOrThrow();
-    try {
-      const doc = await this._paymentIntentCollection.findOne({
-        quotes: { $elemMatch: { id: quoteId } }
-      });
-      return doc ?? undefined;
-    } catch (err) {
-      this._logger.error(err);
-      throw new Error(
-        `Unable to fetch payment intent by quote id - error: ${(err as Error).message}`
       );
     }
   }
