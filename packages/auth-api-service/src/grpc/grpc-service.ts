@@ -338,7 +338,7 @@ export class AuthServiceServer {
       );
       await this._msgProducer.send(cmd);
     } else if (call.request instanceof RevokeGrantRequest) {
-      const commandId = call.request.getId();
+      const commandId = crypto.randomUUID();
       this._storePendingResponse(commandId, call, callback);
 
       const cmd = new RevokeGrantCmd(
@@ -351,7 +351,7 @@ export class AuthServiceServer {
       );
       await this._msgProducer.send(cmd);
     } else if (call.request instanceof AcceptInteractionRequest) {
-      const commandId = call.request.getId();
+      const commandId = crypto.randomUUID();
       this._storePendingResponse(commandId, call, callback);
 
       const cmd = new AcceptInteractionCmd(
@@ -362,7 +362,7 @@ export class AuthServiceServer {
       );
       await this._msgProducer.send(cmd);
     } else if (call.request instanceof RejectInteractionRequest) {
-      const commandId = call.request.getId();
+      const commandId = crypto.randomUUID();
       this._storePendingResponse(commandId, call, callback);
 
       const cmd = new RejectInteractionCmd(
@@ -373,7 +373,7 @@ export class AuthServiceServer {
       );
       await this._msgProducer.send(cmd);
     } else if (call.request instanceof StartInteractionRequest) {
-      const commandId = call.request.getId();
+      const commandId = crypto.randomUUID();
       this._storePendingResponse(commandId, call, callback);
 
       const cmd = new StartInteractionCmd(
@@ -384,7 +384,7 @@ export class AuthServiceServer {
       );
       await this._msgProducer.send(cmd);
     } else if (call.request instanceof FinishInteractionRequest) {
-      const commandId = call.request.getId();
+      const commandId = crypto.randomUUID();
       this._storePendingResponse(commandId, call, callback);
 
       const cmd = new FinishInteractionCmd(
@@ -396,7 +396,7 @@ export class AuthServiceServer {
       );
       await this._msgProducer.send(cmd);
     } else if (call.request instanceof IntrospectTokenRequest) {
-      const commandId = call.request.getId();
+      const commandId = crypto.randomUUID();
       this._storePendingResponse(commandId, call, callback);
 
       const cmd = new IntrospectTokenCmd(
@@ -423,7 +423,7 @@ export class AuthServiceServer {
       );
       await this._msgProducer.send(cmd);
     } else if (call.request instanceof RotateTokenRequest) {
-      const commandId = call.request.getId();
+      const commandId = crypto.randomUUID();
       this._storePendingResponse(commandId, call, callback);
 
       const signatureDataMsg = call.request.getSignatureData();
