@@ -1417,9 +1417,9 @@ export class PaymentIntent implements IPaymentIntent {
     const { receiveAmount } = payment.completeRemote();
     this._receivedAmount += receiveAmount;
 
-    if (this.isIncomingAmountMet) {
-      this._state = 'COMPLETED';
-    }
+    // TODO: complete remote payment intents when remote completion is supported.
+    // For now only local payment intents are completed.
+
     return payment.toObject();
   }
 

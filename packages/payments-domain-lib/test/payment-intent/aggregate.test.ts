@@ -2902,7 +2902,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         assert.equal(stored?.receivedAmount, 100n);
       });
 
-      it('also emits PaymentIntentCompletedEvent when incomingAmount met', async () => {
+      it('does not emit PaymentIntentCompletedEvent when incomingAmount met on remote intent', async () => {
         const paymentIntentId = crypto.randomUUID();
         const paymentId = crypto.randomUUID();
         await repo.storeMany([
@@ -2921,16 +2921,12 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         const { events } = await aggregate.handleBatch([cmd]);
         await aggregate.flush();
 
-        assert.equal(events.length, 2);
+        assert.equal(events.length, 1);
         assert.equal(events[0].msgName, PaymentCompletedEvent.name);
-        assert.equal(events[1].msgName, PaymentIntentCompletedEvent.name);
-        const intentPayload = (events[1] as PaymentIntentCompletedEvent)
-          .payload;
-        assert.equal(intentPayload.id, paymentIntentId);
-        assert.equal(intentPayload.state, 'COMPLETED');
 
         const stored = repo.getAll().find((i) => i.id === paymentIntentId);
-        assert.equal(stored?.state, 'COMPLETED');
+        assert.equal(stored?.state, 'CREATED');
+        assert.equal(stored?.receivedAmount, 100n);
       });
 
       it('fails when payment state is not CONFIRMED', async () => {

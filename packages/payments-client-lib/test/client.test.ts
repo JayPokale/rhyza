@@ -249,7 +249,6 @@ describe('Payments Client', () => {
         new Date(result.expiresAt!).getTime(),
         new Date(expiresAt).getTime()
       );
-      assert.equal(result.destinationIlpAddress, undefined);
     });
 
     test('completing an already COMPLETED intent returns FAILED_PRECONDITION ServiceError', async () => {

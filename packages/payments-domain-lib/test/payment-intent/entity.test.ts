@@ -2254,14 +2254,15 @@ describe('PaymentIntent Entity', () => {
       assert.equal(paymentIntent.receivedAmount, 100n);
     });
 
-    it('marks intent COMPLETED when receivedAmount reaches incomingAmount', () => {
+    it('does not mark remote intent COMPLETED when receivedAmount reaches incomingAmount', () => {
       const { paymentIntent, paymentId } = makeRemoteIntent('CONFIRMED', {
         incomingAmount: 100n
       });
 
       paymentIntent.completeRemotePayment({ id: paymentId });
 
-      assert.equal(paymentIntent.state, 'COMPLETED');
+      assert.equal(paymentIntent.state, 'CREATED');
+      assert.equal(paymentIntent.receivedAmount, 100n);
     });
 
     it('does not mark intent COMPLETED when incomingAmount not met', () => {

@@ -6,6 +6,7 @@ import {
   CreatePaymentIntentRequest as PbCreatePaymentIntentRequest,
   CreatePaymentIntentResponse as PbCreatePaymentIntentResponse,
   CompletePaymentIntentRequest as PbCompletePaymentIntentRequest,
+  CompletePaymentIntentResponse as PbCompletePaymentIntentResponse,
   PaymentsGrpcClient,
   CreateQuoteRequest as PbCreateQuoteRequest,
   CreateQuoteResponse as PbCreateQuoteResponse,
@@ -24,6 +25,7 @@ import {
   ApprovePaymentResult,
   CancelPaymentResult,
   CreatePaymentIntentResult,
+  CompletePaymentIntentResult,
   CreatePaymentResult,
   CreateQuoteResult,
   GetPaymentIntentResult,
@@ -121,20 +123,36 @@ export class PaymentsClient {
     });
   }
 
-  async completePaymentIntent(id: string): Promise<GetPaymentIntentResult> {
+  async completePaymentIntent(id: string): Promise<CompletePaymentIntentResult> {
     const request = new PbCompletePaymentIntentRequest();
     request.setId(id);
 
     return new Promise((resolve, reject) => {
       this._grpcClient.completePaymentIntent(
         request,
-        (error: ServiceError | null, response: PbGetPaymentIntentResponse) => {
+        (
+          error: ServiceError | null,
+          response: PbCompletePaymentIntentResponse
+        ) => {
           if (error) {
             console.error(error);
             return reject(error);
           }
 
-          return resolve(this._mapPaymentIntentResponse(response));
+          const incomingAmount = response.getIncomingAmount();
+          const expiresAt = response.getExpiresAt();
+
+          return resolve({
+            id: response.getId(),
+            receiverWalletAddress: response.getReceiverWalletAddress(),
+            state: response.getState(),
+            destination: response.getDestination(),
+            receivedAmount: BigInt(response.getReceivedAmount()),
+            assetCode: response.getAssetCode(),
+            assetScale: response.getAssetScale(),
+            incomingAmount: incomingAmount ? BigInt(incomingAmount) : undefined,
+            expiresAt: expiresAt || undefined
+          });
         }
       );
     });
