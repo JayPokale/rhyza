@@ -1,0 +1,27 @@
+name: Integration tests
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+      - uses: pnpm/action-setup@v4
+      - name: Install dependencies
+        run: |
+          pnpm install --frozen-lockfile
+      - name: Build
+        run: |
+          pnpm build
+      - name: Integration tests
+        run: |
+          pnpm test:integration

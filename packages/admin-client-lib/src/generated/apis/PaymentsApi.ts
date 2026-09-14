@@ -80,6 +80,7 @@ export interface PaymentsListPaymentsRequest {
     cursor?: string;
     first?: number;
     last?: number;
+    sortOrder?: PaymentsListPaymentsSortOrderEnum;
 }
 
 /**
@@ -337,6 +338,10 @@ export class PaymentsApi extends runtime.BaseAPI {
             queryParameters['last'] = requestParameters['last'];
         }
 
+        if (requestParameters['sortOrder'] != null) {
+            queryParameters['sortOrder'] = requestParameters['sortOrder'];
+        }
+
         const headerParameters: runtime.HTTPHeaders = {};
 
 
@@ -351,7 +356,7 @@ export class PaymentsApi extends runtime.BaseAPI {
     }
 
     /**
-     * List payments with cursor pagination, ordered by creation time ascending. Optionally filter by sender wallet address id and/or parent payment intent id.
+     * List payments with cursor pagination, ordered by creation time. Optionally filter by sender wallet address id and/or parent payment intent id.
      * List Payments
      */
     async paymentsListPaymentsRaw(requestParameters: PaymentsListPaymentsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<PaymentsPage>> {
@@ -362,12 +367,21 @@ export class PaymentsApi extends runtime.BaseAPI {
     }
 
     /**
-     * List payments with cursor pagination, ordered by creation time ascending. Optionally filter by sender wallet address id and/or parent payment intent id.
+     * List payments with cursor pagination, ordered by creation time. Optionally filter by sender wallet address id and/or parent payment intent id.
      * List Payments
      */
-    async paymentsListPayments(walletAddressId?: string, paymentIntentId?: string, cursor?: string, first?: number, last?: number, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<PaymentsPage> {
-        const response = await this.paymentsListPaymentsRaw({ walletAddressId: walletAddressId, paymentIntentId: paymentIntentId, cursor: cursor, first: first, last: last }, initOverrides);
+    async paymentsListPayments(walletAddressId?: string, paymentIntentId?: string, cursor?: string, first?: number, last?: number, sortOrder?: PaymentsListPaymentsSortOrderEnum, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<PaymentsPage> {
+        const response = await this.paymentsListPaymentsRaw({ walletAddressId: walletAddressId, paymentIntentId: paymentIntentId, cursor: cursor, first: first, last: last, sortOrder: sortOrder }, initOverrides);
         return await response.value();
     }
 
 }
+
+/**
+ * @export
+ */
+export const PaymentsListPaymentsSortOrderEnum = {
+    ASC: 'asc',
+    DESC: 'desc'
+} as const;
+export type PaymentsListPaymentsSortOrderEnum = typeof PaymentsListPaymentsSortOrderEnum[keyof typeof PaymentsListPaymentsSortOrderEnum];

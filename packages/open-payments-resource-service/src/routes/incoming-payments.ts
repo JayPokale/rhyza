@@ -203,7 +203,11 @@ export async function incomingPaymentRoutes(
     }
 
     try {
+      // Open Payments does not expose a sort order, so it is pinned here
+      // rather than inherited from the payments-side default. This ensures
+      // consistency with Rafiki.
       const page = await paymentsClient.getPaymentIntentsPage({
+        sortOrder: 'desc',
         walletAddressId: alias.walletAddressId,
         cursor: request.query.cursor,
         first:

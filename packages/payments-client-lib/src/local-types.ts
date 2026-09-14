@@ -11,6 +11,9 @@ export interface IAmount {
   assetScale: number;
 }
 
+/** Order of a page's results by creation time. */
+export type PageSortOrder = 'asc' | 'desc';
+
 export interface IPageQuery {
   walletAddressId?: string;
   /** Boundary resource id from a previous page's startCursor/endCursor. */
@@ -19,6 +22,8 @@ export interface IPageQuery {
   first?: number;
   /** Page size, paginating backward from the cursor (requires `cursor`). */
   last?: number;
+  /** Ordering by creation time. Omit to use the server default (newest first). */
+  sortOrder?: PageSortOrder;
 }
 
 export interface IPageInfo {
@@ -29,7 +34,10 @@ export interface IPageInfo {
 }
 
 export interface IPage<T> {
-  /** Always in ascending (createdAt, id) order, regardless of direction. */
+  /**
+   * In the requested (createdAt, id) sortOrder, regardless of whether the
+   * page was reached by paginating forward or backward.
+   */
   items: T[];
   pagination: IPageInfo;
 }

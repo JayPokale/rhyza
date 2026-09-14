@@ -12,6 +12,7 @@ export function parsePageQuery(
     walletAddressId: query.walletAddressId,
     cursor: query.cursor,
     first: query.first != null ? Number(query.first) : undefined,
-    last: query.last != null ? Number(query.last) : undefined
+    last: query.last != null ? Number(query.last) : undefined,
+    sortOrder: query.sortOrder as IPageQuery['sortOrder']
   };
 }

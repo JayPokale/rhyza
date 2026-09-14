@@ -1,4 +1,5 @@
 import {
+  DEFAULT_SORT_ORDER,
   FinalizedRemoteQuoteUpdate,
   IPage,
   IPageOpts,
@@ -7,6 +8,7 @@ import {
   ISentPayment,
   PaymentIntentState,
   SentPaymentState,
+  SortOrder,
   InboundPaymentState
 } from '../../src/payment-intent/interfaces';
 import { InvalidCursorError } from '../../src/payment-intent/errors';
@@ -143,11 +145,21 @@ export class MockPaymentIntentRepo implements IPaymentIntentRepository {
   private _page<T extends { id: string; createdAt: Date }>(
     all: T[],
     filtered: T[],
-    opts: { cursor?: string; limit: number; backwards: boolean }
+    opts: {
+      cursor?: string;
+      limit: number;
+      backwards: boolean;
+      sortOrder?: SortOrder;
+    }
   ): IPage<T> {
     const cmp = (a: T, b: T) =>
       a.createdAt.getTime() - b.createdAt.getTime() ||
       (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+
+    const descending = (opts.sortOrder ?? DEFAULT_SORT_ORDER) === 'desc';
+    // Mirrors the Mongo implementation: paging forward through a descending
+    // list walks the (createdAt, id) index towards older documents.
+    const scanAscending = opts.backwards === descending;
 
     let boundary: T | undefined;
     if (opts.cursor != null) {
@@ -159,12 +171,12 @@ export class MockPaymentIntentRepo implements IPaymentIntentRepository {
 
     const inRange = boundary
       ? filtered.filter((item) =>
-          opts.backwards ? cmp(item, boundary) < 0 : cmp(item, boundary) > 0
+          scanAscending ? cmp(item, boundary) > 0 : cmp(item, boundary) < 0
         )
       : filtered;
 
     const sorted = [...inRange].sort(cmp);
-    if (opts.backwards) sorted.reverse();
+    if (!scanAscending) sorted.reverse();
 
     const hasMore = sorted.length > opts.limit;
     const items = sorted.slice(0, opts.limit);

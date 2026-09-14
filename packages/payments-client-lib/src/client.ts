@@ -23,7 +23,8 @@ import {
   PaymentIntent,
   Payment,
   CancelPaymentRequest,
-  CancelPaymentResponse
+  CancelPaymentResponse,
+  SortOrder as PbSortOrder
 } from 'payments-public-types-lib';
 
 type IncomingPaymentInput =
@@ -376,7 +377,8 @@ export class PaymentsClient {
   async getPaymentIntentsPage(
     query: IPageQuery = {}
   ): Promise<IPage<PaymentIntentResult>> {
-    const { cursor, limit, backwards } = PaymentsClient._pageArgs(query);
+    const { cursor, limit, backwards, sortOrder } =
+      PaymentsClient._pageArgs(query);
 
     const request = new GetPaymentIntentsPageRequest();
     if (query.walletAddressId) {
@@ -385,6 +387,7 @@ export class PaymentsClient {
     if (cursor) request.setCursor(cursor);
     request.setLimit(limit);
     request.setBackwards(backwards);
+    request.setSortOrder(sortOrder);
 
     return new Promise((resolve, reject) => {
       this._grpcClient.getPaymentIntentsPage(request, (error, response) => {
@@ -411,7 +414,8 @@ export class PaymentsClient {
   async getPaymentsPage(
     query: IPageQuery & { paymentIntentId?: string } = {}
   ): Promise<IPage<PaymentResult>> {
-    const { cursor, limit, backwards } = PaymentsClient._pageArgs(query);
+    const { cursor, limit, backwards, sortOrder } =
+      PaymentsClient._pageArgs(query);
 
     const request = new GetPaymentsPageRequest();
     if (query.walletAddressId) {
@@ -423,6 +427,7 @@ export class PaymentsClient {
     if (cursor) request.setCursor(cursor);
     request.setLimit(limit);
     request.setBackwards(backwards);
+    request.setSortOrder(sortOrder);
 
     return new Promise((resolve, reject) => {
       this._grpcClient.getPaymentsPage(request, (error, response) => {
@@ -452,8 +457,16 @@ export class PaymentsClient {
     cursor?: string;
     limit: number;
     backwards: boolean;
+    sortOrder: PbSortOrder;
   } {
-    const { cursor, first, last } = query;
+    const { cursor, first, last, sortOrder } = query;
+
+    if (sortOrder != null && sortOrder !== 'asc' && sortOrder !== 'desc') {
+      throw createServiceError(
+        status.INVALID_ARGUMENT,
+        "'sortOrder' must be 'asc' or 'desc'"
+      );
+    }
 
     if (first != null && last != null) {
       throw createServiceError(
@@ -482,7 +495,14 @@ export class PaymentsClient {
     return {
       cursor,
       limit: last ?? first ?? 0, // 0 => server default
-      backwards: last != null
+      backwards: last != null,
+      // Unset => UNSPECIFIED, letting the server apply its default order.
+      sortOrder:
+        sortOrder === 'asc'
+          ? PbSortOrder.SORT_ORDER_ASC
+          : sortOrder === 'desc'
+            ? PbSortOrder.SORT_ORDER_DESC
+            : PbSortOrder.SORT_ORDER_UNSPECIFIED
     };
   }
 

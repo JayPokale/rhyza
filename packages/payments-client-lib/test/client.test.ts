@@ -586,8 +586,9 @@ describe('Payments Client', () => {
       assert.equal(page1.items.length, 2);
       assert.equal(page1.pagination.hasNextPage, true);
       assert.equal(page1.pagination.hasPreviousPage, false);
-      assert.equal(page1.pagination.startCursor, page1.items[0].id);
-      assert.equal(page1.pagination.endCursor, page1.items[1].id);
+      assert.ok(page1.pagination.startCursor);
+      assert.ok(page1.pagination.endCursor);
+      assert.notEqual(page1.pagination.startCursor, page1.items[0].id);
 
       const page2 = await paymentsClient.getPaymentIntentsPage({
         walletAddressId: pageReceiverWalletAddressId,

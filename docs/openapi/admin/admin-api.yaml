@@ -126,7 +126,7 @@ paths:
       summary: List Payment Intents
       description: >-
         List payment intents with cursor pagination, ordered by creation
-        time ascending. Optionally filter by receiver wallet address id.
+        time. Optionally filter by receiver wallet address id.
       tags:
         - payment-intents
       operationId: PaymentIntents_listPaymentIntents
@@ -139,7 +139,10 @@ paths:
             type: string
         - name: cursor
           in: query
-          description: Boundary resource id from a previous page's startCursor/endCursor
+          description: >-
+            Opaque cursor from a previous page's startCursor/endCursor. Valid
+            only for the query that produced it. Reusing a cursor with a
+            different sortOrder or filter returns 400.
           required: false
           schema:
             type: string
@@ -159,6 +162,16 @@ paths:
             type: integer
             minimum: 1
             maximum: 100
+        - name: sortOrder
+          in: query
+          description: Ordering by creation time. Defaults to desc (newest first).
+          required: false
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+            default: desc
       responses:
         '200':
           description: The request has succeeded.
@@ -167,7 +180,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaymentIntentsPage'
         '400':
-          description: Invalid pagination parameters.
+          description: Invalid pagination parameters, or a cursor that was not issued for this query.
           content:
             application/json:
               schema:
@@ -297,9 +310,9 @@ paths:
     get:
       summary: List Payments
       description: >-
-        List payments with cursor pagination, ordered by creation time
-        ascending. Optionally filter by sender wallet address id and/or
-        parent payment intent id.
+        List payments with cursor pagination, ordered by creation time.
+        Optionally filter by sender wallet address id and/or parent
+        payment intent id.
       tags:
         - payments
       operationId: Payments_listPayments
@@ -318,7 +331,10 @@ paths:
             type: string
         - name: cursor
           in: query
-          description: Boundary resource id from a previous page's startCursor/endCursor
+          description: >-
+            Opaque cursor from a previous page's startCursor/endCursor. Valid
+            only for the query that produced it. Reusing a cursor with a
+            different sortOrder or filter returns 400.
           required: false
           schema:
             type: string
@@ -338,6 +354,16 @@ paths:
             type: integer
             minimum: 1
             maximum: 100
+        - name: sortOrder
+          in: query
+          description: Ordering by creation time. Defaults to desc (newest first).
+          required: false
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+            default: desc
       responses:
         '200':
           description: The request has succeeded.
@@ -346,7 +372,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaymentsPage'
         '400':
-          description: Invalid pagination parameters.
+          description: Invalid pagination parameters, or a cursor that was not issued for this query.
           content:
             application/json:
               schema:
@@ -957,7 +983,7 @@ components:
           description: Whether more results exist before this page.
     PaymentIntentsPage:
       type: object
-      description: A page of payment intents in ascending creation order.
+      description: A page of payment intents in the requested creation order.
       required:
         - result
         - pagination
@@ -970,7 +996,7 @@ components:
           $ref: '#/components/schemas/PageInfo'
     PaymentsPage:
       type: object
-      description: A page of payments in ascending creation order.
+      description: A page of payments in the requested creation order.
       required:
         - result
         - pagination

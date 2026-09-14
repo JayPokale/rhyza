@@ -36,18 +36,22 @@ import {
   HealthCheckResponse,
   HealthService,
   PaymentsGrpcService,
-  PaymentIntentDomainEvent
+  PaymentIntentDomainEvent,
+  SortOrder as PbSortOrder
 } from 'payments-public-types-lib';
+import { CursorContext, decodeCursor, encodeCursor } from './cursor.js';
 import {
-  InvalidCursorError,
+  DEFAULT_SORT_ORDER,
   IPaymentIntent,
   IPaymentIntentRepository,
-  ISentPayment
+  ISentPayment,
+  SortOrder
 } from 'payments-domain-lib';
 import {
   AppErrorType,
   ILogger,
   IMessage,
+  InvalidArgument,
   IMessageConsumer,
   IMessageProducer
 } from 'common-types-lib';
@@ -396,11 +400,18 @@ export class PaymentsServiceServer {
   ): Promise<void> {
     try {
       const request = call.request;
+      const cursorContext: CursorContext = {
+        sortOrder: this._pageSortOrder(request.getSortOrder()),
+        walletAddressId: request.getWalletAddressId() || undefined
+      };
+      const cursor = request.getCursor() || undefined;
+
       const page = await this._repo.fetchPaymentIntentsPage({
-        walletAddressId: request.getWalletAddressId() || undefined,
-        cursor: request.getCursor() || undefined,
+        walletAddressId: cursorContext.walletAddressId,
+        cursor: cursor && decodeCursor(cursor, cursorContext),
         limit: this._clampPageLimit(request.getLimit()),
-        backwards: request.getBackwards()
+        backwards: request.getBackwards(),
+        sortOrder: cursorContext.sortOrder
       });
 
       const response = new GetPaymentIntentsPageResponse();
@@ -410,8 +421,10 @@ export class PaymentsServiceServer {
       response.setHasNextPage(page.hasNextPage);
       response.setHasPreviousPage(page.hasPreviousPage);
       if (page.items.length > 0) {
-        response.setStartCursor(page.items[0].id);
-        response.setEndCursor(page.items[page.items.length - 1].id);
+        response.setStartCursor(encodeCursor(page.items[0].id, cursorContext));
+        response.setEndCursor(
+          encodeCursor(page.items[page.items.length - 1].id, cursorContext)
+        );
       }
 
       callback(null, response);
@@ -426,12 +439,20 @@ export class PaymentsServiceServer {
   ): Promise<void> {
     try {
       const request = call.request;
-      const page = await this._repo.fetchSentPaymentsPage({
+      const cursorContext: CursorContext = {
+        sortOrder: this._pageSortOrder(request.getSortOrder()),
         walletAddressId: request.getWalletAddressId() || undefined,
-        paymentIntentId: request.getPaymentIntentId() || undefined,
-        cursor: request.getCursor() || undefined,
+        paymentIntentId: request.getPaymentIntentId() || undefined
+      };
+      const cursor = request.getCursor() || undefined;
+
+      const page = await this._repo.fetchSentPaymentsPage({
+        walletAddressId: cursorContext.walletAddressId,
+        paymentIntentId: cursorContext.paymentIntentId,
+        cursor: cursor && decodeCursor(cursor, cursorContext),
         limit: this._clampPageLimit(request.getLimit()),
-        backwards: request.getBackwards()
+        backwards: request.getBackwards(),
+        sortOrder: cursorContext.sortOrder
       });
 
       // Hydrate parent intents in one batched fetch — receiveAmount is
@@ -456,8 +477,10 @@ export class PaymentsServiceServer {
       response.setHasNextPage(page.hasNextPage);
       response.setHasPreviousPage(page.hasPreviousPage);
       if (page.items.length > 0) {
-        response.setStartCursor(page.items[0].id);
-        response.setEndCursor(page.items[page.items.length - 1].id);
+        response.setStartCursor(encodeCursor(page.items[0].id, cursorContext));
+        response.setEndCursor(
+          encodeCursor(page.items[page.items.length - 1].id, cursorContext)
+        );
       }
 
       callback(null, response);
@@ -471,8 +494,19 @@ export class PaymentsServiceServer {
     return Math.min(limit, PaymentsServiceServer.MAX_PAGE_LIMIT);
   }
 
+  private _pageSortOrder(sortOrder: PbSortOrder): SortOrder {
+    switch (sortOrder) {
+      case PbSortOrder.SORT_ORDER_ASC:
+        return 'asc';
+      case PbSortOrder.SORT_ORDER_DESC:
+        return 'desc';
+      default:
+        return DEFAULT_SORT_ORDER;
+    }
+  }
+
   private _pageErrorToStatus(err: unknown): grpc.ServiceError {
-    if (err instanceof InvalidCursorError) {
+    if (err instanceof InvalidArgument) {
       return {
         code: grpc.status.INVALID_ARGUMENT,
         message: (err as Error).message

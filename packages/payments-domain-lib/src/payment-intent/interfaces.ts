@@ -166,12 +166,16 @@ export type FinalizedRemoteQuoteUpdate =
       message: string;
     };
 
+export type SortOrder = 'asc' | 'desc';
+export const DEFAULT_SORT_ORDER: SortOrder = 'desc';
+
 export interface IPageOpts {
   walletAddressId?: string;
   cursor?: string;
   limit: number;
   /** false = forward (first/after), true = backward (last/before). */
   backwards: boolean;
+  sortOrder?: SortOrder;
 }
 
 export interface IPage<T> {

@@ -29,7 +29,7 @@ import {
 } from './Payment';
 
 /**
- * A page of payments in ascending creation order.
+ * A page of payments in the requested creation order.
  * @export
  * @interface PaymentsPage
  */

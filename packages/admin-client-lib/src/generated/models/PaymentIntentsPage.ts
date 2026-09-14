@@ -29,7 +29,7 @@ import {
 } from './PaymentIntent';
 
 /**
- * A page of payment intents in ascending creation order.
+ * A page of payment intents in the requested creation order.
  * @export
  * @interface PaymentIntentsPage
  */
