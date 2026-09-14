@@ -201,7 +201,7 @@ enum SortOrder {
 message GetPaymentIntentsPageRequest {
   // Filters by receiver wallet address id; omit to list across all.
   optional string wallet_address_id = 1;
-  // Boundary resource id; results are strictly after (forward) or before (backwards) it.
+  // Opaque cursor from a previous page's start_cursor/end_cursor.
   optional string cursor = 2;
   // Page size; 0 means server default (20). Server clamps to 100.
   uint32 limit = 3;
@@ -216,7 +216,7 @@ message GetPaymentIntentsPageResponse {
   repeated PaymentIntent payment_intents = 1;
   bool has_next_page = 2;
   bool has_previous_page = 3;
-  // First / last item ids — cursors for the previous / next page.
+  // Opaque cursors for the previous / next page.
   optional string start_cursor = 4;
   optional string end_cursor = 5;
 }
@@ -227,7 +227,7 @@ message GetPaymentsPageRequest {
   optional string wallet_address_id = 1;
   // Filters by parent payment intent id.
   optional string payment_intent_id = 2;
-  // Boundary resource id; results are strictly after (forward) or before (backwards) it.
+  // Opaque cursor from a previous page's start_cursor/end_cursor.
   optional string cursor = 3;
   // Page size; 0 means server default (20). Server clamps to 100.
   uint32 limit = 4;
@@ -242,7 +242,7 @@ message GetPaymentsPageResponse {
   repeated Payment payments = 1;
   bool has_next_page = 2;
   bool has_previous_page = 3;
-  // First / last item ids — cursors for the previous / next page.
+  // Opaque cursors for the previous / next page.
   optional string start_cursor = 4;
   optional string end_cursor = 5;
 }

@@ -62,9 +62,13 @@ describe('MongoDbPaymentIntentRepo keyset pagination', () => {
   });
 
   after(async () => {
-    await repo?.destroy();
-    await client?.close();
-    await container?.stop();
+    const results = await Promise.allSettled([
+      repo?.destroy(),
+      client?.close(),
+      container?.stop()
+    ]);
+    const failure = results.find((r) => r.status === 'rejected');
+    if (failure && failure.status === 'rejected') throw failure.reason;
   });
 
   /**

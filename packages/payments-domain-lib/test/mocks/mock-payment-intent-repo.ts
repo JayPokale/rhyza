@@ -12,6 +12,7 @@ import {
   InboundPaymentState
 } from '../../src/payment-intent/interfaces';
 import { InvalidCursorError } from '../../src/payment-intent/errors';
+import { InvalidArgument } from 'common-types-lib';
 
 export class MockPaymentIntentRepo implements IPaymentIntentRepository {
   private _store: Map<string, IPaymentIntent> = new Map();
@@ -152,6 +153,11 @@ export class MockPaymentIntentRepo implements IPaymentIntentRepository {
       sortOrder?: SortOrder;
     }
   ): IPage<T> {
+    if (!Number.isInteger(opts.limit) || opts.limit < 1) {
+      throw new InvalidArgument(
+        `limit must be a positive integer, got ${opts.limit}`
+      );
+    }
     const cmp = (a: T, b: T) =>
       a.createdAt.getTime() - b.createdAt.getTime() ||
       (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);

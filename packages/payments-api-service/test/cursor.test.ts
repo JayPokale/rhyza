@@ -103,6 +103,9 @@ describe('cursor', () => {
     rejectsAsMalformed(rawToken({ id: 123, ctx }));
     rejectsAsMalformed(rawToken({ id }));
     rejectsAsMalformed(rawToken({ id, ctx: null }));
+    rejectsAsMalformed(rawToken({ id, ctx: 'x' }));
+    rejectsAsMalformed(rawToken({ id, ctx: 5 }));
+    rejectsAsMalformed(rawToken({ id, ctx: [] }));
   });
 
   test('a bare id (the pre-encoding format) is rejected, not silently accepted', () => {

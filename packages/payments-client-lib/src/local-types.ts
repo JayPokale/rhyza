@@ -16,7 +16,7 @@ export type PageSortOrder = 'asc' | 'desc';
 
 export interface IPageQuery {
   walletAddressId?: string;
-  /** Boundary resource id from a previous page's startCursor/endCursor. */
+  /** Opaque cursor from a previous page's startCursor/endCursor. */
   cursor?: string;
   /** Page size, paginating forward from the cursor. Mutually exclusive with `last`. */
   first?: number;

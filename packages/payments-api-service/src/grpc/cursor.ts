@@ -33,7 +33,12 @@ export function decodeCursor(cursor: string, ctx: CursorContext): string {
     throw new InvalidCursorError(`Malformed cursor: ${cursor}`);
   }
 
-  if (typeof decoded?.id !== 'string' || decoded.ctx == null) {
+  if (
+    typeof decoded?.id !== 'string' ||
+    typeof decoded.ctx !== 'object' ||
+    decoded.ctx === null ||
+    Array.isArray(decoded.ctx)
+  ) {
     throw new InvalidCursorError(`Malformed cursor: ${cursor}`);
   }
 
