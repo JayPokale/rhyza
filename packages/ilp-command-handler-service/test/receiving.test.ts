@@ -313,13 +313,12 @@ describe('IlpCommandHandler — remote quote receiving', () => {
       resolved!.sharedSecret
     );
 
-    await consumer.deliver([
-      inboundProbe(credentials.ilpAddress, {
-        packetId: 'packet-pay-1',
-        data,
-        executionCondition
-      })
-    ]);
+    const prepare = inboundProbe(credentials.ilpAddress, {
+      packetId: 'packet-pay-1',
+      data,
+      executionCondition
+    });
+    await consumer.deliver([prepare]);
 
     assert.equal(
       producer.sent.filter(
@@ -341,6 +340,7 @@ describe('IlpCommandHandler — remote quote receiving', () => {
     assert.equal(received.payload.paymentIntentId, PAYMENT_INTENT_ID);
     assert.equal(received.payload.sourceAmount, '100');
     assert.equal(received.payload.peerId, 'peer-1');
+    assert.equal(received.payload.expiresAt, prepare.payload.expiresAt);
 
     const stored = await repo.fetchPacketById('packet-pay-1');
     assert.ok(stored);
@@ -413,7 +413,7 @@ describe('IlpCommandHandler — remote quote receiving', () => {
         peerId: 'peer-1',
         packetId: 'packet-pay-2',
         paymentIntentId: PAYMENT_INTENT_ID,
-        receivedPaymentId: 'rp-1',
+        inboundPaymentId: 'rp-1',
         requestId: received.payload.requestId
       })
     ]);
@@ -433,7 +433,7 @@ describe('IlpCommandHandler — remote quote receiving', () => {
       (m) => m.msgName === ILPPaymentFulfillmentSentEvent.name
     ) as ILPPaymentFulfillmentSentEvent;
     assert.ok(sent);
-    assert.equal(sent.payload.receivedPaymentId, 'rp-1');
+    assert.equal(sent.payload.inboundPaymentId, 'rp-1');
     assert.equal(sent.payload.packetId, 'packet-pay-2');
   });
 
@@ -445,7 +445,7 @@ describe('IlpCommandHandler — remote quote receiving', () => {
         peerId: 'peer-1',
         packetId: 'missing-packet',
         paymentIntentId: PAYMENT_INTENT_ID,
-        receivedPaymentId: 'rp-missing',
+        inboundPaymentId: 'rp-missing',
         requestId: crypto.randomUUID()
       })
     ]);
@@ -489,7 +489,7 @@ describe('IlpCommandHandler — remote quote receiving', () => {
         peerId: 'peer-1',
         packetId: 'packet-pay-reject',
         paymentIntentId: PAYMENT_INTENT_ID,
-        receivedPaymentId: 'rp-fail-1',
+        inboundPaymentId: 'rp-fail-1',
         requestId: crypto.randomUUID(),
         rejectMessage: 'Ledger transfer failed'
       })

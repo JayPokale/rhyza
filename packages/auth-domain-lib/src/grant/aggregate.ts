@@ -7,7 +7,8 @@ import {
   RevokeGrantCmd,
   IntrospectTokenCmd,
   RotateTokenCmd,
-  RevokeTokenCmd
+  RevokeTokenCmd,
+  StartInteractionCmd
 } from '../commands';
 import {
   DuplicateGrantError,
@@ -24,9 +25,12 @@ import {
   GrantRevokedEvent,
   GrantRevokeFailedEvent,
   TokenIntrospectedEvent,
-  TokenIntrospectionFailedEvent,
   TokenRotatedEvent,
-  TokenRotationFailedEvent
+  TokenRotationFailedEvent,
+  TokenRevokedEvent,
+  TokenRevokeFailedEvent,
+  GrantInteractionStartedEvent,
+  GrantInteractionStartFailedEvent
 } from './events';
 import {
   AccessAction,
@@ -43,7 +47,8 @@ import {
   isJWK,
   IStartMethod,
   ISubjectId,
-  IWalletAddressService
+  IWalletAddressService,
+  IRotatedGrantUpdate
 } from './interfaces';
 import { GRANT_POLL_MS, GrantEntity } from './entity';
 import { JWK, validateSignature } from '@interledger/http-signature-utils';
@@ -54,9 +59,12 @@ export interface IGrantService {
 
 export class GrantAggregate {
   private newGrantIds: string[] = [];
+  private grantIdsWithRotatedTokens = new Map<string, IRotatedGrantUpdate>();
   private continuedGrantIds = new Set<string>();
   private continuedGrantAccessTokens = new Map<string, IAccessToken>();
+  private revokedTokens = new Map<string, IAccessToken>();
   private grantMap = new Map<string, GrantEntity>();
+  private newGrantInteractions = new Set<string>(); // grant ids
   private walletAddressRequestMap = new Map<
     string,
     { kid: string; requestId: string }[]
@@ -75,6 +83,7 @@ export class GrantAggregate {
 
     const grantIdSet = new Set<string>();
     const walletAddressSet = new Set<string>();
+
     for (const cmd of cmds) {
       if (cmd.msgName === CreateGrantCmd.name) {
         const payload = (cmd as CreateGrantCmd).payload;
@@ -106,6 +115,7 @@ export class GrantAggregate {
         cmd.msgName === IntrospectTokenCmd.name ||
         cmd.msgName === RotateTokenCmd.name ||
         cmd.msgName === RevokeTokenCmd.name ||
+        cmd.msgName === StartInteractionCmd.name ||
         cmd.msgName === AcceptInteractionCommand.name ||
         cmd.msgName === RejectInteractionCommand.name
       ) {
@@ -117,6 +127,7 @@ export class GrantAggregate {
               | IntrospectTokenCmd
               | RotateTokenCmd
               | RevokeTokenCmd
+              | StartInteractionCmd
               | AcceptInteractionCommand
               | RejectInteractionCommand
           ).payload.id
@@ -155,9 +166,11 @@ export class GrantAggregate {
       } else if (cmd.msgName === IntrospectTokenCmd.name) {
         event = this.handleIntrospectTokenCommand(cmd as IntrospectTokenCmd);
       } else if (cmd.msgName === RotateTokenCmd.name) {
-        event = this.handleRotateTokenCommand(cmd as RotateTokenCmd);
+        event = await this.handleRotateTokenCommand(cmd as RotateTokenCmd);
       } else if (cmd.msgName === RevokeTokenCmd.name) {
-        event = this.handleRevokeTokenCommand(cmd as RevokeTokenCmd);
+        event = await this.handleRevokeTokenCommand(cmd as RevokeTokenCmd);
+      } else if (cmd.msgName === StartInteractionCmd.name) {
+        event = this.handleStartInteractionCommand(cmd as StartInteractionCmd);
       } else if (cmd.msgName === AcceptInteractionCommand.name) {
         event = this.handleAcceptInteractionCommand(
           cmd as AcceptInteractionCommand
@@ -187,6 +200,16 @@ export class GrantAggregate {
     } catch {
       return null;
     }
+  }
+
+  private resolveClientKeyForGrant(
+    grant: GrantEntity
+  ): IJsonWebKey | undefined {
+    if (typeof grant.client === 'string') {
+      return this.parseJWKJson(grant.client) ?? undefined;
+    }
+
+    return grant.client;
   }
 
   // Signature Header validation can be performed in the application.
@@ -288,16 +311,6 @@ export class GrantAggregate {
     }
   }
 
-  private resolveClientKeyForGrant(
-    grant: GrantEntity
-  ): IJsonWebKey | undefined {
-    if (typeof grant.client === 'string') {
-      return this.parseJWKJson(grant.client) ?? undefined;
-    }
-
-    return grant.client;
-  }
-
   private async handleContinueGrantCommand(cmd: ContinueGrantCmd) {
     const { id, continueId, continueToken, interactRef } = cmd.payload;
     try {
@@ -375,15 +388,21 @@ export class GrantAggregate {
       grant.revoke(continueToken, continueId);
 
       this.grantMap.set(id, grant);
-      return new GrantRevokedEvent({
-        id
-      });
+      return new GrantRevokedEvent(
+        {
+          id
+        },
+        cmd.requestId
+      );
     } catch (error) {
-      return new GrantRevokeFailedEvent({
-        grantId: id,
-        errorName: (error as Error).name,
-        message: (error as Error).message
-      });
+      return new GrantRevokeFailedEvent(
+        {
+          grantId: id,
+          errorName: (error as Error).name,
+          message: (error as Error).message
+        },
+        cmd.requestId
+      );
     }
   }
 
@@ -392,54 +411,115 @@ export class GrantAggregate {
     try {
       const grant = this.grantMap.get(id);
       if (!grant) {
-        throw new GrantNotFoundError(`Grant ${id} not found`);
+        this._logger.debug(
+          `Grant ${id} not found - command: ${IntrospectTokenCmd.name}`
+        );
+        return new TokenIntrospectedEvent(
+          {
+            id,
+            value: tokenValue,
+            active: false
+          },
+          cmd.requestId
+        );
       }
 
       const accessToken = grant.introspectAccessToken(tokenValue, access);
 
       this.grantMap.set(id, grant);
-      return new TokenIntrospectedEvent({
-        id,
-        active: accessToken.active,
-        access: accessToken.access
-      });
+      return new TokenIntrospectedEvent(
+        {
+          id,
+          value: tokenValue,
+          active: accessToken.active,
+          access: accessToken.access
+        },
+        cmd.requestId
+      );
     } catch (err) {
-      return new TokenIntrospectionFailedEvent({
-        grantId: cmd.payload.id,
-        errorName: (err as Error).name,
-        message: (err as Error).message
-      });
+      this._logger.error(
+        {
+          grantId: cmd.payload.id,
+          value: tokenValue,
+          errorName: (err as Error).constructor.name,
+          message: (err as Error).message
+        },
+        `Failed to introspect token ${tokenValue} for grant ${cmd.payload.id}`
+      );
+      return new TokenIntrospectedEvent(
+        {
+          id: cmd.payload.id,
+          value: tokenValue,
+          active: false
+        },
+        cmd.requestId
+      );
     }
   }
 
-  private handleRotateTokenCommand(cmd: RotateTokenCmd) {
+  private async handleRotateTokenCommand(cmd: RotateTokenCmd) {
     const { id, value, managementId } = cmd.payload;
     try {
       const grant = this.grantMap.get(id);
       if (!grant) {
         throw new GrantNotFoundError(`Grant ${id} not found`);
+      }
+
+      const clientKey = this.resolveClientKeyForGrant(grant);
+      if (!clientKey) {
+        throw new UnauthorizedRequestError();
+      }
+
+      const {
+        signatureData: { url, method, body, headers }
+      } = cmd.payload;
+
+      const isValidSignature = await this.validateRequestSignature(
+        clientKey as JWK,
+        url,
+        method,
+        body,
+        headers
+      );
+      if (!isValidSignature) {
+        throw new UnauthorizedRequestError();
       }
 
       const accessToken = grant.rotateAccessToken(value, managementId);
+      const revokedToken = grant.accessTokens.find(
+        (t) => t.value === value
+      ) as IAccessToken;
 
       this.grantMap.set(id, grant);
-      return new TokenRotatedEvent({
+      this.grantIdsWithRotatedTokens.set(id, {
         id,
-        newAccessTokenValue: accessToken.value,
-        newAccessTokenManagementId: accessToken.managementId,
-        newAccessTokenExpiresIn: accessToken.expiresInMs,
-        access: grant.accesses
+        revokedToken,
+        newToken: accessToken
       });
+
+      return new TokenRotatedEvent(
+        {
+          id,
+          newAccessTokenValue: accessToken.value,
+          newAccessTokenManagementId: accessToken.managementId,
+          newAccessTokenExpiresIn: accessToken.expiresInMs,
+          access: grant.accesses
+        },
+        cmd.requestId
+      );
     } catch (err) {
-      return new TokenRotationFailedEvent({
-        grantId: cmd.payload.id,
-        errorName: (err as Error).name,
-        message: (err as Error).message
-      });
+      return new TokenRotationFailedEvent(
+        {
+          grantId: cmd.payload.id,
+          errorName: (err as Error).constructor.name,
+          message: (err as Error).message
+        },
+        cmd.requestId
+      );
     }
   }
 
-  private handleRevokeTokenCommand(cmd: RevokeTokenCmd) {
+  private async handleRevokeTokenCommand(cmd: RevokeTokenCmd) {
     const { id, value, managementId } = cmd.payload;
 
     try {
@@ -448,18 +528,71 @@ export class GrantAggregate {
         throw new GrantNotFoundError(`Grant ${id} not found`);
       }
 
-      grant.revokeAccessToken(value, managementId);
-      this.grantMap.set(id, grant);
+      const clientKey = this.resolveClientKeyForGrant(grant);
+      if (!clientKey) {
+        throw new UnauthorizedRequestError();
+      }
 
-      return new GrantRevokedEvent({
-        id
-      });
+      const {
+        signatureData: { url, method, body, headers }
+      } = cmd.payload;
+
+      const isValidSignature = await this.validateRequestSignature(
+        clientKey as JWK,
+        url,
+        method,
+        body,
+        headers
+      );
+      if (!isValidSignature) {
+        throw new UnauthorizedRequestError();
+      }
+
+      const revokedToken = grant.revokeAccessToken(value, managementId);
+      this.grantMap.set(id, grant);
+      this.revokedTokens.set(revokedToken.value, revokedToken);
+
+      return new TokenRevokedEvent(
+        {
+          id
+        },
+        cmd.requestId
+      );
     } catch (error) {
-      return new GrantRevokeFailedEvent({
-        grantId: id,
-        errorName: (error as Error).name,
-        message: (error as Error).message
-      });
+      return new TokenRevokeFailedEvent(
+        {
+          grantId: id,
+          errorName: (error as Error).constructor.name,
+          message: (error as Error).message
+        },
+        cmd.requestId
+      );
+    }
+  }
+
+  private handleStartInteractionCommand(cmd: StartInteractionCmd) {
+    const { id } = cmd.payload;
+
+    try {
+      const grant = this.grantMap.get(id);
+      if (!grant) {
+        throw new GrantNotFoundError(`Grant ${id} not found`);
+      }
+
+      const { nonce } = grant.startInteraction();
+      this.grantMap.set(id, grant);
+      this.newGrantInteractions.add(grant.id);
+
+      return new GrantInteractionStartedEvent({ id, nonce }, cmd.requestId);
+    } catch (error) {
+      return new GrantInteractionStartFailedEvent(
+        {
+          grantId: id,
+          errorName: (error as Error).constructor.name,
+          message: (error as Error).message
+        },
+        cmd.requestId
+      );
     }
   }
 
@@ -528,6 +661,14 @@ export class GrantAggregate {
       promises.push(this._repo.storeMany(newEntities));
     }
 
+    if (this.grantIdsWithRotatedTokens.size > 0) {
+      promises.push(
+        this._repo.storeRotatedGrants([
+          ...this.grantIdsWithRotatedTokens.values()
+        ])
+      );
+    }
+
     if (this.continuedGrantIds.size > 0) {
       const continuedEntities = [];
       for (const id of this.continuedGrantIds) {
@@ -538,7 +679,6 @@ export class GrantAggregate {
           );
           continue;
         }
-
         continuedEntities.push({
           id: grant.id,
           state: grant.state,
@@ -548,7 +688,30 @@ export class GrantAggregate {
           accessToken: this.continuedGrantAccessTokens.get(id)
         });
       }
+
       promises.push(this._repo.storeContinuedGrants(continuedEntities));
+    }
+
+    if (this.newGrantInteractions.size > 0) {
+      const updates: IGrant[] = [];
+      for (const id of this.newGrantInteractions) {
+        const grant = this.grantMap.get(id);
+        if (!grant) {
+          this._logger.error(
+            `Grant ${id} missing from grantMap during flush (interactions)`
+          );
+          continue;
+        }
+        updates.push(grant);
+      }
+
+      promises.push(this._repo.storeInteractions(updates));
+    }
+
+    if (this.revokedTokens.size > 0) {
+      promises.push(
+        this._repo.storeRevokedTokens([...this.revokedTokens.values()])
+      );
     }
 
     // TODO handle gracefully
@@ -558,7 +721,11 @@ export class GrantAggregate {
       this.newGrantIds = [];
       this.continuedGrantIds.clear();
       this.continuedGrantAccessTokens.clear();
+      this.revokedTokens.clear();
       this.grantMap.clear();
+      this.grantIdsWithRotatedTokens.clear();
+      this.newGrantIds = [];
+      this.newGrantInteractions.clear();
     }
   }
 }
