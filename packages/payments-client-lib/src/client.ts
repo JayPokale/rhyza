@@ -123,7 +123,9 @@ export class PaymentsClient {
     });
   }
 
-  async completePaymentIntent(id: string): Promise<CompletePaymentIntentResult> {
+  async completePaymentIntent(
+    id: string
+  ): Promise<CompletePaymentIntentResult> {
     const request = new PbCompletePaymentIntentRequest();
     request.setId(id);
 
