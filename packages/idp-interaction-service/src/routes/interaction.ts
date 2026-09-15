@@ -22,12 +22,13 @@ export async function interactionRoutes(
     return reply.status(200).send({
       id: grant.id,
       access: grant.accesses,
-      subject: grant.subjectIds ?
-      {
-        sub_ids: grant.subjectIds
-      } : undefined,
+      subject: grant.subjectIds
+        ? {
+            sub_ids: grant.subjectIds
+          }
+        : undefined,
       state: grant.state
-    })
+    });
   });
 
   server.post<{

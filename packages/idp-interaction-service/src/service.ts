@@ -6,6 +6,7 @@ import { AuthClient } from 'auth-client-lib';
 import crypto from 'crypto';
 import { ILogger } from '../../common-types-lib/dist/logger';
 import { PinoLogger } from 'implementations-lib';
+import { interactionRoutes } from './routes/interaction';
 
 const BC_NAME = 'OPEN_PAYMENTS';
 const APP_NAME = `${BC_NAME}_IDP_INTERACTION_SVC`;
@@ -14,6 +15,8 @@ const INSTANCE_ID = `${APP_NAME}_${crypto.randomUUID()}`;
 const PORT = parseInt(process.env['PORT'] || '3004', 10);
 const HOST = process.env['HOST'] || '0.0.0.0';
 const AUTH_GRPC_URL = process.env['AUTH_GRPC_URL'] || 'localhost:50054';
+const OPEN_PAYMENTS_AUTH_SERVER_URL =
+  process.env['OPEN_PAYMENTS_AUTH_SERVER_URL'] || 'http://localhost:3003';
 
 export class IdpInteractionServer {
   private static logger: ILogger;
@@ -38,6 +41,11 @@ export class IdpInteractionServer {
         ? (this.logger.internalLogger as FastifyBaseLogger)
         : undefined,
       trustProxy: process.env.TRUST_PROXY ?? true
+    });
+
+    this.server.register(interactionRoutes, {
+      authClient: this.authClient,
+      openPaymentsAuthServerUrl: OPEN_PAYMENTS_AUTH_SERVER_URL
     });
 
     await this.server.listen({ port: PORT, host: HOST });
