@@ -182,10 +182,7 @@ describe('GrantEntity', () => {
   });
 
   describe('stateTransition', () => {
-    function transition(
-      entity: GrantEntity,
-      newState: GrantState
-    ): void {
+    function transition(entity: GrantEntity, newState: GrantState): void {
       (
         entity as unknown as {
           stateTransition: (state: GrantState) => void;
