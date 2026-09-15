@@ -11,7 +11,7 @@ import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { PalClient, parseAddressToDomainAndPathName } from 'pal-client-lib';
 import {
   PaymentsClient,
-  PaymentIntentResult,
+  GetPaymentIntentResult,
   httpStatusFromGrpcError,
   toClientApiErrorResponse
 } from 'payments-client-lib';
@@ -42,7 +42,7 @@ interface PaymentIntentBody {
 }
 
 function toPaymentIntentBody(
-  paymentIntent: PaymentIntentResult
+  paymentIntent: GetPaymentIntentResult
 ): PaymentIntentBody {
   const body: PaymentIntentBody = {
     id: paymentIntent.id,

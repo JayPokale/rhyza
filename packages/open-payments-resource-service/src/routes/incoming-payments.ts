@@ -7,7 +7,7 @@ import {
   isGrpcServiceError,
   toClientApiErrorResponse,
   PaymentsClient,
-  PaymentIntentResult
+  GetPaymentIntentResult
 } from 'payments-client-lib';
 import { OpenPaymentsResourceServerRouteError } from '../errors.js';
 import { components } from '../types/generated/resource-server-types.js';
@@ -23,7 +23,7 @@ interface IncomingPaymentRouteOptions extends FastifyPluginOptions {
 }
 
 export function toIncomingPaymentBody(
-  paymentIntent: PaymentIntentResult
+  paymentIntent: GetPaymentIntentResult
 ): components['schemas']['incoming-payment'] {
   const body: components['schemas']['incoming-payment'] = {
     id: paymentIntent.id,

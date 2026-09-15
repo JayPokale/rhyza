@@ -14,7 +14,7 @@ import {
 import {
   IAmount,
   PaymentsClient,
-  PaymentResult,
+  GetPaymentResult,
   httpStatusFromGrpcError,
   toClientApiErrorResponse
 } from 'payments-client-lib';
@@ -52,7 +52,7 @@ function toAmountBody(amount: IAmount): AmountBody {
   };
 }
 
-function toPaymentBody(payment: PaymentResult): PaymentBody {
+function toPaymentBody(payment: GetPaymentResult): PaymentBody {
   const body: PaymentBody = {
     id: payment.id,
     state: payment.state,

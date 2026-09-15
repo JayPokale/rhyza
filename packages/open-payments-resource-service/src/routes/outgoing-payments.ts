@@ -7,7 +7,7 @@ import {
   toClientApiErrorResponse,
   IAmount,
   PaymentsClient,
-  PaymentResult
+  GetPaymentResult
 } from 'payments-client-lib';
 import { OpenPaymentsResourceServerRouteError } from '../errors.js';
 import { components } from '../types/generated/resource-server-types.js';
@@ -28,7 +28,7 @@ function toAmountBody(amount: IAmount): components['schemas']['amount'] {
 }
 
 function toOutgoingPaymentBody(
-  payment: PaymentResult,
+  payment: GetPaymentResult,
   openPaymentsUrl: string
 ): components['schemas']['outgoing-payment'] {
   // REMOTE parents carry the peer's incoming payment URL; for LOCAL

@@ -41,3 +41,73 @@ export interface IPage<T> {
   items: T[];
   pagination: IPageInfo;
 }
+
+export type IncomingPaymentInput =
+  | { incomingPaymentId: string }
+  | { incomingPaymentUrl: string };
+
+export interface CreatePaymentIntentResult {
+  id: string;
+}
+
+export interface CompletePaymentIntentResult {
+  id: string;
+  state: string;
+}
+
+export interface CreateQuoteResult {
+  id: string;
+  paymentIntentId: string;
+  senderWalletAddress: string;
+  senderWalletAddressId: string;
+  expiresAt: string;
+  debitAmount: bigint;
+  receiveAmount: bigint;
+  exchangeRate: number;
+}
+
+export interface CreatePaymentResult {
+  id: string;
+}
+
+export interface ApprovePaymentResult {
+  id: string;
+  state?: string;
+}
+
+export interface CancelPaymentResult {
+  id: string;
+}
+
+export interface GetPaymentIntentResult {
+  id: string;
+  receiverWalletAddress: string;
+  state: string;
+  destination: string;
+  receivedAmount: bigint;
+  assetCode: string;
+  assetScale: number;
+  incomingAmount?: bigint;
+  expiresAt?: string;
+  destinationIlpAddress?: string;
+  createdAt: string;
+}
+
+export interface GetPaymentResult {
+  id: string;
+  state: string;
+  senderWalletAddress: string;
+  senderWalletAddressId: string;
+  paymentIntentId: string;
+  quoteId?: string;
+  /** Denominated in the sender-side asset. */
+  debitAmount: IAmount;
+  /** Denominated in the receive-side asset (the parent intent's), which differs for cross-currency payments. */
+  receiveAmount: IAmount;
+  /** Denominated in the sender-side asset. */
+  sentAmount: IAmount;
+  createdAt: string;
+  /** Parent intent's remoteUrl, set for REMOTE intents. */
+  remoteUrl?: string;
+  failReason?: string;
+}
