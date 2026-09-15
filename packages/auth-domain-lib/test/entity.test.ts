@@ -181,6 +181,62 @@ describe('GrantEntity', () => {
     });
   });
 
+  describe('stateTransition', () => {
+    function transition(
+      entity: GrantEntity,
+      newState: GrantState
+    ): void {
+      (
+        entity as unknown as {
+          stateTransition: (state: GrantState) => void;
+        }
+      ).stateTransition(newState);
+    }
+
+    it('allows valid transitions used by the grant lifecycle', () => {
+      const pending = makeContinuableGrant({ state: GrantState.PENDING });
+      transition(pending, GrantState.ISSUED);
+      assert.equal(pending.state, GrantState.ISSUED);
+
+      const approved = makeContinuableGrant({ state: GrantState.APPROVED });
+      transition(approved, GrantState.ISSUED);
+      assert.equal(approved.state, GrantState.ISSUED);
+
+      const issued = makeContinuableGrant({ state: GrantState.ISSUED });
+      transition(issued, GrantState.REVOKED);
+      assert.equal(issued.state, GrantState.REVOKED);
+    });
+
+    it('rejects impossible transitions', () => {
+      const issued = makeContinuableGrant({ state: GrantState.ISSUED });
+      assert.throws(
+        () => transition(issued, GrantState.REJECTED),
+        (err: Error) =>
+          err instanceof InvalidGrantError &&
+          err.message ===
+            `Invalid state transition from ${GrantState.ISSUED} to ${GrantState.REJECTED}`
+      );
+
+      const revoked = makeContinuableGrant({ state: GrantState.REVOKED });
+      assert.throws(
+        () => transition(revoked, GrantState.PENDING),
+        (err: Error) =>
+          err instanceof InvalidGrantError &&
+          err.message ===
+            `Invalid state transition from ${GrantState.REVOKED} to ${GrantState.PENDING}`
+      );
+
+      const rejected = makeContinuableGrant({ state: GrantState.REJECTED });
+      assert.throws(
+        () => transition(rejected, GrantState.ISSUED),
+        (err: Error) =>
+          err instanceof InvalidGrantError &&
+          err.message ===
+            `Invalid state transition from ${GrantState.REJECTED} to ${GrantState.ISSUED}`
+      );
+    });
+  });
+
   describe('rotateAccessToken', () => {
     function makeIssuedGrant() {
       const { entity, accessToken } = GrantEntity.create(
@@ -595,7 +651,7 @@ describe('GrantEntity', () => {
     });
   });
   describe('startInteraction', () => {
-    it('creates a pending interaction and moves the grant to pending state', () => {
+    it('creates a pending interaction when the grant is pending', () => {
       const entity = makeContinuableGrant();
 
       const { nonce, ...interaction } = entity.startInteraction();
@@ -616,7 +672,7 @@ describe('GrantEntity', () => {
     it('throws NonInteractiveGrantError when the grant has no start methods', () => {
       const entity = GrantEntity.fromObject({
         id: randomUUID(),
-        state: GrantState.PROCESSING
+        state: GrantState.PENDING
       } as IGrant);
 
       assert.throws(
@@ -628,38 +684,29 @@ describe('GrantEntity', () => {
       );
     });
 
-    it('throws InvalidGrantError when the grant is already in final state', () => {
-      const entity = GrantEntity.fromObject({
-        id: randomUUID(),
-        startMethods: ['REDIRECT'],
-        interactionNonce: randomUUID(),
-        state: GrantState.ISSUED
-      } as IGrant);
+    it('throws InvalidGrantError when the grant is not pending', () => {
+      for (const state of [
+        GrantState.PROCESSING,
+        GrantState.APPROVED,
+        GrantState.ISSUED,
+        GrantState.REVOKED,
+        GrantState.REJECTED
+      ]) {
+        const entity = GrantEntity.fromObject({
+          id: randomUUID(),
+          startMethods: ['REDIRECT'],
+          interactionNonce: randomUUID(),
+          state
+        } as IGrant);
 
-      assert.throws(
-        () => entity.startInteraction(),
-        (err: Error) => {
-          assert(err instanceof InvalidGrantError);
-          return true;
-        }
-      );
-    });
-
-    it('throws InvalidGrantError when the grant is already approved', () => {
-      const entity = GrantEntity.fromObject({
-        id: randomUUID(),
-        startMethods: ['REDIRECT'],
-        interactionNonce: randomUUID(),
-        state: GrantState.APPROVED
-      } as IGrant);
-
-      assert.throws(
-        () => entity.startInteraction(),
-        (err: Error) => {
-          assert(err instanceof InvalidGrantError);
-          return true;
-        }
-      );
+        assert.throws(
+          () => entity.startInteraction(),
+          (err: Error) => {
+            assert(err instanceof InvalidGrantError);
+            return true;
+          }
+        );
+      }
     });
   });
 

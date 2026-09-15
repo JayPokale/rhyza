@@ -185,12 +185,7 @@ export class GrantEntity implements IGrant {
       throw new NonInteractiveGrantError();
     }
 
-    if (
-      this._state === GrantState.APPROVED ||
-      this._state === GrantState.ISSUED ||
-      this._state === GrantState.REVOKED ||
-      this._state === GrantState.REJECTED
-    ) {
+    if (this._state !== GrantState.PENDING) {
       throw new InvalidGrantError();
     }
 
@@ -202,7 +197,6 @@ export class GrantEntity implements IGrant {
       expiresAt: new Date(createdAt.getTime() + INTERACTION_EXPIRY_MS),
       state: InteractionState.PENDING
     };
-    this._state = GrantState.PENDING;
 
     return { ...this._interaction, nonce: this._interactionNonce };
   }
@@ -220,7 +214,32 @@ export class GrantEntity implements IGrant {
     this._interaction.state = choice;
   }
 
+  private static readonly STATE_TRANSITIONS: Record<
+    GrantState,
+    readonly GrantState[]
+  > = {
+    [GrantState.PROCESSING]: [GrantState.PENDING, GrantState.ISSUED],
+    [GrantState.PENDING]: [
+      GrantState.PENDING,
+      GrantState.APPROVED,
+      GrantState.ISSUED,
+      GrantState.REJECTED,
+      GrantState.REVOKED
+    ],
+    [GrantState.APPROVED]: [GrantState.ISSUED, GrantState.REVOKED],
+    [GrantState.ISSUED]: [GrantState.ISSUED, GrantState.REVOKED],
+    [GrantState.REJECTED]: [],
+    [GrantState.REVOKED]: []
+  };
+
   private stateTransition(newState: GrantState): void {
+    const transitions = GrantEntity.STATE_TRANSITIONS[this._state];
+    if (!transitions.includes(newState)) {
+      throw new InvalidGrantError(
+        `Invalid state transition from ${this._state} to ${newState}`
+      );
+    }
+
     this._state = newState;
 
     if (newState in FinalizedGrantState) {
