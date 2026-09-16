@@ -43,9 +43,8 @@ export async function quoteRoutes(
         );
       }
 
-      const paymentIntent = await paymentsClient.getPaymentIntent(
-        paymentIntentId
-      );
+      const paymentIntent =
+        await paymentsClient.getPaymentIntent(paymentIntentId);
 
       const walletAddresses = await palClient.getWalletAddresses([
         quote.senderWalletAddressId,
@@ -63,7 +62,7 @@ export async function quoteRoutes(
       if (!senderWallet || !receiverWallet) {
         throw new OpenPaymentsResourceServerRouteError(
           404,
-          'Wallet address not found',
+          `${!senderWallet ? 'Sender' : 'Receiver'} wallet address not found`,
           'not_found'
         );
       }
