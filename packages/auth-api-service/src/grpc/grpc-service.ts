@@ -339,11 +339,25 @@ export class AuthServiceServer {
       const commandId = crypto.randomUUID();
       this._storePendingResponse(commandId, call, callback);
 
+      const signatureDataMsg = call.request.getSignatureData();
+      if (!signatureDataMsg) {
+        callback(new Error('Missing signature data'));
+        return;
+      }
+      const signatureData = {
+        url: signatureDataMsg.getUrl(),
+        method: signatureDataMsg.getMethod(),
+        body: signatureDataMsg.getBody(),
+        headers: JSON.parse(signatureDataMsg.getHeaders()),
+        kid: signatureDataMsg.getKid()
+      };
+
       const cmd = new RevokeGrantCmd(
         {
           id: call.request.getId(),
           continueId: call.request.getContinueId(),
-          continueToken: call.request.getContinueToken()
+          continueToken: call.request.getContinueToken(),
+          signatureData
         },
         commandId
       );

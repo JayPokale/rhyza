@@ -220,9 +220,9 @@ export async function grantRoutes(
 
       await authClient.revokeGrant(
         grantId,
+        extractSignatureData(request),
         continueId,
         continueToken
-        //TODO pass in http signature data
       );
 
       return reply.status(204).send();
