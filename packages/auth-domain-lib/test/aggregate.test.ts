@@ -1102,21 +1102,6 @@ describe('GrantAggregate.handleBatch', () => {
           new StartInteractionCmd({ id: randomUUID() }, requestId)
         ]);
 
-<<<<<<< HEAD
-            assert.equal(events.length, 1);
-            assert.equal(
-              events[0].msgName,
-              GrantInteractionStartFailedEvent.name
-            );
-            const payload = (events[0] as GrantInteractionStartFailedEvent)
-              .payload;
-            assert.equal(payload.errorName, 'GrantNotFoundError');
-            assert.equal(events[0].requestId, requestId);
-            await aggregate.flush();
-            assert.equal(storeInteractionsMock.mock.callCount(), 0);
-          });
-        });
-=======
         assert.equal(events.length, 1);
         assert.equal(events[0].msgName, GrantInteractionStartFailedEvent.name);
         const payload = (events[0] as GrantInteractionStartFailedEvent).payload;
@@ -1125,7 +1110,6 @@ describe('GrantAggregate.handleBatch', () => {
         await aggregate.flush();
 
         assert.equal(storeInteractionsMock.mock.callCount(), 0);
->>>>>>> main
       });
 
       describe('handleFinishInteractionCommand', async () => {

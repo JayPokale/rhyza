@@ -225,7 +225,7 @@ export class GrantEntity implements IGrant {
     }
 
     if (this._interaction.state === InteractionState.APPROVED) {
-     this.stateTransition(GrantState.APPROVED);
+      this.stateTransition(GrantState.APPROVED);
     } else {
       this.stateTransition(GrantState.REJECTED);
     }
