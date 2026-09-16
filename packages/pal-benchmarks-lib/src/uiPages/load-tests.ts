@@ -1,41 +1,45 @@
-import { Box, Screen, Text, Log, BoxOptions, Textbox } from '@unblessed/node';
+import { Box, BoxOptions, Text, Textbox } from '@unblessed/node';
 
-import { ISettingsData, IUiPage } from '../common';
+import { getEditableTextBoxStyle, ISettingsData, UiPage } from '../common';
 import { ILoadTestStats, LoadTests } from '../load';
 
-export class LoadTestsPage implements IUiPage {
-  // private _buttonsBox: Element;
-  private _data: ISettingsData;
+export class LoadTestsPage extends UiPage {
   private _loadTests: LoadTests;
-
-  private _containerBox!: Box;
   private _text1!: Textbox;
   private _textAvgRespTime!: Text;
   private _textPending!: Text;
   private _textAseClearing!: Text;
   private _textPeerClearing!: Text;
   private _textErrorCount!: Text;
-  private _log!: Log;
+  private _textCmdsSent!: Text;
 
-  // private _setupLedgerBtn!: Button;
-  // private _startBtn!: Button;
-  // private _stopBtn!: Buttons;
+  private _log!: Box;
 
   constructor(data: ISettingsData, loadTests: LoadTests) {
-    this._data = data;
+    super(data);
     this._loadTests = loadTests;
 
-    this._createUiElements();
-    this._hookUiHandlers();
-
     this._loadTests.on('logAvailable', (logLine: string) => {
-      this._log.log(`LOG: ${logLine}`);
-      this._log.setScrollPerc?.(100);
+      if (!this._active) return;
+      this._log.pushLine(`${logLine}`);
+      this._log.setScrollPerc!(100);
       this._log.screen.render();
     });
 
     this._loadTests.on('statsAvailable', this._updateUi.bind(this));
   }
+
+  protected async _onActivated(): Promise<void> {
+    if (!this._loadTests.connected) {
+      this._log.pushLine('Connecting to api...');
+      await this._loadTests.init();
+      this._log.pushLine('Connected to api.');
+    }
+    this._updateUi();
+
+    this._text1.value = this._loadTests.perSecCount.toString();
+  }
+  protected async _onDeactivated(): Promise<void> {}
 
   private _updateUi(stats?: ILoadTestStats) {
     if (stats) {
@@ -58,25 +62,11 @@ export class LoadTestsPage implements IUiPage {
     this._textErrorCount.setContent(
       this._loadTests.errorResponseCount.toString()
     );
+
+
   }
 
-  private _createUiElements() {
-    this._containerBox = new Box({
-      top: 6,
-      left: 0,
-      focusable: false,
-      width: '100%',
-      height: '100%-9',
-      border: {
-        type: 'line'
-      },
-      style: {
-        border: {
-          fg: 'green'
-        }
-      }
-    });
-
+  protected _createUiElements() {
     const commonText: BoxOptions = {
       top: 0,
       height: 3,
@@ -107,14 +97,8 @@ export class LoadTestsPage implements IUiPage {
       align: 'right',
       shadow: true,
       inputOnFocus: true,
-      value: this._loadTests.perSecCount.toString(),
-      style: {
-        fg: 'white',
-        bg: 'black',
-        focus: {
-          inverse: true
-        }
-      }
+      value: '0',
+      style: getEditableTextBoxStyle()
     });
 
     this._textAvgRespTime = new Box({
@@ -156,16 +140,25 @@ export class LoadTestsPage implements IUiPage {
         fg: 'green'
       }
     });
+    this._textCmdsSent = new Box({
+      ...commonText,
+      left: 101,
+      label: 'Cmds Sent'
+    });
 
-    this._log = new Log({
+    //this._log = new ScrollableBox({
+    this._log = new Box({
       parent: this._containerBox,
       top: 3,
       left: 1,
       height: '100%-5',
       width: '100%-4',
       scrollable: true,
+
       alwaysScroll: true,
-      scrollback: 1000,
+      input: true,
+      //scrollback: 1000,
+      mouse: true,
       keys: true,
       focusable: true,
       vi: true,
@@ -180,32 +173,15 @@ export class LoadTestsPage implements IUiPage {
         track: {
           bg: 'yellow'
         }
-      },
-      scrollOnInput: true
+      }
+      //scrollOnInput: true
     });
   }
 
-  private _hookUiHandlers() {
+  protected _hookUiHandlers() {
     this._text1.on('submit', (data: string) => {
-      console.log(data);
+      this._log.pushLine(`Updated request per second to: ${data}`);
       this._loadTests.perSecCount = parseInt(data);
     });
-  }
-
-  async activate(screen: Screen): Promise<void> {
-    screen.append(this._containerBox);
-
-    console.log = console.debug = (args) => {
-      this._log.log(args);
-      this._log.screen.render();
-    };
-
-    await this._loadTests.init();
-
-    this._updateUi();
-    screen.render();
-  }
-  async deactivate(screen: Screen): Promise<void> {
-    screen.remove(this._containerBox);
   }
 }

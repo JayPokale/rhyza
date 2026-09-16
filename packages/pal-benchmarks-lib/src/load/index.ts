@@ -2,7 +2,8 @@ import {
   CheckBalanceAndReserveTransferCmd,
   CheckBalanceAndReserveTransferCmdPayload,
   CommitTransferCmd,
-  LedgerCommand
+  LedgerCommand,
+  ReserveTransferCmd
 } from 'pal-domain-lib';
 import {
   KafkaBuilder,
@@ -19,7 +20,7 @@ import {
   LedgerCreatedStateEventSerde,
   LedgerSnapshotSerde,
   LedgerTransactionRecordedStateEventSerde
-} from '../../';
+} from 'pal-implementations-lib';
 import {
   CommandMsg,
   DomainEvent,
@@ -38,6 +39,7 @@ import {
   ILedgerAccountDto,
   IPalAssetDto,
   IPalPeerDto,
+  LedgerDomainEvent,
   LedgerHighLevelSuccessResponseEventPayload,
   LedgerOutgoingTransferCommittedEvent,
   LedgerOutgoingTransferReservedEvent,
@@ -46,6 +48,7 @@ import {
 import { EventEmitter } from 'node:events';
 import { randomUUID } from 'node:crypto';
 import { PalClient } from 'pal-client-lib';
+import { clearInterval } from 'node:timers';
 
 // kafka common options
 const kafkaProducerCommonOptions: KafkaProducerOptions = {
@@ -57,7 +60,7 @@ const kafkaProducerCommonOptions: KafkaProducerOptions = {
 };
 const kafkaConsumerCommonOptions: KafkaConsumerOptions = {
   consumerGroupId: `ES_LEDGER_LOAD_TESTS_${crypto.randomUUID()}`,
-  batchTimeoutMs: 100,
+  batchTimeoutMs: 1,
   batchSize: 500_000,
   autoOffsetReset: 'latest'
 };
@@ -65,6 +68,8 @@ const kafkaConsumerCommonOptions: KafkaConsumerOptions = {
 const RESPONSE_TOPICS_TO_LISTEN_TO = [DomainEventTopics.LedgerEvents];
 const RESPONSES_HISTOGRAM_NAME = 'LoadTestsResponses_histo';
 const ASSET_SCALE = 2;
+
+const SLIDING_WINDOW_SECS = 10; // "last X seconds for avg duration"
 
 export interface IAccBalances {
   aseLiq?: string;
@@ -121,6 +126,11 @@ export class LoadTests extends EventEmitter<ILoadTestEvents> {
   private _stopRequested = false;
   private _connected = false;
 
+  private _durationBuckets: { sum: number; count: number }[];
+  private _currentBucketSec: number | null = null;
+
+  private _statsUpdateTimer: NodeJS.Timeout | null = null;
+
   constructor(
     settings: ISettingsData,
     apiClient: PalClient,
@@ -135,6 +145,12 @@ export class LoadTests extends EventEmitter<ILoadTestEvents> {
     this._perSecCount = perSecCount;
     this._instanceId =
       instanceId ?? `ES_LEDGER_POC_TEST__${crypto.randomUUID()}`;
+
+    // init the sliding window of duration buckets with zeros
+    this._durationBuckets = new Array(SLIDING_WINDOW_SECS).fill({
+      sum: 0,
+      count: 0
+    });
 
     this._apiClient = apiClient;
 
@@ -177,6 +193,10 @@ export class LoadTests extends EventEmitter<ILoadTestEvents> {
     return this._errorResponseCount;
   }
 
+  public get commandsSent(): number {
+    return this._commandsSent.length;
+  }
+
   async init(): Promise<void> {
     if (this._connected) return;
 
@@ -208,6 +228,10 @@ export class LoadTests extends EventEmitter<ILoadTestEvents> {
       .withSerializerFactory(MessageSerializationFactory.instance())
       .withBrokerList(this._settings.kafkaUrl)
       .withClientId(this._instanceId);
+
+    if (this._telemetryService) {
+      this._kafkaBuilder.withTelemetry(this._telemetryService);
+    }
 
     this._msgProducer = this._kafkaBuilder.buildProducer(
       kafkaProducerCommonOptions
@@ -317,6 +341,10 @@ export class LoadTests extends EventEmitter<ILoadTestEvents> {
     }
     if (this._isRunning) return;
 
+    this._statsUpdateTimer = setInterval(() => {
+      this._calcStatsAndNotify();
+    }, 1000);
+
     this._stopRequested = false;
     this._isRunning = true;
     await this._runCycle();
@@ -328,6 +356,35 @@ export class LoadTests extends EventEmitter<ILoadTestEvents> {
     this._stopRequested = true;
   }
 
+  resetStats(): void {
+    this._totalTimeMs = 0;
+    this._totalMessagesSent = 0;
+    this._lastPublishCycleTookTs = 0;
+    this._lastConsumeCycleTookMs = 0;
+    this._errorResponseCount = 0;
+    this._pendingResponseCount = 0;
+
+    this._durationBuckets = new Array(SLIDING_WINDOW_SECS).fill({
+      sum: 0,
+      count: 0
+    });
+    this._currentBucketSec = null;
+  }
+
+  private _stopCycle() {
+    this._stopRequested = false;
+    this._isRunning = false;
+
+    if (this._statsUpdateTimer) {
+      clearInterval(this._statsUpdateTimer);
+      this._statsUpdateTimer = null;
+    }
+    // update to clear any intermediate state
+    this._calcStatsAndNotify();
+
+    this.emit('stateChanged');
+  }
+
   private async _runCycle(): Promise<void> {
     const cmds: CommandMsg[] = [];
     this._runStartTs = Date.now();
@@ -337,9 +394,7 @@ export class LoadTests extends EventEmitter<ILoadTestEvents> {
 
     while (true) {
       if (this._stopRequested) {
-        this._stopRequested = false;
-        this._isRunning = false;
-        this.emit('stateChanged');
+        this._stopCycle();
         break;
       }
 
@@ -348,6 +403,7 @@ export class LoadTests extends EventEmitter<ILoadTestEvents> {
 
       // cmds.push(...this._getSimpleTransactionTestCommands());
       cmds.push(...this._getComplexTransactionTestCommands());
+
       this._commandsSent.push(...cmds);
 
       sendStartTs = Date.now();
@@ -375,18 +431,122 @@ export class LoadTests extends EventEmitter<ILoadTestEvents> {
       if (new Date().getSeconds() % secs === 0) {
         await this._updateAccountBalances();
       }
-
-      this._calcStatsAndNotify();
     }
   }
 
-  resetStats(): void {
-    this._totalTimeMs = 0;
-    this._totalMessagesSent = 0;
-    this._lastPublishCycleTookTs = 0;
-    this._lastConsumeCycleTookMs = 0;
-    this._errorResponseCount = 0;
-    this._pendingResponseCount = 0;
+  private async _handleDomainEventsBatch(events: IMessage[]): Promise<void> {
+    const cycleStartTs = Date.now();
+    const retCommands: CommandMsg[] = [];
+
+    for (const event of events) {
+      if (
+        event.msgTopic != DomainEventTopics.LedgerEvents ||
+        event.msgType != MessageTypes.DOMAIN_EVENT
+      ) {
+        continue;
+      }
+
+      retCommands.push(
+        ...this._handleComplexTransactionLedgerEvent(event as DomainEvent)
+      );
+    }
+
+    if (retCommands.length > 0) {
+      await this._msgProducer!.send(retCommands);
+    }
+
+    this._lastConsumeCycleTookMs = Date.now() - cycleStartTs;
+    this._log(
+      `Received and processed ${events.length} events - sent ${retCommands.length} response commands - consume cycle took: ${this._lastConsumeCycleTookMs} ms`
+    );
+  }
+
+  private _handleComplexTransactionLedgerEvent(
+    event: DomainEvent
+  ): CommandMsg[] {
+    let isLastEventInFlow = false;
+    let originalCommandRequestId: string | null = null;
+    const returnCommands: CommandMsg[] = [];
+
+    if (LedgerDomainEvent.isLedgerOutgoingTransferReservedEvent(event)) {
+      // 2nd step, reservation was successful, we must now send the commit cmd
+      returnCommands.push(
+        new CommitTransferCmd(this._settings.assetCode, {
+          requestId: event.payload.requestId,
+          transferId: event.payload.transferId,
+          paymentId: event.payload.paymentId,
+          paymentIntentId: event.payload.paymentIntentId,
+          transferDirection: 'OUTGOING'
+        })
+      );
+      originalCommandRequestId = event.payload.requestId;
+    } else if (
+      LedgerDomainEvent.isLedgerOutgoingTransferCommittedEvent(event)
+    ) {
+      // 3rd step, transfer was completed
+      originalCommandRequestId = event.payload.requestId;
+      isLastEventInFlow = true;
+    } else if (
+      LedgerDomainEvent.isLedgerOutgoingTransferCommitFailedEvent(event)
+    ) {
+      originalCommandRequestId = event.payload.requestId;
+      isLastEventInFlow = true;
+      this._errorResponseCount++;
+      this._log(
+        `TransferCommitFailed for requestId: ${event.payload.requestId} with: ${event.payload.errorMessage}`
+      );
+    } else if (
+      LedgerDomainEvent.isLedgerOutgoingTransferInsufficientFundsErrorEvent(
+        event
+      )
+    ) {
+      originalCommandRequestId = event.payload.requestId;
+      isLastEventInFlow = true;
+      this._errorResponseCount++;
+      this._log(
+        `InsufficientFundsError for requestId: ${event.payload.requestId} with: ${event.payload.errorMessage}`
+      );
+    } else if (event.isErrorEvent) {
+      this._errorResponseCount++;
+    }
+
+    if (originalCommandRequestId) {
+      const index = this._commandsSent.findIndex(
+        (cmd) => cmd.payload.requestId === originalCommandRequestId
+      );
+
+      if (index >= 0) {
+        const timeTakenMs = Date.now() - this._commandsSent[index].msgTimestamp;
+
+        if (LedgerDomainEvent.isLedgerOutgoingTransferReservedEvent(event)) {
+          this._responsesHisto?.observe(timeTakenMs * 10 ** 6, {
+            [TELEMETRY_PROPS_CALL_NAME_PROP]:
+              CheckBalanceAndReserveTransferCmd.name
+          });
+        } else if (
+          LedgerDomainEvent.isLedgerOutgoingTransferCommittedEvent(event)
+        ) {
+          this._responsesHisto?.observe(timeTakenMs * 10 ** 6, {
+            [TELEMETRY_PROPS_CALL_NAME_PROP]: 'Full reserve + commit'
+          });
+        } else {
+          this._responsesHisto?.observe(timeTakenMs * 10 ** 6, {
+            [TELEMETRY_PROPS_CALL_NAME_PROP]: 'Error / not handled'
+          });
+        }
+
+        // remove original command if last event of sequence
+        if (isLastEventInFlow) {
+          this._recordDuration(timeTakenMs);
+          this._totalTimeMs += timeTakenMs;
+
+          this._pendingResponseCount--;
+          this._commandsSent.splice(index, 1);
+        }
+      }
+    }
+
+    return returnCommands;
   }
 
   private async _fetchAssetAndPeerFromApi(): Promise<void> {
@@ -483,6 +643,36 @@ export class LoadTests extends EventEmitter<ILoadTestEvents> {
     }
   }
 
+  private _recordDuration(durationMs: number): void {
+    const nowSec = Math.floor(Date.now() / 1000);
+
+    if (!this._currentBucketSec) this._currentBucketSec = nowSec;
+
+    const secsElapsed = nowSec - this._currentBucketSec;
+    if (secsElapsed > 0) {
+      // We're on a new bucket, clear it, along with any skipped buckets
+      const toClear = Math.min(secsElapsed, SLIDING_WINDOW_SECS);
+      for (let i = 1; i <= toClear; i++) {
+        const index = (this._currentBucketSec + i) % SLIDING_WINDOW_SECS;
+        this._durationBuckets[index] = { sum: 0, count: 0 };
+      }
+      // set the current bucket time
+      this._currentBucketSec = nowSec;
+    }
+
+    const index = nowSec % SLIDING_WINDOW_SECS;
+    this._durationBuckets[index].sum += durationMs;
+    this._durationBuckets[index].count++;
+  }
+
+  private get _slidingWindowAvgMs(): number {
+    const { sum, count } = this._durationBuckets.reduce(
+      (acc, b) => ({ sum: acc.sum + b.sum, count: acc.count + b.count }),
+      { sum: 0, count: 0 }
+    );
+    return count === 0 ? 0 : sum / count;
+  }
+
   private _calcStatsAndNotify() {
     const stats: ILoadTestStats = {
       isRunning: this._isRunning,
@@ -492,140 +682,14 @@ export class LoadTests extends EventEmitter<ILoadTestEvents> {
       runningForSecs: (Date.now() - this._runStartTs) / 1000,
       totalMessagesSent: this._totalMessagesSent,
       totalMessagesPending: this._pendingResponseCount,
-      avgTimePerMessageMs:
-        this._totalTimeMs /
-        (this._totalMessagesSent - this._pendingResponseCount)
+      avgTimePerMessageMs: this._slidingWindowAvgMs
+      // avgTimePerMessageMs:
+      //   this._totalTimeMs /
+      //   (this._totalMessagesSent - this._pendingResponseCount)
     };
 
     this.emit('statsAvailable', stats);
   }
-
-  private async _handleDomainEventsBatch(events: IMessage[]): Promise<void> {
-    const cycleStartTs = Date.now();
-    for (const event of events) {
-      if (
-        event.msgTopic != DomainEventTopics.LedgerEvents ||
-        event.msgType != MessageTypes.DOMAIN_EVENT
-      ) {
-        continue;
-      }
-
-      // this._handleSimpleTransactionLedgerEvents(event as DomainEvent);
-      const retCommands = this._handleComplexTransactionLedgerEvent(
-        event as DomainEvent
-      );
-      if (retCommands.length > 0) {
-        await this._msgProducer!.send(retCommands);
-      }
-    }
-
-    this._lastConsumeCycleTookMs = Date.now() - cycleStartTs;
-    this._log(
-      `Received and processed ${events.length} events - consume cycle took: ${this._lastConsumeCycleTookMs} ms`
-    );
-  }
-
-  private _handleSimpleTransactionLedgerEvents(event: DomainEvent) {
-    let originalCmd: CommandMsg | undefined;
-    if (event.msgName === LedgerTransactionPostedEvent.name) {
-      const transactionPostedEvt = event as LedgerTransactionPostedEvent;
-      const index = this._commandsSent.findIndex(
-        (cmd) => cmd.payload.id === transactionPostedEvt.payload.id
-      );
-      if (index != -1) {
-        originalCmd = this._commandsSent[index];
-        this._commandsSent.splice(index, 1);
-      }
-    }
-
-    if (originalCmd) {
-      this._pendingResponseCount--;
-      const timeTakenMs = Date.now() - originalCmd.msgTimestamp;
-      this._totalTimeMs += timeTakenMs;
-      this._responsesHisto?.observe(timeTakenMs * 10 ** 6, {
-        [TELEMETRY_PROPS_CALL_NAME_PROP]: originalCmd.msgName
-      });
-    }
-  }
-
-  private _handleComplexTransactionLedgerEvent(
-    event: DomainEvent
-  ): CommandMsg[] {
-    let originalCmd: CommandMsg | undefined;
-    const returnCommands: CommandMsg[] = [];
-
-    if (event.msgName === LedgerOutgoingTransferReservedEvent.name) {
-      // 2nd step, reservation was successful, we must now commit
-      const payload =
-        event.payload as LedgerHighLevelSuccessResponseEventPayload;
-      const reqId = `${payload.requestId}_commit`;
-      returnCommands.push(
-        new CommitTransferCmd(this._settings.assetCode, {
-          requestId: reqId,
-          transferId: payload.transferId,
-          paymentId: payload.paymentId,
-          paymentIntentId: payload.paymentIntentId,
-          transferDirection: 'OUTGOING'
-        })
-      );
-      const index = this._commandsSent.findIndex(
-        (cmd) =>
-          (cmd.payload as CheckBalanceAndReserveTransferCmdPayload)
-            .requestId === payload.requestId
-      );
-      if (index != -1) {
-        originalCmd = this._commandsSent[index];
-        this._commandsSent.splice(index, 1);
-      }
-    } else if (event.msgName === LedgerOutgoingTransferCommittedEvent.name) {
-      // 3rd step, transfer was completed
-      const transactionPostedEvt = event as LedgerTransactionPostedEvent;
-      const index = this._commandsSent.findIndex(
-        (cmd) => cmd.payload.id === transactionPostedEvt.payload.id
-      );
-      if (index != -1) {
-        originalCmd = this._commandsSent[index];
-        this._commandsSent.splice(index, 1);
-      }
-    } else if (event.isErrorEvent) {
-      this._errorResponseCount++;
-    }
-
-    if (originalCmd) {
-      this._pendingResponseCount--;
-      const timeTakenMs = Date.now() - originalCmd.msgTimestamp;
-      this._totalTimeMs += timeTakenMs;
-      this._responsesHisto?.observe(timeTakenMs * 10 ** 6, {
-        [TELEMETRY_PROPS_CALL_NAME_PROP]: originalCmd.msgName
-      });
-    }
-
-    return returnCommands;
-  }
-
-  /*private _getSimpleTransactionTestCommands(): LedgerCommand[] {
-    const cmds: CommandMsg[] = [];
-
-    for (let i = 0; i < this._perSecCount; i++) {
-      const amount = BigInt(Math.round(Math.random() * 1000)).toString();
-      const [sender, receiver] = this._getRandomPair([
-        peerAccounts.aseClearingAccId,
-        peerAccounts.peerClearingAccId
-      ]) || [peerAccounts.aseClearingAccId, peerAccounts.peerClearingAccId];
-
-      cmds.push(
-        new PostTransactionCmd(this._settings.assetCode, {
-          id: `${this._settings.testIdPrefix}_${i + this._totalMessagesSent}`,
-          amount: amount,
-          amountScale: 2,
-          debitedAccountId: sender,
-          creditedAccountId: receiver
-        })
-      );
-    }
-
-    return cmds;
-  }*/
 
   private _getComplexTransactionTestCommands(): LedgerCommand[] {
     const cmds: CommandMsg[] = [];
@@ -664,7 +728,7 @@ export class LoadTests extends EventEmitter<ILoadTestEvents> {
   }
 
   private _log(args: string): void {
-    if (!this._settings.disableConsoleLog) console.log(args);
+    if (!this._settings.disableConsoleLog) console.error(args);
 
     this.emit('logAvailable', args);
   }

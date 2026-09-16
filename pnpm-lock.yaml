@@ -757,6 +757,37 @@ importers:
         specifier: ^4.19.3
         version: 4.19.3
 
+  packages/pal-benchmarks-lib:
+    dependencies:
+      common-types-lib:
+        specifier: 'workspace: *'
+        version: link:../common-types-lib
+      implementations-lib:
+        specifier: 'workspace: *'
+        version: link:../implementations-lib
+      pal-client-lib:
+        specifier: 'workspace: *'
+        version: link:../pal-client-lib
+      pal-domain-lib:
+        specifier: 'workspace: *'
+        version: link:../pal-domain-lib
+      pal-implementations-lib:
+        specifier: 'workspace: *'
+        version: link:../pal-implementations-lib
+      pal-public-types-lib:
+        specifier: 'workspace: *'
+        version: link:../pal-public-types-lib
+    devDependencies:
+      '@unblessed/node':
+        specifier: latest
+        version: 1.0.0-alpha.23(omggif@1.0.10)(pngjs@7.0.0)
+      tslib:
+        specifier: ~2.8.1
+        version: 2.8.1
+      tsx:
+        specifier: ^4.19.3
+        version: 4.19.3
+
   packages/pal-client-lib:
     dependencies:
       '@grpc/grpc-js':
@@ -846,18 +877,12 @@ importers:
       implementations-lib:
         specifier: 'workspace: *'
         version: link:../implementations-lib
-      install:
-        specifier: ^0.13.0
-        version: 0.13.0
       ioredis:
         specifier: ~5.10.1
         version: 5.10.1
       mongodb:
         specifier: ~7.1.0
         version: 7.1.0(socks@2.8.10)
-      pal-client-lib:
-        specifier: 'workspace: *'
-        version: link:../pal-client-lib
       pal-domain-lib:
         specifier: 'workspace: *'
         version: link:../pal-domain-lib
@@ -868,9 +893,6 @@ importers:
       '@types/google-protobuf':
         specifier: ~3.15.12
         version: 3.15.12
-      '@unblessed/node':
-        specifier: latest
-        version: 1.0.0-alpha.23(omggif@1.0.10)(pngjs@7.0.0)
       grpc-tools:
         specifier: ~1.13.1
         version: 1.13.1
@@ -4658,10 +4680,6 @@ packages:
 
   inline-style-parser@0.2.7:
     resolution: {integrity: sha512-Nb2ctOyNR8DqQoR0OwRG95uNWIC0C1lCgf5Naz5H6Ji72KZ8OcFZLz2P5sNgwlyoJ8Yif11oMuYs5pBQa86csA==}
-
-  install@0.13.0:
-    resolution: {integrity: sha512-zDml/jzr2PKU9I8J/xyZBQn8rPCAY//UOYNmR01XwNwyfhEWObo2SWfSl1+0tm1u6PhxLwDnfsT/6jB7OUxqFA==}
-    engines: {node: '>= 0.10'}
 
   internmap@1.0.1:
     resolution: {integrity: sha512-lDB5YccMydFBtasVtxnZ3MRBHuaoE8GKsppq+EchKL2U4nK/DmEpPHNH8MZe5HkMtpSiTSOZwfN0tzYjO/lJEw==}
@@ -10895,8 +10913,6 @@ snapshots:
   inherits@2.0.4: {}
 
   inline-style-parser@0.2.7: {}
-
-  install@0.13.0: {}
 
   internmap@1.0.1: {}
 

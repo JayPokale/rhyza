@@ -57,7 +57,7 @@ async function main() {
     console.log(format('%j', stats));
   });
   loadTests.on('logAvailable', (logLine: string) => {
-    console.log(`LOG: ${logLine}`);
+    console.log(`${logLine}`);
   });
 
   await loadTests.start();

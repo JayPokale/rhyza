@@ -16,7 +16,7 @@ import process from 'process';
 import { OpenTelemetryService } from 'implementations-lib';
 import crypto from 'crypto';
 import { ILogger, NullLogger } from 'common-types-lib';
-import { LedgerSettingsPage } from './uiPages/ledger-settings';
+import { LedgerLiquidityManagementPage } from './uiPages/ledger-liq-management';
 import { PalClient } from 'pal-client-lib';
 
 // should not have to do this, but it fails without it
@@ -60,7 +60,8 @@ OpenTelemetryService.Start(
   OPEN_TELEMETRY_COLLECTOR_URL
 );
 
-const apiClient = new PalClient(PAL_API_URL);
+// large timeout for the api client
+const apiClient = new PalClient(PAL_API_URL, 30_000);
 const loadTests = new LoadTests(
   settingsData,
   apiClient,
@@ -172,9 +173,9 @@ loadTests.on('stateChanged', () => {
 });
 
 // Content Box Pages (Right Panel)
-const settingsPage = new SettingsPage(settingsData);
-const loadTestsPage = new LoadTestsPage(settingsData, loadTests);
-const ledgerSettingsPage = new LedgerSettingsPage(
+const settingsPage = SettingsPage.create(settingsData);
+const loadTestsPage = LoadTestsPage.create(settingsData, loadTests);
+const ledgerLiqManagementPage = LedgerLiquidityManagementPage.create(
   settingsData,
   loadTests,
   apiClient
@@ -182,7 +183,10 @@ const ledgerSettingsPage = new LedgerSettingsPage(
 
 let currentPage: IUiPage;
 async function navigateToPage(newPage: IUiPage) {
-  if (currentPage) await currentPage.deactivate(screen);
+  if (currentPage) {
+    await currentPage.deactivate(screen);
+    screen.render();
+  }
   await newPage.activate(screen);
   currentPage = newPage;
   screen.render();
@@ -199,7 +203,7 @@ async function navHandlerCallback(item: Element, index: number) {
   if (selectedIndex === 0) {
     await navigateToPage(settingsPage);
   } else if (selectedIndex === 1) {
-    await navigateToPage(ledgerSettingsPage);
+    await navigateToPage(ledgerLiqManagementPage);
   } else if (selectedIndex === 2) {
     await navigateToPage(loadTestsPage);
   }
