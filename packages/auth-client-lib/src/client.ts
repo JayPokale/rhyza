@@ -177,6 +177,7 @@ export class AuthClient {
 
   revokeGrant(
     id: string,
+    signatureData: SignatureRequestData,
     continueId: string,
     continueToken: string
   ): Promise<RevokeGrantResult> {
@@ -184,6 +185,7 @@ export class AuthClient {
     request.setId(id);
     request.setContinueId(continueId);
     request.setContinueToken(continueToken);
+    request.setSignatureData(this.toSignatureData(signatureData));
 
     return new Promise((resolve, reject) => {
       this._grpcClient.revokeGrant(

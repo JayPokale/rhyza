@@ -132,6 +132,7 @@ message RevokeGrantRequest {
 	string id = 1;
 	string continue_id = 2;
 	string continue_token = 3;
+	SignatureData signature_data = 4;
 }
 
 message RevokeGrantResponse {

@@ -81,7 +81,8 @@ export class CreateGrantCmd extends AuthCmd {
   }
 }
 
-export interface RevokeGrantCmdPayload {
+export interface RevokeGrantCmdPayload
+  extends Omit<SignedCommandPayload, 'client'> {
   id: string;
   continueId: string;
   continueToken: string;

@@ -69,6 +69,19 @@ services:
     networks:
       - rafiki-v2
 
+  http-signature-service:
+    build:
+      context: ../
+      dockerfile: ./packages/http-signature-service/Dockerfile
+    restart: always
+    environment:
+      HOST: http-signature-service
+      PORT: 3010
+    ports:
+      - '3010:3010'
+    networks:
+      - rafiki-v2
+
   pal-api-service:
     build:
       context: ../
