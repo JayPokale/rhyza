@@ -1,4 +1,4 @@
-import { Collection, CollectionInfo, Db, MongoClient, WithId } from 'mongodb';
+import { Collection, CollectionInfo, Db, MongoClient } from 'mongodb';
 import {
   FinalizedRemoteQuoteUpdate,
   ISentPayment,
