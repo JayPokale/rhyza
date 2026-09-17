@@ -3,6 +3,7 @@ import {
   IAccessToken,
   IGrant,
   IGrantRepository,
+  IRevokedGrantUpdate,
   IRotatedGrantUpdate,
   IContinuedGrantUpdate,
   IFinishedInteractiveGrantUpdate
@@ -280,6 +281,8 @@ export class MongoDbGrantRepo implements IGrantRepository {
   async storeFinishedInteractiveGrants(
     grants: IFinishedInteractiveGrantUpdate[]
   ): Promise<void> {
+    this._checkInitialisedOrThrow();
+
     if (grants.length === 0) return;
 
     try {
@@ -293,12 +296,42 @@ export class MongoDbGrantRepo implements IGrantRepository {
               }
             }
           }
-        }))
+        })),
+        { ordered: false }
       );
     } catch (err) {
       this._logger.error(err);
       throw new Error(
-        `Unable to store continued grants - error: ${(err as Error).message}`
+        `Unable to store finished interactive grants - error: ${(err as Error).message}`
+      );
+    }
+  }
+
+  async storeRevokedGrants(grants: IRevokedGrantUpdate[]): Promise<void> {
+    this._checkInitialisedOrThrow();
+
+    if (grants.length === 0) return;
+
+    try {
+      await this._grantCollection.bulkWrite(
+        grants.map((grant) => ({
+          updateOne: {
+            filter: { id: grant.id },
+            update: {
+              $set: {
+                state: grant.state,
+                continueToken: undefined,
+                continueId: undefined
+              }
+            }
+          }
+        })),
+        { ordered: false }
+      );
+    } catch (err) {
+      this._logger.error(err);
+      throw new Error(
+        `Unable to store revoked grants - error: ${(err as Error).message}`
       );
     }
   }

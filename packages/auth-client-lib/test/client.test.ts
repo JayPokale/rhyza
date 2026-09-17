@@ -560,6 +560,134 @@ describe('Auth Client', () => {
     });
   });
 
+  describe('revokeGrant', () => {
+    async function createInteractiveGrant() {
+      const keys = generateTestKeys();
+      const signatureData = await signedSignatureData(
+        keys.privateKey,
+        keys.publicKey.kid
+      );
+      const created = await authClient.createGrant(
+        JSON.stringify(keys.publicKey),
+        signatureData,
+        {
+          access: [
+            makeAccessItem({ type: 'OUTGOING_PAYMENT', actions: ['CREATE'] })
+          ],
+          start: ['redirect']
+        }
+      );
+      return { keys, created };
+    }
+
+    test('revokes a continuable grant and clears continue credentials', async () => {
+      const { keys, created } = await createInteractiveGrant();
+      assert.ok(created.continueId);
+      assert.ok(created.continueToken);
+
+      const signatureData = await signedSignatureData(
+        keys.privateKey,
+        keys.publicKey.kid
+      );
+      const result = await authClient.revokeGrant(
+        created.id,
+        signatureData,
+        created.continueId,
+        created.continueToken
+      );
+
+      assert.ok(result);
+      assert.equal(result.id, created.id);
+
+      const grant = await authClient.getGrant(created.id);
+      assert.equal(grant.state, 'REVOKED');
+      assert.ok(!grant.continueToken);
+      assert.ok(!grant.continueId);
+    });
+
+    test('rejects revocation with an invalid continue token', async () => {
+      const { keys, created } = await createInteractiveGrant();
+      const signatureData = await signedSignatureData(
+        keys.privateKey,
+        keys.publicKey.kid
+      );
+
+      try {
+        await authClient.revokeGrant(
+          created.id,
+          signatureData,
+          created.continueId,
+          'invalid-continue-token'
+        );
+        assert.fail('expected error for invalid continue token');
+      } catch (e) {
+        assert.ok(e instanceof Error);
+      }
+    });
+
+    test('rejects revocation with an invalid signature', async () => {
+      const clientKeys = generateTestKeys();
+      const created = await authClient.createGrant(
+        JSON.stringify(clientKeys.publicKey),
+        await signedSignatureData(
+          clientKeys.privateKey,
+          clientKeys.publicKey.kid
+        ),
+        {
+          access: [
+            makeAccessItem({ type: 'OUTGOING_PAYMENT', actions: ['CREATE'] })
+          ],
+          start: ['redirect']
+        }
+      );
+
+      const signerKeys = generateTestKeys();
+      const signatureData = await signedSignatureData(
+        signerKeys.privateKey,
+        clientKeys.publicKey.kid
+      );
+
+      try {
+        await authClient.revokeGrant(
+          created.id,
+          signatureData,
+          created.continueId,
+          created.continueToken
+        );
+        assert.fail('expected error for invalid signature');
+      } catch (e) {
+        assert.ok(e instanceof Error);
+      }
+    });
+
+    test('rejects revoking an already-revoked grant', async () => {
+      const { keys, created } = await createInteractiveGrant();
+      const signatureData = await signedSignatureData(
+        keys.privateKey,
+        keys.publicKey.kid
+      );
+
+      await authClient.revokeGrant(
+        created.id,
+        signatureData,
+        created.continueId,
+        created.continueToken
+      );
+
+      try {
+        await authClient.revokeGrant(
+          created.id,
+          await signedSignatureData(keys.privateKey, keys.publicKey.kid),
+          created.continueId,
+          created.continueToken
+        );
+        assert.fail('expected error revoking an already-revoked grant');
+      } catch (e) {
+        assert.ok(e instanceof Error);
+      }
+    });
+  });
+
   describe('getGrant', () => {
     test('returns the grant for an existing id', async () => {
       const keys = generateTestKeys();
@@ -583,6 +711,8 @@ describe('Auth Client', () => {
       assert.ok(result);
       assert.equal(result.id, createResult.id);
       assert.equal(result.state, 'ISSUED');
+      assert.ok(result.continueToken);
+      assert.ok(result.continueId);
       assert.equal(result.client, JSON.stringify(keys.publicKey));
       assert.equal(result.accesses.length, 1);
     });

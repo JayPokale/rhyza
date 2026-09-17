@@ -19,12 +19,15 @@ import {
   StartInteractionCmd,
   FinishInteractionCmd,
   RejectInteractionCmd,
+  RevokeGrantCmd,
   RevokeTokenCmd,
   RotateTokenCmd
 } from '../src/commands';
 import {
   GrantCreatedEvent,
   GrantCreateFailedEvent,
+  GrantRevokedEvent,
+  GrantRevokeFailedEvent,
   TokenIntrospectedEvent,
   GrantInteractionChoiceFailedEvent,
   GrantInteractionChoiceHandledEvent,
@@ -139,6 +142,38 @@ describe('GrantAggregate.handleBatch', () => {
   });
 
   describe('handleBatch', async () => {
+    async function createInteractiveGrant() {
+      const keys = generateTestKeys();
+      const createCmd = await makeCreateGrantCmd({
+        client: JSON.stringify(keys.publicKey),
+        signatureData: await signedSignatureData(
+          keys.privateKey,
+          keys.publicKey.kid
+        ),
+        access: [
+          {
+            type: AccessType.OUTGOING_PAYMENT,
+            actions: [AccessAction.CREATE]
+          }
+        ],
+        interact: { start: ['REDIRECT'] }
+      });
+      const { events } = await aggregate.handleBatch([createCmd]);
+      await aggregate.flush();
+
+      assert.equal(events[0].msgName, GrantCreatedEvent.name);
+      const payload = (events[0] as GrantCreatedEvent).payload;
+      assert.ok(payload.continueToken);
+      assert.ok(payload.continueId);
+
+      return {
+        keys,
+        grantId: payload.id,
+        continueToken: payload.continueToken!,
+        continueId: payload.continueId!
+      };
+    }
+
     it('logs an error when it processes an unknown command', async () => {
       const errorMock = mock.method(logger, 'error', () => {});
 
@@ -698,6 +733,163 @@ describe('GrantAggregate.handleBatch', () => {
       });
     });
 
+    describe('handleRevokeGrantCommand', () => {
+      it('revokes a continuable grant and clears continue credentials', async () => {
+        const { keys, grantId, continueToken, continueId } =
+          await createInteractiveGrant();
+
+        const { events } = await aggregate.handleBatch([
+          new RevokeGrantCmd(
+            {
+              id: grantId,
+              continueToken,
+              continueId,
+              signatureData: await signedSignatureData(
+                keys.privateKey,
+                keys.publicKey.kid
+              )
+            },
+            randomUUID()
+          )
+        ]);
+        await aggregate.flush();
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, GrantRevokedEvent.name);
+        assert.equal((events[0] as GrantRevokedEvent).payload.id, grantId);
+
+        const stored = await repo.fetchById(grantId);
+        assert.ok(stored);
+        assert.equal(stored.state, GrantState.REVOKED);
+        assert.equal(stored.continueToken, undefined);
+        assert.equal(stored.continueId, undefined);
+      });
+
+      it('fails with InvalidGrantError for an invalid continue token', async () => {
+        const { keys, grantId, continueId } = await createInteractiveGrant();
+
+        const { events } = await aggregate.handleBatch([
+          new RevokeGrantCmd(
+            {
+              id: grantId,
+              continueToken: 'invalid-continue-token',
+              continueId,
+              signatureData: await signedSignatureData(
+                keys.privateKey,
+                keys.publicKey.kid
+              )
+            },
+            randomUUID()
+          )
+        ]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, GrantRevokeFailedEvent.name);
+        const payload = (events[0] as GrantRevokeFailedEvent).payload;
+        assert.equal(payload.errorName, 'InvalidGrantError');
+        assert.equal(payload.message, 'Invalid continue token or continue id');
+        assert.equal(payload.grantId, grantId);
+      });
+
+      it('fails with UnauthorizedRequestError for an invalid signature', async () => {
+        const { grantId, continueToken, continueId } =
+          await createInteractiveGrant();
+        const wrongKeys = generateTestKeys();
+
+        const { events } = await aggregate.handleBatch([
+          new RevokeGrantCmd(
+            {
+              id: grantId,
+              continueToken,
+              continueId,
+              signatureData: await signedSignatureData(
+                wrongKeys.privateKey,
+                wrongKeys.publicKey.kid
+              )
+            },
+            randomUUID()
+          )
+        ]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, GrantRevokeFailedEvent.name);
+        const payload = (events[0] as GrantRevokeFailedEvent).payload;
+        assert.equal(payload.errorName, 'UnauthorizedRequestError');
+        assert.equal(payload.grantId, grantId);
+      });
+
+      it('fails with InvalidGrantError when the grant has already been revoked', async () => {
+        const { keys, grantId, continueToken, continueId } =
+          await createInteractiveGrant();
+
+        await aggregate.handleBatch([
+          new RevokeGrantCmd(
+            {
+              id: grantId,
+              continueToken,
+              continueId,
+              signatureData: await signedSignatureData(
+                keys.privateKey,
+                keys.publicKey.kid
+              )
+            },
+            randomUUID()
+          )
+        ]);
+        await aggregate.flush();
+
+        const { events } = await aggregate.handleBatch([
+          new RevokeGrantCmd(
+            {
+              id: grantId,
+              continueToken,
+              continueId,
+              signatureData: await signedSignatureData(
+                keys.privateKey,
+                keys.publicKey.kid
+              )
+            },
+            randomUUID()
+          )
+        ]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, GrantRevokeFailedEvent.name);
+        const payload = (events[0] as GrantRevokeFailedEvent).payload;
+        assert.equal(payload.errorName, 'InvalidGrantError');
+        assert.equal(
+          payload.message,
+          `Current state ${GrantState.REVOKED} is a finalized state and cannot be changed`
+        );
+      });
+
+      it('fails with GrantNotFoundError when the grant does not exist', async () => {
+        const keys = generateTestKeys();
+        const missingGrantId = randomUUID();
+
+        const { events } = await aggregate.handleBatch([
+          new RevokeGrantCmd(
+            {
+              id: missingGrantId,
+              continueToken: 'token',
+              continueId: 'id',
+              signatureData: await signedSignatureData(
+                keys.privateKey,
+                keys.publicKey.kid
+              )
+            },
+            randomUUID()
+          )
+        ]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, GrantRevokeFailedEvent.name);
+        const payload = (events[0] as GrantRevokeFailedEvent).payload;
+        assert.equal(payload.errorName, 'GrantNotFoundError');
+        assert.equal(payload.grantId, missingGrantId);
+      });
+    });
+
     describe('handleIntrospectTokenCommand', async () => {
       async function createAndFlushIssuedGrant(
         access: CreateGrantCmdPayload['access'] = [
@@ -839,87 +1031,54 @@ describe('GrantAggregate.handleBatch', () => {
         assert.equal(payload.id, id);
         assert.equal(payload.active, false);
         assert.equal(errorMock.mock.callCount(), 1);
-        describe('handleStartInteractionCommand', async () => {
-          async function createInteractiveGrant(): Promise<{
-            id: string;
-          }> {
-            const keys = generateTestKeys();
-            const cmd = await makeCreateGrantCmd({
-              client: JSON.stringify(keys.publicKey),
-              signatureData: await signedSignatureData(
-                keys.privateKey,
-                keys.publicKey.kid
-              ),
-              access: [
-                {
-                  type: AccessType.OUTGOING_PAYMENT,
-                  actions: [AccessAction.CREATE]
-                }
-              ],
-              interact: { start: ['REDIRECT'] }
-            });
-            const { events } = await aggregate.handleBatch([cmd]);
-            const payload = (events[0] as GrantCreatedEvent).payload;
-            return {
-              id: payload.id
-            };
-          }
+      });
+    });
 
-          it('starts the interaction and returns GrantInteractionStartedEvent when the nonce matches', async () => {
-            const storeInteractionsMock = mock.method(
-              repo,
-              'storeInteractions'
-            );
+    describe('handleStartInteractionCommand', () => {
+      it('starts the interaction and returns GrantInteractionStartedEvent when the nonce matches', async () => {
+        const storeInteractionsMock = mock.method(repo, 'storeInteractions');
 
-            const { id } = await createInteractiveGrant();
-            const requestId = randomUUID();
+        const { grantId } = await createInteractiveGrant();
+        const requestId = randomUUID();
 
-            const { events } = await aggregate.handleBatch([
-              new StartInteractionCmd({ id }, requestId)
-            ]);
+        const { events } = await aggregate.handleBatch([
+          new StartInteractionCmd({ id: grantId }, requestId)
+        ]);
 
-            assert.equal(events.length, 1);
-            assert.equal(events[0].msgName, GrantInteractionStartedEvent.name);
-            const payload = (events[0] as GrantInteractionStartedEvent).payload;
-            assert.equal(payload.id, id);
-            assert.ok(payload.nonce);
-            assert.equal(events[0].requestId, requestId);
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, GrantInteractionStartedEvent.name);
+        const payload = (events[0] as GrantInteractionStartedEvent).payload;
+        assert.equal(payload.id, grantId);
+        assert.ok(payload.nonce);
+        assert.equal(events[0].requestId, requestId);
 
-            assert.equal(storeInteractionsMock.mock.callCount(), 0);
+        assert.equal(storeInteractionsMock.mock.callCount(), 0);
 
-            await aggregate.flush();
+        await aggregate.flush();
 
-            assert.equal(storeInteractionsMock.mock.callCount(), 1);
-            const updates = storeInteractionsMock.mock.calls[0].arguments[0];
-            assert.equal(updates.length, 1);
-            assert.equal(updates[0].id, id);
-            assert.ok(updates[0].interaction?.interactRef);
-          });
+        assert.equal(storeInteractionsMock.mock.callCount(), 1);
+        const updates = storeInteractionsMock.mock.calls[0].arguments[0];
+        assert.equal(updates.length, 1);
+        assert.equal(updates[0].id, grantId);
+        assert.ok(updates[0].interaction?.interactRef);
+      });
 
-          it('fails with GrantNotFoundError when the grant does not exist', async () => {
-            const storeInteractionsMock = mock.method(
-              repo,
-              'storeInteractions'
-            );
-            const requestId = randomUUID();
+      it('fails with GrantNotFoundError when the grant does not exist', async () => {
+        const storeInteractionsMock = mock.method(repo, 'storeInteractions');
+        const requestId = randomUUID();
 
-            const { events } = await aggregate.handleBatch([
-              new StartInteractionCmd({ id: randomUUID() }, requestId)
-            ]);
+        const { events } = await aggregate.handleBatch([
+          new StartInteractionCmd({ id: randomUUID() }, requestId)
+        ]);
 
-            assert.equal(events.length, 1);
-            assert.equal(
-              events[0].msgName,
-              GrantInteractionStartFailedEvent.name
-            );
-            const payload = (events[0] as GrantInteractionStartFailedEvent)
-              .payload;
-            assert.equal(payload.errorName, 'GrantNotFoundError');
-            assert.equal(events[0].requestId, requestId);
-            await aggregate.flush();
-            assert.equal(storeInteractionsMock.mock.callCount(), 0);
-          });
-        });
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, GrantInteractionStartFailedEvent.name);
+        const payload = (events[0] as GrantInteractionStartFailedEvent).payload;
+        assert.equal(payload.errorName, 'GrantNotFoundError');
+        assert.equal(events[0].requestId, requestId);
+        await aggregate.flush();
+
+        assert.equal(storeInteractionsMock.mock.callCount(), 0);
       });
 
       describe('handleFinishInteractionCommand', async () => {
@@ -942,202 +1101,6 @@ describe('GrantAggregate.handleBatch', () => {
               nonce: 'correct-nonce',
               createdAt,
               expiresAt: new Date(createdAt.getTime() + 600_000),
-              state: InteractionState.APPROVED,
-              ...interactionOverrides
-            }
-          };
-        }
-
-        it('returns GrantInteractionFinishedEvent when the interaction was approved', async () => {
-          const grant = makeGrantWithInteraction();
-          await repo.storeMany([grant]);
-          const requestId = randomUUID();
-
-          const { events } = await aggregate.handleBatch([
-            new FinishInteractionCmd(
-              { id: grant.id, nonce: grant.interactionNonce as string },
-              requestId
-            )
-          ]);
-
-          assert.equal(events.length, 1);
-          assert.equal(events[0].msgName, GrantInteractionFinishedEvent.name);
-          assert.equal(events[0].requestId, requestId);
-          const payload = (events[0] as GrantInteractionFinishedEvent).payload;
-          assert.equal(payload.id, grant.id);
-          assert.equal(payload.interactNonce, grant.interactionNonce);
-          assert.equal(payload.clientNonce, grant.finishNonce);
-          assert.equal(payload.interactRef, grant.interaction?.interactRef);
-        });
-
-        it('fails with UnknownInteractionError when the nonce does not match', async () => {
-          const grant = makeGrantWithInteraction();
-          await repo.storeMany([grant]);
-          const requestId = randomUUID();
-
-          const { events } = await aggregate.handleBatch([
-            new FinishInteractionCmd(
-              { id: grant.id, nonce: 'wrong-nonce' },
-              requestId
-            )
-          ]);
-
-          assert.equal(events.length, 1);
-          assert.equal(
-            events[0].msgName,
-            GrantInteractionFinishFailedEvent.name
-          );
-          assert.equal(events[0].requestId, requestId);
-          const payload = (events[0] as GrantInteractionFinishFailedEvent)
-            .payload;
-          assert.equal(payload.grantId, grant.id);
-          assert.equal(payload.errorName, 'UnknownInteractionError');
-        });
-
-        it('fails with InvalidInteractionError when the interaction is still pending', async () => {
-          const grant = makeGrantWithInteraction({
-            state: InteractionState.PENDING
-          });
-          await repo.storeMany([grant]);
-          const requestId = randomUUID();
-
-          const { events } = await aggregate.handleBatch([
-            new FinishInteractionCmd(
-              { id: grant.id, nonce: grant.interactionNonce as string },
-              requestId
-            )
-          ]);
-
-          assert.equal(events.length, 1);
-          assert.equal(
-            events[0].msgName,
-            GrantInteractionFinishFailedEvent.name
-          );
-          const payload = (events[0] as GrantInteractionFinishFailedEvent)
-            .payload;
-          assert.equal(payload.grantId, grant.id);
-          assert.equal(payload.errorName, 'InvalidInteractionError');
-        });
-
-        it('fails with GrantNotFoundError when the grant does not exist', async () => {
-          const requestId = randomUUID();
-
-          const { events } = await aggregate.handleBatch([
-            new FinishInteractionCmd(
-              { id: randomUUID(), nonce: 'any-nonce' },
-              requestId
-            )
-          ]);
-
-          assert.equal(events.length, 1);
-          assert.equal(
-            events[0].msgName,
-            GrantInteractionFinishFailedEvent.name
-          );
-          assert.equal(events[0].requestId, requestId);
-          const payload = (events[0] as GrantInteractionFinishFailedEvent)
-            .payload;
-          assert.equal(payload.errorName, 'GrantNotFoundError');
-        });
-      });
-
-      describe('handleStartInteractionCommand', async () => {
-        async function createInteractiveGrant(): Promise<{
-          id: string;
-        }> {
-          const keys = generateTestKeys();
-          const cmd = await makeCreateGrantCmd({
-            client: JSON.stringify(keys.publicKey),
-            signatureData: await signedSignatureData(
-              keys.privateKey,
-              keys.publicKey.kid
-            ),
-            access: [
-              {
-                type: AccessType.OUTGOING_PAYMENT,
-                actions: [AccessAction.CREATE]
-              }
-            ],
-            interact: { start: ['REDIRECT'] }
-          });
-          const { events } = await aggregate.handleBatch([cmd]);
-          const payload = (events[0] as GrantCreatedEvent).payload;
-          return {
-            id: payload.id
-          };
-        }
-
-        it('starts the interaction and returns GrantInteractionStartedEvent when the nonce matches', async () => {
-          const storeInteractionsMock = mock.method(repo, 'storeInteractions');
-
-          const { id } = await createInteractiveGrant();
-          const requestId = randomUUID();
-
-          const { events } = await aggregate.handleBatch([
-            new StartInteractionCmd({ id }, requestId)
-          ]);
-
-          assert.equal(events.length, 1);
-          assert.equal(events[0].msgName, GrantInteractionStartedEvent.name);
-          const payload = (events[0] as GrantInteractionStartedEvent).payload;
-          assert.equal(payload.id, id);
-          assert.ok(payload.nonce);
-          assert.equal(events[0].requestId, requestId);
-
-          assert.equal(storeInteractionsMock.mock.callCount(), 0);
-
-          await aggregate.flush();
-
-          assert.equal(storeInteractionsMock.mock.callCount(), 1);
-          const updates = storeInteractionsMock.mock.calls[0].arguments[0];
-          assert.equal(updates.length, 1);
-          assert.equal(updates[0].id, id);
-          assert.ok(updates[0].interaction?.interactRef);
-        });
-
-        it('fails with GrantNotFoundError when the grant does not exist', async () => {
-          const storeInteractionsMock = mock.method(repo, 'storeInteractions');
-          const requestId = randomUUID();
-
-          const { events } = await aggregate.handleBatch([
-            new StartInteractionCmd({ id: randomUUID() }, requestId)
-          ]);
-
-          assert.equal(events.length, 1);
-          assert.equal(
-            events[0].msgName,
-            GrantInteractionStartFailedEvent.name
-          );
-          const payload = (events[0] as GrantInteractionStartFailedEvent)
-            .payload;
-          assert.equal(payload.errorName, 'GrantNotFoundError');
-          assert.equal(events[0].requestId, requestId);
-          await aggregate.flush();
-
-          assert.equal(storeInteractionsMock.mock.callCount(), 0);
-        });
-      });
-
-      describe('handleFinishInteractionCommand', async () => {
-        function makeGrantWithInteraction(
-          interactionOverrides: Partial<{
-            nonce: string;
-            state: InteractionState;
-          }> = {}
-        ): IGrant {
-          const createdAt = new Date();
-          return {
-            id: randomUUID(),
-            startMethods: ['REDIRECT'],
-            state: GrantState.PROCESSING,
-            interactionNonce: generateNonce(),
-            finishNonce: generateNonce(),
-            accessTokens: [],
-            interaction: {
-              interactRef: randomUUID(),
-              nonce: 'correct-nonce',
-              createdAt,
-              expiresAt: new Date(createdAt.getTime() + 10_000),
               state: InteractionState.APPROVED,
               ...interactionOverrides
             }

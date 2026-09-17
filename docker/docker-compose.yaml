@@ -341,7 +341,7 @@ services:
       - rafiki-v2
 
   mongodb:
-    image: mongo
+    image: mongo:7
     restart: unless-stopped
     volumes:
       - mongodb-data:/data/db
