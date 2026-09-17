@@ -470,7 +470,7 @@ export class GrantAggregate {
         throw new GrantNotFoundError(`Grant ${id} not found`);
       }
 
-      const clientKey = this.resolveClientKeyForGrant(grant);
+      const clientKey = this.resolveClientKeyForDirectedIdentityGrant(grant);
       if (!clientKey) {
         throw new UnauthorizedRequestError();
       }
