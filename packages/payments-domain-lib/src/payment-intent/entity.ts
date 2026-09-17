@@ -84,16 +84,22 @@ class Quote implements IBaseQuote {
     debitAmount?: bigint,
     receiveAmount?: bigint
   ): Quote {
-    return new Quote(id, senderWalletAddress, senderWalletAddressId, new Date(), {
-      state: 'PENDING',
-      peerId,
-      peerAssetCode,
-      peerAssetScale,
-      sourceAmount,
-      senderAssetCode,
-      debitAmount,
-      receiveAmount
-    });
+    return new Quote(
+      id,
+      senderWalletAddress,
+      senderWalletAddressId,
+      new Date(),
+      {
+        state: 'PENDING',
+        peerId,
+        peerAssetCode,
+        peerAssetScale,
+        sourceAmount,
+        senderAssetCode,
+        debitAmount,
+        receiveAmount
+      }
+    );
   }
 
   static fromObject(obj: IQuote): Quote {

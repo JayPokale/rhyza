@@ -964,7 +964,7 @@ describe('PaymentIntent Entity', () => {
             state: 'PENDING',
             senderWalletAddress: 'sender',
             senderWalletAddressId,
-          createdAt: new Date()
+            createdAt: new Date()
           }
         ],
         sentPayments: [],
@@ -1017,7 +1017,7 @@ describe('PaymentIntent Entity', () => {
             expiresAt: new Date(Date.now() - 1000),
             senderWalletAddress: 'sender',
             senderWalletAddressId,
-          createdAt: new Date()
+            createdAt: new Date()
           }
         ],
         sentPayments: [],
@@ -1150,7 +1150,7 @@ describe('PaymentIntent Entity', () => {
             expiresAt: new Date(Date.now() + 1000),
             senderWalletAddress: 'sender',
             senderWalletAddressId: crypto.randomUUID(),
-          createdAt: new Date()
+            createdAt: new Date()
           }
         ],
         sentPayments: [],
@@ -1533,7 +1533,7 @@ describe('PaymentIntent Entity', () => {
             state: 'PENDING',
             senderWalletAddress: 'sender',
             senderWalletAddressId,
-          createdAt: new Date()
+            createdAt: new Date()
           }
         ],
         sentPayments: [],
@@ -3054,7 +3054,7 @@ describe('PaymentIntent Entity', () => {
             state: 'PENDING',
             senderWalletAddress: 'sender',
             senderWalletAddressId: crypto.randomUUID(),
-          createdAt: new Date()
+            createdAt: new Date()
           }
         ],
         sentPayments: [],
