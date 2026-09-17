@@ -94,15 +94,20 @@ export interface IAccessRequest {
   identifier?: string;
 }
 
+export const FinalizedGrantState = {
+  REVOKED: 'REVOKED',
+  REJECTED: 'REJECTED'
+} as const;
+export type FinalizedGrantState = keyof typeof FinalizedGrantState;
+
 export const GrantState = {
   // transitional states
   PROCESSING: 'PROCESSING',
   PENDING: 'PENDING',
   APPROVED: 'APPROVED',
-  // finalized states
   ISSUED: 'ISSUED',
-  REVOKED: 'REVOKED',
-  REJECTED: 'REJECTED'
+  // finalized states
+  ...FinalizedGrantState
 } as const;
 export type GrantState = keyof typeof GrantState;
 
@@ -194,6 +199,11 @@ export interface IFinishedInteractiveGrantUpdate {
   state: GrantState;
 }
 
+export interface IRevokedGrantUpdate {
+  id: string;
+  state: GrantState;
+}
+
 export interface IGrantRepository {
   storeMany(grants: IGrant[]): Promise<void>;
   storeRotatedGrants(updates: IRotatedGrantUpdate[]): Promise<void>;
@@ -201,6 +211,7 @@ export interface IGrantRepository {
   storeFinishedInteractiveGrants(
     grants: IFinishedInteractiveGrantUpdate[]
   ): Promise<void>;
+  storeRevokedGrants(grants: IRevokedGrantUpdate[]): Promise<void>;
   storeRevokedTokens(tokens: IAccessToken[]): Promise<void>;
   fetchById(id: string): Promise<IGrant | undefined>;
   fetchByIds(ids: string[]): Promise<IGrant[]>;
