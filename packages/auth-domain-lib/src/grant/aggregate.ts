@@ -232,10 +232,6 @@ export class GrantAggregate {
         event = this.handleFinishInteractionCommand(
           cmd as FinishInteractionCmd
         );
-      } else if (cmd.msgName === FinishInteractionCmd.name) {
-        event = this.handleFinishInteractionCommand(
-          cmd as FinishInteractionCmd
-        );
       } else {
         this._logger.error(`Received unexpected command: ${cmd.msgName}`);
         continue;
