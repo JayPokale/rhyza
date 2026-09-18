@@ -53,6 +53,7 @@ export interface GetPaymentIntentResult {
   incomingAmount?: bigint;
   expiresAt?: string;
   destinationIlpAddress?: string;
+  remoteUrl?: string;
 }
 
 export interface GetQuoteResult {

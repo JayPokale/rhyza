@@ -345,7 +345,8 @@ export class PaymentsClient {
             assetScale: response.getAssetScale(),
             incomingAmount: incomingAmount ? BigInt(incomingAmount) : undefined,
             expiresAt: expiresAt || undefined,
-            destinationIlpAddress: destinationIlpAddress || undefined
+            destinationIlpAddress: destinationIlpAddress || undefined,
+            remoteUrl: response.getRemoteUrl() || undefined
           });
         }
       );

@@ -351,6 +351,9 @@ export class PaymentsServiceServer {
       if (paymentIntent.destinationIlpAddress) {
         response.setDestinationIlpAddress(paymentIntent.destinationIlpAddress);
       }
+      if (paymentIntent.remoteUrl) {
+        response.setRemoteUrl(paymentIntent.remoteUrl);
+      }
 
       callback(null, response);
     } catch (err) {

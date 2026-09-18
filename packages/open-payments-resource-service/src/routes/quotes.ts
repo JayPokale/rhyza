@@ -21,7 +21,7 @@ export async function quoteRoutes(
   server: FastifyInstance,
   opts: QuoteRouteOptions
 ): Promise<void> {
-  const { palClient, paymentsClient } = opts;
+  const { palClient, paymentsClient, openPaymentsUrl } = opts;
 
   server.get<{
     Params: { id: string };
@@ -38,7 +38,7 @@ export async function quoteRoutes(
       if (quote.state !== 'COMPLETED') {
         throw new OpenPaymentsResourceServerRouteError(
           404,
-          'Quote is not completed',
+          'Quote not found',
           'not_found'
         );
       }
@@ -83,7 +83,9 @@ export async function quoteRoutes(
         },
         method: 'ilp',
         createdAt: quote.createdAt,
-        receiver: paymentIntent.receiverWalletAddress
+        receiver:
+          paymentIntent.remoteUrl ??
+          `${openPaymentsUrl}/incoming-payments/${quote.paymentIntentId}`
       };
       return reply.status(200).send(response);
     } catch (err: unknown) {
