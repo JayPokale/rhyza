@@ -15,6 +15,7 @@ import { decodeCompoundId, encodeCompoundId } from '../utils.js';
 interface QuoteRouteOptions extends FastifyPluginOptions {
   palClient: PalClient;
   paymentsClient: PaymentsClient;
+  openPaymentsResourceServerUrl: string;
 }
 
 export async function quoteRoutes(
