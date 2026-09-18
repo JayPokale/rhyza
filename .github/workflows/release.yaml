@@ -103,12 +103,14 @@ jobs:
     name: Push to registry
     needs: [config, version-generator, docker-build]
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     permissions:
       contents: read
       packages: write
     if: needs.version-generator.outputs.dockerPush == 'true'
     strategy:
+      fail-fast: false
+      max-parallel: 8
       matrix:
         platform: ${{ fromJSON(needs.config.outputs.platforms) }}
         package: ${{ fromJSON(needs.config.outputs.packages) }}
@@ -130,12 +132,14 @@ jobs:
     name: Push multi-arch manifest list
     needs: [config, version-generator, push]
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     permissions:
       contents: read
       packages: write
     if: needs.version-generator.outputs.dockerPush == 'true'
     strategy:
+      fail-fast: false
+      max-parallel: 8
       matrix:
         package: ${{ fromJSON(needs.config.outputs.packages) }}
     steps:
