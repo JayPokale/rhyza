@@ -165,38 +165,6 @@ describe('GrantAggregate.handleBatch', () => {
   });
 
   describe('handleBatch', async () => {
-    async function createInteractiveGrant() {
-      const keys = generateTestKeys();
-      const createCmd = await makeCreateGrantCmd({
-        client: JSON.stringify(keys.publicKey),
-        signatureData: await signedSignatureData(
-          keys.privateKey,
-          keys.publicKey.kid
-        ),
-        access: [
-          {
-            type: AccessType.OUTGOING_PAYMENT,
-            actions: [AccessAction.CREATE]
-          }
-        ],
-        interact: { start: ['REDIRECT'] }
-      });
-      const { events } = await aggregate.handleBatch([createCmd]);
-      await aggregate.flush();
-
-      assert.equal(events[0].msgName, GrantCreatedEvent.name);
-      const payload = (events[0] as GrantCreatedEvent).payload;
-      assert.ok(payload.continueToken);
-      assert.ok(payload.continueId);
-
-      return {
-        keys,
-        grantId: payload.id,
-        continueToken: payload.continueToken!,
-        continueId: payload.continueId!
-      };
-    }
-
     it('logs an error when it processes an unknown command', async () => {
       const errorMock = mock.method(logger, 'error', () => {});
 
@@ -811,9 +779,34 @@ describe('GrantAggregate.handleBatch', () => {
     });
 
     describe('handleRevokeGrantCommand', () => {
+      async function createRevocableGrant() {
+        const keys = generateTestKeys();
+        const createCmd = await makeCreateGrantCmd({
+          client: JSON.stringify(keys.publicKey),
+          signatureData: await signedSignatureData(
+            keys.privateKey,
+            keys.publicKey.kid
+          )
+        });
+        const { events } = await aggregate.handleBatch([createCmd]);
+        await aggregate.flush();
+
+        assert.equal(events[0].msgName, GrantCreatedEvent.name);
+        const payload = (events[0] as GrantCreatedEvent).payload;
+        assert.ok(payload.continueToken);
+        assert.ok(payload.continueId);
+
+        return {
+          keys,
+          grantId: payload.id,
+          continueToken: payload.continueToken!,
+          continueId: payload.continueId!
+        };
+      }
+
       it('revokes a continuable grant and clears continue credentials', async () => {
         const { keys, grantId, continueToken, continueId } =
-          await createInteractiveGrant();
+          await createRevocableGrant();
 
         const { events } = await aggregate.handleBatch([
           new RevokeGrantCmd(
@@ -843,7 +836,7 @@ describe('GrantAggregate.handleBatch', () => {
       });
 
       it('fails with InvalidGrantError for an invalid continue token', async () => {
-        const { keys, grantId, continueId } = await createInteractiveGrant();
+        const { keys, grantId, continueId } = await createRevocableGrant();
 
         const { events } = await aggregate.handleBatch([
           new RevokeGrantCmd(
@@ -870,7 +863,7 @@ describe('GrantAggregate.handleBatch', () => {
 
       it('fails with UnauthorizedRequestError for an invalid signature', async () => {
         const { grantId, continueToken, continueId } =
-          await createInteractiveGrant();
+          await createRevocableGrant();
         const wrongKeys = generateTestKeys();
 
         const { events } = await aggregate.handleBatch([
@@ -897,7 +890,7 @@ describe('GrantAggregate.handleBatch', () => {
 
       it('fails with InvalidGrantError when the grant has already been revoked', async () => {
         const { keys, grantId, continueToken, continueId } =
-          await createInteractiveGrant();
+          await createRevocableGrant();
 
         await aggregate.handleBatch([
           new RevokeGrantCmd(
@@ -1115,7 +1108,11 @@ describe('GrantAggregate.handleBatch', () => {
       it('starts the interaction and returns GrantInteractionStartedEvent when the nonce matches', async () => {
         const storeInteractionsMock = mock.method(repo, 'storeInteractions');
 
-        const { grantId } = await createInteractiveGrant();
+        const createCmd = await makeInteractiveGrantCmd(walletAddressService);
+        const { events: createEvents } = await aggregate.handleBatch([
+          createCmd
+        ]);
+        const grantId = (createEvents[0] as GrantCreatedEvent).payload.id;
         const requestId = randomUUID();
 
         const { events } = await aggregate.handleBatch([
