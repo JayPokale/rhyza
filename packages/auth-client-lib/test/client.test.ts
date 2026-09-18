@@ -113,8 +113,8 @@ describe('Auth Client', () => {
       assert.ok(result.accessTokenManagementId);
       assert.ok(result.accessTokenExpiresIn);
       assert.equal(result.interactionNonce, undefined);
-      assert.equal(result.continueId, '');
-      assert.equal(result.continueToken, '');
+      assert.ok(result.continueId);
+      assert.ok(result.continueToken);
       assert.deepStrictEqual(result.access, [access]);
       assert.deepStrictEqual(result.subjectIds, [subjectId]);
     });

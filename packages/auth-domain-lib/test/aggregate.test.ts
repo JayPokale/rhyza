@@ -212,8 +212,8 @@ describe('GrantAggregate.handleBatch', () => {
         assert.ok(payload.accessTokenValue);
         assert.ok(payload.accessTokenManagementId);
         assert.equal(payload.accessTokenExpiresIn, 10_000);
-        assert.equal(payload.continueId, undefined);
-        assert.equal(payload.continueToken, undefined);
+        assert.ok(payload.continueId);
+        assert.ok(payload.continueToken);
         assert.equal(payload.interactionNonce, undefined);
         assert.deepEqual(payload.access, cmd.payload.access);
       });
@@ -1092,7 +1092,7 @@ describe('GrantAggregate.handleBatch', () => {
           return {
             id: randomUUID(),
             startMethods: ['REDIRECT'],
-            state: GrantState.PROCESSING,
+            state: GrantState.PENDING,
             interactionNonce: generateNonce(),
             finishNonce: generateNonce(),
             accessTokens: [],
