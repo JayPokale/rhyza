@@ -21,7 +21,7 @@ export async function quoteRoutes(
   server: FastifyInstance,
   opts: QuoteRouteOptions
 ): Promise<void> {
-  const { palClient, paymentsClient, openPaymentsUrl } = opts;
+  const { palClient, paymentsClient, openPaymentsResourceServerUrl } = opts;
 
   server.get<{
     Params: { id: string };
@@ -43,12 +43,31 @@ export async function quoteRoutes(
         );
       }
 
+      // get receiver wallet address from payment intent
       const paymentIntent =
         await paymentsClient.getPaymentIntent(paymentIntentId);
 
+      const { domain, pathName } = parseAddressToDomainAndPathName(
+        paymentIntent.receiverWalletAddress
+      );
+
+      const receiverWalletAlias = await palClient.ResolveWalletAddressAlias(
+        domain,
+        pathName
+      );
+
+      if (!receiverWalletAlias) {
+        throw new OpenPaymentsResourceServerRouteError(
+          400,
+          'Receiver wallet address not found',
+          'not_found'
+        );
+      }
+
+      // get sender and receiver wallet addresses
       const walletAddresses = await palClient.getWalletAddresses([
         quote.senderWalletAddressId,
-        paymentIntent.receiverWalletAddress
+        receiverWalletAlias.walletAddressId
       ]);
 
       const senderWallet = walletAddresses.find(
@@ -56,7 +75,7 @@ export async function quoteRoutes(
       );
 
       const receiverWallet = walletAddresses.find(
-        (wallet) => wallet.id === paymentIntent.receiverWalletAddress
+        (wallet) => wallet.id === receiverWalletAlias.walletAddressId
       );
 
       if (!senderWallet || !receiverWallet) {
@@ -67,6 +86,7 @@ export async function quoteRoutes(
         );
       }
 
+      // build response
       const response: components['schemas']['quote'] = {
         id: encodeCompoundId(quote.paymentIntentId, quote.id),
         walletAddress: quote.senderWalletAddress,
@@ -85,7 +105,7 @@ export async function quoteRoutes(
         createdAt: quote.createdAt,
         receiver:
           paymentIntent.remoteUrl ??
-          `${openPaymentsUrl}/incoming-payments/${quote.paymentIntentId}`
+          `${openPaymentsResourceServerUrl}/incoming-payments/${quote.paymentIntentId}`
       };
       return reply.status(200).send(response);
     } catch (err: unknown) {
@@ -112,72 +132,90 @@ export async function quoteRoutes(
       }
     },
     async (request, reply) => {
-      const { walletAddress: walletAddressUrl, receiver: incomingPaymentUrl } =
-        request.body;
+      try {
+        const {
+          walletAddress: walletAddressUrl,
+          receiver: incomingPaymentUrl
+        } = request.body;
 
-      const { domain, pathName } =
-        parseAddressToDomainAndPathName(walletAddressUrl);
+        const { domain, pathName } =
+          parseAddressToDomainAndPathName(walletAddressUrl);
 
-      const alias = await palClient.ResolveWalletAddressAlias(domain, pathName);
-
-      if (!alias) {
-        throw new OpenPaymentsResourceServerRouteError(
-          400,
-          'Wallet address not found',
-          'not_found'
+        const alias = await palClient.ResolveWalletAddressAlias(
+          domain,
+          pathName
         );
-      }
 
-      const walletAddresses = await palClient.getWalletAddresses([
-        alias.walletAddressId
-      ]);
-
-      if (!walletAddresses.length) {
-        throw new OpenPaymentsResourceServerRouteError(
-          404,
-          'Wallet address not found',
-          'not_found'
-        );
-      }
-
-      const walletAddress = walletAddresses[0];
-
-      let debitAmountValue: number | undefined;
-      let receiveAmountValue: number | undefined;
-
-      if ('debitAmount' in request.body && request.body.debitAmount) {
-        if (
-          request.body.debitAmount.assetCode !== walletAddress.assetCode ||
-          request.body.debitAmount.assetScale !== walletAddress.assetScale
-        ) {
+        if (!alias) {
           throw new OpenPaymentsResourceServerRouteError(
-            404,
-            'debitAmount asset does not match wallet address asset',
-            'invalid_request'
+            400,
+            'Wallet address not found',
+            'not_found'
           );
         }
-        debitAmountValue = Number(request.body.debitAmount);
-      } else if (
-        'receiveAmount' in request.body &&
-        request.body.receiveAmount
-      ) {
-        receiveAmountValue = Number(request.body.receiveAmount);
+
+        const walletAddresses = await palClient.getWalletAddresses([
+          alias.walletAddressId
+        ]);
+
+        if (!walletAddresses.length) {
+          throw new OpenPaymentsResourceServerRouteError(
+            404,
+            'Wallet address not found',
+            'not_found'
+          );
+        }
+
+        const walletAddress = walletAddresses[0];
+
+        let debitAmountValue: number | undefined;
+        let receiveAmountValue: number | undefined;
+
+        if ('debitAmount' in request.body && request.body.debitAmount) {
+          if (
+            request.body.debitAmount.assetCode !== walletAddress.assetCode ||
+            request.body.debitAmount.assetScale !== walletAddress.assetScale
+          ) {
+            throw new OpenPaymentsResourceServerRouteError(
+              404,
+              'debitAmount asset does not match wallet address asset',
+              'invalid_request'
+            );
+          }
+          debitAmountValue = Number(request.body.debitAmount);
+        } else if (
+          'receiveAmount' in request.body &&
+          request.body.receiveAmount
+        ) {
+          receiveAmountValue = Number(request.body.receiveAmount);
+        }
+
+        const id = randomUUID();
+
+        const result = await paymentsClient.createQuote(
+          id,
+          { incomingPaymentUrl },
+          alias.walletAddressId,
+          walletAddressUrl,
+          debitAmountValue,
+          receiveAmountValue
+        );
+
+        return reply.status(201).send({
+          id: encodeCompoundId(result.paymentIntentId, result.id)
+        });
+      } catch (err: unknown) {
+        if (err instanceof OpenPaymentsResourceServerRouteError) {
+          return reply.status(err.status).send({
+            error: {
+              code: err.code,
+              description: err.message
+            }
+          });
+        }
+        const httpStatus = httpStatusFromGrpcError(err);
+        return reply.status(httpStatus).send(toClientApiErrorResponse(err));
       }
-
-      const id = randomUUID();
-
-      const result = await paymentsClient.createQuote(
-        id,
-        { incomingPaymentUrl },
-        alias.walletAddressId,
-        walletAddressUrl,
-        debitAmountValue,
-        receiveAmountValue
-      );
-
-      return reply.status(201).send({
-        id: encodeCompoundId(result.paymentIntentId, result.id)
-      });
     }
   );
 }
