@@ -386,13 +386,6 @@ export class PaymentsClient {
             exchangeRate: response.hasExchangeRate()
               ? response.getExchangeRate()
               : undefined,
-            peerId: response.hasPeerId() ? response.getPeerId() : undefined,
-            peerAssetCode: response.hasPeerAssetCode()
-              ? response.getPeerAssetCode()
-              : undefined,
-            peerAssetScale: response.hasPeerAssetScale()
-              ? response.getPeerAssetScale()
-              : undefined,
             sourceAmount: response.hasSourceAmount()
               ? BigInt(response.getSourceAmount()!)
               : undefined,

@@ -67,9 +67,6 @@ export interface GetQuoteResult {
   debitAmount?: bigint;
   receiveAmount?: bigint;
   exchangeRate?: number;
-  peerId?: string;
-  peerAssetCode?: string;
-  peerAssetScale?: number;
   sourceAmount?: bigint;
   senderAssetCode?: string;
   errorName?: string;

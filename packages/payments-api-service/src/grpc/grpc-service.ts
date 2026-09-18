@@ -406,15 +406,6 @@ export class PaymentsServiceServer {
         if (quote.receiveAmount != null) {
           response.setReceiveAmount(Number(quote.receiveAmount));
         }
-        if (quote.peerId) {
-          response.setPeerId(quote.peerId);
-        }
-        if (quote.peerAssetCode) {
-          response.setPeerAssetCode(quote.peerAssetCode);
-        }
-        if (quote.peerAssetScale != null) {
-          response.setPeerAssetScale(quote.peerAssetScale);
-        }
         if (quote.sourceAmount != null) {
           response.setSourceAmount(Number(quote.sourceAmount));
         }
