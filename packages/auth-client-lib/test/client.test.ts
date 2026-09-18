@@ -103,7 +103,8 @@ describe('Auth Client', () => {
         signatureData,
         {
           access: [access],
-          subjectIds: [subjectId]
+          subjectIds: [subjectId],
+          start: ['redirect']
         }
       );
 
@@ -114,8 +115,8 @@ describe('Auth Client', () => {
       assert.ok(result.continueId);
       assert.ok(result.continueToken);
       assert.equal(result.interactionNonce, undefined);
-      assert.ok(result.continueId);
-      assert.ok(result.continueToken);
+      assert.equal(result.continueId, '');
+      assert.equal(result.continueToken, '');
       assert.deepStrictEqual(result.access, [access]);
       assert.deepStrictEqual(result.subjectIds, [subjectId]);
     });
@@ -153,7 +154,8 @@ describe('Auth Client', () => {
         signatureData,
         {
           access,
-          finish
+          finish,
+          start: ['redirect']
         }
       );
 
@@ -181,7 +183,8 @@ describe('Auth Client', () => {
           {
             access: [
               makeAccessItem({ type: 'INCOMING_PAYMENT', actions: ['CREATE'] })
-            ]
+            ],
+            start: ['redirect']
           }
         );
         assert.fail('expected error for invalid signature');
@@ -205,7 +208,7 @@ describe('Auth Client', () => {
       const result = await authClient.createGrant(
         JSON.stringify(keys.publicKey),
         signatureData,
-        { access: [access] }
+        { access: [access], start: ['redirect'] }
       );
       return {
         keys,
@@ -335,7 +338,7 @@ describe('Auth Client', () => {
       const result = await authClient.createGrant(
         JSON.stringify(keys.publicKey),
         signatureData,
-        { access: [access] }
+        { access: [access], start: ['redirect'] }
       );
       return {
         keys,
@@ -456,11 +459,13 @@ describe('Auth Client', () => {
 
       const createOptions: {
         access: AccessItem[];
+        start: string[];
         finish?: GrantFinish;
       } = {
         access: [
           makeAccessItem({ type: 'OUTGOING_PAYMENT', actions: ['CREATE'] })
-        ]
+        ],
+        start: ['redirect']
       };
 
       if (options.withFinish) {
@@ -698,7 +703,7 @@ describe('Auth Client', () => {
       const createResult = await authClient.createGrant(
         JSON.stringify(keys.publicKey),
         signatureData,
-        { access: [access] }
+        { access: [access], start: ['redirect'] }
       );
 
       const result = await authClient.getGrant(createResult.id);
@@ -734,7 +739,7 @@ describe('Auth Client', () => {
       const createResult = await authClient.createGrant(
         JSON.stringify(keys.publicKey),
         signatureData,
-        { access }
+        { access, start: ['redirect'] }
       );
 
       return {
@@ -827,7 +832,8 @@ describe('Auth Client', () => {
         {
           access: [
             makeAccessItem({ type: 'OUTGOING_PAYMENT', actions: ['CREATE'] })
-          ]
+          ],
+          start: ['redirect']
         }
       );
 
@@ -848,6 +854,127 @@ describe('Auth Client', () => {
       try {
         await authClient.startInteraction(randomUUID());
         assert.fail('expected error for unknown grant');
+      } catch (e) {
+        assert.ok(e instanceof Error);
+      }
+    });
+  });
+
+  describe('finishInteraction', () => {
+    const FINISH_NONCE = 'client-finish-nonce';
+
+    async function createInteractiveGrant(): Promise<{ id: string }> {
+      const keys = generateTestKeys();
+      const signatureData = await signedSignatureData(
+        keys.privateKey,
+        keys.publicKey.kid
+      );
+
+      const grant = await authClient.createGrant(
+        JSON.stringify(keys.publicKey),
+        signatureData,
+        {
+          access: [
+            makeAccessItem({ type: 'OUTGOING_PAYMENT', actions: ['CREATE'] })
+          ],
+          start: ['redirect'],
+          finish: {
+            method: 'redirect',
+            uri: 'https://client.example/finish',
+            nonce: FINISH_NONCE
+          }
+        }
+      );
+
+      return { id: grant.id };
+    }
+
+    async function startAndHandleInteraction(
+      id: string,
+      choice: 'accept' | 'reject'
+    ): Promise<{ nonce: string }> {
+      const { nonce } = await authClient.startInteraction(id);
+
+      if (choice === 'accept') {
+        await authClient.acceptInteraction(id, randomUUID(), nonce);
+      } else {
+        await authClient.rejectInteraction(id, nonce);
+      }
+
+      return { nonce };
+    }
+
+    test('finishes an accepted interaction and returns the interact and finish nonces', async () => {
+      const { id } = await createInteractiveGrant();
+      const { nonce } = await startAndHandleInteraction(id, 'accept');
+
+      const result = await authClient.finishInteraction(id, nonce);
+
+      assert.ok(result);
+      assert.equal(result.id, id);
+      assert.equal(result.interactNonce, nonce);
+      assert.equal(result.clientNonce, FINISH_NONCE);
+      assert.ok(result.interactRef);
+
+      const grant = await authClient.getGrant(id);
+      assert.equal(grant.state, 'APPROVED');
+    });
+
+    test('finishes a rejected interaction', async () => {
+      const { id } = await createInteractiveGrant();
+      const { nonce } = await startAndHandleInteraction(id, 'reject');
+
+      const result = await authClient.finishInteraction(id, nonce);
+
+      assert.ok(result);
+      assert.equal(result.id, id);
+
+      const grant = await authClient.getGrant(id);
+      assert.equal(grant.state, 'REJECTED');
+    });
+
+    test('unknown grant id is rejected', async () => {
+      try {
+        await authClient.finishInteraction(randomUUID(), 'some-nonce');
+        assert.fail('expected error for unknown grant');
+      } catch (e) {
+        assert.ok(e instanceof Error);
+      }
+    });
+
+    test('rejects finishing an interaction that has not yet been accepted or rejected', async () => {
+      const { id } = await createInteractiveGrant();
+      const { nonce } = await authClient.startInteraction(id);
+
+      try {
+        await authClient.finishInteraction(id, nonce);
+        assert.fail('expected error for a still-pending interaction');
+      } catch (e) {
+        assert.ok(e instanceof Error);
+      }
+    });
+
+    test('rejects an incorrect nonce', async () => {
+      const { id } = await createInteractiveGrant();
+      await startAndHandleInteraction(id, 'accept');
+
+      try {
+        await authClient.finishInteraction(id, 'incorrect-nonce');
+        assert.fail('expected error for incorrect nonce');
+      } catch (e) {
+        assert.ok(e instanceof Error);
+      }
+    });
+
+    test('rejects finishing an interaction that has already been finished', async () => {
+      const { id } = await createInteractiveGrant();
+      const { nonce } = await startAndHandleInteraction(id, 'accept');
+
+      await authClient.finishInteraction(id, nonce);
+
+      try {
+        await authClient.finishInteraction(id, nonce);
+        assert.fail('expected error for an already-finished interaction');
       } catch (e) {
         assert.ok(e instanceof Error);
       }

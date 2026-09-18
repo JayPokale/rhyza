@@ -19,6 +19,8 @@ import {
   HandleInteractionChoiceResponse as PbHandleInteractionChoiceResponse,
   AcceptInteractionRequest as PbAcceptInteractionRequest,
   RejectInteractionRequest as PbRejectInteractionRequest,
+  FinishInteractionRequest as PbFinishInteractionRequest,
+  FinishInteractionResponse as PbFinishInteractionResponse,
   ContinueGrantRequest as PbContinueGrantRequest,
   RevokeGrantRequest as PbRevokeGrantRequest,
   IntrospectTokenResponse as PbIntrospectTokenResponse,
@@ -34,6 +36,7 @@ import {
   ContinueGrantResult,
   CreateGrantOptions,
   CreateGrantResult,
+  FinishInteractionResult,
   GetGrantResult,
   GrantFinish,
   HandleInteractionChoiceResult,
@@ -108,6 +111,8 @@ export class AuthClient {
     options: CreateGrantOptions
   ): Promise<CreateGrantResult> {
     const request = new PbGrantRequest();
+    request.setStartList(options.start);
+
     if (options.access) {
       request.setAccessList(options.access.map(toPbAccessItem));
     }
@@ -295,6 +300,33 @@ export class AuthClient {
     });
   }
 
+  finishInteraction(
+    id: string,
+    nonce: string
+  ): Promise<FinishInteractionResult> {
+    const request = new PbFinishInteractionRequest();
+    request.setId(id);
+    request.setNonce(nonce);
+
+    return new Promise((resolve, reject) => {
+      this._grpcClient.finishInteraction(
+        request,
+        (error: ServiceError | null, response: PbFinishInteractionResponse) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve({
+              id: response.getId(),
+              interactNonce: response.getInteractNonce(),
+              clientNonce: response.getClientNonce(),
+              interactRef: response.getInteractRef()
+            });
+          }
+        }
+      );
+    });
+  }
+
   acceptInteraction(
     id: string,
     interactRef: string,
@@ -473,7 +505,6 @@ function fromPbGrant(grant: PbGrant): GetGrantResult {
     startMethods: grant.getStartMethodsList(),
     continueToken: grant.getContinueToken(),
     continueId: grant.getContinueId(),
-    interactionNonce: grant.getInteractionNonce() || undefined,
     state: grant.getState(),
     finalizationReason: grant.getFinalizationReason(),
     client: grant.getClient(),

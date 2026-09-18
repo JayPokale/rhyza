@@ -85,8 +85,12 @@ export async function grantRoutes(
         : undefined;
 
       const options: CreateGrantOptions = access?.length
-        ? { access, subjectIds, finish }
-        : { subjectIds: subjectIds ?? [], finish };
+        ? { access, subjectIds, finish, start: interact?.start || [] }
+        : {
+            subjectIds: subjectIds ?? [],
+            finish,
+            start: interact?.start || []
+          };
 
       const result = await authClient.createGrant(
         resolveClientIdentifier(client),

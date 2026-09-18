@@ -106,6 +106,7 @@ export class GrantEntity implements IGrant {
     this._finishMethod = input.finishMethod;
     this._finishUri = input.finishUri;
     this._interactionNonce = input.interactionNonce;
+    this._interaction = input.interaction;
 
     if (input.accessTokens) {
       for (const accessToken of input.accessTokens) {
@@ -181,7 +182,7 @@ export class GrantEntity implements IGrant {
 
   // Generates an interaction for the grant.
   startInteraction(): IInteraction & { nonce: string } {
-    if (!this._interactionNonce || !this._startMethods) {
+    if (!this._startMethods || !this._interactionNonce) {
       throw new NonInteractiveGrantError();
     }
 
@@ -212,6 +213,24 @@ export class GrantEntity implements IGrant {
     }
 
     this._interaction.state = choice;
+  }
+
+  finishInteraction(nonce: string): IGrant {
+    if (!this._interaction || this._interactionNonce !== nonce) {
+      throw new UnknownInteractionError();
+    }
+
+    if (this._interaction.state === InteractionState.PENDING) {
+      throw new InvalidInteractionError();
+    }
+
+    if (this._interaction.state === InteractionState.APPROVED) {
+      this.stateTransition(GrantState.APPROVED);
+    } else {
+      this.stateTransition(GrantState.REJECTED);
+    }
+
+    return this.toObject();
   }
 
   private static readonly STATE_TRANSITIONS: Record<
@@ -489,6 +508,10 @@ export class GrantEntity implements IGrant {
 
   get finishMethod(): IFinishMethod | undefined {
     return this._finishMethod;
+  }
+
+  get finishNonce(): string | undefined {
+    return this._finishNonce;
   }
 
   get interactionNonce(): string | undefined {
