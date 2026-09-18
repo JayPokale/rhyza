@@ -18,15 +18,22 @@ inputs:
     description: If true, also push major and minor alias manifests. Use only for release/v* publishes.
     required: false
     default: 'false'
+  has_hierarchy:
+    description: Whether this version has a parent hierarchy. Computed once in the release workflow.
+    required: false
+    default: 'false'
+  major_parent:
+    description: The major parent tag (e.g. v1 or v1-rc1).
+    required: false
+    default: ''
+  minor_parent:
+    description: The minor parent tag (e.g. v1.2 or v1.2-rc1).
+    required: false
+    default: ''
 
 runs:
   using: composite
   steps:
-    - name: Calculate version hierarchy
-      id: hierarchy
-      uses: ./.github/actions/parent-versions
-      with:
-        version: ${{ inputs.version }}
     - name: Login to GHCR
       uses: docker/login-action@v3
       with:
@@ -43,12 +50,12 @@ runs:
         docker manifest create "$MANIFEST" --amend "$AMD64" --amend "$ARM64"
         docker manifest push "$MANIFEST"
     - name: Create and push parent manifests
-      if: ${{ inputs.tag_parents == 'true' && steps.hierarchy.outputs.has_hierarchy == 'true' }}
+      if: ${{ inputs.tag_parents == 'true' && inputs.has_hierarchy == 'true' }}
       shell: bash
       env:
         PREFIX: ghcr.io/${{ github.repository_owner }}/${{ inputs.app_name }}-${{ inputs.package }}
-        MINOR: ${{ steps.hierarchy.outputs.minor_parent }}
-        MAJOR: ${{ steps.hierarchy.outputs.major_parent }}
+        MINOR: ${{ inputs.minor_parent }}
+        MAJOR: ${{ inputs.major_parent }}
       run: |
         docker manifest create "$PREFIX:$MINOR" --amend "$PREFIX-amd64:$MINOR" --amend "$PREFIX-arm64:$MINOR"
         docker manifest create "$PREFIX:$MAJOR" --amend "$PREFIX-amd64:$MAJOR" --amend "$PREFIX-arm64:$MAJOR"

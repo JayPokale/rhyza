@@ -35,6 +35,9 @@ jobs:
       tagPushed: ${{ steps.version-generator.outputs.SHOULD_PUSH_TAG }}
       dockerPush: ${{ steps.version-generator.outputs.PUSH_DOCKER_IMAGE }}
       generateRelease: ${{ steps.version-generator.outputs.GENERATE_RELEASE }}
+      hasHierarchy: ${{ steps.hierarchy.outputs.has_hierarchy }}
+      majorParent: ${{ steps.hierarchy.outputs.major_parent }}
+      minorParent: ${{ steps.hierarchy.outputs.minor_parent }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -49,6 +52,11 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           REF_NAME: ${{ github.ref_name }}
         run: bash .github/scripts/compute-release-version.sh
+      - name: Calculate version hierarchy
+        id: hierarchy
+        uses: ./.github/actions/parent-versions
+        with:
+          version: ${{ steps.version-generator.outputs.NEW_VERSION }}
       - name: Push git tag
         if: steps.version-generator.outputs.SHOULD_PUSH_TAG == 'true'
         env:
@@ -114,6 +122,9 @@ jobs:
           version: ${{ needs.version-generator.outputs.version }}
           gh_token: ${{ secrets.GITHUB_TOKEN }}
           tag_parents: ${{ needs.version-generator.outputs.generateRelease }}
+          has_hierarchy: ${{ needs.version-generator.outputs.hasHierarchy }}
+          major_parent: ${{ needs.version-generator.outputs.majorParent }}
+          minor_parent: ${{ needs.version-generator.outputs.minorParent }}
 
   push-manifest:
     name: Push multi-arch manifest list
@@ -137,6 +148,9 @@ jobs:
           gh_token: ${{ secrets.GITHUB_TOKEN }}
           version: ${{ needs.version-generator.outputs.version }}
           tag_parents: ${{ needs.version-generator.outputs.generateRelease }}
+          has_hierarchy: ${{ needs.version-generator.outputs.hasHierarchy }}
+          major_parent: ${{ needs.version-generator.outputs.majorParent }}
+          minor_parent: ${{ needs.version-generator.outputs.minorParent }}
 
   generate-release:
     runs-on: ubuntu-latest
@@ -154,7 +168,7 @@ jobs:
           allowUpdates: true
           omitBodyDuringUpdate: true
           draft: false
-          makeLatest: ${{ !endsWith(needs.version-generator.outputs.version, '-alpha') }}
+          makeLatest: legacy
           generateReleaseNotes: true
           prerelease: ${{ endsWith(needs.version-generator.outputs.version, '-alpha') }}
           name: ${{ needs.version-generator.outputs.version }}
