@@ -38,7 +38,7 @@ services:
       OPEN_PAYMENTS_AUTH_SERVICE_URL: http://localhost:3003
       STREAM_SERVER_SECRET: cmFmaWtpLXYyLWRldi1zdHJlYW0tc2VjcmV0LTAwMDE
       ILP_ADDRESS: private.rafiki.a
-    ports:  
+    ports:
       - '3002:3002'
     depends_on:
       pal-api-service:
