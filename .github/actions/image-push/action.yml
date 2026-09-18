@@ -61,7 +61,7 @@ runs:
       shell: bash
       env:
         IMAGE: ghcr.io/${{ github.repository_owner }}/${{ inputs.app_name }}-${{ inputs.package }}-${{ inputs.platform_name }}:${{ inputs.version }}
-      run: docker push "$IMAGE"
+      run: bash "${GITHUB_WORKSPACE}/.github/scripts/docker-push-retry.sh" "$IMAGE"
     - name: Tag and push parent versions
       shell: bash
       if: ${{ inputs.tag_parents == 'true' && inputs.has_hierarchy == 'true' }}
@@ -72,5 +72,4 @@ runs:
       run: |
         docker tag "$IMAGE" "$MAJOR"
         docker tag "$IMAGE" "$MINOR"
-        docker push "$MAJOR"
-        docker push "$MINOR"
+        bash "${GITHUB_WORKSPACE}/.github/scripts/docker-push-retry.sh" "$MAJOR" "$MINOR"
