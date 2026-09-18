@@ -15,14 +15,14 @@ import { decodeCompoundId, encodeCompoundId } from '../utils.js';
 interface QuoteRouteOptions extends FastifyPluginOptions {
   palClient: PalClient;
   paymentsClient: PaymentsClient;
-  openPaymentsResourceServerUrl: string;
+  openPaymentsAuthServiceUrl: string;
 }
 
 export async function quoteRoutes(
   server: FastifyInstance,
   opts: QuoteRouteOptions
 ): Promise<void> {
-  const { palClient, paymentsClient, openPaymentsResourceServerUrl } = opts;
+  const { palClient, paymentsClient, openPaymentsAuthServiceUrl } = opts;
 
   server.get<{
     Params: { id: string };
@@ -106,7 +106,7 @@ export async function quoteRoutes(
         createdAt: quote.createdAt,
         receiver:
           paymentIntent.remoteUrl ??
-          `${openPaymentsResourceServerUrl}/incoming-payments/${quote.paymentIntentId}`
+          `${openPaymentsAuthServiceUrl}/incoming-payments/${quote.paymentIntentId}`
       };
       return reply.status(200).send(response);
     } catch (err: unknown) {
