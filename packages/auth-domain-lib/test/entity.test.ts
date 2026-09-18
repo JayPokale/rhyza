@@ -919,7 +919,7 @@ describe('GrantEntity', () => {
       function makeGrant(overrides: Partial<IGrant> = {}): GrantEntity {
         return GrantEntity.fromObject({
           id: randomUUID(),
-          state: GrantState.PROCESSING,
+          state: GrantState.PENDING,
           startMethods: ['REDIRECT'],
           ...overrides
         } as IGrant);
@@ -983,7 +983,7 @@ describe('GrantEntity', () => {
             return true;
           }
         );
-        assert.equal(entity.state, GrantState.PROCESSING);
+        assert.equal(entity.state, GrantState.PENDING);
       });
 
       it('throws UnknownInteractionError when there is no interaction on the grant', () => {
@@ -1017,7 +1017,7 @@ describe('GrantEntity', () => {
             return true;
           }
         );
-        assert.equal(entity.state, GrantState.PROCESSING);
+        assert.equal(entity.state, GrantState.PENDING);
       });
 
       it('throws InvalidGrantError when the grant is already FINALIZED', () => {
