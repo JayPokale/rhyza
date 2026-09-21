@@ -1,5 +1,6 @@
 ---
 title: Local playground
+
 next: Admin API overview
 ---
 
@@ -41,6 +42,7 @@ The playground also provides several web interfaces for monitoring and interacti
    ```
 
 2. Verify that the services are running:
+
    ```bash
    pnpm docker ps
    ```
@@ -49,10 +51,8 @@ The playground also provides several web interfaces for monitoring and interacti
 
 Here are some common commands to use while working with the local playground. Run these commands from the root directory.
 
-<div class="overflow-table">
-
 | Command                              | Description                                                             |
-| :----------------------------------- | :------------------------------------------------------------------------ |
+| ------------------------------------ | ----------------------------------------------------------------------- |
 | `pnpm docker up`                     | Starts all services in the background, rebuilding if necessary          |
 | `pnpm docker up -d`                  | Starts all services (detached)                                          |
 | `pnpm docker up --build`             | Builds & starts all services                                            |
@@ -60,8 +60,6 @@ Here are some common commands to use while working with the local playground. Ru
 | `pnpm docker down --volumes`         | Stops and removes all containers, networks, and persistent data volumes |
 | `pnpm docker logs -f`                | Follow the logs of all running services                                 |
 | `pnpm docker logs -f [service_name]` | Follow logs for a specific service (e.g., `admin-api-service`)          |
-
-</div>
 
 ## Running two nodes
 
@@ -71,29 +69,21 @@ The playground can also run a second, independent Rhyza instance ("Node B") alon
 
 Run these commands from the root directory, alongside the commands above.
 
-<div class="overflow-table">
-
-| Command                            | Description                                                                                              |
-| :---------------------------------- | :---------------------------------------------------------------------------------------------------------|
-| `pnpm docker:peers up -d --build`   | Starts both nodes (detached, rebuilding if necessary)                                                    |
-| `pnpm docker:peers down`            | Stops both nodes' containers and networks                                                                |
-| `pnpm docker:peers down --volumes`  | Stops both nodes and removes their containers, networks, and persistent data volumes - including the default instance's data |
-| `pnpm docker:peers:up`              | Rebuilds and restarts both nodes from a clean state, including all data (equivalent to `down --volumes` followed by `up --build -d`) |
-
-</div>
+| Command                            | Description                                                                                                                          |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `pnpm docker:peers up -d --build`  | Starts both nodes (detached, rebuilding if necessary)                                                                                |
+| `pnpm docker:peers down`           | Stops both nodes' containers and networks                                                                                            |
+| `pnpm docker:peers down --volumes` | Stops both nodes and removes their containers, networks, and persistent data volumes - including the default instance's data         |
+| `pnpm docker:peers:up`             | Rebuilds and restarts both nodes from a clean state, including all data (equivalent to `down --volumes` followed by `up --build -d`) |
 
 ### Node B ports
 
 Node B's services run on different ports than the default instance so both can run side by side:
 
-<div class="overflow-table">
-
 | Service                       | Node A (default) | Node B           |
-| :------------------------------| :------------------| :------------------|
-| Admin API                     | `localhost:3001`   | `localhost:4001`   |
-| Open Payments resource server | `localhost:3002`   | `localhost:4002`   |
-
-</div>
+| ----------------------------- | ---------------- | ---------------- |
+| Admin API                     | `localhost:3001` | `localhost:4001` |
+| Open Payments resource server | `localhost:3002` | `localhost:4002` |
 
 See [Making a payment between two nodes](#making-a-payment-between-two-nodes) to make an ILP payment between Node A and Node B.
 
@@ -132,25 +122,27 @@ The **Remote Payment** collection walks through a complete ILP payment between t
 - **2. Flow** - Creates a payment intent on the receiver, a quote on the sender referencing that intent, and the payment itself on the sender.
 
   <details>
-    <summary>Expand for the 2. Flow sequence</summary>
-    <Mermaid
-      graph={`sequenceDiagram
-        participant Bruno as Bruno client
-        participant Receiver as Receiver (Node B)
-        participant Sender as Sender (Node A)
+  <summary>Expand for the 2. Flow sequence</summary>
+  <Mermaid
+    graph={`sequenceDiagram
+      participant Bruno as Bruno client
+      participant Receiver as Receiver (Node B)
+      participant Sender as Sender (Node A)
 
-        Bruno->>Receiver: POST /payment-intents
-        Receiver-->>Bruno: 201 Created
+          Bruno->>Receiver: POST /payment-intents
+          Receiver-->>Bruno: 201 Created
 
-        Bruno->>Sender: POST /quotes
-        Sender-->>Bruno: 201 Created
+          Bruno->>Sender: POST /quotes
+          Sender-->>Bruno: 201 Created
 
-        Bruno->>Sender: POST /payments
-        Sender-->>Bruno: 201 Created
+          Bruno->>Sender: POST /payments
+          Sender-->>Bruno: 201 Created
 
-        Note over Sender,Receiver: Payment sent<br/>over ILP
+          Note over Sender,Receiver: Payment sent<br/>over ILP
+
   `}
-    />
+  />
+
   </details>
 
 - **3. Verify** - Checks the incoming payment on the receiver and the payment's status on the sender to confirm it completed.
