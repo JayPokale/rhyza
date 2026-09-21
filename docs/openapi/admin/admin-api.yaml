@@ -386,8 +386,7 @@ paths:
       description: >-
         Deposit liquidity so the node can send payments. Debits the asset system
         account and credits the peer's ASE liquidity account by producing a
-        ledger PostTransaction command. Fire-and-forget: returns 202 before the
-        ledger posts the transaction (see the sync TODO in the route).
+        ledger DepositToAse command. This is request-response style, returns 200 when complete.
       tags:
         - liquidity
       operationId: Liquidity_deposit
@@ -403,6 +402,7 @@ paths:
                 - assetCode
                 - peerId
                 - amount
+                - amountScale
               properties:
                 assetCode:
                   type: string
@@ -417,8 +417,11 @@ paths:
                     Amount in raw ledger units at the asset scale
                     (100000 = 1000.00 at scale 2).
                   example: 100000
+                amountScale:
+                  type: number
+                  description: The number of decimal places for the amount asset (e.g., 2 for "USD").
       responses:
-        '202':
+        '200':
           description: >-
             Deposit accepted and produced to the ledger (not yet confirmed).
           content:

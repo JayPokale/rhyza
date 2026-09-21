@@ -984,7 +984,7 @@ export class Ledger {
         requestId: cmd.payload.requestId,
         errorMessage: `Account(s) not found for ${cmd.msgName}`
       };
-      if (cmd.msgName === WithdrawFromPeerCmd.name) {
+      if (cmd.msgName === DepositToPeerCmd.name) {
         this._recordDomainEvent(
           new LedgerDepositToPeerFailedEvent(this._id, failPayload),
           cmd

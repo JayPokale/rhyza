@@ -331,7 +331,7 @@ test('pal client - LiquidityManagement - Withdraw from ASE', async () => {
 test('pal client - LiquidityManagement - Withdraw excess liquidity from ASE should fail', async () => {
   try {
     const reqId = 'req4';
-    await client.ledgerWithdrawFromPeer({
+    await client.ledgerWithdrawFromAse({
       peerId: PEER_ONE_ID,
       assetCode: ASSET_CODE,
       amount: '1',

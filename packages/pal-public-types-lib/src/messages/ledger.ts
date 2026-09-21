@@ -405,7 +405,6 @@ export type LedgerHighLevelSuccessResponseEventPayload = {
 
 export class LedgerHighLevelSuccessResponseEvent extends LedgerDomainEvent {
   payload: LedgerHighLevelSuccessResponseEventPayload;
-  isErrorEvent = true;
 
   constructor(
     aggId: string,

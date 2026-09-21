@@ -120,9 +120,6 @@ importers:
       pal-client-lib:
         specifier: workspace:*
         version: link:../pal-client-lib
-      pal-domain-lib:
-        specifier: workspace:*
-        version: link:../pal-domain-lib
       payments-client-lib:
         specifier: workspace:*
         version: link:../payments-client-lib
