@@ -43,7 +43,6 @@ export async function interactionRoutes(
     },
     async (request, reply) => {
       const { grantId } = request.params;
-      const { interactRef, nonce } = request.body;
 
       await authClient.acceptInteraction(grantId);
 
@@ -63,7 +62,6 @@ export async function interactionRoutes(
     },
     async (request, reply) => {
       const { grantId } = request.params;
-      const { nonce } = request.body;
 
       await authClient.rejectInteraction(grantId);
 
