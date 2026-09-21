@@ -606,27 +606,9 @@ describe('Auth Client', () => {
   });
 
   describe('revokeGrant', () => {
-    async function createInteractiveGrant() {
-      const keys = generateTestKeys();
-      const signatureData = await signedSignatureData(
-        keys.privateKey,
-        keys.publicKey.kid
-      );
-      const created = await authClient.createGrant(
-        JSON.stringify(keys.publicKey),
-        signatureData,
-        {
-          access: [
-            makeAccessItem({ type: 'OUTGOING_PAYMENT', actions: ['CREATE'] })
-          ],
-          start: ['redirect']
-        }
-      );
-      return { keys, created };
-    }
-
     test('revokes a continuable grant and clears continue credentials', async () => {
-      const { keys, created } = await createInteractiveGrant();
+      const keys = generateTestKeys();
+      const created = await createInteractiveGrant(keys);
       assert.ok(created.continueId);
       assert.ok(created.continueToken);
 
@@ -651,7 +633,8 @@ describe('Auth Client', () => {
     });
 
     test('rejects revocation with an invalid continue token', async () => {
-      const { keys, created } = await createInteractiveGrant();
+      const keys = generateTestKeys();
+      const created = await createInteractiveGrant(keys);
       const signatureData = await signedSignatureData(
         keys.privateKey,
         keys.publicKey.kid
@@ -672,19 +655,7 @@ describe('Auth Client', () => {
 
     test('rejects revocation with an invalid signature', async () => {
       const clientKeys = generateTestKeys();
-      const created = await authClient.createGrant(
-        JSON.stringify(clientKeys.publicKey),
-        await signedSignatureData(
-          clientKeys.privateKey,
-          clientKeys.publicKey.kid
-        ),
-        {
-          access: [
-            makeAccessItem({ type: 'OUTGOING_PAYMENT', actions: ['CREATE'] })
-          ],
-          start: ['redirect']
-        }
-      );
+      const created = await createInteractiveGrant(clientKeys);
 
       const signerKeys = generateTestKeys();
       const signatureData = await signedSignatureData(
@@ -706,7 +677,8 @@ describe('Auth Client', () => {
     });
 
     test('rejects revoking an already-revoked grant', async () => {
-      const { keys, created } = await createInteractiveGrant();
+      const keys = generateTestKeys();
+      const created = await createInteractiveGrant(keys);
       const signatureData = await signedSignatureData(
         keys.privateKey,
         keys.publicKey.kid
