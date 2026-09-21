@@ -66,3 +66,12 @@
 ## Info
 
 - a breaking change was detected but the major version did not increase, from `0.0.0` to `0.0.1`
+
+# API Changelog 0.0.1 vs. 0.1.0
+
+## API Changes
+
+### POST /liquidity/deposit
+- :warning: added the new required request property `amountScale`
+- :warning: removed the success response with the status `202`
+-  added the success response with the status `200`
