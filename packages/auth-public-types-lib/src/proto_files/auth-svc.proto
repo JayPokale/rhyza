@@ -208,10 +208,8 @@ message HandleInteractionChoiceResponse {
 
 message AcceptInteractionRequest {
 	string id = 1; // grant id
-	string nonce = 2;
 }
 
 message RejectInteractionRequest {
 	string id = 1; // grant id
-	string nonce = 2;
 }
