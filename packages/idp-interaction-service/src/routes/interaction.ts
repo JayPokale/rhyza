@@ -45,7 +45,7 @@ export async function interactionRoutes(
       const { grantId } = request.params;
       const { interactRef, nonce } = request.body;
 
-      await authClient.acceptInteraction(grantId, interactRef, nonce);
+      await authClient.acceptInteraction(grantId);
 
       return reply.status(202).send();
     }
@@ -65,7 +65,7 @@ export async function interactionRoutes(
       const { grantId } = request.params;
       const { nonce } = request.body;
 
-      await authClient.rejectInteraction(grantId, nonce);
+      await authClient.rejectInteraction(grantId);
 
       return reply.status(202).send();
     }
