@@ -32,7 +32,6 @@ declare module 'fastify' {
   }
 
   interface Session {
-    authenticated: boolean;
     interactionSessionId: string;
   }
 }
