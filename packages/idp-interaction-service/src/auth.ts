@@ -1,8 +1,7 @@
 import crypto from 'crypto';
 import { FastifyReply, FastifyRequest } from 'fastify';
 
-// TODO: throw on startup if not configured
-const idpSecret = process.env['IDP_SECRET'] || 'test-idp-secret-replace-me';
+const idpSecret = process.env['IDP_SECRET'];
 
 function cleanHeaders(
   headers: FastifyRequest['headers']
@@ -22,6 +21,7 @@ export function verifyIdpSecret(
   request: FastifyRequest,
   reply: FastifyReply
 ): void {
+  if (!idpSecret) return;
   const cleanedHeaders = cleanHeaders(request.headers);
   const requestSecret = cleanedHeaders['x-idp-secret'];
 
