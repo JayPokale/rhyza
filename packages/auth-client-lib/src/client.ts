@@ -19,6 +19,8 @@ import {
   HandleInteractionChoiceResponse as PbHandleInteractionChoiceResponse,
   AcceptInteractionRequest as PbAcceptInteractionRequest,
   RejectInteractionRequest as PbRejectInteractionRequest,
+  FinishInteractionRequest as PbFinishInteractionRequest,
+  FinishInteractionResponse as PbFinishInteractionResponse,
   ContinueGrantRequest as PbContinueGrantRequest,
   RevokeGrantRequest as PbRevokeGrantRequest,
   IntrospectTokenResponse as PbIntrospectTokenResponse,
@@ -34,6 +36,7 @@ import {
   ContinueGrantResult,
   CreateGrantOptions,
   CreateGrantResult,
+  FinishInteractionResult,
   GetGrantResult,
   GrantFinish,
   HandleInteractionChoiceResult,
@@ -108,6 +111,8 @@ export class AuthClient {
     options: CreateGrantOptions
   ): Promise<CreateGrantResult> {
     const request = new PbGrantRequest();
+    request.setStartList(options.start);
+
     if (options.access) {
       request.setAccessList(options.access.map(toPbAccessItem));
     }
@@ -177,6 +182,7 @@ export class AuthClient {
 
   revokeGrant(
     id: string,
+    signatureData: SignatureRequestData,
     continueId: string,
     continueToken: string
   ): Promise<RevokeGrantResult> {
@@ -184,6 +190,7 @@ export class AuthClient {
     request.setId(id);
     request.setContinueId(continueId);
     request.setContinueToken(continueToken);
+    request.setSignatureData(this.toSignatureData(signatureData));
 
     return new Promise((resolve, reject) => {
       this._grpcClient.revokeGrant(
@@ -293,15 +300,36 @@ export class AuthClient {
     });
   }
 
-  acceptInteraction(
+  finishInteraction(
     id: string,
-    interactRef: string,
     nonce: string
-  ): Promise<HandleInteractionChoiceResult> {
+  ): Promise<FinishInteractionResult> {
+    const request = new PbFinishInteractionRequest();
+    request.setId(id);
+    request.setNonce(nonce);
+
+    return new Promise((resolve, reject) => {
+      this._grpcClient.finishInteraction(
+        request,
+        (error: ServiceError | null, response: PbFinishInteractionResponse) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve({
+              id: response.getId(),
+              interactNonce: response.getInteractNonce(),
+              clientNonce: response.getClientNonce(),
+              interactRef: response.getInteractRef()
+            });
+          }
+        }
+      );
+    });
+  }
+
+  acceptInteraction(id: string): Promise<HandleInteractionChoiceResult> {
     const request = new PbAcceptInteractionRequest();
     request.setId(id);
-    request.setInteractRef(interactRef);
-    request.setNonce(nonce);
 
     return new Promise((resolve, reject) => {
       this._grpcClient.acceptInteraction(
@@ -320,13 +348,9 @@ export class AuthClient {
     });
   }
 
-  rejectInteraction(
-    id: string,
-    nonce: string
-  ): Promise<HandleInteractionChoiceResult> {
+  rejectInteraction(id: string): Promise<HandleInteractionChoiceResult> {
     const request = new PbRejectInteractionRequest();
     request.setId(id);
-    request.setNonce(nonce);
 
     return new Promise((resolve, reject) => {
       this._grpcClient.rejectInteraction(
@@ -471,7 +495,6 @@ function fromPbGrant(grant: PbGrant): GetGrantResult {
     startMethods: grant.getStartMethodsList(),
     continueToken: grant.getContinueToken(),
     continueId: grant.getContinueId(),
-    interactionNonce: grant.getInteractionNonce() || undefined,
     state: grant.getState(),
     finalizationReason: grant.getFinalizationReason(),
     client: grant.getClient(),

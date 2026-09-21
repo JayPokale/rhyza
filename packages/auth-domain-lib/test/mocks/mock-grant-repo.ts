@@ -1,8 +1,10 @@
 import {
   IAccessToken,
   IContinuedGrantUpdate,
+  IFinishedInteractiveGrantUpdate,
   IGrant,
   IGrantRepository,
+  IRevokedGrantUpdate,
   IRotatedGrantUpdate
 } from '../../src/grant/interfaces';
 
@@ -44,6 +46,34 @@ export class MockGrantRepo implements IGrantRepository {
         continueId: update.continueId,
         lastContinuedAt: update.lastContinuedAt,
         accessTokens
+      });
+    }
+  }
+
+  async storeFinishedInteractiveGrants(
+    grants: IFinishedInteractiveGrantUpdate[]
+  ): Promise<void> {
+    for (const update of grants) {
+      const existing = this._store.get(update.id);
+      if (!existing) continue;
+
+      this._store.set(update.id, {
+        ...existing,
+        state: update.state
+      });
+    }
+  }
+
+  async storeRevokedGrants(grants: IRevokedGrantUpdate[]): Promise<void> {
+    for (const update of grants) {
+      const existing = this._store.get(update.id);
+      if (!existing) continue;
+
+      this._store.set(update.id, {
+        ...existing,
+        state: update.state,
+        continueToken: undefined,
+        continueId: undefined
       });
     }
   }

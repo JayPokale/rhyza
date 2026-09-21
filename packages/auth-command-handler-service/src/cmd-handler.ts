@@ -12,10 +12,11 @@ import {
   IntrospectTokenCmd,
   RotateTokenCmd,
   RevokeTokenCmd,
-  AcceptInteractionCommand,
-  RejectInteractionCommand,
+  AcceptInteractionCmd,
+  RejectInteractionCmd,
   GrantAggregate,
-  StartInteractionCmd
+  StartInteractionCmd,
+  FinishInteractionCmd
 } from 'auth-domain-lib';
 
 export class AuthCommandHandler {
@@ -61,8 +62,9 @@ export class AuthCommandHandler {
         case RotateTokenCmd.name:
         case RevokeTokenCmd.name:
         case StartInteractionCmd.name:
-        case AcceptInteractionCommand.name:
-        case RejectInteractionCommand.name:
+        case AcceptInteractionCmd.name:
+        case RejectInteractionCmd.name:
+        case FinishInteractionCmd.name:
           commandMessages.push(msg);
           break;
         default:
