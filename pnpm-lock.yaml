@@ -1052,6 +1052,9 @@ importers:
         specifier: workspace:*
         version: link:../payments-public-types-lib
     devDependencies:
+      open-payments-resource-service:
+        specifier: workspace:*
+        version: link:../open-payments-resource-service
       tsx:
         specifier: ^4.19.3
         version: 4.19.3

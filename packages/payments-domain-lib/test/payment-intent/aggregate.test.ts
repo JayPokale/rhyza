@@ -35,7 +35,8 @@ import {
 import {
   MockPaymentIntentRepo,
   MockRemotePaymentIntentService,
-  MockPalService
+  MockPalService,
+  toIncomingPaymentWithMethods
 } from '../mocks';
 import {
   QuoteCreateFailedEvent,
@@ -1828,18 +1829,20 @@ describe('PaymentIntentAggregate.handleBatch', () => {
       const REMOTE_URL = 'https://remote.domain.com/incoming-payments/abc';
 
       beforeEach(() => {
-        mockRemotePaymentIntentService.fetchIncomingPayment = async () => ({
-          walletAddress: 'remote.domain.com/alice',
-          assetCode: 'USD',
-          assetScale: 2,
-          receivedAmount: 0n,
-          destinationIlpAddress: 'g.peer.123',
-          expiresAt: new Date(Date.now() + 60_000).toISOString(),
-          sharedSecret: 'stub-shared-secret'
-        });
+        mockRemotePaymentIntentService.setIncomingPaymentResponse(
+          toIncomingPaymentWithMethods({
+            id: 'abc',
+            walletAddress: 'remote.domain.com/alice',
+            assetCode: 'USD',
+            assetScale: 2,
+            receivedAmountValue: '0',
+            ilpAddress: 'g.peer.123',
+            sharedSecret: 'stub-shared-secret'
+          })
+        );
       });
 
-      it('fetches remote intent and emits RemoteQuoteRequestedEvent', async () => {
+      it('fetches remote intent (OP methods shape) and emits RemoteQuoteRequestedEvent', async () => {
         const cmd = makeCreateQuoteCmd({
           remoteUrl: REMOTE_URL,
           debitAmount: 500
@@ -1852,6 +1855,13 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         assert.equal(payload.paymentIntentId, cmd.payload.paymentIntentId);
         assert.equal(payload.quoteId, cmd.payload.id);
         assert.equal(payload.peerId, 'peer-1');
+        assert.equal(payload.receiverWalletAddress, 'remote.domain.com/alice');
+        assert.equal(
+          payload.senderWalletAddress,
+          cmd.payload.senderWalletAddress
+        );
+        assert.equal(payload.senderAssetCode, 'USD');
+        assert.equal(payload.senderAssetScale, 2);
       });
 
       it('deduplicates intra-batch: second cmd with same url uses first intent id', async () => {
@@ -1930,6 +1940,29 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         const payload = (events[0] as QuoteCreateFailedEvent).payload;
         assert.equal(payload.paymentIntentId, cmd.payload.paymentIntentId);
         assert.match(payload.message, /Connection refused/);
+      });
+
+      it('emits QuoteCreateFailedEvent when OP response has no ILP method', async () => {
+        mockRemotePaymentIntentService.setIncomingPaymentResponse({
+          id: 'abc',
+          completed: false,
+          walletAddress: 'remote.domain.com/alice',
+          createdAt: new Date().toISOString(),
+          receivedAmount: {
+            value: '0',
+            assetCode: 'USD',
+            assetScale: 2
+          },
+          methods: []
+        });
+
+        const cmd = makeCreateQuoteCmd({ remoteUrl: REMOTE_URL });
+        const { events } = await aggregate.handleBatch([cmd]);
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].msgName, QuoteCreateFailedEvent.name);
+        const payload = (events[0] as QuoteCreateFailedEvent).payload;
+        assert.match(payload.message, /sharedSecret/);
       });
     });
 
@@ -2404,15 +2437,13 @@ describe('PaymentIntentAggregate.handleBatch', () => {
       }
 
       beforeEach(() => {
-        mockRemotePaymentIntentService.fetchIncomingPayment = async () => ({
-          walletAddress: 'remote.domain.com/alice',
-          assetCode: 'USD',
-          assetScale: 2,
-          receivedAmount: 0n,
-          destinationIlpAddress: 'g.peer.fresh-token',
-          expiresAt: new Date(Date.now() + 60_000).toISOString(),
-          sharedSecret: 'fresh-per-prepare-secret'
-        });
+        mockRemotePaymentIntentService.setIncomingPaymentResponse(
+          toIncomingPaymentWithMethods({
+            walletAddress: 'remote.domain.com/alice',
+            ilpAddress: 'g.peer.fresh-token',
+            sharedSecret: 'fresh-per-prepare-secret'
+          })
+        );
       });
 
       it('transitions PROCESSING to SENDING, persists ledgerTransferId, and emits RemotePaymentPreparedEvent', async () => {
@@ -3398,15 +3429,14 @@ describe('PaymentIntentAggregate.handleBatch', () => {
 
     it('stores a remote payment intent created during quote', async () => {
       const REMOTE_URL = 'https://remote.domain.com/incoming-payments/abc';
-      mockRemotePaymentIntentService.fetchIncomingPayment = async () => ({
-        walletAddress: 'remote.domain.com/alice',
-        assetCode: 'USD',
-        assetScale: 2,
-        receivedAmount: 0n,
-        destinationIlpAddress: 'g.peer.123',
-        expiresAt: new Date(Date.now() + 60_000).toISOString(),
-        sharedSecret: 'stub-shared-secret'
-      });
+      mockRemotePaymentIntentService.setIncomingPaymentResponse(
+        toIncomingPaymentWithMethods({
+          id: 'abc',
+          walletAddress: 'remote.domain.com/alice',
+          ilpAddress: 'g.peer.123',
+          sharedSecret: 'stub-shared-secret'
+        })
+      );
 
       const cmd = makeCreateQuoteCmd({ remoteUrl: REMOTE_URL });
       await aggregate.handleBatch([cmd]);
@@ -3417,6 +3447,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
       assert.equal(stored[0].id, cmd.payload.paymentIntentId);
       assert.equal(stored[0].destination, 'REMOTE');
       assert.equal(stored[0].remoteUrl, REMOTE_URL);
+      assert.equal(stored[0].destinationIlpAddress, 'g.peer.123');
     });
 
     it('stores quotes for a payment intent', async () => {
