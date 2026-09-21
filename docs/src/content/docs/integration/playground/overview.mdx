@@ -129,19 +129,19 @@ The **Remote Payment** collection walks through a complete ILP payment between t
       participant Receiver as Receiver (Node B)
       participant Sender as Sender (Node A)
 
-          Bruno->>Receiver: POST /payment-intents
-          Receiver-->>Bruno: 201 Created
+                Bruno->>Receiver: POST /payment-intents
+                Receiver-->>Bruno: 201 Created
 
-          Bruno->>Sender: POST /quotes
-          Sender-->>Bruno: 201 Created
+                Bruno->>Sender: POST /quotes
+                Sender-->>Bruno: 201 Created
 
-          Bruno->>Sender: POST /payments
-          Sender-->>Bruno: 201 Created
+                Bruno->>Sender: POST /payments
+                Sender-->>Bruno: 201 Created
 
-          Note over Sender,Receiver: Payment sent<br/>over ILP
+                Note over Sender,Receiver: Payment sent<br/>over ILP
 
-  `}
-  />
+      `}
+      />
 
   </details>
 
