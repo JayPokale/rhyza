@@ -24,7 +24,9 @@ import {
   CancelPaymentRequest,
   CancelPaymentResponse,
   GetPaymentIntentRequest,
+  GetPaymentIntentResponse,
   GetPaymentRequest,
+  GetPaymentResponse,
   GetPaymentIntentsPageRequest,
   GetPaymentIntentsPageResponse,
   GetPaymentsPageRequest,
@@ -335,8 +337,8 @@ export class PaymentsServiceServer {
   }
 
   private async _handleGetPaymentIntent(
-    call: ServerUnaryCall<GetPaymentIntentRequest, PaymentIntent>,
-    callback: sendUnaryData<PaymentIntent>
+    call: ServerUnaryCall<GetPaymentIntentRequest, GetPaymentIntentResponse>,
+    callback: sendUnaryData<GetPaymentIntentResponse>
   ): Promise<void> {
     const id = call.request.getId();
     try {
@@ -349,15 +351,18 @@ export class PaymentsServiceServer {
         return;
       }
 
-      callback(null, this._toPbPaymentIntent(paymentIntent));
+      const response = new GetPaymentIntentResponse();
+      response.setPaymentIntent(this._toPbPaymentIntent(paymentIntent));
+
+      callback(null, response);
     } catch (err) {
       callback({ code: grpc.status.INTERNAL, message: (err as Error).message });
     }
   }
 
   private async _handleGetPayment(
-    call: ServerUnaryCall<GetPaymentRequest, Payment>,
-    callback: sendUnaryData<Payment>
+    call: ServerUnaryCall<GetPaymentRequest, GetPaymentResponse>,
+    callback: sendUnaryData<GetPaymentResponse>
   ): Promise<void> {
     const paymentIntentId = call.request.getPaymentIntentId();
     const paymentId = call.request.getId();
@@ -385,7 +390,10 @@ export class PaymentsServiceServer {
         return;
       }
 
-      callback(null, this._toPbPayment(payment, paymentIntent));
+      const response = new GetPaymentResponse();
+      response.setPayment(this._toPbPayment(payment, paymentIntent));
+
+      callback(null, response);
     } catch (err) {
       callback({ code: grpc.status.INTERNAL, message: (err as Error).message });
     }

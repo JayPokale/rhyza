@@ -1,4 +1,4 @@
-# API Changelog 0.0.1 vs. 0.1.0
+# API Changelog 0.0.1 vs. 0.0.2
 
 
 ## API Changes
@@ -34,6 +34,11 @@
 ### GET /payments
 -  endpoint added
 
+
+
+
+## Info
+-  a breaking change was detected but the major version did not increase, from `0.0.1` to `0.0.2`
 
 # API Changelog 0.0.0 vs. 0.0.1
 

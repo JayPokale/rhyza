@@ -15,7 +15,9 @@ import {
   ApprovePaymentRequest as PbApprovePaymentRequest,
   ApprovePaymentResponse as PbApprovePaymentResponse,
   GetPaymentIntentRequest as PbGetPaymentIntentRequest,
+  GetPaymentIntentResponse as PbGetPaymentIntentResponse,
   GetPaymentRequest as PbGetPaymentRequest,
+  GetPaymentResponse as PbGetPaymentResponse,
   GetPaymentIntentsPageRequest as PbGetPaymentIntentsPageRequest,
   GetPaymentsPageRequest as PbGetPaymentsPageRequest,
   Amount as PbAmount,
@@ -329,13 +331,23 @@ export class PaymentsClient {
     return new Promise((resolve, reject) => {
       this._grpcClient.getPaymentIntent(
         request,
-        (error: ServiceError | null, response: PbPaymentIntent) => {
+        (error: ServiceError | null, response: PbGetPaymentIntentResponse) => {
           if (error) {
             console.error(error);
             return reject(error);
           }
 
-          return resolve(PaymentsClient._paymentIntentFromPb(response));
+          const paymentIntent = response.getPaymentIntent();
+          if (!paymentIntent) {
+            return reject(
+              createServiceError(
+                status.INTERNAL,
+                'Response missing payment intent'
+              )
+            );
+          }
+
+          return resolve(PaymentsClient._paymentIntentFromPb(paymentIntent));
         }
       );
     });
@@ -352,13 +364,20 @@ export class PaymentsClient {
     return new Promise((resolve, reject) => {
       this._grpcClient.getPayment(
         request,
-        (error: ServiceError | null, response: PbPayment) => {
+        (error: ServiceError | null, response: PbGetPaymentResponse) => {
           if (error) {
             console.error(error);
             return reject(error);
           }
 
-          return resolve(PaymentsClient._paymentFromPb(response));
+          const payment = response.getPayment();
+          if (!payment) {
+            return reject(
+              createServiceError(status.INTERNAL, 'Response missing payment')
+            );
+          }
+
+          return resolve(PaymentsClient._paymentFromPb(payment));
         }
       );
     });
