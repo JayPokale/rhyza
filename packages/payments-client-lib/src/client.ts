@@ -215,6 +215,7 @@ export class PaymentsClient {
             senderWalletAddress: response.getSenderWalletAddress(),
             senderWalletAddressId: response.getSenderWalletAddressId(),
             expiresAt: response.getExpiresAt(),
+            createdAt: response.getCreatedAt(),
             debitAmount: BigInt(response.getDebitAmount()),
             receiveAmount: BigInt(response.getReceiveAmount()),
             exchangeRate: response.getExchangeRate()

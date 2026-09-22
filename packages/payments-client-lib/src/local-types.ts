@@ -24,6 +24,7 @@ export interface CreateQuoteResult {
   senderWalletAddress: string;
   senderWalletAddressId: string;
   expiresAt: string;
+  createdAt: string;
   debitAmount: bigint;
   receiveAmount: bigint;
   exchangeRate: number;

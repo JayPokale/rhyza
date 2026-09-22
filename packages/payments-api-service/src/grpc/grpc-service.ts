@@ -552,6 +552,7 @@ export class PaymentsServiceServer {
         .setSenderWalletAddress(evt.payload.senderWalletAddress)
         .setSenderWalletAddressId(evt.payload.senderWalletAddressId)
         .setExpiresAt(evt.payload.expiresAt)
+        .setCreatedAt(evt.payload.createdAt)
         .setDebitAmount(Number(evt.payload.debitAmount))
         .setReceiveAmount(Number(evt.payload.receiveAmount))
         .setExchangeRate(evt.payload.exchangeRate);

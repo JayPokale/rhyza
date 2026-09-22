@@ -507,6 +507,8 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         const completedPayload = (events[0] as QuoteCompletedEvent).payload;
         assert.equal(completedPayload.id, cmd.payload.id);
         assert.equal(completedPayload.paymentIntentId, paymentIntent.id);
+        assert.ok(completedPayload.createdAt);
+        assert.ok(!Number.isNaN(Date.parse(completedPayload.createdAt)));
       });
 
       it('emits RemoteQuoteRequestedEvent for remote payment intent', async () => {
@@ -614,6 +616,8 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         const payload = (events[0] as QuoteCompletedEvent).payload;
         assert.equal(payload.id, quoteId);
         assert.equal(payload.paymentIntentId, paymentIntent.id);
+        assert.ok(payload.createdAt);
+        assert.ok(!Number.isNaN(Date.parse(payload.createdAt)));
       });
 
       it('fails when payment intent not found', async () => {
@@ -707,6 +711,8 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           assert.equal(payload.debitAmount, '1000');
           assert.equal(payload.receiveAmount, '90000');
           assert.equal(payload.exchangeRate, 90);
+          assert.ok(payload.createdAt);
+          assert.ok(!Number.isNaN(Date.parse(payload.createdAt)));
         });
 
         it('fails with RatesError when FX rate is unavailable', async () => {

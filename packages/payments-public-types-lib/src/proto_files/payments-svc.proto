@@ -82,9 +82,10 @@ message CreateQuoteResponse {
   string sender_wallet_address = 3;
   string sender_wallet_address_id = 4;
   string expires_at = 5;
-  uint64 debit_amount = 6;
-  uint64 receive_amount = 7;
-  double exchange_rate = 8;
+  string created_at = 6;
+  uint64 debit_amount = 7;
+  uint64 receive_amount = 8;
+  double exchange_rate = 9;
 }
 
 /*

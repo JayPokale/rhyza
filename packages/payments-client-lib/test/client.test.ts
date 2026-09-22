@@ -225,6 +225,9 @@ describe('Payments Client', () => {
       assert.equal(result.receiveAmount, created.receiveAmount);
       assert.equal(result.exchangeRate, created.exchangeRate);
       assert.equal(result.expiresAt, created.expiresAt);
+      assert.ok(created.createdAt);
+      assert.ok(!Number.isNaN(Date.parse(created.createdAt)));
+      assert.equal(result.createdAt, created.createdAt);
       assert.ok(result.createdAt);
       assert.ok(!Number.isNaN(Date.parse(result.createdAt)));
       assert.equal(result.errorName, undefined);
@@ -325,6 +328,8 @@ describe('Payments Client', () => {
 
       assert.ok(result);
       assert.equal(result.id, quoteId);
+      assert.ok(result.createdAt);
+      assert.ok(!Number.isNaN(Date.parse(result.createdAt)));
     });
 
     test('create quote with receiveAmount', async () => {
@@ -341,6 +346,8 @@ describe('Payments Client', () => {
 
       assert.ok(result);
       assert.equal(result.id, quoteId);
+      assert.ok(result.createdAt);
+      assert.ok(!Number.isNaN(Date.parse(result.createdAt)));
     });
 
     test('create quote using incomingAmount', async () => {
@@ -355,6 +362,8 @@ describe('Payments Client', () => {
 
       assert.ok(result);
       assert.equal(result.id, quoteId);
+      assert.ok(result.createdAt);
+      assert.ok(!Number.isNaN(Date.parse(result.createdAt)));
     });
 
     test('duplicate quote id is rejected', async () => {

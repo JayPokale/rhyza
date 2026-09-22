@@ -44,45 +44,22 @@ export async function quoteRoutes(
         );
       }
 
-      // get receiver wallet address from payment intent
       const paymentIntent =
         await paymentsClient.getPaymentIntent(paymentIntentId);
 
-      const { domain, pathName } = parseAddressToDomainAndPathName(
-        paymentIntent.receiverWalletAddress
-      );
-
-      const receiverWalletAlias = await palClient.ResolveWalletAddressAlias(
-        domain,
-        pathName
-      );
-
-      if (!receiverWalletAlias) {
-        throw new OpenPaymentsResourceServerRouteError(
-          400,
-          'Receiver wallet address not found',
-          'not_found'
-        );
-      }
-
-      // get sender and receiver wallet addresses
+      // get sender wallet address for debit amount asset
       const walletAddresses = await palClient.getWalletAddresses([
-        quote.senderWalletAddressId,
-        receiverWalletAlias.walletAddressId
+        quote.senderWalletAddressId
       ]);
 
       const senderWallet = walletAddresses.find(
         (wallet) => wallet.id === quote.senderWalletAddressId
       );
 
-      const receiverWallet = walletAddresses.find(
-        (wallet) => wallet.id === receiverWalletAlias.walletAddressId
-      );
-
-      if (!senderWallet || !receiverWallet) {
+      if (!senderWallet) {
         throw new OpenPaymentsResourceServerRouteError(
           404,
-          `${!senderWallet ? 'Sender' : 'Receiver'} wallet address not found`,
+          'Sender wallet address not found',
           'not_found'
         );
       }
@@ -99,8 +76,8 @@ export async function quoteRoutes(
         },
         receiveAmount: {
           value: String(quote.receiveAmount),
-          assetCode: receiverWallet.assetCode,
-          assetScale: receiverWallet.assetScale
+          assetCode: paymentIntent.assetCode,
+          assetScale: paymentIntent.assetScale
         },
         method: 'ilp',
         createdAt: quote.createdAt,
@@ -125,6 +102,9 @@ export async function quoteRoutes(
 
   server.post<{
     Body: components['schemas']['create-quote-request'];
+    Reply:
+      | components['schemas']['quote']
+      | components['schemas']['error-response'];
   }>(
     '/quotes',
     {
@@ -202,9 +182,32 @@ export async function quoteRoutes(
           receiveAmountValue
         );
 
-        return reply.status(201).send({
-          id: encodeCompoundId(result.paymentIntentId, result.id)
-        });
+        const paymentIntent = await paymentsClient.getPaymentIntent(
+          result.paymentIntentId
+        );
+
+        const response: components['schemas']['quote'] = {
+          id: encodeCompoundId(result.paymentIntentId, result.id),
+          walletAddress: result.senderWalletAddress,
+          expiresAt: result.expiresAt,
+          debitAmount: {
+            value: String(result.debitAmount),
+            assetCode: walletAddress.assetCode,
+            assetScale: walletAddress.assetScale
+          },
+          receiveAmount: {
+            value: String(result.receiveAmount),
+            assetCode: paymentIntent.assetCode,
+            assetScale: paymentIntent.assetScale
+          },
+          method: 'ilp',
+          createdAt: result.createdAt,
+          receiver:
+            paymentIntent.remoteUrl ??
+            `${openPaymentsAuthServiceUrl}/incoming-payments/${result.paymentIntentId}`
+        };
+
+        return reply.status(201).send(response);
       } catch (err: unknown) {
         if (err instanceof OpenPaymentsResourceServerRouteError) {
           return reply.status(err.status).send({
