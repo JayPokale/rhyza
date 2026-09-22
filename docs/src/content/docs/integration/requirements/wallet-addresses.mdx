@@ -38,12 +38,13 @@ Ensure the script calls the `POST /wallet-addresses` endpoint of the Admin API.
       "publicName": "Sarah Marshall"
     }
     ```
-    We strongly recommend storing at least the `address` in an internal database to be able to reference the account and wallet address later.
+    Store both `id` and `address`. Use `id` for wallet-entity Admin operations such as key registration, and `address` for payments, quotes, and payment intents.
 
   </TabItem>
   <TabItem label="Response">
     ```json
     {
+      "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
       "address": "example.wallet.com/sarah"
     }
     ```

@@ -12,12 +12,16 @@ import { ReflectionService } from '@grpc/reflection';
 import {
   AssetAggregate,
   AssetNotFoundError,
+  DuplicateWalletAddressKeyError,
   FxAggregate,
   ILedgerReadSideRepository,
+  InvalidWalletAddressJwkError,
   PeerAggregate,
   PeerNotFoundError,
   WalletAddressAggregate,
-  WalletAddressAliasNotFoundError
+  WalletAddressAliasNotFoundError,
+  WalletAddressKeyService,
+  WalletAddressNotFoundError
 } from 'pal-domain-lib';
 import {
   AssetActivatedEvent,
@@ -75,6 +79,7 @@ export class PalGrpcServer {
   private readonly _telemetryService: ITelemetryService;
   private readonly _assetAggregate: AssetAggregate;
   private readonly _walletAddressAggregate: WalletAddressAggregate;
+  private readonly _walletAddressKeyService: WalletAddressKeyService;
   private readonly _peerAggregate: PeerAggregate;
   private readonly _fxAggregate: FxAggregate;
 
@@ -106,6 +111,7 @@ export class PalGrpcServer {
     serverUrl: string,
     assetAggregate: AssetAggregate,
     walletAggregate: WalletAddressAggregate,
+    walletAddressKeyService: WalletAddressKeyService,
     peerAggregate: PeerAggregate,
     fxAggregate: FxAggregate,
     producer: IMessageProducer,
@@ -118,6 +124,7 @@ export class PalGrpcServer {
     this._instanceId = instanceId;
     this._assetAggregate = assetAggregate;
     this._walletAddressAggregate = walletAggregate;
+    this._walletAddressKeyService = walletAddressKeyService;
     this._peerAggregate = peerAggregate;
     this._fxAggregate = fxAggregate;
     this._msgProducer = producer;
@@ -164,6 +171,7 @@ export class PalGrpcServer {
 
     this._walletAddressGrpcHandler = new WalletAddressGrpcHandler(
       this._walletAddressAggregate,
+      this._walletAddressKeyService,
       this._assetAggregate,
       this._logger,
       this._telemetryService
@@ -223,6 +231,8 @@ export class PalGrpcServer {
       getAsset: this._handleUnary.bind(this),
       createWalletAddress: this._handleUnary.bind(this),
       getWalletAddresses: this._handleUnary.bind(this),
+      addWalletAddressKey: this._handleUnary.bind(this),
+      getWalletAddressKeys: this._handleUnary.bind(this),
       resolveWalletAddressAlias: this._handleUnary.bind(this),
       createWalletAddressAlias: this._handleUnary.bind(this),
       createLedger: this._handleUnary.bind(this),
@@ -327,6 +337,18 @@ export class PalGrpcServer {
     this._requestHandlerRegistry.register(
       PalGrpcService.createWalletAddressAlias,
       this._walletAddressGrpcHandler.handleCreateWalletAddressAliasRequest.bind(
+        this._walletAddressGrpcHandler
+      )
+    );
+    this._requestHandlerRegistry.register(
+      PalGrpcService.addWalletAddressKey,
+      this._walletAddressGrpcHandler.handleAddWalletAddressKeyRequest.bind(
+        this._walletAddressGrpcHandler
+      )
+    );
+    this._requestHandlerRegistry.register(
+      PalGrpcService.getWalletAddressKeys,
+      this._walletAddressGrpcHandler.handleGetWalletAddressKeysRequest.bind(
         this._walletAddressGrpcHandler
       )
     );
@@ -517,11 +539,22 @@ export class PalGrpcServer {
       if (
         err instanceof PeerNotFoundError ||
         err instanceof AssetNotFoundError ||
-        err instanceof WalletAddressAliasNotFoundError
+        err instanceof WalletAddressAliasNotFoundError ||
+        err instanceof WalletAddressNotFoundError
       ) {
         callback({
           code: grpc.status.NOT_FOUND,
           message: (err as Error).message
+        });
+      } else if (err instanceof DuplicateWalletAddressKeyError) {
+        callback({
+          code: grpc.status.ALREADY_EXISTS,
+          message: err.message
+        });
+      } else if (err instanceof InvalidWalletAddressJwkError) {
+        callback({
+          code: grpc.status.INVALID_ARGUMENT,
+          message: err.message
         });
       } else if (err instanceof Error) {
         callback({

@@ -19,6 +19,11 @@ import {
     ErrorResponseToJSON,
 } from '../models/ErrorResponse';
 import {
+    type JsonWebKey,
+    JsonWebKeyFromJSON,
+    JsonWebKeyToJSON,
+} from '../models/JsonWebKey';
+import {
     type WalletAddressCreate,
     WalletAddressCreateFromJSON,
     WalletAddressCreateToJSON,
@@ -28,9 +33,19 @@ import {
     WalletAddressCreateResponseFromJSON,
     WalletAddressCreateResponseToJSON,
 } from '../models/WalletAddressCreateResponse';
+import {
+    type WalletAddressKeyCreateResponse,
+    WalletAddressKeyCreateResponseFromJSON,
+    WalletAddressKeyCreateResponseToJSON,
+} from '../models/WalletAddressKeyCreateResponse';
 
 export interface CreateWalletAddressRequest {
     walletAddressCreate: WalletAddressCreate;
+}
+
+export interface CreateWalletAddressKeyRequest {
+    id: string;
+    jsonWebKey: JsonWebKey;
 }
 
 /**
@@ -84,6 +99,63 @@ export class WalletAddressesApi extends runtime.BaseAPI {
      */
     async createWalletAddress(walletAddressCreate: WalletAddressCreate, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<WalletAddressCreateResponse> {
         const response = await this.createWalletAddressRaw({ walletAddressCreate: walletAddressCreate }, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Creates request options for createWalletAddressKey without sending the request
+     */
+    async createWalletAddressKeyRequestOpts(requestParameters: CreateWalletAddressKeyRequest): Promise<runtime.RequestOpts> {
+        if (requestParameters['id'] == null) {
+            throw new runtime.RequiredError(
+                'id',
+                'Required parameter "id" was null or undefined when calling createWalletAddressKey().'
+            );
+        }
+
+        if (requestParameters['jsonWebKey'] == null) {
+            throw new runtime.RequiredError(
+                'jsonWebKey',
+                'Required parameter "jsonWebKey" was null or undefined when calling createWalletAddressKey().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+
+        let urlPath = `/wallet-addresses/{id}/keys`;
+        urlPath = urlPath.replace('{id}', encodeURIComponent(String(requestParameters['id'])));
+
+        return {
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: JsonWebKeyToJSON(requestParameters['jsonWebKey']),
+        };
+    }
+
+    /**
+     * Register a JWK for a wallet address. A wallet address can have multiple active keys. Use the PAL wallet address `id` returned from `POST /wallet-addresses`.
+     * Register Wallet Address Key
+     */
+    async createWalletAddressKeyRaw(requestParameters: CreateWalletAddressKeyRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<WalletAddressKeyCreateResponse>> {
+        const requestOptions = await this.createWalletAddressKeyRequestOpts(requestParameters);
+        const response = await this.request(requestOptions, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => WalletAddressKeyCreateResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Register a JWK for a wallet address. A wallet address can have multiple active keys. Use the PAL wallet address `id` returned from `POST /wallet-addresses`.
+     * Register Wallet Address Key
+     */
+    async createWalletAddressKey(id: string, jsonWebKey: JsonWebKey, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<WalletAddressKeyCreateResponse> {
+        const response = await this.createWalletAddressKeyRaw({ id: id, jsonWebKey: jsonWebKey }, initOverrides);
         return await response.value();
     }
 

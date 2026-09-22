@@ -13,6 +13,7 @@ models/AssetCreate.ts
 models/AssetCreateResponse.ts
 models/CancelPayment200Response.ts
 models/ErrorResponse.ts
+models/JsonWebKey.ts
 models/LiquidityDeposit202Response.ts
 models/LiquidityDepositRequest.ts
 models/PageInfo.ts
@@ -37,5 +38,6 @@ models/Quote.ts
 models/QuoteCreate.ts
 models/WalletAddressCreate.ts
 models/WalletAddressCreateResponse.ts
+models/WalletAddressKeyCreateResponse.ts
 models/index.ts
 runtime.ts

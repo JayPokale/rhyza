@@ -34,6 +34,14 @@
 
 - endpoint added
 
+### POST /wallet-addresses
+
+- added the required property `id` to the response with the `201` status
+
+### POST /wallet-addresses/{id}/keys
+
+- endpoint added
+
 ## Info
 
 - a breaking change was detected but the major version did not increase, from `0.0.1` to `0.0.2`

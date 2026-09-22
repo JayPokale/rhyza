@@ -6,6 +6,8 @@ import {
   IGetPeerFxRateFromSourceAsset,
   IGetPeerFxRateToDestinationAsset,
   PalClient,
+  PalClientDuplicateWalletAddressKeyError,
+  PalClientWalletAddressNotFoundError,
   parseAddressToDomainAndPathName
 } from '../src';
 import { IPalPeerDto } from 'pal-public-types-lib';
@@ -412,12 +414,15 @@ test('pal client - create wallet address', async () => {
   );
 
   assert.ok(createdWallet);
+  assert.ok(createdWallet.id);
   assert.equal(createdWallet.domain, ALIAS_DOMAIN);
   assert.equal(createdWallet.pathName, ALIAS_PATHNAME);
   assert.equal(createdWallet.publicName, PUBLIC_NAME);
   assert.equal(createdWallet.assetCode, ASSET_CODE);
   assert.equal(createdWallet.assetScale, ASSET_SCALE);
   assert.equal(createdWallet.isActive, true);
+
+  createdWalletAddressId = createdWallet.id;
 });
 
 // must run this here to resolve / get the internal wallet address id
@@ -523,6 +528,53 @@ test('pal client - resolve non existing wallet address alias without domain shou
   const address = await client.ResolveWalletAddressAlias(null, 'NON_EXISTING');
 
   assert.equal(address === null, true);
+});
+
+test('pal client - add wallet address key', async () => {
+  const keyId = await client.addWalletAddressKey(createdWalletAddressId, {
+    kid: `${testPrefix}_key-1`,
+    alg: 'EdDSA',
+    kty: 'OKP',
+    crv: 'Ed25519',
+    x: '11qYAYKxCrfVS_7TyWQHOg7hcvPapiMlrwIaaPcHURo'
+  });
+
+  assert.ok(keyId);
+  const keys = await client.getWalletAddressKeys(createdWalletAddressId);
+  assert.equal(keys.length, 1);
+  assert.equal(keys[0].id, keyId);
+  assert.equal(keys[0].walletAddressId, createdWalletAddressId);
+  assert.equal(keys[0].jwk.kid, `${testPrefix}_key-1`);
+});
+
+test('pal client - add duplicate wallet address key kid should fail', async () => {
+  try {
+    await client.addWalletAddressKey(createdWalletAddressId, {
+      kid: `${testPrefix}_key-1`,
+      alg: 'EdDSA',
+      kty: 'OKP',
+      crv: 'Ed25519',
+      x: '11qYAYKxCrfVS_7TyWQHOg7hcvPapiMlrwIaaPcHURo'
+    });
+    assert.fail();
+  } catch (e) {
+    assert.ok(e instanceof PalClientDuplicateWalletAddressKeyError);
+  }
+});
+
+test('pal client - add wallet address key for missing wallet should fail', async () => {
+  try {
+    await client.addWalletAddressKey('missing-wallet', {
+      kid: `${testPrefix}_missing`,
+      alg: 'EdDSA',
+      kty: 'OKP',
+      crv: 'Ed25519',
+      x: '11qYAYKxCrfVS_7TyWQHOg7hcvPapiMlrwIaaPcHURo'
+    });
+    assert.fail();
+  } catch (e) {
+    assert.ok(e instanceof PalClientWalletAddressNotFoundError);
+  }
 });
 
 /*

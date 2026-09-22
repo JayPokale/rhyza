@@ -1,20 +1,31 @@
 import { ILogger, ITelemetryService } from 'common-types-lib';
-import { AssetAggregate, WalletAddressAggregate } from 'pal-domain-lib';
+import {
+  AssetAggregate,
+  InvalidWalletAddressJwkError,
+  WalletAddressAggregate,
+  WalletAddressKeyService
+} from 'pal-domain-lib';
 import { ServerUnaryCall } from '@grpc/grpc-js';
 import { Status } from '@grpc/grpc-js/build/src/constants';
 import { UnaryResponse } from '../types';
 import { Empty } from 'google-protobuf/google/protobuf/empty_pb';
 
 import {
+  jsonWebKeyFromPb,
+  PbAddWalletAddressKeyRequest,
+  PbAddWalletAddressKeyResponse,
   PbCreateWalletAddressAliasRequest,
   PbCreateWalletAddressRequest,
   PbCreateWalletAddressResponse,
+  PbGetWalletAddressKeysRequest,
+  PbGetWalletAddressKeysResponse,
   PbGetWalletAddressesRequest,
   PbGetWalletAddressesResponse,
   PbResolveWalletAddressAliasRequest,
   PbResolveWalletAddressAliasResponse,
   PbResolveWalletAddressNonEmptyResponse,
-  PbSingleWalletAddressResponse
+  PbSingleWalletAddressResponse,
+  walletAddressKeyToPb
 } from 'pal-public-types-lib';
 
 /**
@@ -23,16 +34,19 @@ import {
 export class WalletAddressGrpcHandler {
   private readonly _logger: ILogger;
   private readonly _walletAddressAggregate: WalletAddressAggregate;
+  private readonly _walletAddressKeyService: WalletAddressKeyService;
   private readonly _assetAggregate: AssetAggregate;
   private readonly _telemetryService: ITelemetryService;
 
   constructor(
     walletAddressAggregate: WalletAddressAggregate,
+    walletAddressKeyService: WalletAddressKeyService,
     assetAggregate: AssetAggregate,
     logger: ILogger,
     telemetryService: ITelemetryService
   ) {
     this._walletAddressAggregate = walletAddressAggregate;
+    this._walletAddressKeyService = walletAddressKeyService;
     this._assetAggregate = assetAggregate;
     this._logger = logger;
     this._telemetryService = telemetryService;
@@ -67,7 +81,7 @@ export class WalletAddressGrpcHandler {
       ? call.request.getDomain() || null
       : null;
 
-    await this._walletAddressAggregate.createWalletAddress(
+    const id = await this._walletAddressAggregate.createWalletAddress(
       domain,
       call.request.getPathName(),
       call.request.getPublicName(),
@@ -77,6 +91,7 @@ export class WalletAddressGrpcHandler {
     );
 
     const response = new PbCreateWalletAddressResponse()
+      .setId(id)
       .setPathName(call.request.getPathName())
       .setPublicName(call.request.getPublicName())
       .setAssetCode(asset.code)
@@ -163,5 +178,39 @@ export class WalletAddressGrpcHandler {
     );
 
     return { resp: new Empty() };
+  }
+
+  async handleAddWalletAddressKeyRequest(
+    call: ServerUnaryCall<
+      PbAddWalletAddressKeyRequest,
+      PbAddWalletAddressKeyResponse
+    >
+  ): Promise<UnaryResponse<PbAddWalletAddressKeyResponse>> {
+    const pbJwk = call.request.getJwk();
+    if (!call.request.hasJwk() || !pbJwk) {
+      throw new InvalidWalletAddressJwkError('JWK is required');
+    }
+
+    const id = await this._walletAddressKeyService.addKey(
+      call.request.getWalletAddressId(),
+      jsonWebKeyFromPb(pbJwk)
+    );
+
+    return { resp: new PbAddWalletAddressKeyResponse().setId(id) };
+  }
+
+  async handleGetWalletAddressKeysRequest(
+    call: ServerUnaryCall<
+      PbGetWalletAddressKeysRequest,
+      PbGetWalletAddressKeysResponse
+    >
+  ): Promise<UnaryResponse<PbGetWalletAddressKeysResponse>> {
+    const keys = await this._walletAddressKeyService.getKeys(
+      call.request.getWalletAddressId()
+    );
+
+    const resp = new PbGetWalletAddressKeysResponse();
+    resp.setKeysList(keys.map(walletAddressKeyToPb));
+    return { resp };
   }
 }

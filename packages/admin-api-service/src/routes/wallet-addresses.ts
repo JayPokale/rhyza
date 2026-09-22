@@ -1,8 +1,14 @@
 'use strict';
 
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
-import { PalClient, parseAddressToDomainAndPathName } from 'pal-client-lib';
-import { WalletAddressCreate } from 'admin-client-lib';
+import {
+  PalClient,
+  PalClientDuplicateWalletAddressKeyError,
+  PalClientInvalidWalletAddressJwkError,
+  PalClientWalletAddressNotFoundError,
+  parseAddressToDomainAndPathName
+} from 'pal-client-lib';
+import { JsonWebKey, WalletAddressCreate } from 'admin-client-lib';
 
 interface WalletAddressRouteOptions extends FastifyPluginOptions {
   palClient: PalClient;
@@ -44,9 +50,34 @@ export async function walletAddressRoutes(
     }
 
     return reply.status(201).send({
+      id: result.id,
       address: result.domain
         ? `${result.domain}/${result.pathName}`
         : result.pathName
     });
+  });
+
+  server.post<{
+    Params: { id: string };
+    Body: JsonWebKey;
+  }>('/wallet-addresses/:id/keys', async (request, reply) => {
+    try {
+      const id = await palClient.addWalletAddressKey(
+        request.params.id,
+        request.body
+      );
+      return reply.status(201).send({ id });
+    } catch (err) {
+      if (err instanceof PalClientWalletAddressNotFoundError) {
+        return reply.status(404).send({ error: err.message });
+      }
+      if (err instanceof PalClientInvalidWalletAddressJwkError) {
+        return reply.status(400).send({ error: err.message });
+      }
+      if (err instanceof PalClientDuplicateWalletAddressKeyError) {
+        return reply.status(409).send({ error: err.message });
+      }
+      throw err;
+    }
   });
 }

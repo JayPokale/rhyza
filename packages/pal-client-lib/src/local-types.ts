@@ -1,5 +1,6 @@
 // for returned wallet address objects
 export interface IPalClientWalletAddress {
+  id: string;
   domain: string | null;
   pathName: string;
   publicName: string;
@@ -50,3 +51,8 @@ export class PalClientLedgerAccountCreationFailedError extends Error {}
 // peer errors
 export class PalClientPeerAlreadyExistsError extends Error {}
 export class PalClientPeerNotFoundError extends Error {}
+
+// wallet address key errors
+export class PalClientWalletAddressNotFoundError extends Error {}
+export class PalClientDuplicateWalletAddressKeyError extends Error {}
+export class PalClientInvalidWalletAddressJwkError extends Error {}

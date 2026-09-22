@@ -121,6 +121,55 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/WalletAddressCreate'
+  /wallet-addresses/{id}/keys:
+    post:
+      summary: Register Wallet Address Key
+      description: >-
+        Register a JWK for a wallet address. A wallet address can have multiple
+        active keys. Use the PAL wallet address `id` returned from
+        `POST /wallet-addresses`.
+      tags:
+        - wallet-addresses
+      operationId: createWalletAddressKey
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The PAL identifier of the wallet address.
+          schema:
+            type: string
+      requestBody:
+        description: Ed25519 public JWK to register for the wallet address.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JsonWebKey'
+      responses:
+        '201':
+          description: The request has succeeded and a wallet address key has been created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletAddressKeyCreateResponse'
+        '400':
+          description: The JWK is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Wallet address not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: A key with this kid already exists for the wallet address.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /payment-intents:
     get:
       summary: List Payment Intents
@@ -704,11 +753,63 @@ components:
       type: object
       description: Response schema after creating a wallet address.
       required:
+        - id
         - address
       properties:
+        id:
+          type: string
+          description: >-
+            The PAL identifier of the created wallet address. Use this for
+            wallet-entity Admin operations such as key registration.
         address:
           type: string
           description: The unique identifier (URL) of the created wallet address.
+    JsonWebKey:
+      type: object
+      description: A JWK representation of an Ed25519 public key.
+      required:
+        - kid
+        - alg
+        - kty
+        - crv
+        - x
+      properties:
+        kid:
+          type: string
+          description: Unique identifier for the key.
+        alg:
+          type: string
+          description: The cryptographic algorithm family used with the key.
+          enum:
+            - EdDSA
+        use:
+          type: string
+          description: The intended use of the key.
+          enum:
+            - sig
+        kty:
+          type: string
+          description: The key type.
+          enum:
+            - OKP
+        crv:
+          type: string
+          description: The cryptographic curve used with the key.
+          enum:
+            - Ed25519
+        x:
+          type: string
+          description: The base64url-encoded public key.
+          pattern: '^[A-Za-z0-9_-]+$'
+    WalletAddressKeyCreateResponse:
+      type: object
+      description: Response schema after registering a wallet address key.
+      required:
+        - id
+      properties:
+        id:
+          type: string
+          description: The unique identifier of the created wallet address key.
     PaymentIntentCreate:
       type: object
       description: Schema for creating a new payment intent.

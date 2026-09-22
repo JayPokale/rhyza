@@ -3,6 +3,7 @@ import {
   IPalAssetRepository,
   IPalWalletAddressRepository,
   WalletAddressAggregate,
+  WalletAddressKeyService,
   ILedgerReadSideRepository,
   PeerAggregate,
   IPalPeerRepository,
@@ -22,6 +23,7 @@ import {
   MongoDbFxRepo,
   MongoDbLedgerReadSideRepo,
   MongoDbPeerRepo,
+  MongoDbWalletAddressKeyRepo,
   MongoDbWalletRepo
 } from 'pal-implementations-lib';
 import {
@@ -257,6 +259,17 @@ export class PalApiService {
       this._logger
     );
 
+    const walletAddressKeyRepo = new MongoDbWalletAddressKeyRepo(
+      MONGO_URL,
+      logger
+    );
+    await walletAddressKeyRepo.init();
+    const walletAddressKeyService = new WalletAddressKeyService(
+      walletAddressKeyRepo,
+      this._walletRepo,
+      this._logger
+    );
+
     const peerAggregate = new PeerAggregate(this._peerRepo, this._logger);
 
     this._fxCacheExpiryService = new FxCacheExpiryService(
@@ -276,6 +289,7 @@ export class PalApiService {
       `0.0.0.0:${SVC_PORT}`,
       assetAggregate,
       walletAggregate,
+      walletAddressKeyService,
       peerAggregate,
       fxAggregate,
       this._producer,

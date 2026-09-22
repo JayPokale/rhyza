@@ -1,4 +1,7 @@
-import { IPalWalletAddressDto } from 'pal-public-types-lib';
+import {
+  IPalWalletAddressDto,
+  IPalWalletAddressKeyDto
+} from 'pal-public-types-lib';
 
 export interface IPalWalletAddressRepository {
   store(walletAddress: IPalWalletAddressDto): Promise<void>;
@@ -8,4 +11,11 @@ export interface IPalWalletAddressRepository {
     domain: string | null,
     pathName: string
   ): Promise<IPalWalletAddressDto | null>;
+}
+
+export interface IPalWalletAddressKeyRepository {
+  store(key: IPalWalletAddressKeyDto): Promise<void>;
+  fetchByWalletAddressId(
+    walletAddressId: string
+  ): Promise<IPalWalletAddressKeyDto[]>;
 }
