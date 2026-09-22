@@ -120,12 +120,13 @@ export interface IInteraction {
 
 export interface IGrant {
   id: string;
-  startMethods: IStartMethod[];
+  startMethods?: IStartMethod[];
   continueToken?: string;
   continueId?: string;
   lastContinuedAt?: Date;
   state: GrantState;
   client?: string | IJsonWebKey;
+  clientName?: string;
   subjectIds?: ISubjectId[];
   accesses?: IAccessItem[];
   finishNonce?: string;
@@ -174,6 +175,7 @@ export interface IAccessRequest {
 }
 
 export interface IWalletAddressService {
+  getWalletAddressPublicName(url: string): Promise<string | undefined>;
   getWalletAddressKeys(url: string): Promise<IJsonWebKey[]>;
 }
 
@@ -192,6 +194,11 @@ export interface IContinuedGrantUpdate {
   accessToken?: IAccessToken;
 }
 
+export interface IFinishedInteractiveGrantUpdate {
+  id: string;
+  state: GrantState;
+}
+
 export interface IRevokedGrantUpdate {
   id: string;
   state: GrantState;
@@ -201,6 +208,9 @@ export interface IGrantRepository {
   storeMany(grants: IGrant[]): Promise<void>;
   storeRotatedGrants(updates: IRotatedGrantUpdate[]): Promise<void>;
   storeContinuedGrants(grants: IContinuedGrantUpdate[]): Promise<void>;
+  storeFinishedInteractiveGrants(
+    grants: IFinishedInteractiveGrantUpdate[]
+  ): Promise<void>;
   storeRevokedGrants(grants: IRevokedGrantUpdate[]): Promise<void>;
   storeRevokedTokens(tokens: IAccessToken[]): Promise<void>;
   fetchById(id: string): Promise<IGrant | undefined>;

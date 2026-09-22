@@ -1,5 +1,10 @@
 import { DomainEventTopics, DomainEvent } from 'common-types-lib';
-import { GrantState, IAccessItem, ISubjectId } from './interfaces';
+import {
+  GrantState,
+  IAccessItem,
+  ISubjectId,
+  InteractionChoice
+} from './interfaces';
 
 const BOUNDED_CONTEXT_NAME = 'auth';
 const AGGREGATE_NAME = 'grant';
@@ -280,6 +285,8 @@ export class TokenRotationFailedEvent extends AuthDomainEvent {
 export interface GrantInteractionStartedPayload {
   id: string;
   nonce: string;
+  clientUri: string;
+  clientName: string;
 }
 
 export class GrantInteractionStartedEvent extends AuthDomainEvent {
@@ -344,6 +351,7 @@ export interface GrantInteractionFinishedPayload {
   interactNonce: string;
   clientNonce: string;
   interactRef: string;
+  clientFinishUri?: string;
 }
 
 export class GrantInteractionFinishedEvent extends AuthDomainEvent {
@@ -373,7 +381,7 @@ export class GrantInteractionFinishFailedEvent extends AuthDomainEvent {
 
 export interface GrantInteractionChoiceHandledPayload {
   id: string;
-  interactRef?: string;
+  choice: InteractionChoice;
 }
 
 export class GrantInteractionChoiceHandledEvent extends AuthDomainEvent {
