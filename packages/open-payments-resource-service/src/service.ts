@@ -98,7 +98,7 @@ export class OpenPaymentsResourceServer {
     this.server.register(outgoingPaymentRoutes, {
       palClient: this.palClient,
       paymentsClient: this.paymentsClient,
-      openPaymentsUrl: OPEN_PAYMENTS_RESOURCE_SERVER_URL
+      openPaymentsUrl: OPEN_PAYMENTS_RESOURCE_SERVICE_URL
     });
 
     this.server.register(quoteRoutes, {
