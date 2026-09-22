@@ -1,0 +1,75 @@
+name: Version hierarchy image pusher
+description: Pushes a per-arch image to GHCR and, for official releases, retags it under major and minor parent versions.
+
+inputs:
+  app_name:
+    description: The name of the application.
+    required: true
+  package:
+    required: true
+    description: Package we are building, for example, admin-api-service.
+  platform_name:
+    required: true
+    description: Platform we are building for, for example, amd64 or arm64.
+  gh_token:
+    description: GitHub token to use for authentication.
+    required: true
+  version:
+    required: true
+    description: Version we are tagging as, for example v1.2.3 or v1.2.3-rc1
+  tag_parents:
+    description: If true, also push major and minor alias tags. Use only for release/v* publishes.
+    required: false
+    default: 'false'
+  has_hierarchy:
+    description: Whether this version has a parent hierarchy. Computed once in the release workflow.
+    required: false
+    default: 'false'
+  major_parent:
+    description: The major parent tag (e.g. v1 or v1-rc1).
+    required: false
+    default: ''
+  minor_parent:
+    description: The minor parent tag (e.g. v1.2 or v1.2-rc1).
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Fetch docker image from cache
+      uses: actions/cache/restore@v4
+      with:
+        path: /tmp/${{ github.sha }}-${{ inputs.package }}-${{ inputs.platform_name }}-${{ inputs.version }}.tar
+        key: ${{ github.sha }}-${{ inputs.package }}-${{ inputs.platform_name }}-${{ inputs.version }}
+        fail-on-cache-miss: true
+    - name: Login to GHCR
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.repository_owner }}
+        password: ${{ inputs.gh_token }}
+    - name: Load image into Docker
+      shell: bash
+      env:
+        IMAGE_TAR: /tmp/${{ github.sha }}-${{ inputs.package }}-${{ inputs.platform_name }}-${{ inputs.version }}.tar
+      run: docker load --input "$IMAGE_TAR"
+    - name: List docker images
+      shell: bash
+      run: docker images
+    - name: Push to registry
+      shell: bash
+      env:
+        IMAGE: ghcr.io/${{ github.repository_owner }}/${{ inputs.app_name }}-${{ inputs.package }}-${{ inputs.platform_name }}:${{ inputs.version }}
+      run: bash "${GITHUB_WORKSPACE}/.github/scripts/docker-push-retry.sh" "$IMAGE"
+    - name: Tag and push parent versions
+      shell: bash
+      if: ${{ inputs.tag_parents == 'true' && inputs.has_hierarchy == 'true' }}
+      env:
+        IMAGE: ghcr.io/${{ github.repository_owner }}/${{ inputs.app_name }}-${{ inputs.package }}-${{ inputs.platform_name }}:${{ inputs.version }}
+        MAJOR: ghcr.io/${{ github.repository_owner }}/${{ inputs.app_name }}-${{ inputs.package }}-${{ inputs.platform_name }}:${{ inputs.major_parent }}
+        MINOR: ghcr.io/${{ github.repository_owner }}/${{ inputs.app_name }}-${{ inputs.package }}-${{ inputs.platform_name }}:${{ inputs.minor_parent }}
+      run: |
+        docker tag "$IMAGE" "$MAJOR"
+        docker tag "$IMAGE" "$MINOR"
+        bash "${GITHUB_WORKSPACE}/.github/scripts/docker-push-retry.sh" "$MAJOR" "$MINOR"

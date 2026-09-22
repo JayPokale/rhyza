@@ -24,6 +24,7 @@ export interface IBaseQuote {
   state: QuoteState;
   senderWalletAddress: string;
   senderWalletAddressId: string;
+  createdAt: Date;
 }
 
 export interface IPendingQuote extends IBaseQuote {

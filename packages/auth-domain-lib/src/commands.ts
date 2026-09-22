@@ -81,7 +81,8 @@ export class CreateGrantCmd extends AuthCmd {
   }
 }
 
-export interface RevokeGrantCmdPayload {
+export interface RevokeGrantCmdPayload
+  extends Omit<SignedCommandPayload, 'client'> {
   id: string;
   continueId: string;
   continueToken: string;
@@ -173,10 +174,28 @@ export class StartInteractionCmd extends AuthCmd {
   }
 }
 
-export interface HandleInteractionChoiceCmdPayload {
+export interface FinishInteractionCmdPayload {
   id: string;
   nonce: string;
-  interactRef?: string;
+}
+
+export class FinishInteractionCmd extends CommandMsg {
+  contextName: string = BOUNDED_CONTEXT_NAME;
+  aggregateName: string = GRANT_AGGREGATE_NAME;
+  msgKey: string;
+  msgTopic: string = CommandTopics.AuthCommands;
+  payload: FinishInteractionCmdPayload;
+
+  constructor(payload: FinishInteractionCmdPayload, requestId: string) {
+    super(payload.id);
+    this.requestId = requestId;
+    this.msgKey = payload.id;
+    this.payload = payload;
+  }
+}
+
+export interface HandleInteractionChoiceCmdPayload {
+  id: string;
 }
 
 class HandleInteractionChoiceCmd extends AuthCmd {
@@ -189,5 +208,5 @@ class HandleInteractionChoiceCmd extends AuthCmd {
   }
 }
 
-export class AcceptInteractionCommand extends HandleInteractionChoiceCmd {}
-export class RejectInteractionCommand extends HandleInteractionChoiceCmd {}
+export class AcceptInteractionCmd extends HandleInteractionChoiceCmd {}
+export class RejectInteractionCmd extends HandleInteractionChoiceCmd {}

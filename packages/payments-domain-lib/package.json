@@ -14,6 +14,7 @@
     "payments-public-types-lib": "workspace:*"
   },
   "devDependencies": {
+    "open-payments-resource-service": "workspace:*",
     "tsx": "^4.19.3"
   }
 }

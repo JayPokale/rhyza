@@ -8,6 +8,8 @@ import {
   CompletePaymentIntentRequest as PbCompletePaymentIntentRequest,
   CompletePaymentIntentResponse as PbCompletePaymentIntentResponse,
   PaymentsGrpcClient,
+  GetQuoteRequest as PbGetQuoteRequest,
+  GetQuoteResponse as PbGetQuoteResponse,
   CreateQuoteRequest as PbCreateQuoteRequest,
   CreateQuoteResponse as PbCreateQuoteResponse,
   CreatePaymentRequest as PbCreatePaymentRequest,
@@ -30,12 +32,13 @@ import {
 import {
   ApprovePaymentResult,
   CancelPaymentResult,
-  CompletePaymentIntentResult,
   CreatePaymentIntentResult,
+  CompletePaymentIntentResult,
   CreatePaymentResult,
   CreateQuoteResult,
   GetPaymentIntentResult,
   GetPaymentResult,
+  GetQuoteResult,
   IAmount,
   IPage,
   IPageQuery,
@@ -150,9 +153,20 @@ export class PaymentsClient {
             return reject(error);
           }
 
+          const incomingAmount = response.getIncomingAmount();
+          const expiresAt = response.getExpiresAt();
+
           return resolve({
             id: response.getId(),
-            state: response.getState()
+            receiverWalletAddress: response.getReceiverWalletAddress(),
+            state: response.getState(),
+            destination: response.getDestination(),
+            receivedAmount: BigInt(response.getReceivedAmount()),
+            assetCode: response.getAssetCode(),
+            assetScale: response.getAssetScale(),
+            incomingAmount: incomingAmount ? BigInt(incomingAmount) : undefined,
+            expiresAt: expiresAt || undefined,
+            createdAt: response.getCreatedAt()
           });
         }
       );
@@ -221,6 +235,7 @@ export class PaymentsClient {
             senderWalletAddress: response.getSenderWalletAddress(),
             senderWalletAddressId: response.getSenderWalletAddressId(),
             expiresAt: response.getExpiresAt(),
+            createdAt: response.getCreatedAt(),
             debitAmount: BigInt(response.getDebitAmount()),
             receiveAmount: BigInt(response.getReceiveAmount()),
             exchangeRate: response.getExchangeRate()
@@ -348,6 +363,55 @@ export class PaymentsClient {
           }
 
           return resolve(PaymentsClient._paymentIntentFromPb(paymentIntent));
+        }
+      );
+    });
+  }
+
+  async getQuote(paymentIntentId: string, id: string): Promise<GetQuoteResult> {
+    const request = new PbGetQuoteRequest();
+    request.setPaymentIntentId(paymentIntentId);
+    request.setId(id);
+
+    return new Promise((resolve, reject) => {
+      this._grpcClient.getQuote(
+        request,
+        (error: ServiceError | null, response: PbGetQuoteResponse) => {
+          if (error) {
+            console.error(error);
+            return reject(error);
+          }
+
+          return resolve({
+            id: response.getId(),
+            paymentIntentId: response.getPaymentIntentId(),
+            state: response.getState(),
+            senderWalletAddress: response.getSenderWalletAddress(),
+            senderWalletAddressId: response.getSenderWalletAddressId(),
+            createdAt: response.getCreatedAt(),
+            expiresAt: response.hasExpiresAt()
+              ? response.getExpiresAt()
+              : undefined,
+            debitAmount: response.hasDebitAmount()
+              ? BigInt(response.getDebitAmount()!)
+              : undefined,
+            receiveAmount: response.hasReceiveAmount()
+              ? BigInt(response.getReceiveAmount()!)
+              : undefined,
+            exchangeRate: response.hasExchangeRate()
+              ? response.getExchangeRate()
+              : undefined,
+            sourceAmount: response.hasSourceAmount()
+              ? BigInt(response.getSourceAmount()!)
+              : undefined,
+            senderAssetCode: response.hasSenderAssetCode()
+              ? response.getSenderAssetCode()
+              : undefined,
+            errorName: response.hasErrorName()
+              ? response.getErrorName()
+              : undefined,
+            message: response.hasMessage() ? response.getMessage() : undefined
+          });
         }
       );
     });
@@ -533,7 +597,8 @@ export class PaymentsClient {
       incomingAmount: incomingAmount ? BigInt(incomingAmount) : undefined,
       expiresAt: expiresAt || undefined,
       destinationIlpAddress: destinationIlpAddress || undefined,
-      createdAt: response.getCreatedAt()
+      createdAt: response.getCreatedAt(),
+      remoteUrl: response.getRemoteUrl() || undefined
     };
   }
 
