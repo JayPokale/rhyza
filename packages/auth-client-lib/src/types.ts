@@ -57,9 +57,10 @@ export interface InteractionResult {
 
 export interface GetGrantResult {
   id: string;
-  startMethods: string[];
+  startMethods?: string[];
   continueToken: string;
   continueId: string;
+  interactionNonce: string;
   state: string;
   finalizationReason: string;
   client: string;
@@ -119,6 +120,8 @@ export interface RevokeTokenResult {
 export interface StartInteractionResult {
   id: string;
   nonce: string;
+  clientUri: string;
+  clientName: string;
 }
 
 export interface HandleInteractionChoiceResult {
@@ -130,4 +133,5 @@ export interface FinishInteractionResult {
   interactNonce: string;
   clientNonce: string;
   interactRef: string;
+  finishUri?: string;
 }

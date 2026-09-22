@@ -254,6 +254,7 @@ export type QuoteCompletedPayload = {
   senderWalletAddress: string;
   senderWalletAddressId: string;
   expiresAt: string;
+  createdAt: string;
   debitAmount: string;
   receiveAmount: string;
   exchangeRate: number;

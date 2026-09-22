@@ -55,17 +55,20 @@ class Quote implements IBaseQuote {
   private _id: string;
   private _senderWalletAddress: string;
   private _senderWalletAddressId: string;
+  private _createdAt: Date;
   private _data: QuoteData;
 
   private constructor(
     id: string,
     senderWalletAddress: string,
     senderWalletAddressId: string,
+    createdAt: Date,
     data: QuoteData
   ) {
     this._id = id;
     this._senderWalletAddress = senderWalletAddress;
     this._senderWalletAddressId = senderWalletAddressId;
+    this._createdAt = createdAt;
     this._data = data;
   }
 
@@ -81,24 +84,32 @@ class Quote implements IBaseQuote {
     debitAmount?: bigint,
     receiveAmount?: bigint
   ): Quote {
-    return new Quote(id, senderWalletAddress, senderWalletAddressId, {
-      state: 'PENDING',
-      peerId,
-      peerAssetCode,
-      peerAssetScale,
-      sourceAmount,
-      senderAssetCode,
-      debitAmount,
-      receiveAmount
-    });
+    return new Quote(
+      id,
+      senderWalletAddress,
+      senderWalletAddressId,
+      new Date(),
+      {
+        state: 'PENDING',
+        peerId,
+        peerAssetCode,
+        peerAssetScale,
+        sourceAmount,
+        senderAssetCode,
+        debitAmount,
+        receiveAmount
+      }
+    );
   }
 
   static fromObject(obj: IQuote): Quote {
+    const createdAt = obj.createdAt ?? new Date();
     if (obj.state === 'COMPLETED') {
       return new Quote(
         obj.id,
         obj.senderWalletAddress,
         obj.senderWalletAddressId,
+        createdAt,
         {
           state: 'COMPLETED',
           debitAmount: obj.debitAmount,
@@ -112,6 +123,7 @@ class Quote implements IBaseQuote {
         obj.id,
         obj.senderWalletAddress,
         obj.senderWalletAddressId,
+        createdAt,
         {
           state: 'FAILED',
           errorName: obj.errorName,
@@ -123,6 +135,7 @@ class Quote implements IBaseQuote {
         obj.id,
         obj.senderWalletAddress,
         obj.senderWalletAddressId,
+        createdAt,
         {
           state: 'PENDING',
           peerId: obj.peerId,
@@ -265,7 +278,8 @@ class Quote implements IBaseQuote {
     const base = {
       id: this._id,
       senderWalletAddress: this._senderWalletAddress,
-      senderWalletAddressId: this._senderWalletAddressId
+      senderWalletAddressId: this._senderWalletAddressId,
+      createdAt: this._createdAt
     };
     if (this._data.state === 'COMPLETED') {
       const { debitAmount, receiveAmount, exchangeRate, expiresAt } =
@@ -310,6 +324,10 @@ class Quote implements IBaseQuote {
 
   get senderWalletAddressId(): string {
     return this._senderWalletAddressId;
+  }
+
+  get createdAt(): Date {
+    return this._createdAt;
   }
 }
 

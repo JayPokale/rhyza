@@ -598,6 +598,7 @@ export class PaymentIntentAggregate {
             senderWalletAddress: completedQuote.senderWalletAddress,
             senderWalletAddressId: completedQuote.senderWalletAddressId,
             expiresAt: completedQuote.expiresAt.toISOString(),
+            createdAt: completedQuote.createdAt.toISOString(),
             debitAmount: String(completedQuote.debitAmount),
             receiveAmount: String(completedQuote.receiveAmount),
             exchangeRate: completedQuote.exchangeRate
@@ -878,6 +879,7 @@ export class PaymentIntentAggregate {
           senderWalletAddress: completedQuote.senderWalletAddress,
           senderWalletAddressId: completedQuote.senderWalletAddressId,
           expiresAt: completedQuote.expiresAt.toISOString(),
+          createdAt: completedQuote.createdAt.toISOString(),
           debitAmount: String(completedQuote.debitAmount),
           receiveAmount: String(completedQuote.receiveAmount),
           exchangeRate: completedQuote.exchangeRate

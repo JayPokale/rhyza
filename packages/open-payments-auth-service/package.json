@@ -13,6 +13,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@fastify/cookie": "^11.1.2",
+    "@fastify/session": "^11.1.2",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
     "auth-client-lib": "workspace:*",

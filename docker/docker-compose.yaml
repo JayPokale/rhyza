@@ -325,6 +325,22 @@ services:
     networks:
       - rafiki-v2
 
+  idp-interaction-service:
+    build:
+      context: ../
+      dockerfile: ./packages/idp-interaction-service/Dockerfile
+    restart: always
+    environment:
+      AUTH_GRPC_URL: auth-api-service:50054
+      IDP_SECRET: idp-secret
+    ports:
+      - '3004:3004'
+    depends_on:
+      auth-api-service:
+        condition: service_started
+    networks:
+      - rafiki-v2
+
   auth-command-handler-service:
     build:
       context: ../
