@@ -362,12 +362,9 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
             update: {
               $push: {
                 quotes: {
-                  $each: update.paymentIntent.quotes
-                    .filter((q) => update.quoteIds.includes(q.id))
-                    .map((q) => ({
-                      ...q,
-                      createdAt: q.createdAt ?? new Date()
-                    }))
+                  $each: update.paymentIntent.quotes.filter((q) =>
+                    update.quoteIds.includes(q.id)
+                  )
                 }
               }
             }
