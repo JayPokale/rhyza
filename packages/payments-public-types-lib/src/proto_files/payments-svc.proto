@@ -22,10 +22,10 @@ service PaymentsGrpc {
   rpc CancelPayment(CancelPaymentRequest) returns (CancelPaymentResponse);
 
   // Fetches a payment intent by ID.
-  rpc GetPaymentIntent(GetPaymentIntentRequest) returns (PaymentIntent);
+  rpc GetPaymentIntent(GetPaymentIntentRequest) returns (GetPaymentIntentResponse);
 
   // Fetches a payment by its parent intent ID and its own ID.
-  rpc GetPayment(GetPaymentRequest) returns (Payment);
+  rpc GetPayment(GetPaymentRequest) returns (GetPaymentResponse);
 
   // Fetches a keyset-paginated page of payment intents.
   rpc GetPaymentIntentsPage(GetPaymentIntentsPageRequest) returns (GetPaymentIntentsPageResponse);
@@ -185,10 +185,20 @@ message GetPaymentIntentRequest {
   string id = 1;
 }
 
+// Response containing the payment intent details.
+message GetPaymentIntentResponse {
+  PaymentIntent payment_intent = 1;
+}
+
 // Request to fetch a payment by its parent intent ID and its own ID.
 message GetPaymentRequest {
   string payment_intent_id = 1;
   string id = 2;
+}
+
+// Response containing the payment details.
+message GetPaymentResponse {
+  Payment payment = 1;
 }
 
 enum SortOrder {
