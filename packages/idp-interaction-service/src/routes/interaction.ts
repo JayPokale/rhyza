@@ -13,9 +13,9 @@ export async function interactionRoutes(
   const { authClient } = opts;
 
   server.get<{
-    Params: { id: string; nonce: string };
+    Params: { id: string };
   }>(
-    '/grant/:id/:nonce',
+    '/grant/:id',
     {
       onRequest: async (request, reply) => {
         verifyIdpSecret(request, reply);
@@ -41,7 +41,6 @@ export async function interactionRoutes(
 
   server.post<{
     Params: { grantId: string };
-    Body: { interactRef: string; nonce: string };
   }>(
     '/interaction/:grantId/accept',
     {
@@ -60,7 +59,6 @@ export async function interactionRoutes(
 
   server.post<{
     Params: { grantId: string };
-    Body: { nonce: string };
   }>(
     '/interaction/:grantId/reject',
     {

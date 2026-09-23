@@ -15,24 +15,17 @@ servers:
 security:
   - IdpSecretAuth: []
 paths:
-  /grant/{id}/{nonce}:
+  /grant/{id}:
     get:
       summary: Get Grant
       description: >-
-        Retrieves the grant associated with the given id and interaction
-        nonce.
+        Retrieves the grant associated with the given id.
       operationId: getGrant
       parameters:
         - name: id
           in: path
           required: true
           description: The grant id.
-          schema:
-            type: string
-        - name: nonce
-          in: path
-          required: true
-          description: The interaction nonce.
           schema:
             type: string
       responses:
@@ -56,12 +49,6 @@ paths:
           description: The grant id.
           schema:
             type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/AcceptInteractionRequest'
       responses:
         '202':
           description: The acceptance was recorded.
@@ -79,12 +66,6 @@ paths:
           description: The grant id.
           schema:
             type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/RejectInteractionRequest'
       responses:
         '202':
           description: The rejection was recorded.
@@ -192,22 +173,3 @@ components:
           type: string
         id:
           type: string
-    AcceptInteractionRequest:
-      type: object
-      required:
-        - nonce
-      properties:
-        interactRef:
-          type: string
-          description: The interaction reference issued when the interaction was started.
-        nonce:
-          type: string
-          description: The interaction nonce issued when the interaction was started.
-    RejectInteractionRequest:
-      type: object
-      required:
-        - nonce
-      properties:
-        nonce:
-          type: string
-          description: The interaction nonce issued when the interaction was started.
