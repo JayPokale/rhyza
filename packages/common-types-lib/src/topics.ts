@@ -16,7 +16,6 @@ export enum CommandTopics {
   'PaymentCommands' = 'payment-commands',
   'AuthCommands' = 'auth-commands',
   'LedgerCommands' = 'ledger-commands',
-  'AssetCommands' = 'asset-commands',
   'IlpCommands' = 'ilp-commands',
   'IlpConnectorCommands' = 'ilp-connector-commands',
   'NotificationCommands' = 'notification-commands'

@@ -70,7 +70,7 @@ export class InternalEventHandler {
   }
 
   private async _handleMessageBatch(messages: IMessage[]) {
-    this._logger.info(`Received batch of ${messages.length} messages`);
+    this._logger.debug(`Received batch of ${messages.length} messages`);
     // NOTE: we shouldn't log ignored events, they can be the majority
 
     this._telemetryService.updateGauge(BATCH_SIZE_GAUGE_NAME, messages.length);
