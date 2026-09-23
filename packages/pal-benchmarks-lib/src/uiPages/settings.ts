@@ -1,5 +1,6 @@
-import {  Form, Text, Textbox, Button } from '@unblessed/node';
+import { Form, Text, Textbox, Button } from '@unblessed/node';
 import {
+  createButton,
   getEditableTextBoxStyle,
   ISettingsData,
   UiPage
@@ -62,51 +63,11 @@ export class SettingsPage extends UiPage {
     );
 
     // Submit/Cancel buttons
-    this._submitBtn = new Button({
-      parent: this._containerBox,
-      name: 'submit',
-      content: 'Save',
-      bottom: 0,
-      right: 10,
-      shrink: true,
-      padding: {
-        top: 1,
-        right: 2,
-        bottom: 1,
-        left: 2
-      },
-      style: {
-        bold: true,
-        fg: 'white',
-        bg: 'green',
-        focus: {
-          inverse: true
-        }
-      }
-    });
+    this._submitBtn = this._createButton('Save', 'submit', 'gray', 'green');
+    this._submitBtn.right = 12;
 
-    this._cancelBtn = new Button({
-      parent: this._containerBox,
-      name: 'cancel',
-      content: 'Reset',
-      bottom: 0,
-      right: 0,
-      shrink: true,
-      padding: {
-        top: 1,
-        right: 2,
-        bottom: 1,
-        left: 2
-      },
-      style: {
-        bold: true,
-        fg: 'white',
-        bg: 'red',
-        focus: {
-          inverse: true
-        }
-      }
-    });
+    this._cancelBtn = this._createButton('Reset', 'cancel', 'white', 'red');
+    this._cancelBtn.right = 0;
   }
 
   protected _hookUiHandlers() {
@@ -141,6 +102,15 @@ export class SettingsPage extends UiPage {
     this._containerBox.render();
   }
 
+  private _createButton(
+    label: string,
+    fieldName: string,
+    fg: string,
+    bg: string
+  ): Button {
+    return createButton(this._containerBox, label, fieldName, fg, bg);
+  }
+
   private _createFormTextItem(
     label: string,
     fieldName: string,
@@ -169,4 +139,6 @@ export class SettingsPage extends UiPage {
     });
     return textBox;
   }
+
+  protected async _onReset(): Promise<void> {}
 }

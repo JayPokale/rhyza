@@ -580,9 +580,7 @@
                     "xaxis": {
                       "mode": "series",
                       "show": false,
-                      "values": [
-                        "current"
-                      ]
+                      "values": ["current"]
                     },
                     "yaxes": [
                       {
@@ -686,9 +684,7 @@
     "links": [],
     "liveNow": false,
     "preload": false,
-    "tags": [
-      "Kafka"
-    ],
+    "tags": ["Kafka"],
     "timeSettings": {
       "timezone": "browser",
       "from": "now-24h",

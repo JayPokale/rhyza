@@ -14,4 +14,4 @@ rules:
     name: 'jvm_gc_$2_total'
     type: COUNTER
     labels:
-      gc: "$1"
+      gc: '$1'

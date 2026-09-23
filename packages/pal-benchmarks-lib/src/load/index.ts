@@ -1,9 +1,7 @@
 import {
   CheckBalanceAndReserveTransferCmd,
-  CheckBalanceAndReserveTransferCmdPayload,
   CommitTransferCmd,
-  LedgerCommand,
-  ReserveTransferCmd
+  LedgerCommand
 } from 'pal-domain-lib';
 import {
   KafkaBuilder,
@@ -39,14 +37,9 @@ import {
   ILedgerAccountDto,
   IPalAssetDto,
   IPalPeerDto,
-  LedgerDomainEvent,
-  LedgerHighLevelSuccessResponseEventPayload,
-  LedgerOutgoingTransferCommittedEvent,
-  LedgerOutgoingTransferReservedEvent,
-  LedgerTransactionPostedEvent
+  LedgerDomainEvent
 } from 'pal-public-types-lib';
 import { EventEmitter } from 'node:events';
-import { randomUUID } from 'node:crypto';
 import { PalClient } from 'pal-client-lib';
 import { clearInterval } from 'node:timers';
 
@@ -67,9 +60,9 @@ const kafkaConsumerCommonOptions: KafkaConsumerOptions = {
 
 const RESPONSE_TOPICS_TO_LISTEN_TO = [DomainEventTopics.LedgerEvents];
 const RESPONSES_HISTOGRAM_NAME = 'LoadTestsResponses_histo';
-const ASSET_SCALE = 2;
 
 const SLIDING_WINDOW_SECS = 10; // "last X seconds for avg duration"
+const BALANCE_UPDATE_INTERVAL_SECS = 5;
 
 export interface IAccBalances {
   aseLiq?: string;
@@ -168,6 +161,10 @@ export class LoadTests extends EventEmitter<ILoadTestEvents> {
 
   public get isRunning(): boolean {
     return this._isRunning;
+  }
+
+  public get apiClient(): PalClient {
+    return this._apiClient;
   }
 
   public get perSecCount(): number {
@@ -312,16 +309,16 @@ export class LoadTests extends EventEmitter<ILoadTestEvents> {
     } else {
       this._log('Accounts found, skipping creation.');
     }
-
-    this._log('Requesting ASE deposit...');
-
-    await this._apiClient.ledgerDepositToAse({
-      requestId: randomUUID(),
-      assetCode: this._settings.assetCode,
-      peerId: this._settings.peerId,
-      amount: Number.MAX_SAFE_INTEGER.toString(),
-      amountScale: ASSET_SCALE
-    });
+    //
+    // this._log('Requesting ASE deposit...');
+    //
+    // await this._apiClient.ledgerDepositToAse({
+    //   requestId: randomUUID(),
+    //   assetCode: this._settings.assetCode,
+    //   peerId: this._settings.peerId,
+    //   amount: 0,
+    //   amountScale: ASSET_SCALE
+    // });
 
     const endTs = Date.now();
     this._log(`Setup - Created ledger and accounts in ${endTs - startTs}ms`);
@@ -369,6 +366,10 @@ export class LoadTests extends EventEmitter<ILoadTestEvents> {
       count: 0
     });
     this._currentBucketSec = null;
+  }
+
+  async updateAccountBalancesNow(): Promise<void> {
+    await this._updateAccountBalances();
   }
 
   private _stopCycle() {
@@ -427,8 +428,7 @@ export class LoadTests extends EventEmitter<ILoadTestEvents> {
       }
 
       // update balances from API every X seconds
-      const secs = 5;
-      if (new Date().getSeconds() % secs === 0) {
+      if (new Date().getSeconds() % BALANCE_UPDATE_INTERVAL_SECS === 0) {
         await this._updateAccountBalances();
       }
     }

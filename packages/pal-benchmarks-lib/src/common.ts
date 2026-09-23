@@ -1,15 +1,15 @@
-import { Screen, Box } from '@unblessed/node';
-import { LoadTests } from './load';
+import { Screen, Box, Button, Node } from '@unblessed/node';
 
 export const DEFAULT_ASSET_SCALE = 2;
 
 export interface IUiPage {
-  active:boolean;
+  active: boolean;
   deactivate(screen: Screen): Promise<void>;
   activate(screen: Screen): Promise<void>;
+  reset(): Promise<void>;
 }
 
-export function getEditableTextBoxStyle(){
+export function getEditableTextBoxStyle() {
   return {
     fg: 'black',
     bg: '#888',
@@ -20,6 +20,39 @@ export function getEditableTextBoxStyle(){
   };
 }
 
+export function createButton(
+  parent: Node | undefined,
+  label: string,
+  fieldName: string,
+  fg: string,
+  bg: string
+): Button {
+  return new Button({
+    parent: parent,
+    name: fieldName,
+    content: `{center}${label}{/center}`,
+    shrink: true,
+    mouse: true,
+    tags: true,
+    keys: true,
+    bottom: 0,
+    height: 3,
+    padding: {
+      right: 2,
+      left: 2
+    },
+    style: {
+      fg: fg,
+      bg: bg,
+      focus: {
+        bg: 'white',
+        fg: 'black'
+      }
+    },
+    border: { type: 'line' }
+  });
+}
+
 export interface ISettingsData {
   testIdPrefix: string;
   kafkaUrl: string;
@@ -27,7 +60,6 @@ export interface ISettingsData {
   peerId: string;
   disableConsoleLog: boolean;
 }
-
 
 export abstract class UiPage implements IUiPage {
   protected _data: ISettingsData;
@@ -42,6 +74,7 @@ export abstract class UiPage implements IUiPage {
 
   protected abstract _onActivated(): Promise<void>;
   protected abstract _onDeactivated(): Promise<void>;
+  protected abstract _onReset(): Promise<void>;
 
   protected abstract _createUiElements(): void;
   protected abstract _hookUiHandlers(): void;
@@ -67,14 +100,10 @@ export abstract class UiPage implements IUiPage {
     });
   }
 
-  // public static create<T extends UiPage>(
-  //   this: new (...args: any[]) => T,
-  //   ...args: ConstructorParameters<new (...args: any[]) => T>
-  // ): T {
-  public static create<
-    T extends UiPage,
-    C extends new (...args: any[]) => T
-  >(this: C, ...args: ConstructorParameters<C>): T {
+  public static create<T extends UiPage, C extends new (...args: never[]) => T>(
+    this: C,
+    ...args: ConstructorParameters<C>
+  ): T {
     const instance = new this(...args);
     instance._createUiElements();
     instance._hookUiHandlers();
@@ -90,14 +119,16 @@ export abstract class UiPage implements IUiPage {
   }
 
   async deactivate(screen: Screen): Promise<void> {
-    this._containerBox.detach();
     screen.remove(this._containerBox);
+    this._containerBox.detach();
 
     await this._onDeactivated();
 
     screen.render();
     this._active = false;
   }
+
+  async reset(): Promise<void> {
+    await this._onReset();
+  }
 }
-
-

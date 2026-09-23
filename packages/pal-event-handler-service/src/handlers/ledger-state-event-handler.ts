@@ -28,7 +28,7 @@ import { ILedgerDto } from 'pal-public-types-lib';
 import { clearInterval } from 'node:timers';
 
 // check every 5 mins
-const SNAPSHOT_NEEDED_CHECK_INTERVAL_MS = 5*60*1000;
+const SNAPSHOT_NEEDED_CHECK_INTERVAL_MS = 5 * 60 * 1000;
 
 export type LedgerStateEventHandlerConfigs = {
   maxStateEventsBetweenSnapshots: number;
@@ -370,7 +370,7 @@ export class LedgerStateEventHandler {
     }, snapshotCheckIntervalMs);
 
     this._logger.info(
-      `${this.constructor.name} initialized - snapshot check interval is: ${snapshotCheckIntervalMs/1000} secs`
+      `${this.constructor.name} initialized - snapshot check interval is: ${snapshotCheckIntervalMs / 1000} secs`
     );
   }
 

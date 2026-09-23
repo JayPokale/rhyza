@@ -87,7 +87,8 @@ const MAX_SECS_SINCE_LAST_SNAPSHOT = process.env['MAX_SECS_SINCE_LAST_SNAPSHOT']
 
 const KAFKA_LOW_LATENCY_BATCH_TIMEOUT_MS = process.env[
   'KAFKA_LOW_LATENCY_BATCH_TIMEOUT_MS'
-] ? parseInt(process.env['KAFKA_LOW_LATENCY_BATCH_TIMEOUT_MS'])
+]
+  ? parseInt(process.env['KAFKA_LOW_LATENCY_BATCH_TIMEOUT_MS'])
   : 15;
 
 const KAFKA_THROUGHPUT_BATCH_TIMEOUT_MS = process.env[
@@ -95,8 +96,6 @@ const KAFKA_THROUGHPUT_BATCH_TIMEOUT_MS = process.env[
 ]
   ? parseInt(process.env['KAFKA_THROUGHPUT_BATCH_TIMEOUT_MS'])
   : 500;
-
-
 
 // Message Consumer/Publisher
 const KAFKA_URL =

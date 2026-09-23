@@ -7,6 +7,7 @@ import {
   setRuntime,
   Listbar
 } from '@unblessed/node';
+
 import { SettingsPage } from './uiPages/settings';
 
 import { LoadTestsPage } from './uiPages/load-tests';
@@ -177,8 +178,7 @@ const settingsPage = SettingsPage.create(settingsData);
 const loadTestsPage = LoadTestsPage.create(settingsData, loadTests);
 const ledgerLiqManagementPage = LedgerLiquidityManagementPage.create(
   settingsData,
-  loadTests,
-  apiClient
+  loadTests
 );
 
 let currentPage: IUiPage;
@@ -232,6 +232,7 @@ screen.key(['c'], async () => {
 });
 
 screen.key(['C-r'], async () => {
+  await currentPage.reset();
   screen.realloc();
   screen.render();
 });
@@ -248,6 +249,7 @@ screen.key(['escape'], () => {
 // escape always focuses navigation
 screen.key(['r'], () => {
   loadTests.resetStats();
+  screen.render();
 });
 
 screen.key(['h'], () => {

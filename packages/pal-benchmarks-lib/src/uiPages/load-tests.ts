@@ -5,13 +5,12 @@ import { ILoadTestStats, LoadTests } from '../load';
 
 export class LoadTestsPage extends UiPage {
   private _loadTests: LoadTests;
-  private _text1!: Textbox;
+  private reqsPerSecInputBox!: Textbox;
   private _textAvgRespTime!: Text;
   private _textPending!: Text;
   private _textAseClearing!: Text;
   private _textPeerClearing!: Text;
   private _textErrorCount!: Text;
-  private _textCmdsSent!: Text;
 
   private _log!: Box;
 
@@ -31,13 +30,13 @@ export class LoadTestsPage extends UiPage {
 
   protected async _onActivated(): Promise<void> {
     if (!this._loadTests.connected) {
-      this._log.pushLine('Connecting to api...');
+      this._log.pushLine('Connecting to api and broker(s)...');
       await this._loadTests.init();
-      this._log.pushLine('Connected to api.');
+      this._log.pushLine('Connected to api and broker(s).');
     }
     this._updateUi();
 
-    this._text1.value = this._loadTests.perSecCount.toString();
+    this.reqsPerSecInputBox.value = this._loadTests.perSecCount.toString();
   }
   protected async _onDeactivated(): Promise<void> {}
 
@@ -62,8 +61,6 @@ export class LoadTestsPage extends UiPage {
     this._textErrorCount.setContent(
       this._loadTests.errorResponseCount.toString()
     );
-
-
   }
 
   protected _createUiElements() {
@@ -87,7 +84,7 @@ export class LoadTestsPage extends UiPage {
       left: 1,
       label: 'Req/sec'
     });
-    this._text1 = new Textbox({
+    this.reqsPerSecInputBox = new Textbox({
       parent: this._containerBox,
       name: 'reqspersec',
       top: 1,
@@ -140,13 +137,7 @@ export class LoadTestsPage extends UiPage {
         fg: 'green'
       }
     });
-    this._textCmdsSent = new Box({
-      ...commonText,
-      left: 101,
-      label: 'Cmds Sent'
-    });
 
-    //this._log = new ScrollableBox({
     this._log = new Box({
       parent: this._containerBox,
       top: 3,
@@ -165,8 +156,6 @@ export class LoadTestsPage extends UiPage {
       border: {
         type: 'line'
       },
-      // staticHeader: '=== Application Logs ===',
-      // staticFooter: '[↑/↓] Scroll | [Q] Quit',
       scrollbar: {
         ch: '█',
         style: { bg: 'cyan' },
@@ -174,14 +163,18 @@ export class LoadTestsPage extends UiPage {
           bg: 'yellow'
         }
       }
-      //scrollOnInput: true
     });
   }
 
   protected _hookUiHandlers() {
-    this._text1.on('submit', (data: string) => {
+    this.reqsPerSecInputBox.on('submit', (data: string) => {
       this._log.pushLine(`Updated request per second to: ${data}`);
       this._loadTests.perSecCount = parseInt(data);
     });
+  }
+
+  protected async _onReset(): Promise<void> {
+    this._log.setContent('');
+    this._log.pushLine('Reset called.');
   }
 }
