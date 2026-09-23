@@ -14,22 +14,30 @@ export async function interactionRoutes(
 
   server.get<{
     Params: { id: string; nonce: string };
-  }>('/grant/:id/:nonce', async (request, reply) => {
-    const { id } = request.params;
+  }>(
+    '/grant/:id/:nonce',
+    {
+      onRequest: async (request, reply) => {
+        verifyIdpSecret(request, reply);
+      }
+    },
+    async (request, reply) => {
+      const { id } = request.params;
 
-    const grant = await authClient.getGrant(id);
+      const grant = await authClient.getGrant(id);
 
-    return reply.status(200).send({
-      id: grant.id,
-      access: grant.accesses,
-      subject: grant.subjectIds
-        ? {
-            sub_ids: grant.subjectIds
-          }
-        : undefined,
-      state: grant.state
-    });
-  });
+      return reply.status(200).send({
+        id: grant.id,
+        access: grant.accesses,
+        subject: grant.subjectIds
+          ? {
+              sub_ids: grant.subjectIds
+            }
+          : undefined,
+        state: grant.state
+      });
+    }
+  );
 
   server.post<{
     Params: { grantId: string };
