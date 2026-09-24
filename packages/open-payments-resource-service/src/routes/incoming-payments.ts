@@ -20,13 +20,15 @@ interface IncomingPaymentRouteOptions extends FastifyPluginOptions {
   palClient: PalClient;
   paymentsClient: PaymentsClient;
   streamServer: StreamServer;
+  openPaymentsUrl: string;
 }
 
 export function toIncomingPaymentBody(
-  paymentIntent: GetPaymentIntentResult
+  paymentIntent: GetPaymentIntentResult | CompletePaymentIntentResult,
+  openPaymentsUrl: string
 ): components['schemas']['incoming-payment'] {
   const body: components['schemas']['incoming-payment'] = {
-    id: paymentIntent.id,
+    id: `${openPaymentsUrl}/incoming-payments/${paymentIntent.id}`,
     completed: paymentIntent.state === 'COMPLETED',
     walletAddress: paymentIntent.receiverWalletAddress,
     createdAt: paymentIntent.createdAt,
@@ -56,7 +58,7 @@ export async function incomingPaymentRoutes(
   server: FastifyInstance,
   opts: IncomingPaymentRouteOptions
 ): Promise<void> {
-  const { palClient, paymentsClient, streamServer } = opts;
+  const { palClient, paymentsClient, streamServer, openPaymentsUrl } = opts;
 
   server.post<{
     Body: components['schemas']['create-incoming-payment-request'];
@@ -141,7 +143,7 @@ export async function incomingPaymentRoutes(
       });
 
       const response: components['schemas']['incoming-payment-with-methods'] = {
-        ...toIncomingPaymentBody(paymentIntent),
+        ...toIncomingPaymentBody(paymentIntent, openPaymentsUrl),
         methods: [
           {
             type: 'ilp',
@@ -178,7 +180,7 @@ export async function incomingPaymentRoutes(
     });
 
     const response: components['schemas']['incoming-payment-with-methods'] = {
-      ...toIncomingPaymentBody(paymentIntent),
+      ...toIncomingPaymentBody(paymentIntent, openPaymentsUrl),
       methods: [
         {
           type: 'ilp',
@@ -236,7 +238,9 @@ export async function incomingPaymentRoutes(
 
       return reply.status(200).send({
         pagination: page.pagination,
-        result: page.items.map(toIncomingPaymentBody)
+        result: page.items.map((item) =>
+          toIncomingPaymentBody(item, openPaymentsUrl)
+        )
       });
     } catch (err) {
       const httpStatus = httpStatusFromGrpcError(err);
@@ -261,7 +265,7 @@ export async function incomingPaymentRoutes(
     }
 
     const response: components['schemas']['incoming-payment'] =
-      toIncomingPaymentBody(paymentIntent);
+      toIncomingPaymentBody(paymentIntent, openPaymentsUrl);
 
     return reply.status(200).send(response);
   });
