@@ -20,7 +20,7 @@ import { mapValues } from '../runtime';
  */
 export interface WalletAddressCreateResponse {
     /**
-     * The PAL identifier of the created wallet address. Use this for wallet-entity Admin operations such as key registration.
+     * The internal Rhyza id of the created wallet address. Use this for wallet-entity Admin operations such as key registration.
      * @type {string}
      * @memberof WalletAddressCreateResponse
      */

@@ -1,6 +1,10 @@
-import { IPalWalletAddressDto } from 'pal-public-types-lib';
+import { IPalJsonWebKeyDto, IPalWalletAddressDto } from 'pal-public-types-lib';
 import { PalWalletAddressAlias } from './wallet-address-alias';
-import { CannotCreateDuplicateWalletAddressAliasError } from '../errors';
+import { PalWalletAddressKey } from './wallet-address-key';
+import {
+  CannotCreateDuplicateWalletAddressAliasError,
+  DuplicateWalletAddressKeyError
+} from '../errors';
 
 export class PalWalletAddress implements IPalWalletAddressDto {
   private readonly _id: string;
@@ -9,6 +13,7 @@ export class PalWalletAddress implements IPalWalletAddressDto {
   private readonly _assetScale: number;
   private readonly _isActive: boolean;
   private readonly _aliases: PalWalletAddressAlias[];
+  private readonly _keys: PalWalletAddressKey[];
 
   constructor(
     id: string,
@@ -24,6 +29,7 @@ export class PalWalletAddress implements IPalWalletAddressDto {
 
     this._isActive = isActive == true || isActive == undefined;
     this._aliases = [];
+    this._keys = [];
   }
 
   static fromDto(json: IPalWalletAddressDto): PalWalletAddress {
@@ -75,6 +81,15 @@ export class PalWalletAddress implements IPalWalletAddressDto {
     return this._aliases;
   }
 
+  get keys(): PalWalletAddressKey[] {
+    return this._keys;
+  }
+
+  loadKeys(keys: PalWalletAddressKey[]): void {
+    this._keys.length = 0;
+    this._keys.push(...keys);
+  }
+
   addAlias(domain: string | null, pathName: string): void {
     const existing = this._aliases.find(
       (alias) => alias.pathName === pathName && alias.domain === domain
@@ -87,5 +102,21 @@ export class PalWalletAddress implements IPalWalletAddressDto {
     }
 
     this._aliases.push(new PalWalletAddressAlias(domain, pathName, this._id));
+  }
+
+  addKey(jwk: IPalJsonWebKeyDto): PalWalletAddressKey {
+    const key = PalWalletAddressKey.create(this._id, jwk);
+
+    const existing = this._keys.find(
+      (stored) => stored.jwk.kid === key.jwk.kid
+    );
+    if (existing) {
+      throw new DuplicateWalletAddressKeyError(
+        `Wallet address key with kid ${key.jwk.kid} already exists`
+      );
+    }
+
+    this._keys.push(key);
+    return key;
   }
 }

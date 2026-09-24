@@ -7,7 +7,7 @@ import {
   InvalidWalletAddressJwkError,
   IPalWalletAddressKeyRepository,
   IPalWalletAddressRepository,
-  WalletAddressKeyService,
+  WalletAddressAggregate,
   WalletAddressNotFoundError
 } from '../src';
 import { MockWalletRepo } from './mocks';
@@ -25,13 +25,13 @@ const VALID_JWK: IPalJsonWebKeyDto = {
 
 let walletRepo: IPalWalletAddressRepository;
 let keyRepo: IPalWalletAddressKeyRepository;
-let keyService: WalletAddressKeyService;
+let walletAggregate: WalletAddressAggregate;
 let walletId: string;
 
 before(async () => {
   walletRepo = new MockWalletRepo();
   keyRepo = new MockWalletAddressKeyRepo();
-  keyService = new WalletAddressKeyService(keyRepo, walletRepo, logger);
+  walletAggregate = new WalletAddressAggregate(walletRepo, keyRepo, logger);
 
   walletId = 'wallet-1';
   await walletRepo.store({
@@ -45,10 +45,10 @@ before(async () => {
 });
 
 test('PAL WalletAddress Keys - add key for existing wallet', async () => {
-  const keyId = await keyService.addKey(walletId, VALID_JWK);
+  const keyId = await walletAggregate.addWalletAddressKey(walletId, VALID_JWK);
 
   assert.ok(keyId);
-  const keys = await keyService.getKeys(walletId);
+  const keys = await walletAggregate.getWalletAddressKeys(walletId);
   assert.equal(keys.length, 1);
   assert.equal(keys[0].id, keyId);
   assert.equal(keys[0].walletAddressId, walletId);
@@ -58,7 +58,7 @@ test('PAL WalletAddress Keys - add key for existing wallet', async () => {
 
 test('PAL WalletAddress Keys - add key for missing wallet should fail', async () => {
   await assert.rejects(
-    () => keyService.addKey('missing-wallet', VALID_JWK),
+    () => walletAggregate.addWalletAddressKey('missing-wallet', VALID_JWK),
     WalletAddressNotFoundError
   );
 });
@@ -66,7 +66,7 @@ test('PAL WalletAddress Keys - add key for missing wallet should fail', async ()
 test('PAL WalletAddress Keys - reject invalid jwk', async () => {
   await assert.rejects(
     () =>
-      keyService.addKey(walletId, {
+      walletAggregate.addWalletAddressKey(walletId, {
         ...VALID_JWK,
         alg: 'RS256'
       }),
@@ -76,19 +76,19 @@ test('PAL WalletAddress Keys - reject invalid jwk', async () => {
 
 test('PAL WalletAddress Keys - reject duplicate kid on same wallet', async () => {
   await assert.rejects(
-    () => keyService.addKey(walletId, VALID_JWK),
+    () => walletAggregate.addWalletAddressKey(walletId, VALID_JWK),
     DuplicateWalletAddressKeyError
   );
 });
 
 test('PAL WalletAddress Keys - allow a second kid on the same wallet', async () => {
-  const keyId = await keyService.addKey(walletId, {
+  const keyId = await walletAggregate.addWalletAddressKey(walletId, {
     ...VALID_JWK,
     kid: 'key-2'
   });
 
   assert.ok(keyId);
-  const keys = await keyService.getKeys(walletId);
+  const keys = await walletAggregate.getWalletAddressKeys(walletId);
   assert.equal(keys.length, 2);
 });
 
@@ -103,6 +103,6 @@ test('PAL WalletAddress Keys - get keys for wallet with none returns empty list'
     aliases: []
   });
 
-  const keys = await keyService.getKeys(otherWalletId);
+  const keys = await walletAggregate.getWalletAddressKeys(otherWalletId);
   assert.equal(keys.length, 0);
 });

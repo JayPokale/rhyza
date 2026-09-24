@@ -1,7 +1,12 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import { IPalJsonWebKeyDto } from 'pal-public-types-lib';
-import { InvalidWalletAddressJwkError, PalWalletAddressKey } from '../src';
+import {
+  DuplicateWalletAddressKeyError,
+  InvalidWalletAddressJwkError,
+  PalWalletAddress,
+  PalWalletAddressKey
+} from '../src';
 
 const VALID_JWK: IPalJsonWebKeyDto = {
   kid: 'key-1',
@@ -44,4 +49,29 @@ test('PalWalletAddressKey.fromObject rehydrates stored state', () => {
   const rehydrated = PalWalletAddressKey.fromObject(created.toObject());
 
   assert.deepEqual(rehydrated.toObject(), created.toObject());
+});
+
+test('PalWalletAddress.addKey stores the key on the wallet', () => {
+  const wallet = new PalWalletAddress('wallet-1', 'Sarah', 'USD', 2);
+  const key = wallet.addKey(VALID_JWK);
+
+  assert.equal(wallet.keys.length, 1);
+  assert.equal(wallet.keys[0].id, key.id);
+  assert.equal(key.walletAddressId, wallet.id);
+  assert.equal(key.jwk.kid, VALID_JWK.kid);
+});
+
+test('PalWalletAddress.addKey rejects a duplicate kid', () => {
+  const wallet = new PalWalletAddress('wallet-1', 'Sarah', 'USD', 2);
+  wallet.addKey(VALID_JWK);
+
+  assert.throws(() => wallet.addKey(VALID_JWK), DuplicateWalletAddressKeyError);
+});
+
+test('PalWalletAddress.toDto does not embed keys', () => {
+  const wallet = new PalWalletAddress('wallet-1', 'Sarah', 'USD', 2);
+  wallet.addKey(VALID_JWK);
+
+  assert.equal('keys' in wallet.toDto(), false);
+  assert.equal(wallet.keys.length, 1);
 });

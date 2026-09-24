@@ -140,7 +140,7 @@ export class WalletAddressesApi extends runtime.BaseAPI {
     }
 
     /**
-     * Register a JWK for a wallet address. A wallet address can have multiple active keys. Use the PAL wallet address `id` returned from `POST /wallet-addresses`.
+     * Register a JWK for a wallet address. A wallet address can have multiple active keys. Use the internal Rhyza id returned from `POST /wallet-addresses`.
      * Register Wallet Address Key
      */
     async createWalletAddressKeyRaw(requestParameters: CreateWalletAddressKeyRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<WalletAddressKeyCreateResponse>> {
@@ -151,7 +151,7 @@ export class WalletAddressesApi extends runtime.BaseAPI {
     }
 
     /**
-     * Register a JWK for a wallet address. A wallet address can have multiple active keys. Use the PAL wallet address `id` returned from `POST /wallet-addresses`.
+     * Register a JWK for a wallet address. A wallet address can have multiple active keys. Use the internal Rhyza id returned from `POST /wallet-addresses`.
      * Register Wallet Address Key
      */
     async createWalletAddressKey(id: string, jsonWebKey: JsonWebKey, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<WalletAddressKeyCreateResponse> {

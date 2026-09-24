@@ -126,7 +126,7 @@ paths:
       summary: Register Wallet Address Key
       description: >-
         Register a JWK for a wallet address. A wallet address can have multiple
-        active keys. Use the PAL wallet address `id` returned from
+        active keys. Use the internal Rhyza id returned from
         `POST /wallet-addresses`.
       tags:
         - wallet-addresses
@@ -135,7 +135,7 @@ paths:
         - name: id
           in: path
           required: true
-          description: The PAL identifier of the wallet address.
+          description: The internal Rhyza id of the wallet address.
           schema:
             type: string
       requestBody:
@@ -759,7 +759,7 @@ components:
         id:
           type: string
           description: >-
-            The PAL identifier of the created wallet address. Use this for
+            The internal Rhyza id of the created wallet address. Use this for
             wallet-entity Admin operations such as key registration.
         address:
           type: string

@@ -20,7 +20,6 @@ import {
   PeerNotFoundError,
   WalletAddressAggregate,
   WalletAddressAliasNotFoundError,
-  WalletAddressKeyService,
   WalletAddressNotFoundError
 } from 'pal-domain-lib';
 import {
@@ -79,7 +78,6 @@ export class PalGrpcServer {
   private readonly _telemetryService: ITelemetryService;
   private readonly _assetAggregate: AssetAggregate;
   private readonly _walletAddressAggregate: WalletAddressAggregate;
-  private readonly _walletAddressKeyService: WalletAddressKeyService;
   private readonly _peerAggregate: PeerAggregate;
   private readonly _fxAggregate: FxAggregate;
 
@@ -111,7 +109,6 @@ export class PalGrpcServer {
     serverUrl: string,
     assetAggregate: AssetAggregate,
     walletAggregate: WalletAddressAggregate,
-    walletAddressKeyService: WalletAddressKeyService,
     peerAggregate: PeerAggregate,
     fxAggregate: FxAggregate,
     producer: IMessageProducer,
@@ -124,7 +121,6 @@ export class PalGrpcServer {
     this._instanceId = instanceId;
     this._assetAggregate = assetAggregate;
     this._walletAddressAggregate = walletAggregate;
-    this._walletAddressKeyService = walletAddressKeyService;
     this._peerAggregate = peerAggregate;
     this._fxAggregate = fxAggregate;
     this._msgProducer = producer;
@@ -171,7 +167,6 @@ export class PalGrpcServer {
 
     this._walletAddressGrpcHandler = new WalletAddressGrpcHandler(
       this._walletAddressAggregate,
-      this._walletAddressKeyService,
       this._assetAggregate,
       this._logger,
       this._telemetryService

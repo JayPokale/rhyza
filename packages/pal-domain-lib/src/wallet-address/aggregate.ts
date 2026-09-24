@@ -1,14 +1,21 @@
 import {
   CannotCreateDuplicateWalletAddressAliasError,
   CannotCreateDuplicateWalletAddressError,
-  WalletAddressAliasNotFoundError
+  WalletAddressAliasNotFoundError,
+  WalletAddressNotFoundError
 } from './errors';
-import { IPalWalletAddressRepository } from './interfaces';
+import {
+  IPalWalletAddressKeyRepository,
+  IPalWalletAddressRepository
+} from './interfaces';
 import { PalWalletAddress } from './entities/wallet-address';
+import { PalWalletAddressKey } from './entities/wallet-address-key';
 import crypto from 'node:crypto';
 import { ILogger } from 'common-types-lib';
 import {
+  IPalJsonWebKeyDto,
   IPalWalletAddressDto,
+  IPalWalletAddressKeyDto,
   WalletAddressAliasCreatedEvent,
   WalletAddressCreatedEvent,
   WalletAddressDomainEvent
@@ -17,11 +24,17 @@ import {
 export class WalletAddressAggregate {
   private readonly _logger: ILogger;
   private _repo: IPalWalletAddressRepository;
+  private _keyRepo: IPalWalletAddressKeyRepository;
   private readonly _uncommittedDomainEvents: WalletAddressDomainEvent[];
 
-  constructor(repo: IPalWalletAddressRepository, logger: ILogger) {
+  constructor(
+    repo: IPalWalletAddressRepository,
+    keyRepo: IPalWalletAddressKeyRepository,
+    logger: ILogger
+  ) {
     this._logger = logger;
     this._repo = repo;
+    this._keyRepo = keyRepo;
     this._uncommittedDomainEvents = [];
   }
 
@@ -133,5 +146,35 @@ export class WalletAddressAggregate {
         pathName: pathName
       })
     );
+  }
+
+  async addWalletAddressKey(
+    walletAddressId: string,
+    jwk: IPalJsonWebKeyDto
+  ): Promise<string> {
+    const [walletDto] = await this._repo.fetch([walletAddressId]);
+    if (!walletDto) {
+      throw new WalletAddressNotFoundError(
+        `Wallet Address with id ${walletAddressId} does not exist`
+      );
+    }
+
+    const storedKeys =
+      await this._keyRepo.fetchByWalletAddressId(walletAddressId);
+    const wallet = PalWalletAddress.fromDto(walletDto);
+    wallet.loadKeys(storedKeys.map(PalWalletAddressKey.fromObject));
+
+    const key = wallet.addKey(jwk);
+    await this._keyRepo.store(key.toObject());
+    this._logger.info(
+      `Stored wallet address key ${key.id} for wallet ${walletAddressId}`
+    );
+    return key.id;
+  }
+
+  async getWalletAddressKeys(
+    walletAddressId: string
+  ): Promise<IPalWalletAddressKeyDto[]> {
+    return this._keyRepo.fetchByWalletAddressId(walletAddressId);
   }
 }

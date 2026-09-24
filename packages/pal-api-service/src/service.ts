@@ -3,7 +3,6 @@ import {
   IPalAssetRepository,
   IPalWalletAddressRepository,
   WalletAddressAggregate,
-  WalletAddressKeyService,
   ILedgerReadSideRepository,
   PeerAggregate,
   IPalPeerRepository,
@@ -254,19 +253,14 @@ export class PalApiService {
     // create aggregates driven by this gRPC port
     const assetAggregate = new AssetAggregate(this._assetRepo, this._logger);
 
-    const walletAggregate = new WalletAddressAggregate(
-      this._walletRepo,
-      this._logger
-    );
-
     const walletAddressKeyRepo = new MongoDbWalletAddressKeyRepo(
       MONGO_URL,
       logger
     );
     await walletAddressKeyRepo.init();
-    const walletAddressKeyService = new WalletAddressKeyService(
-      walletAddressKeyRepo,
+    const walletAggregate = new WalletAddressAggregate(
       this._walletRepo,
+      walletAddressKeyRepo,
       this._logger
     );
 
@@ -289,7 +283,6 @@ export class PalApiService {
       `0.0.0.0:${SVC_PORT}`,
       assetAggregate,
       walletAggregate,
-      walletAddressKeyService,
       peerAggregate,
       fxAggregate,
       this._producer,

@@ -2,8 +2,7 @@ import { ILogger, ITelemetryService } from 'common-types-lib';
 import {
   AssetAggregate,
   InvalidWalletAddressJwkError,
-  WalletAddressAggregate,
-  WalletAddressKeyService
+  WalletAddressAggregate
 } from 'pal-domain-lib';
 import { ServerUnaryCall } from '@grpc/grpc-js';
 import { Status } from '@grpc/grpc-js/build/src/constants';
@@ -34,19 +33,16 @@ import {
 export class WalletAddressGrpcHandler {
   private readonly _logger: ILogger;
   private readonly _walletAddressAggregate: WalletAddressAggregate;
-  private readonly _walletAddressKeyService: WalletAddressKeyService;
   private readonly _assetAggregate: AssetAggregate;
   private readonly _telemetryService: ITelemetryService;
 
   constructor(
     walletAddressAggregate: WalletAddressAggregate,
-    walletAddressKeyService: WalletAddressKeyService,
     assetAggregate: AssetAggregate,
     logger: ILogger,
     telemetryService: ITelemetryService
   ) {
     this._walletAddressAggregate = walletAddressAggregate;
-    this._walletAddressKeyService = walletAddressKeyService;
     this._assetAggregate = assetAggregate;
     this._logger = logger;
     this._telemetryService = telemetryService;
@@ -191,7 +187,7 @@ export class WalletAddressGrpcHandler {
       throw new InvalidWalletAddressJwkError('JWK is required');
     }
 
-    const id = await this._walletAddressKeyService.addKey(
+    const id = await this._walletAddressAggregate.addWalletAddressKey(
       call.request.getWalletAddressId(),
       jsonWebKeyFromPb(pbJwk)
     );
@@ -205,7 +201,7 @@ export class WalletAddressGrpcHandler {
       PbGetWalletAddressKeysResponse
     >
   ): Promise<UnaryResponse<PbGetWalletAddressKeysResponse>> {
-    const keys = await this._walletAddressKeyService.getKeys(
+    const keys = await this._walletAddressAggregate.getWalletAddressKeys(
       call.request.getWalletAddressId()
     );
 

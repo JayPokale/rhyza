@@ -4,4 +4,3 @@ export * from './entities/wallet-address-key';
 export * from './errors';
 export * from './interfaces';
 export * from './aggregate';
-export * from './key-service';
