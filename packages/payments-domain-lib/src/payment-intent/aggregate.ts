@@ -451,10 +451,15 @@ export class PaymentIntentAggregate {
           id: entity.id,
           createdAt: entity.createdAt,
           expiresAt: entity.expiresAt,
-          incomingAmount: String(entity.incomingAmount),
+          incomingAmount:
+            entity.incomingAmount != null
+              ? String(entity.incomingAmount)
+              : null,
           receivedAmount: String(entity.receivedAmount),
           state: entity.state,
+          receiverWalletAddress: entity.receiverWalletAddress,
           receiverWalletAddressId: entity.receiverWalletAddressId,
+          destination: entity.destination,
           assetCode: entity.assetCode,
           assetScale: entity.assetScale
         },

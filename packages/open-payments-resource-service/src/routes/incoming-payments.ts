@@ -4,10 +4,10 @@ import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { PalClient, parseAddressToDomainAndPathName } from 'pal-client-lib';
 import {
   httpStatusFromGrpcError,
-  isGrpcServiceError,
   toClientApiErrorResponse,
   PaymentsClient,
-  GetPaymentIntentResult
+  GetPaymentIntentResult,
+  CompletePaymentIntentResult
 } from 'payments-client-lib';
 import { OpenPaymentsResourceServerRouteError } from '../errors.js';
 import { components } from '../types/generated/resource-server-types.js';
@@ -60,6 +60,9 @@ export async function incomingPaymentRoutes(
 
   server.post<{
     Body: components['schemas']['create-incoming-payment-request'];
+    Reply:
+      | components['schemas']['incoming-payment-with-methods']
+      | components['schemas']['error-response'];
   }>(
     '/incoming-payments',
     {
@@ -116,8 +119,9 @@ export async function incomingPaymentRoutes(
         );
       }
 
+      let paymentIntent: GetPaymentIntentResult;
       try {
-        const result = await paymentsClient.createPaymentIntent(
+        paymentIntent = await paymentsClient.createPaymentIntent(
           id,
           walletAddress.id,
           `${domain}/${pathName}`,
@@ -125,15 +129,29 @@ export async function incomingPaymentRoutes(
           expiresAt,
           JSON.stringify(metadata)
         );
-
-        return reply.status(201).send({ id: result.id });
       } catch (err) {
         const httpStatus = httpStatusFromGrpcError(err);
-        const message = isGrpcServiceError(err)
-          ? err.details || err.message
-          : (err as Error).message;
-        return reply.status(httpStatus).send({ error: message });
+        return reply.status(httpStatus).send(toClientApiErrorResponse(err));
       }
+
+      const streamCredentials = generateStreamCredentials(streamServer, {
+        paymentIntentId: paymentIntent.id,
+        assetCode: paymentIntent.assetCode,
+        assetScale: paymentIntent.assetScale
+      });
+
+      const response: components['schemas']['incoming-payment-with-methods'] = {
+        ...toIncomingPaymentBody(paymentIntent),
+        methods: [
+          {
+            type: 'ilp',
+            ilpAddress: streamCredentials.ilpAddress,
+            sharedSecret: streamCredentials.sharedSecret
+          }
+        ]
+      };
+
+      return reply.status(201).send(response);
     }
   );
 
@@ -145,7 +163,7 @@ export async function incomingPaymentRoutes(
   }>('/incoming-payments/:id', async (request, reply) => {
     const { id } = request.params;
 
-    let paymentIntent;
+    let paymentIntent: GetPaymentIntentResult;
     try {
       paymentIntent = await paymentsClient.getPaymentIntent(id);
     } catch (err) {
@@ -234,7 +252,7 @@ export async function incomingPaymentRoutes(
   }>('/incoming-payments/:id/complete', async (request, reply) => {
     const { id } = request.params;
 
-    let paymentIntent;
+    let paymentIntent: CompletePaymentIntentResult;
     try {
       paymentIntent = await paymentsClient.completePaymentIntent(id);
     } catch (err) {

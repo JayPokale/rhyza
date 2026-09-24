@@ -176,9 +176,11 @@ export type PaymentIntentCreatedPayload = {
   createdAt: Date;
   expiresAt: Date;
   incomingAmount: string | null;
-  receivedAmount: string | null;
+  receivedAmount: string;
   state: PaymentIntentState;
+  receiverWalletAddress: string;
   receiverWalletAddressId?: string;
+  destination: string;
   assetCode: string;
   assetScale: number;
 };
