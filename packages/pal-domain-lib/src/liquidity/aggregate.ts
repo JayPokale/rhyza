@@ -32,7 +32,7 @@ export class LedgerAggregate {
   private readonly _uncommittedDomainEvents: LedgerDomainEvent[];
   private readonly _telemetryService: ITelemetryService;
   private readonly _commandHisto: ITelemetryHistogram;
-  private _processing: boolean;
+  private _memoryClearRequested: boolean;
 
   constructor(
     esRepo: ILedgerEventSourcingRepository,
@@ -47,7 +47,7 @@ export class LedgerAggregate {
     this._ledgers = new Map<string, Ledger>();
     this._uncommittedStateEvents = [];
     this._uncommittedDomainEvents = [];
-    this._processing = false;
+    this._memoryClearRequested = false;
 
     this._commandHisto = this._telemetryService.getHistogram(
       COMMANDS_HISTOGRAM_NAME
@@ -113,46 +113,47 @@ export class LedgerAggregate {
     this._uncommittedDomainEvents.push(domainEvent);
   }
 
+  private _clearInMemoryState(): void {
+    const ids = Array.from(this._ledgers.keys());
+    this._logger.info(
+      `Clearing in-memory state, currently ${ids.length} ledgers are loaded: ${ids.join(',')}`
+    );
+
+    // clear the ledgers and set them to undefined to force memory release
+    ids.forEach((ledgerId) => {
+      let ledger = this._ledgers.get(ledgerId);
+      if (ledger) {
+        this._ledgers.delete(ledgerId);
+        ledger = undefined;
+      }
+    });
+
+    this._logger.info('Clearing in-memory state complete.');
+  }
+
   /**
-   * Clears the in-memory state of the aggregate.
+   * Request in-memory state clearing for the next processCommands cycle.
    *
-   * This method MUST be called when the consumer for the commands is
+   * This MUST be called when the consumer for the commands is
    * rebalanced. Because rebalancing might result in different partitions
    * being attributed to this instance, and that could lead to this instance
    * not receiving commands for the same ledger, hence we must discard the
    * in-memory state before accepting new commands.
    */
-  async clearInMemoryState(): Promise<void> {
+  async requestInMemoryStateClear(): Promise<void> {
     if (this._ledgers.size === 0) return;
 
-    // wait for the batch processing to finish before clearing the state
-    // eslint-disable-next-line no-async-promise-executor
-    return new Promise(async (resolve) => {
-      while (true) {
-        if (!this._processing) break;
-        await new Promise((resolve) => setTimeout(resolve, 1));
-      }
-      const ids = Array.from(this._ledgers.keys());
-      this._logger.info(
-        `Clearing in-memory state, currently ${ids.length} ledgers are loaded: ${ids.join(',')}`
-      );
-
-      // clear the ledgers and set them to null to force memory release
-      ids.forEach((ledgerId) => {
-        let ledger: Ledger | null = this._ledgers.get(ledgerId) || null;
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        ledger = null;
-        this._ledgers.delete(ledgerId);
-      });
-
-      this._logger.info('Clearing in-memory state complete.');
-      resolve();
-    });
+    this._memoryClearRequested = true;
   }
 
   async processCommands(commands: CommandMsg | CommandMsg[]): Promise<void> {
-    this._processing = true;
     const startTs = Date.now();
+
+    if (this._memoryClearRequested) {
+      this._clearInMemoryState();
+      this._memoryClearRequested = false;
+    }
+
     if (!Array.isArray(commands)) {
       commands = [commands];
     }
@@ -194,8 +195,6 @@ export class LedgerAggregate {
     this._logger.debug(
       `LedgerAggregate: processed ${commands.length} commands and published ${eventsCount} events in ${Date.now() - startTs}ms - proc: ${procMs}ms producer pub: ${producerMs}ms`
     );
-
-    this._processing = false;
   }
 
   async getOrLoadLedger(
