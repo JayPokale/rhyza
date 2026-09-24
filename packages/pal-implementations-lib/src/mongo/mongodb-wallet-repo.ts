@@ -1,10 +1,23 @@
-import { IPalWalletAddressDto } from 'pal-public-types-lib';
-import { Collection, CollectionInfo, Db, MongoClient } from 'mongodb';
-import { IPalWalletAddressRepository } from 'pal-domain-lib';
+import {
+  IPalWalletAddressDto,
+  IPalWalletAddressKeyDto
+} from 'pal-public-types-lib';
+import {
+  Collection,
+  CollectionInfo,
+  Db,
+  MongoClient,
+  MongoServerError
+} from 'mongodb';
+import {
+  DuplicateWalletAddressKeyError,
+  IPalWalletAddressRepository
+} from 'pal-domain-lib';
 import { ILogger } from 'common-types-lib';
 
 const DB_NAME = 'pal';
 const COLLECTION_NAME: string = 'walletAddresses';
+const KEY_COLLECTION_NAME: string = 'walletAddressKeys';
 const TIMEOUT_MS: number = 5_000;
 
 export class MongoDbWalletRepo implements IPalWalletAddressRepository {
@@ -12,6 +25,7 @@ export class MongoDbWalletRepo implements IPalWalletAddressRepository {
   private readonly _connectionString: string;
   private _client!: MongoClient;
   private _collection!: Collection<IPalWalletAddressDto>;
+  private _keyCollection!: Collection<IPalWalletAddressKeyDto>;
 
   constructor(connectionString: string, logger: ILogger) {
     this._connectionString = connectionString;
@@ -19,7 +33,7 @@ export class MongoDbWalletRepo implements IPalWalletAddressRepository {
   }
 
   private _checkInitialisedOrThrow(): boolean {
-    if (!this._client || !this._collection) {
+    if (!this._client || !this._collection || !this._keyCollection) {
       throw new Error('MongoClient not initialised');
     }
     return true;
@@ -39,12 +53,12 @@ export class MongoDbWalletRepo implements IPalWalletAddressRepository {
         | Pick<CollectionInfo, 'name' | 'type'>
         | CollectionInfo
       )[] = await db.listCollections().toArray();
-      const collectionExists: boolean = collections.some((collection) => {
-        return collection.name === COLLECTION_NAME;
-      });
+      const collectionNames = new Set(
+        collections.map((collection) => collection.name)
+      );
 
       // load or create the collection (and add its indexes) - should check version and perform migrations
-      if (collectionExists) {
+      if (collectionNames.has(COLLECTION_NAME)) {
         this._collection = db.collection<IPalWalletAddressDto>(COLLECTION_NAME);
       } else {
         this._collection =
@@ -54,6 +68,21 @@ export class MongoDbWalletRepo implements IPalWalletAddressRepository {
           'aliases.domain': 1,
           'aliases.pathName': 1
         });
+      }
+
+      if (collectionNames.has(KEY_COLLECTION_NAME)) {
+        this._keyCollection =
+          db.collection<IPalWalletAddressKeyDto>(KEY_COLLECTION_NAME);
+      } else {
+        this._keyCollection =
+          await db.createCollection<IPalWalletAddressKeyDto>(
+            KEY_COLLECTION_NAME
+          );
+        await this._keyCollection.createIndex({ id: 1 }, { unique: true });
+        await this._keyCollection.createIndex(
+          { walletAddressId: 1, 'jwk.kid': 1 },
+          { unique: true }
+        );
       }
     } catch (e: unknown) {
       if (e instanceof Error) {
@@ -82,7 +111,16 @@ export class MongoDbWalletRepo implements IPalWalletAddressRepository {
     try {
       await this._collection.updateOne(
         { id: walletAddress.id },
-        { $set: walletAddress },
+        {
+          $set: {
+            id: walletAddress.id,
+            publicName: walletAddress.publicName,
+            isActive: walletAddress.isActive,
+            assetCode: walletAddress.assetCode,
+            assetScale: walletAddress.assetScale,
+            aliases: walletAddress.aliases
+          }
+        },
         { upsert: true }
       );
       return;
@@ -90,6 +128,28 @@ export class MongoDbWalletRepo implements IPalWalletAddressRepository {
       this._logger.error(e);
       throw new Error(
         `Unable to store wallet address - error: ${(e as Error).message}`
+      );
+    }
+  }
+
+  async storeKey(key: IPalWalletAddressKeyDto): Promise<void> {
+    this._checkInitialisedOrThrow();
+
+    try {
+      await this._keyCollection.updateOne(
+        { id: key.id },
+        { $set: key },
+        { upsert: true }
+      );
+    } catch (e) {
+      if (e instanceof MongoServerError && e.code === 11000) {
+        throw new DuplicateWalletAddressKeyError(
+          `Wallet address key with kid ${key.jwk.kid} already exists`
+        );
+      }
+      this._logger.error(e);
+      throw new Error(
+        `Unable to store wallet address key - error: ${(e as Error).message}`
       );
     }
   }
@@ -104,16 +164,7 @@ export class MongoDbWalletRepo implements IPalWalletAddressRepository {
         return [];
       }
 
-      return docs.map((doc) => {
-        return {
-          id: doc.id,
-          publicName: doc.publicName,
-          isActive: doc.isActive,
-          assetCode: doc.assetCode,
-          assetScale: doc.assetScale,
-          aliases: doc.aliases
-        };
-      });
+      return this._withKeys(docs.map((doc) => this._toWalletDto(doc)));
     } catch (e) {
       this._logger.error(e);
       throw new Error(
@@ -137,19 +188,64 @@ export class MongoDbWalletRepo implements IPalWalletAddressRepository {
         return null;
       }
 
-      return {
-        id: doc.id,
-        publicName: doc.publicName,
-        isActive: doc.isActive,
-        assetCode: doc.assetCode,
-        assetScale: doc.assetScale,
-        aliases: doc.aliases
-      };
+      const [wallet] = await this._withKeys([this._toWalletDto(doc)]);
+      return wallet;
     } catch (e) {
       this._logger.error(e);
       throw new Error(
         `Unable to get wallet by address - error: ${(e as Error).message}`
       );
     }
+  }
+
+  private _toWalletDto(doc: IPalWalletAddressDto): IPalWalletAddressDto {
+    return {
+      id: doc.id,
+      publicName: doc.publicName,
+      isActive: doc.isActive,
+      assetCode: doc.assetCode,
+      assetScale: doc.assetScale,
+      aliases: doc.aliases
+    };
+  }
+
+  private _toKeyDto(doc: IPalWalletAddressKeyDto): IPalWalletAddressKeyDto {
+    return {
+      id: doc.id,
+      walletAddressId: doc.walletAddressId,
+      jwk: {
+        kid: doc.jwk.kid,
+        alg: doc.jwk.alg,
+        kty: doc.jwk.kty,
+        crv: doc.jwk.crv,
+        x: doc.jwk.x,
+        ...(doc.jwk.use ? { use: doc.jwk.use } : {})
+      }
+    };
+  }
+
+  private async _withKeys(
+    wallets: IPalWalletAddressDto[]
+  ): Promise<IPalWalletAddressDto[]> {
+    if (wallets.length === 0) return wallets;
+
+    const ids = wallets.map((wallet) => wallet.id);
+    const keyDocs = await this._keyCollection
+      .find({ walletAddressId: { $in: ids } })
+      .toArray();
+
+    const keysByWallet = new Map<string, IPalWalletAddressKeyDto[]>();
+    for (const doc of keyDocs) {
+      const keys = keysByWallet.get(doc.walletAddressId) ?? [];
+      keys.push(this._toKeyDto(doc));
+      keysByWallet.set(doc.walletAddressId, keys);
+    }
+
+    return wallets.map((wallet) => {
+      return {
+        ...wallet,
+        keys: keysByWallet.get(wallet.id) ?? []
+      };
+    });
   }
 }

@@ -43,6 +43,9 @@ export class PalWalletAddress implements IPalWalletAddressDto {
     newObj._aliases.push(
       ...json.aliases.map((alias) => PalWalletAddressAlias.fromObject(alias))
     );
+    if (json.keys) {
+      newObj.loadKeys(json.keys.map(PalWalletAddressKey.fromObject));
+    }
     return newObj;
   }
 

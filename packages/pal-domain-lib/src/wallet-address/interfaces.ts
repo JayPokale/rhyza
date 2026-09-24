@@ -11,11 +11,6 @@ export interface IPalWalletAddressRepository {
     domain: string | null,
     pathName: string
   ): Promise<IPalWalletAddressDto | null>;
-}
 
-export interface IPalWalletAddressKeyRepository {
-  store(key: IPalWalletAddressKeyDto): Promise<void>;
-  fetchByWalletAddressId(
-    walletAddressId: string
-  ): Promise<IPalWalletAddressKeyDto[]>;
+  storeKey(key: IPalWalletAddressKeyDto): Promise<void>;
 }

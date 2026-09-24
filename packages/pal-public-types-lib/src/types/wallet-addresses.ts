@@ -6,6 +6,7 @@ export interface IPalWalletAddressDto {
   isActive: boolean;
 
   aliases: IPalWalletAddressAliasDto[];
+  keys?: IPalWalletAddressKeyDto[];
 }
 
 export interface IPalWalletAddressAliasDto {

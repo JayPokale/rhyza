@@ -22,7 +22,6 @@ import {
   MongoDbFxRepo,
   MongoDbLedgerReadSideRepo,
   MongoDbPeerRepo,
-  MongoDbWalletAddressKeyRepo,
   MongoDbWalletRepo
 } from 'pal-implementations-lib';
 import {
@@ -253,14 +252,8 @@ export class PalApiService {
     // create aggregates driven by this gRPC port
     const assetAggregate = new AssetAggregate(this._assetRepo, this._logger);
 
-    const walletAddressKeyRepo = new MongoDbWalletAddressKeyRepo(
-      MONGO_URL,
-      logger
-    );
-    await walletAddressKeyRepo.init();
     const walletAggregate = new WalletAddressAggregate(
       this._walletRepo,
-      walletAddressKeyRepo,
       this._logger
     );
 

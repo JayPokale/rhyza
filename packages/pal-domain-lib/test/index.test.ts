@@ -21,7 +21,6 @@ import {
   MockFxRepo,
   MockMessageProducer,
   MockPeerRepo,
-  MockWalletAddressKeyRepo,
   MockWalletRepo
 } from './mocks';
 import { ConsoleLogger, DomainEvent } from 'common-types-lib';
@@ -76,11 +75,7 @@ before(async () => {
   assetAggregate = new AssetAggregate(assetRepository, logger);
 
   walletRepository = new MockWalletRepo();
-  walletAggregate = new WalletAddressAggregate(
-    walletRepository,
-    new MockWalletAddressKeyRepo(),
-    logger
-  );
+  walletAggregate = new WalletAddressAggregate(walletRepository, logger);
 
   peerRepository = new MockPeerRepo();
   peerAggregate = new PeerAggregate(peerRepository, logger);

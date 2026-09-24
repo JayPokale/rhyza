@@ -75,3 +75,20 @@ test('PalWalletAddress.toDto does not embed keys', () => {
   assert.equal('keys' in wallet.toDto(), false);
   assert.equal(wallet.keys.length, 1);
 });
+
+test('PalWalletAddress.fromDto hydrates keys', () => {
+  const key = PalWalletAddressKey.create('wallet-1', VALID_JWK);
+  const wallet = PalWalletAddress.fromDto({
+    id: 'wallet-1',
+    publicName: 'Sarah',
+    assetCode: 'USD',
+    assetScale: 2,
+    isActive: true,
+    aliases: [],
+    keys: [key.toObject()]
+  });
+
+  assert.equal(wallet.keys.length, 1);
+  assert.equal(wallet.keys[0].id, key.id);
+  assert.equal(wallet.keys[0].jwk.kid, VALID_JWK.kid);
+});

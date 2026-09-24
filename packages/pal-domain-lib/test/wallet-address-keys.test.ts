@@ -5,13 +5,11 @@ import { IPalJsonWebKeyDto } from 'pal-public-types-lib';
 import {
   DuplicateWalletAddressKeyError,
   InvalidWalletAddressJwkError,
-  IPalWalletAddressKeyRepository,
   IPalWalletAddressRepository,
   WalletAddressAggregate,
   WalletAddressNotFoundError
 } from '../src';
 import { MockWalletRepo } from './mocks';
-import { MockWalletAddressKeyRepo } from './mocks/mock-wallet-address-key-repo';
 
 const logger = new ConsoleLogger();
 
@@ -24,14 +22,12 @@ const VALID_JWK: IPalJsonWebKeyDto = {
 };
 
 let walletRepo: IPalWalletAddressRepository;
-let keyRepo: IPalWalletAddressKeyRepository;
 let walletAggregate: WalletAddressAggregate;
 let walletId: string;
 
 before(async () => {
   walletRepo = new MockWalletRepo();
-  keyRepo = new MockWalletAddressKeyRepo();
-  walletAggregate = new WalletAddressAggregate(walletRepo, keyRepo, logger);
+  walletAggregate = new WalletAddressAggregate(walletRepo, logger);
 
   walletId = 'wallet-1';
   await walletRepo.store({

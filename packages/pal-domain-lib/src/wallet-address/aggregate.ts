@@ -4,12 +4,8 @@ import {
   WalletAddressAliasNotFoundError,
   WalletAddressNotFoundError
 } from './errors';
-import {
-  IPalWalletAddressKeyRepository,
-  IPalWalletAddressRepository
-} from './interfaces';
+import { IPalWalletAddressRepository } from './interfaces';
 import { PalWalletAddress } from './entities/wallet-address';
-import { PalWalletAddressKey } from './entities/wallet-address-key';
 import crypto from 'node:crypto';
 import { ILogger } from 'common-types-lib';
 import {
@@ -24,17 +20,11 @@ import {
 export class WalletAddressAggregate {
   private readonly _logger: ILogger;
   private _repo: IPalWalletAddressRepository;
-  private _keyRepo: IPalWalletAddressKeyRepository;
   private readonly _uncommittedDomainEvents: WalletAddressDomainEvent[];
 
-  constructor(
-    repo: IPalWalletAddressRepository,
-    keyRepo: IPalWalletAddressKeyRepository,
-    logger: ILogger
-  ) {
+  constructor(repo: IPalWalletAddressRepository, logger: ILogger) {
     this._logger = logger;
     this._repo = repo;
-    this._keyRepo = keyRepo;
     this._uncommittedDomainEvents = [];
   }
 
@@ -159,13 +149,10 @@ export class WalletAddressAggregate {
       );
     }
 
-    const storedKeys =
-      await this._keyRepo.fetchByWalletAddressId(walletAddressId);
     const wallet = PalWalletAddress.fromDto(walletDto);
-    wallet.loadKeys(storedKeys.map(PalWalletAddressKey.fromObject));
 
     const key = wallet.addKey(jwk);
-    await this._keyRepo.store(key.toObject());
+    await this._repo.storeKey(key.toObject());
     this._logger.info(
       `Stored wallet address key ${key.id} for wallet ${walletAddressId}`
     );
@@ -175,6 +162,11 @@ export class WalletAddressAggregate {
   async getWalletAddressKeys(
     walletAddressId: string
   ): Promise<IPalWalletAddressKeyDto[]> {
-    return this._keyRepo.fetchByWalletAddressId(walletAddressId);
+    const [walletDto] = await this._repo.fetch([walletAddressId]);
+    if (!walletDto) return [];
+
+    return PalWalletAddress.fromDto(walletDto).keys.map((key) =>
+      key.toObject()
+    );
   }
 }
