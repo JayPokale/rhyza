@@ -119,8 +119,18 @@ describe('Payments Client', () => {
       RECEIVER_WALLET_ADDRESS
     );
 
-    assert.ok(result);
     assert.equal(result.id, id);
+    assert.equal(result.receiverWalletAddress, RECEIVER_WALLET_ADDRESS);
+    assert.equal(result.state, 'CREATED');
+    assert.equal(result.destination, 'LOCAL');
+    assert.equal(result.receivedAmount, 0n);
+    assert.equal(result.assetCode, ASSET_CODE);
+    assert.equal(result.assetScale, ASSET_SCALE);
+    assert.equal(result.incomingAmount, undefined);
+    assert.ok(result.expiresAt);
+    assert.ok(!Number.isNaN(Date.parse(result.expiresAt!)));
+    assert.ok(result.createdAt);
+    assert.ok(!Number.isNaN(Date.parse(result.createdAt)));
   });
 
   test('create payment intent (all fields)', async () => {
@@ -134,8 +144,21 @@ describe('Payments Client', () => {
       expiresAt
     );
 
-    assert.ok(result);
     assert.equal(result.id, id);
+    assert.equal(result.receiverWalletAddress, RECEIVER_WALLET_ADDRESS);
+    assert.equal(result.state, 'CREATED');
+    assert.equal(result.destination, 'LOCAL');
+    assert.equal(result.receivedAmount, 0n);
+    assert.equal(result.assetCode, ASSET_CODE);
+    assert.equal(result.assetScale, ASSET_SCALE);
+    assert.equal(result.incomingAmount, 100n);
+    assert.ok(result.expiresAt);
+    assert.equal(
+      new Date(result.expiresAt!).getTime(),
+      new Date(expiresAt).getTime()
+    );
+    assert.ok(result.createdAt);
+    assert.ok(!Number.isNaN(Date.parse(result.createdAt)));
   });
 
   test('duplicate id is rejected', async () => {

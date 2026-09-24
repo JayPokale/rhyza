@@ -248,10 +248,24 @@ describe('PaymentIntentAggregate.handleBatch', () => {
 
         assert.equal(events.length, 1);
         assert.equal(events[0].msgName, PaymentIntentCreatedEvent.name);
+        const payload = (events[0] as PaymentIntentCreatedEvent).payload;
+        assert.equal(payload.id, cmd.payload.id);
         assert.equal(
-          (events[0] as PaymentIntentCreatedEvent).payload.id,
-          cmd.payload.id
+          payload.receiverWalletAddress,
+          cmd.payload.receiverWalletAddress
         );
+        assert.equal(
+          payload.receiverWalletAddressId,
+          cmd.payload.receiverWalletAddressId
+        );
+        assert.equal(payload.state, 'CREATED');
+        assert.equal(payload.destination, 'LOCAL');
+        assert.equal(payload.incomingAmount, null);
+        assert.equal(payload.receivedAmount, '0');
+        assert.equal(payload.assetCode, 'USD');
+        assert.equal(payload.assetScale, 2);
+        assert.ok(payload.createdAt instanceof Date);
+        assert.ok(payload.expiresAt instanceof Date);
       });
 
       it('fails if duplicate payment intent id', async () => {
