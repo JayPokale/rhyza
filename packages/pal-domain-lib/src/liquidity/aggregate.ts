@@ -140,7 +140,7 @@ export class LedgerAggregate {
    * not receiving commands for the same ledger, hence we must discard the
    * in-memory state before accepting new commands.
    */
-  async requestInMemoryStateClear(): Promise<void> {
+  requestInMemoryStateClear(): void {
     if (this._ledgers.size === 0) return;
 
     this._memoryClearRequested = true;
