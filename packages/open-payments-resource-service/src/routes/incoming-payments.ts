@@ -7,7 +7,8 @@ import {
   toClientApiErrorResponse,
   PaymentsClient,
   GetPaymentIntentResult,
-  CompletePaymentIntentResult
+  CompletePaymentIntentResult,
+  CreatePaymentIntentResult
 } from 'payments-client-lib';
 import { OpenPaymentsResourceServerRouteError } from '../errors.js';
 import { components } from '../types/generated/resource-server-types.js';
@@ -125,7 +126,7 @@ export async function incomingPaymentRoutes(
         );
       }
 
-      let paymentIntent: GetPaymentIntentResult;
+      let paymentIntent: CreatePaymentIntentResult;
       try {
         paymentIntent = await paymentsClient.createPaymentIntent(
           id,
