@@ -27,10 +27,14 @@ export function toIncomingPaymentBody(
   paymentIntent: GetPaymentIntentResult | CompletePaymentIntentResult,
   openPaymentsUrl: string
 ): components['schemas']['incoming-payment'] {
+  const { pathName } = parseAddressToDomainAndPathName(
+    paymentIntent.receiverWalletAddress
+  );
+
   const body: components['schemas']['incoming-payment'] = {
     id: `${openPaymentsUrl}/incoming-payments/${paymentIntent.id}`,
     completed: paymentIntent.state === 'COMPLETED',
-    walletAddress: paymentIntent.receiverWalletAddress,
+    walletAddress: `${openPaymentsUrl}/${pathName}`,
     createdAt: paymentIntent.createdAt,
     receivedAmount: {
       value: String(paymentIntent.receivedAmount),
@@ -126,7 +130,7 @@ export async function incomingPaymentRoutes(
         paymentIntent = await paymentsClient.createPaymentIntent(
           id,
           walletAddress.id,
-          `${domain}/${pathName}`,
+          domain ? `${domain}/${pathName}` : pathName,
           incomingAmount ? Number(incomingAmount.value) : undefined,
           expiresAt,
           JSON.stringify(metadata)
