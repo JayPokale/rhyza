@@ -1,3 +1,21 @@
+# API Changelog 0.0.2 vs. 0.0.3
+
+
+## API Changes
+
+### POST /wallet-addresses
+-  added the required property `id` to the response with the `201` status
+
+
+### POST /wallet-addresses/{id}/keys
+-  endpoint added
+
+
+
+
+
+
+
 # API Changelog 0.0.1 vs. 0.0.2
 
 ## API Changes
@@ -31,14 +49,6 @@
 - added the required property `sentAmount/value` to the response with the `200` status
 
 ### GET /payments
-
-- endpoint added
-
-### POST /wallet-addresses
-
-- added the required property `id` to the response with the `201` status
-
-### POST /wallet-addresses/{id}/keys
 
 - endpoint added
 
