@@ -220,7 +220,9 @@ export class MongoDbWalletRepo implements IPalWalletAddressRepository {
         crv: doc.jwk.crv,
         x: doc.jwk.x,
         ...(doc.jwk.use ? { use: doc.jwk.use } : {})
-      }
+      },
+      revoked: doc.revoked === true,
+      ...(doc.revokedAt ? { revokedAt: new Date(doc.revokedAt) } : {})
     };
   }
 

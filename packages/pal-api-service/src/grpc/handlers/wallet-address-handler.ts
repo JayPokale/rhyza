@@ -18,6 +18,7 @@ import {
   PbCreateWalletAddressResponse,
   PbGetWalletAddressKeysRequest,
   PbGetWalletAddressKeysResponse,
+  PbRevokeWalletAddressKeyRequest,
   PbGetWalletAddressesRequest,
   PbGetWalletAddressesResponse,
   PbResolveWalletAddressAliasRequest,
@@ -208,5 +209,16 @@ export class WalletAddressGrpcHandler {
     const resp = new PbGetWalletAddressKeysResponse();
     resp.setKeysList(keys.map(walletAddressKeyToPb));
     return { resp };
+  }
+
+  async handleRevokeWalletAddressKeyRequest(
+    call: ServerUnaryCall<PbRevokeWalletAddressKeyRequest, Empty>
+  ): Promise<UnaryResponse<Empty>> {
+    await this._walletAddressAggregate.revokeWalletAddressKey(
+      call.request.getWalletAddressId(),
+      call.request.getKeyId()
+    );
+
+    return { resp: new Empty() };
   }
 }

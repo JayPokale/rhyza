@@ -39,14 +39,16 @@ export async function walletAddressRoutes(
     );
 
     return reply.status(200).send({
-      keys: storedKeys.map((key) => ({
-        kid: key.jwk.kid,
-        alg: 'EdDSA' as const,
-        kty: 'OKP' as const,
-        crv: 'Ed25519' as const,
-        x: key.jwk.x,
-        ...(key.jwk.use === 'sig' ? { use: 'sig' as const } : {})
-      }))
+      keys: storedKeys
+        .filter((key) => !key.revoked)
+        .map((key) => ({
+          kid: key.jwk.kid,
+          alg: 'EdDSA' as const,
+          kty: 'OKP' as const,
+          crv: 'Ed25519' as const,
+          x: key.jwk.x,
+          ...(key.jwk.use === 'sig' ? { use: 'sig' as const } : {})
+        }))
     });
   });
 

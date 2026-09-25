@@ -7,6 +7,7 @@ import {
   IGetPeerFxRateToDestinationAsset,
   PalClient,
   PalClientDuplicateWalletAddressKeyError,
+  PalClientWalletAddressKeyNotFoundError,
   PalClientWalletAddressNotFoundError,
   parseAddressToDomainAndPathName
 } from '../src';
@@ -545,6 +546,7 @@ test('pal client - add wallet address key', async () => {
   assert.equal(keys[0].id, keyId);
   assert.equal(keys[0].walletAddressId, createdWalletAddressId);
   assert.equal(keys[0].jwk.kid, `${testPrefix}_key-1`);
+  assert.equal(keys[0].revoked, false);
 });
 
 test('pal client - add duplicate wallet address key kid should fail', async () => {
@@ -559,6 +561,37 @@ test('pal client - add duplicate wallet address key kid should fail', async () =
     assert.fail();
   } catch (e) {
     assert.ok(e instanceof PalClientDuplicateWalletAddressKeyError);
+  }
+});
+
+test('pal client - revoke wallet address key', async () => {
+  const keys = await client.getWalletAddressKeys(createdWalletAddressId);
+  const key = keys.find((item) => item.jwk.kid === `${testPrefix}_key-1`);
+  assert.ok(key);
+  assert.equal(key.revoked, false);
+
+  await client.revokeWalletAddressKey(createdWalletAddressId, key.id);
+
+  const revoked = (
+    await client.getWalletAddressKeys(createdWalletAddressId)
+  ).find((item) => item.id === key.id);
+  assert.equal(revoked?.revoked, true);
+  assert.ok(revoked?.revokedAt instanceof Date);
+
+  await client.revokeWalletAddressKey(createdWalletAddressId, key.id);
+
+  const again = (
+    await client.getWalletAddressKeys(createdWalletAddressId)
+  ).find((item) => item.id === key.id);
+  assert.equal(again?.revokedAt?.getTime(), revoked?.revokedAt?.getTime());
+});
+
+test('pal client - revoke missing wallet address key should fail', async () => {
+  try {
+    await client.revokeWalletAddressKey(createdWalletAddressId, 'missing-key');
+    assert.fail();
+  } catch (e) {
+    assert.ok(e instanceof PalClientWalletAddressKeyNotFoundError);
   }
 });
 

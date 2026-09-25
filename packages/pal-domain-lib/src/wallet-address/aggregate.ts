@@ -2,6 +2,7 @@ import {
   CannotCreateDuplicateWalletAddressAliasError,
   CannotCreateDuplicateWalletAddressError,
   WalletAddressAliasNotFoundError,
+  WalletAddressKeyNotFoundError,
   WalletAddressNotFoundError
 } from './errors';
 import { IPalWalletAddressRepository } from './interfaces';
@@ -167,6 +168,36 @@ export class WalletAddressAggregate {
 
     return PalWalletAddress.fromDto(walletDto).keys.map((key) =>
       key.toObject()
+    );
+  }
+
+  async revokeWalletAddressKey(
+    walletAddressId: string,
+    keyId: string
+  ): Promise<void> {
+    const [walletDto] = await this._repo.fetch([walletAddressId]);
+    if (!walletDto) {
+      throw new WalletAddressKeyNotFoundError(
+        `Wallet address key ${keyId} does not exist for wallet ${walletAddressId}`
+      );
+    }
+
+    const wallet = PalWalletAddress.fromDto(walletDto);
+    const revokedAt = wallet.revokeKey(keyId);
+    if (!revokedAt) {
+      return;
+    }
+
+    const key = wallet.keys.find((stored) => stored.id === keyId);
+    if (!key) {
+      throw new WalletAddressKeyNotFoundError(
+        `Wallet address key ${keyId} does not exist for wallet ${walletAddressId}`
+      );
+    }
+
+    await this._repo.storeKey(key.toObject());
+    this._logger.info(
+      `Revoked wallet address key ${keyId} for wallet ${walletAddressId}`
     );
   }
 }

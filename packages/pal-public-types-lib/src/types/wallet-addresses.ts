@@ -28,4 +28,6 @@ export interface IPalWalletAddressKeyDto {
   id: string;
   walletAddressId: string;
   jwk: IPalJsonWebKeyDto;
+  revoked: boolean;
+  revokedAt?: Date;
 }

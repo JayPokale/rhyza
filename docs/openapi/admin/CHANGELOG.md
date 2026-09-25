@@ -1,3 +1,17 @@
+# API Changelog 0.0.3 vs. 0.0.4
+
+
+## API Changes
+
+### POST /wallet-addresses/{id}/keys/{keyId}/revoke
+-  endpoint added
+
+
+
+
+
+
+
 # API Changelog 0.0.2 vs. 0.0.3
 
 

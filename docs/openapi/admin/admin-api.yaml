@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Rafiki Admin API
-  version: 0.0.3
+  version: 0.0.4
   license:
     name: ISC
     identifier: ISC
@@ -166,6 +166,38 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '409':
           description: A key with this kid already exists for the wallet address.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /wallet-addresses/{id}/keys/{keyId}/revoke:
+    post:
+      summary: Revoke Wallet Address Key
+      description: >-
+        Soft-revoke a wallet address key. The key record is kept and is no
+        longer served from `GET /jwks.json`. Revoking a key that is already
+        revoked succeeds and does not change `revokedAt`.
+      tags:
+        - wallet-addresses
+      operationId: revokeWalletAddressKey
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The PAL identifier of the wallet address.
+          schema:
+            type: string
+        - name: keyId
+          in: path
+          required: true
+          description: The identifier of the wallet address key to revoke.
+          schema:
+            type: string
+      responses:
+        '204':
+          description: The key is revoked.
+        '404':
+          description: Wallet address key not found.
           content:
             application/json:
               schema:

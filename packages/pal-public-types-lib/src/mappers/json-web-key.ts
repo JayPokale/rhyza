@@ -38,18 +38,33 @@ export function walletAddressKeyFromPb(
     throw new Error(`Wallet address key ${pb.getId()} is missing a JWK`);
   }
 
-  return {
+  const key: IPalWalletAddressKeyDto = {
     id: pb.getId(),
     walletAddressId: pb.getWalletAddressId(),
-    jwk: jsonWebKeyFromPb(pbJwk)
+    jwk: jsonWebKeyFromPb(pbJwk),
+    revoked: pb.getRevoked()
   };
+
+  const revokedAt = pb.getRevokedAt();
+  if (pb.hasRevokedAt() && revokedAt !== undefined) {
+    key.revokedAt = new Date(revokedAt);
+  }
+
+  return key;
 }
 
 export function walletAddressKeyToPb(
   key: IPalWalletAddressKeyDto
 ): PbWalletAddressKey {
-  return new PbWalletAddressKey()
+  const pb = new PbWalletAddressKey()
     .setId(key.id)
     .setWalletAddressId(key.walletAddressId)
-    .setJwk(jsonWebKeyToPb(key.jwk));
+    .setJwk(jsonWebKeyToPb(key.jwk))
+    .setRevoked(key.revoked);
+
+  if (key.revokedAt) {
+    pb.setRevokedAt(key.revokedAt.getTime());
+  }
+
+  return pb;
 }

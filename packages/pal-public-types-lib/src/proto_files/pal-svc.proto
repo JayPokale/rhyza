@@ -11,6 +11,7 @@ service PalGrpc {
   rpc GetWalletAddresses(PbGetWalletAddressesRequest) returns (PbGetWalletAddressesResponse);
   rpc AddWalletAddressKey(PbAddWalletAddressKeyRequest) returns (PbAddWalletAddressKeyResponse);
   rpc GetWalletAddressKeys(PbGetWalletAddressKeysRequest) returns (PbGetWalletAddressKeysResponse);
+  rpc RevokeWalletAddressKey(PbRevokeWalletAddressKeyRequest) returns (google.protobuf.Empty);
 
   rpc ResolveWalletAddressAlias(PbResolveWalletAddressAliasRequest) returns (PbResolveWalletAddressAliasResponse);
   rpc CreateWalletAddressAlias(PbCreateWalletAddressAliasRequest) returns (google.protobuf.Empty);
@@ -122,6 +123,8 @@ message PbWalletAddressKey {
   string id = 1;
   string wallet_address_id = 2;
   PbJsonWebKey jwk = 3;
+  bool revoked = 4;
+  optional int64 revoked_at = 5;
 }
 
 message PbAddWalletAddressKeyRequest {
@@ -139,6 +142,11 @@ message PbGetWalletAddressKeysRequest {
 
 message PbGetWalletAddressKeysResponse {
   repeated PbWalletAddressKey keys = 1;
+}
+
+message PbRevokeWalletAddressKeyRequest {
+  string wallet_address_id = 1;
+  string key_id = 2;
 }
 
 /*

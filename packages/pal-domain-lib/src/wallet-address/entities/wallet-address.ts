@@ -3,7 +3,8 @@ import { PalWalletAddressAlias } from './wallet-address-alias';
 import { PalWalletAddressKey } from './wallet-address-key';
 import {
   CannotCreateDuplicateWalletAddressAliasError,
-  DuplicateWalletAddressKeyError
+  DuplicateWalletAddressKeyError,
+  WalletAddressKeyNotFoundError
 } from '../errors';
 
 export class PalWalletAddress implements IPalWalletAddressDto {
@@ -121,5 +122,16 @@ export class PalWalletAddress implements IPalWalletAddressDto {
 
     this._keys.push(key);
     return key;
+  }
+
+  revokeKey(keyId: string): Date | undefined {
+    const key = this._keys.find((stored) => stored.id === keyId);
+    if (!key) {
+      throw new WalletAddressKeyNotFoundError(
+        `Wallet address key ${keyId} does not exist for wallet ${this._id}`
+      );
+    }
+
+    return key.revoke();
   }
 }

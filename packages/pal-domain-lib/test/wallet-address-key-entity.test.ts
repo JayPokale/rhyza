@@ -28,6 +28,8 @@ test('PalWalletAddressKey.create stores a valid Ed25519 JWK', () => {
   assert.equal(obj.jwk.crv, 'Ed25519');
   assert.equal(obj.jwk.x, VALID_JWK.x);
   assert.equal(obj.jwk.use, undefined);
+  assert.equal(obj.revoked, false);
+  assert.equal(obj.revokedAt, undefined);
 });
 
 test('PalWalletAddressKey.create rejects a non-Ed25519 JWK', () => {
@@ -49,6 +51,32 @@ test('PalWalletAddressKey.fromObject rehydrates stored state', () => {
   const rehydrated = PalWalletAddressKey.fromObject(created.toObject());
 
   assert.deepEqual(rehydrated.toObject(), created.toObject());
+});
+
+test('PalWalletAddressKey.revoke stamps revokedAt once', () => {
+  const key = PalWalletAddressKey.create('wallet-1', VALID_JWK);
+  const revokedAt = key.revoke();
+
+  assert.ok(revokedAt instanceof Date);
+  assert.equal(key.revoked, true);
+  assert.equal(key.revokedAt, revokedAt);
+
+  const second = key.revoke();
+  assert.equal(second, undefined);
+  assert.equal(key.revokedAt, revokedAt);
+});
+
+test('PalWalletAddressKey.fromObject keeps an existing revocation', () => {
+  const revokedAt = new Date('2026-09-22T12:00:00.000Z');
+  const created = PalWalletAddressKey.create('wallet-1', VALID_JWK);
+  const stored = created.toObject();
+  stored.revoked = true;
+  stored.revokedAt = revokedAt;
+
+  const rehydrated = PalWalletAddressKey.fromObject(stored);
+  assert.equal(rehydrated.revoke(), undefined);
+  assert.equal(rehydrated.revoked, true);
+  assert.equal(rehydrated.revokedAt?.getTime(), revokedAt.getTime());
 });
 
 test('PalWalletAddress.addKey stores the key on the wallet', () => {

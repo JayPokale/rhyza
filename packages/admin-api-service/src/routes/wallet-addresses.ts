@@ -5,6 +5,7 @@ import {
   PalClient,
   PalClientDuplicateWalletAddressKeyError,
   PalClientInvalidWalletAddressJwkError,
+  PalClientWalletAddressKeyNotFoundError,
   PalClientWalletAddressNotFoundError,
   parseAddressToDomainAndPathName
 } from 'pal-client-lib';
@@ -76,6 +77,23 @@ export async function walletAddressRoutes(
       }
       if (err instanceof PalClientDuplicateWalletAddressKeyError) {
         return reply.status(409).send({ error: err.message });
+      }
+      throw err;
+    }
+  });
+
+  server.post<{
+    Params: { id: string; keyId: string };
+  }>('/wallet-addresses/:id/keys/:keyId/revoke', async (request, reply) => {
+    try {
+      await palClient.revokeWalletAddressKey(
+        request.params.id,
+        request.params.keyId
+      );
+      return reply.status(204).send();
+    } catch (err) {
+      if (err instanceof PalClientWalletAddressKeyNotFoundError) {
+        return reply.status(404).send({ error: err.message });
       }
       throw err;
     }

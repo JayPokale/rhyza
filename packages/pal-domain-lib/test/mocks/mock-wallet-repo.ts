@@ -28,6 +28,14 @@ export class MockWalletRepo implements IPalWalletAddressRepository {
 
   storeKey(key: IPalWalletAddressKeyDto): Promise<void> {
     const existing = this._keys.get(key.walletAddressId) ?? [];
+    const index = existing.findIndex((stored) => stored.id === key.id);
+    if (index >= 0) {
+      const next = [...existing];
+      next[index] = key;
+      this._keys.set(key.walletAddressId, next);
+      return Promise.resolve();
+    }
+
     if (existing.some((stored) => stored.jwk.kid === key.jwk.kid)) {
       throw new DuplicateWalletAddressKeyError(
         `Wallet address key with kid ${key.jwk.kid} already exists`

@@ -35,15 +35,21 @@ export class PalWalletAddressKey {
   private readonly _id: string;
   private readonly _walletAddressId: string;
   private readonly _jwk: IPalJsonWebKeyDto;
+  private _revoked: boolean;
+  private _revokedAt?: Date;
 
   private constructor(
     id: string,
     walletAddressId: string,
-    jwk: IPalJsonWebKeyDto
+    jwk: IPalJsonWebKeyDto,
+    revoked: boolean,
+    revokedAt?: Date
   ) {
     this._id = id;
     this._walletAddressId = walletAddressId;
     this._jwk = jwk;
+    this._revoked = revoked;
+    this._revokedAt = revokedAt;
   }
 
   static create(
@@ -59,7 +65,8 @@ export class PalWalletAddressKey {
     return new PalWalletAddressKey(
       crypto.randomUUID(),
       walletAddressId,
-      copyJwk(jwk)
+      copyJwk(jwk),
+      false
     );
   }
 
@@ -67,15 +74,29 @@ export class PalWalletAddressKey {
     return new PalWalletAddressKey(
       json.id,
       json.walletAddressId,
-      copyJwk(json.jwk)
+      copyJwk(json.jwk),
+      json.revoked === true,
+      json.revokedAt ? new Date(json.revokedAt) : undefined
     );
+  }
+
+  revoke(): Date | undefined {
+    if (this._revoked) {
+      return undefined;
+    }
+
+    this._revoked = true;
+    this._revokedAt = new Date();
+    return this._revokedAt;
   }
 
   toObject(): IPalWalletAddressKeyDto {
     return {
       id: this._id,
       walletAddressId: this._walletAddressId,
-      jwk: copyJwk(this._jwk)
+      jwk: copyJwk(this._jwk),
+      revoked: this._revoked,
+      ...(this._revokedAt ? { revokedAt: this._revokedAt } : {})
     };
   }
 
@@ -89,5 +110,13 @@ export class PalWalletAddressKey {
 
   get jwk(): IPalJsonWebKeyDto {
     return copyJwk(this._jwk);
+  }
+
+  get revoked(): boolean {
+    return this._revoked;
+  }
+
+  get revokedAt(): Date | undefined {
+    return this._revokedAt;
   }
 }

@@ -10,6 +10,7 @@ import {
   PalClientPeerNotFoundError,
   PalClientUnknownError,
   PalClientWalletAddressNotFoundError,
+  PalClientWalletAddressKeyNotFoundError,
   PalClientDuplicateWalletAddressKeyError,
   PalClientInvalidWalletAddressJwkError
 } from './local-types';
@@ -37,6 +38,7 @@ import {
   PbAddWalletAddressKeyResponse,
   PbGetWalletAddressKeysRequest,
   PbGetWalletAddressKeysResponse,
+  PbRevokeWalletAddressKeyRequest,
   PbCreatePeerRequest,
   PbPeerCommsMethodDefinition,
   IPalPeerDto,
@@ -296,6 +298,33 @@ export class PalClient {
           } catch (e) {
             return reject(new PalClientUnknownError((e as Error).message));
           }
+        }
+      );
+    });
+  }
+
+  async revokeWalletAddressKey(
+    walletAddressId: string,
+    keyId: string
+  ): Promise<void> {
+    const request = new PbRevokeWalletAddressKeyRequest();
+    request.setWalletAddressId(walletAddressId);
+    request.setKeyId(keyId);
+
+    return new Promise((resolve, reject) => {
+      this._grpcClient.revokeWalletAddressKey(
+        request,
+        (error: ServiceError | null) => {
+          if (error) {
+            if (error.code === grpc.status.NOT_FOUND) {
+              return reject(
+                new PalClientWalletAddressKeyNotFoundError(error.message)
+              );
+            }
+            return reject(new PalClientUnknownError(error.message));
+          }
+
+          return resolve();
         }
       );
     });

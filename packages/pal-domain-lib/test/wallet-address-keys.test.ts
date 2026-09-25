@@ -7,6 +7,7 @@ import {
   InvalidWalletAddressJwkError,
   IPalWalletAddressRepository,
   WalletAddressAggregate,
+  WalletAddressKeyNotFoundError,
   WalletAddressNotFoundError
 } from '../src';
 import { MockWalletRepo } from './mocks';
@@ -50,6 +51,8 @@ test('PAL WalletAddress Keys - add key for existing wallet', async () => {
   assert.equal(keys[0].walletAddressId, walletId);
   assert.equal(keys[0].jwk.kid, VALID_JWK.kid);
   assert.equal(keys[0].jwk.x, VALID_JWK.x);
+  assert.equal(keys[0].revoked, false);
+  assert.equal(keys[0].revokedAt, undefined);
 });
 
 test('PAL WalletAddress Keys - add key for missing wallet should fail', async () => {
@@ -101,4 +104,43 @@ test('PAL WalletAddress Keys - get keys for wallet with none returns empty list'
 
   const keys = await walletAggregate.getWalletAddressKeys(otherWalletId);
   assert.equal(keys.length, 0);
+});
+
+test('PAL WalletAddress Keys - revoke key keeps the record and stamps revokedAt', async () => {
+  const [key] = (await walletAggregate.getWalletAddressKeys(walletId)).filter(
+    (item) => item.jwk.kid === VALID_JWK.kid
+  );
+  assert.ok(key);
+
+  await walletAggregate.revokeWalletAddressKey(walletId, key.id);
+
+  const keys = await walletAggregate.getWalletAddressKeys(walletId);
+  const revoked = keys.find((item) => item.id === key.id);
+  assert.ok(revoked);
+  assert.equal(revoked.revoked, true);
+  assert.ok(revoked.revokedAt instanceof Date);
+  assert.equal(keys.length, 2);
+});
+
+test('PAL WalletAddress Keys - revoke is a no-op when the key is already revoked', async () => {
+  const [key] = (await walletAggregate.getWalletAddressKeys(walletId)).filter(
+    (item) => item.jwk.kid === VALID_JWK.kid
+  );
+  assert.ok(key?.revokedAt);
+  const revokedAt = key.revokedAt.getTime();
+
+  await walletAggregate.revokeWalletAddressKey(walletId, key.id);
+
+  const [again] = (await walletAggregate.getWalletAddressKeys(walletId)).filter(
+    (item) => item.id === key.id
+  );
+  assert.equal(again.revoked, true);
+  assert.equal(again.revokedAt?.getTime(), revokedAt);
+});
+
+test('PAL WalletAddress Keys - revoke missing key should fail', async () => {
+  await assert.rejects(
+    () => walletAggregate.revokeWalletAddressKey(walletId, 'missing-key'),
+    WalletAddressKeyNotFoundError
+  );
 });

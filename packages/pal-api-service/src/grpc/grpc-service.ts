@@ -20,6 +20,7 @@ import {
   PeerNotFoundError,
   WalletAddressAggregate,
   WalletAddressAliasNotFoundError,
+  WalletAddressKeyNotFoundError,
   WalletAddressNotFoundError
 } from 'pal-domain-lib';
 import {
@@ -347,6 +348,12 @@ export class PalGrpcServer {
         this._walletAddressGrpcHandler
       )
     );
+    this._requestHandlerRegistry.register(
+      PalGrpcService.revokeWalletAddressKey,
+      this._walletAddressGrpcHandler.handleRevokeWalletAddressKeyRequest.bind(
+        this._walletAddressGrpcHandler
+      )
+    );
 
     // peer requests
     this._requestHandlerRegistry.register(
@@ -535,7 +542,8 @@ export class PalGrpcServer {
         err instanceof PeerNotFoundError ||
         err instanceof AssetNotFoundError ||
         err instanceof WalletAddressAliasNotFoundError ||
-        err instanceof WalletAddressNotFoundError
+        err instanceof WalletAddressNotFoundError ||
+        err instanceof WalletAddressKeyNotFoundError
       ) {
         callback({
           code: grpc.status.NOT_FOUND,
