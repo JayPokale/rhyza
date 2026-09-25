@@ -1,5 +1,6 @@
 'use strict';
 
+import { randomUUID } from 'crypto';
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { PalClient, parseAddressToDomainAndPathName } from 'pal-client-lib';
 import {
@@ -11,12 +12,20 @@ import {
 } from 'payments-client-lib';
 import { OpenPaymentsResourceServerRouteError } from '../errors.js';
 import { components } from '../types/generated/resource-server-types.js';
+import { decodeCompoundId, encodeCompoundId } from '../utils.js';
 
 interface OutgoingPaymentRouteOptions extends FastifyPluginOptions {
   palClient: PalClient;
   paymentsClient: PaymentsClient;
   /** Base URL of this node's Open Payments resource server, used to construct receiver URLs for LOCAL parents. */
   openPaymentsUrl: string;
+}
+
+/**
+ * gets the internal compound from a url id
+ */
+function toCompoundId(value: string): string {
+  return value.split('/').filter(Boolean).at(-1) ?? '';
 }
 
 function toAmountBody(amount: IAmount): components['schemas']['amount'] {
@@ -46,11 +55,15 @@ function toOutgoingPaymentBody(
     `${openPaymentsUrl}/incoming-payments/${payment.paymentIntentId}`;
 
   return {
-    id: payment.id,
+    id: `${openPaymentsUrl}/outgoing-payments/${encodeCompoundId(payment.paymentIntentId, payment.id)}`,
     walletAddress: payment.senderWalletAddress,
     receiver,
     failed: payment.state === 'FAILED',
-    ...(payment.quoteId ? { quoteId: payment.quoteId } : {}),
+    ...(payment.quoteId
+      ? {
+          quoteId: `${openPaymentsUrl}/quotes/${encodeCompoundId(payment.paymentIntentId, payment.quoteId)}`
+        }
+      : {}),
     debitAmount: toAmountBody(payment.debitAmount),
     receiveAmount:
       payment.receiveAmount === null
@@ -66,6 +79,135 @@ export async function outgoingPaymentRoutes(
   opts: OutgoingPaymentRouteOptions
 ): Promise<void> {
   const { palClient, paymentsClient, openPaymentsUrl } = opts;
+
+  server.post<{
+    Body: components['schemas']['create-outgoing-payment-request'];
+  }>(
+    '/outgoing-payments',
+    {
+      schema: {
+        body: { $ref: '#/components/schemas/create-outgoing-payment-request#' }
+      }
+    },
+    async (request, reply) => {
+      const { walletAddress: walletAddressUrl } = request.body;
+
+      const { domain, pathName } =
+        parseAddressToDomainAndPathName(walletAddressUrl);
+
+      const alias = await palClient.ResolveWalletAddressAlias(domain, pathName);
+
+      if (!alias) {
+        throw new OpenPaymentsResourceServerRouteError(
+          404,
+          'Wallet address not found',
+          'not_found'
+        );
+      }
+
+      const walletAddresses = await palClient.getWalletAddresses([
+        alias.walletAddressId
+      ]);
+
+      if (!walletAddresses.length) {
+        throw new OpenPaymentsResourceServerRouteError(
+          404,
+          'Wallet address not found',
+          'not_found'
+        );
+      }
+
+      const walletAddress = walletAddresses[0];
+
+      if (
+        'debitAmount' in request.body &&
+        (request.body.debitAmount.assetCode !== walletAddress.assetCode ||
+          request.body.debitAmount.assetScale !== walletAddress.assetScale)
+      ) {
+        throw new OpenPaymentsResourceServerRouteError(
+          400,
+          'debitAmount asset does not match wallet address asset',
+          'invalid_request'
+        );
+      }
+
+      // Decoded outside the try/catch so a decode error is handled
+      // as a route error, not a gRPC error.
+      const quoteSource =
+        'quoteId' in request.body
+          ? ({
+              kind: 'existing',
+              ...decodeCompoundId(toCompoundId(request.body.quoteId))
+            } as const)
+          : ({
+              kind: 'create',
+              incomingPaymentUrl: request.body.incomingPayment,
+              debitAmountValue: Number(request.body.debitAmount.value)
+            } as const);
+
+      try {
+        // Open Payments requires a receiveAmount on the created outgoing payment, but
+        // we will not have one if it is created without a quote (only debit amount).
+        // A quote is created here as a workaround.
+        const quote =
+          quoteSource.kind === 'existing'
+            ? {
+                paymentIntentId: quoteSource.paymentIntentId,
+                id: quoteSource.quoteId
+              }
+            : await paymentsClient.createQuote(
+                randomUUID(),
+                { incomingPaymentUrl: quoteSource.incomingPaymentUrl },
+                alias.walletAddressId,
+                walletAddressUrl,
+                quoteSource.debitAmountValue
+              );
+
+        const { id: paymentId } = await paymentsClient.createPayment(
+          randomUUID(),
+          { incomingPaymentId: quote.paymentIntentId },
+          alias.walletAddressId,
+          walletAddressUrl,
+          quote.id
+        );
+
+        const payment = await paymentsClient.getPayment(
+          quote.paymentIntentId,
+          paymentId
+        );
+
+        return reply
+          .status(201)
+          .send(toOutgoingPaymentBody(payment, openPaymentsUrl));
+      } catch (err) {
+        const httpStatus = httpStatusFromGrpcError(err);
+        return reply.status(httpStatus).send(toClientApiErrorResponse(err));
+      }
+    }
+  );
+
+  server.get<{ Params: { id: string } }>(
+    '/outgoing-payments/:id',
+    async (request, reply) => {
+      const { paymentIntentId, quoteId: paymentId } = decodeCompoundId(
+        toCompoundId(request.params.id)
+      );
+
+      try {
+        const payment = await paymentsClient.getPayment(
+          paymentIntentId,
+          paymentId
+        );
+
+        return reply
+          .status(200)
+          .send(toOutgoingPaymentBody(payment, openPaymentsUrl));
+      } catch (err) {
+        const httpStatus = httpStatusFromGrpcError(err);
+        return reply.status(httpStatus).send(toClientApiErrorResponse(err));
+      }
+    }
+  );
 
   server.get<{
     Querystring: {
