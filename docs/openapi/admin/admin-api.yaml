@@ -176,7 +176,7 @@ paths:
       description: >-
         Soft-revoke a wallet address key. The key record is kept and is no
         longer served from `GET /jwks.json`. Revoking a key that is already
-        revoked succeeds and does not change `revokedAt`.
+        revoked returns 409 and does not change `revokedAt`.
       tags:
         - wallet-addresses
       operationId: revokeWalletAddressKey
@@ -198,6 +198,12 @@ paths:
           description: The key is revoked.
         '404':
           description: Wallet address key not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: The wallet address key is already revoked.
           content:
             application/json:
               schema:

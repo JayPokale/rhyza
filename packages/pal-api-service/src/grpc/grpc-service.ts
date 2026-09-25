@@ -13,6 +13,7 @@ import {
   AssetAggregate,
   AssetNotFoundError,
   DuplicateWalletAddressKeyError,
+  WalletAddressKeyAlreadyRevokedError,
   FxAggregate,
   ILedgerReadSideRepository,
   InvalidWalletAddressJwkError,
@@ -552,6 +553,11 @@ export class PalGrpcServer {
       } else if (err instanceof DuplicateWalletAddressKeyError) {
         callback({
           code: grpc.status.ALREADY_EXISTS,
+          message: err.message
+        });
+      } else if (err instanceof WalletAddressKeyAlreadyRevokedError) {
+        callback({
+          code: grpc.status.FAILED_PRECONDITION,
           message: err.message
         });
       } else if (err instanceof InvalidWalletAddressJwkError) {

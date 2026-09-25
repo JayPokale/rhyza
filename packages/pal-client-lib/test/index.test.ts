@@ -7,6 +7,7 @@ import {
   IGetPeerFxRateToDestinationAsset,
   PalClient,
   PalClientDuplicateWalletAddressKeyError,
+  PalClientWalletAddressKeyAlreadyRevokedError,
   PalClientWalletAddressKeyNotFoundError,
   PalClientWalletAddressNotFoundError,
   parseAddressToDomainAndPathName
@@ -578,7 +579,12 @@ test('pal client - revoke wallet address key', async () => {
   assert.equal(revoked?.revoked, true);
   assert.ok(revoked?.revokedAt instanceof Date);
 
-  await client.revokeWalletAddressKey(createdWalletAddressId, key.id);
+  try {
+    await client.revokeWalletAddressKey(createdWalletAddressId, key.id);
+    assert.fail();
+  } catch (e) {
+    assert.ok(e instanceof PalClientWalletAddressKeyAlreadyRevokedError);
+  }
 
   const again = (
     await client.getWalletAddressKeys(createdWalletAddressId)

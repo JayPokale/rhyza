@@ -183,10 +183,7 @@ export class WalletAddressAggregate {
     }
 
     const wallet = PalWalletAddress.fromDto(walletDto);
-    const revokedAt = wallet.revokeKey(keyId);
-    if (!revokedAt) {
-      return;
-    }
+    wallet.revokeKey(keyId);
 
     const key = wallet.keys.find((stored) => stored.id === keyId);
     if (!key) {

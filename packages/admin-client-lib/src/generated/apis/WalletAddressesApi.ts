@@ -200,7 +200,7 @@ export class WalletAddressesApi extends runtime.BaseAPI {
     }
 
     /**
-     * Soft-revoke a wallet address key. The key record is kept and is no longer served from `GET /jwks.json`. Revoking a key that is already revoked succeeds and does not change `revokedAt`.
+     * Soft-revoke a wallet address key. The key record is kept and is no longer served from `GET /jwks.json`. Revoking a key that is already revoked returns 409 and does not change `revokedAt`.
      * Revoke Wallet Address Key
      */
     async revokeWalletAddressKeyRaw(requestParameters: RevokeWalletAddressKeyRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<void>> {
@@ -211,7 +211,7 @@ export class WalletAddressesApi extends runtime.BaseAPI {
     }
 
     /**
-     * Soft-revoke a wallet address key. The key record is kept and is no longer served from `GET /jwks.json`. Revoking a key that is already revoked succeeds and does not change `revokedAt`.
+     * Soft-revoke a wallet address key. The key record is kept and is no longer served from `GET /jwks.json`. Revoking a key that is already revoked returns 409 and does not change `revokedAt`.
      * Revoke Wallet Address Key
      */
     async revokeWalletAddressKey(id: string, keyId: string, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<void> {

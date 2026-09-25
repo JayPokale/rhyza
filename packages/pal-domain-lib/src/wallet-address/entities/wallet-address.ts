@@ -124,7 +124,7 @@ export class PalWalletAddress implements IPalWalletAddressDto {
     return key;
   }
 
-  revokeKey(keyId: string): Date | undefined {
+  revokeKey(keyId: string): Date {
     const key = this._keys.find((stored) => stored.id === keyId);
     if (!key) {
       throw new WalletAddressKeyNotFoundError(

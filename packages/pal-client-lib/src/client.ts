@@ -11,6 +11,7 @@ import {
   PalClientUnknownError,
   PalClientWalletAddressNotFoundError,
   PalClientWalletAddressKeyNotFoundError,
+  PalClientWalletAddressKeyAlreadyRevokedError,
   PalClientDuplicateWalletAddressKeyError,
   PalClientInvalidWalletAddressJwkError
 } from './local-types';
@@ -319,6 +320,11 @@ export class PalClient {
             if (error.code === grpc.status.NOT_FOUND) {
               return reject(
                 new PalClientWalletAddressKeyNotFoundError(error.message)
+              );
+            }
+            if (error.code === grpc.status.FAILED_PRECONDITION) {
+              return reject(
+                new PalClientWalletAddressKeyAlreadyRevokedError(error.message)
               );
             }
             return reject(new PalClientUnknownError(error.message));

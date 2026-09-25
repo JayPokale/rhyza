@@ -3,7 +3,10 @@ import {
   IPalJsonWebKeyDto,
   IPalWalletAddressKeyDto
 } from 'pal-public-types-lib';
-import { InvalidWalletAddressJwkError } from '../errors';
+import {
+  InvalidWalletAddressJwkError,
+  WalletAddressKeyAlreadyRevokedError
+} from '../errors';
 
 const BASE64URL_PATTERN = /^[A-Za-z0-9_-]+$/;
 
@@ -80,9 +83,11 @@ export class PalWalletAddressKey {
     );
   }
 
-  revoke(): Date | undefined {
+  revoke(): Date {
     if (this._revoked) {
-      return undefined;
+      throw new WalletAddressKeyAlreadyRevokedError(
+        `Wallet address key ${this._id} is already revoked`
+      );
     }
 
     this._revoked = true;

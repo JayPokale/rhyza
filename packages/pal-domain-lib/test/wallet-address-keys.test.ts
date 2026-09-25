@@ -7,6 +7,7 @@ import {
   InvalidWalletAddressJwkError,
   IPalWalletAddressRepository,
   WalletAddressAggregate,
+  WalletAddressKeyAlreadyRevokedError,
   WalletAddressKeyNotFoundError,
   WalletAddressNotFoundError
 } from '../src';
@@ -122,14 +123,17 @@ test('PAL WalletAddress Keys - revoke key keeps the record and stamps revokedAt'
   assert.equal(keys.length, 2);
 });
 
-test('PAL WalletAddress Keys - revoke is a no-op when the key is already revoked', async () => {
+test('PAL WalletAddress Keys - revoke throws when the key is already revoked', async () => {
   const [key] = (await walletAggregate.getWalletAddressKeys(walletId)).filter(
     (item) => item.jwk.kid === VALID_JWK.kid
   );
   assert.ok(key?.revokedAt);
   const revokedAt = key.revokedAt.getTime();
 
-  await walletAggregate.revokeWalletAddressKey(walletId, key.id);
+  await assert.rejects(
+    () => walletAggregate.revokeWalletAddressKey(walletId, key.id),
+    WalletAddressKeyAlreadyRevokedError
+  );
 
   const [again] = (await walletAggregate.getWalletAddressKeys(walletId)).filter(
     (item) => item.id === key.id

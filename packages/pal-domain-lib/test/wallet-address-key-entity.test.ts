@@ -5,7 +5,8 @@ import {
   DuplicateWalletAddressKeyError,
   InvalidWalletAddressJwkError,
   PalWalletAddress,
-  PalWalletAddressKey
+  PalWalletAddressKey,
+  WalletAddressKeyAlreadyRevokedError
 } from '../src';
 
 const VALID_JWK: IPalJsonWebKeyDto = {
@@ -61,8 +62,7 @@ test('PalWalletAddressKey.revoke stamps revokedAt once', () => {
   assert.equal(key.revoked, true);
   assert.equal(key.revokedAt, revokedAt);
 
-  const second = key.revoke();
-  assert.equal(second, undefined);
+  assert.throws(() => key.revoke(), WalletAddressKeyAlreadyRevokedError);
   assert.equal(key.revokedAt, revokedAt);
 });
 
@@ -74,7 +74,7 @@ test('PalWalletAddressKey.fromObject keeps an existing revocation', () => {
   stored.revokedAt = revokedAt;
 
   const rehydrated = PalWalletAddressKey.fromObject(stored);
-  assert.equal(rehydrated.revoke(), undefined);
+  assert.throws(() => rehydrated.revoke(), WalletAddressKeyAlreadyRevokedError);
   assert.equal(rehydrated.revoked, true);
   assert.equal(rehydrated.revokedAt?.getTime(), revokedAt.getTime());
 });

@@ -5,3 +5,4 @@ export class WalletAddressNotFoundError extends Error {}
 export class DuplicateWalletAddressKeyError extends Error {}
 export class InvalidWalletAddressJwkError extends Error {}
 export class WalletAddressKeyNotFoundError extends Error {}
+export class WalletAddressKeyAlreadyRevokedError extends Error {}

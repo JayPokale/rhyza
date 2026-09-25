@@ -5,6 +5,7 @@ import {
   PalClient,
   PalClientDuplicateWalletAddressKeyError,
   PalClientInvalidWalletAddressJwkError,
+  PalClientWalletAddressKeyAlreadyRevokedError,
   PalClientWalletAddressKeyNotFoundError,
   PalClientWalletAddressNotFoundError,
   parseAddressToDomainAndPathName
@@ -94,6 +95,9 @@ export async function walletAddressRoutes(
     } catch (err) {
       if (err instanceof PalClientWalletAddressKeyNotFoundError) {
         return reply.status(404).send({ error: err.message });
+      }
+      if (err instanceof PalClientWalletAddressKeyAlreadyRevokedError) {
+        return reply.status(409).send({ error: err.message });
       }
       throw err;
     }
