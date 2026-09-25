@@ -1,11 +1,18 @@
 import {
+  DEFAULT_SORT_ORDER,
   FinalizedRemoteQuoteUpdate,
+  IPage,
+  IPageOpts,
   IPaymentIntent,
   IPaymentIntentRepository,
+  ISentPayment,
   PaymentIntentState,
   SentPaymentState,
-  ReceivedPaymentState
+  SortOrder,
+  InboundPaymentState
 } from '../../src/payment-intent/interfaces';
+import { InvalidCursorError } from '../../src/payment-intent/errors';
+import { InvalidArgument } from 'common-types-lib';
 
 export class MockPaymentIntentRepo implements IPaymentIntentRepository {
   private _store: Map<string, IPaymentIntent> = new Map();
@@ -30,13 +37,13 @@ export class MockPaymentIntentRepo implements IPaymentIntentRepository {
 
   async fetchByIds(
     ids: string[]
-  ): Promise<Omit<IPaymentIntent, 'sentPayments' | 'receivedPayments'>[]> {
+  ): Promise<Omit<IPaymentIntent, 'sentPayments' | 'inboundPayments'>[]> {
     return ids.flatMap((id) => {
       const p = this._store.get(id);
       if (!p) return [];
-      const { sentPayments, receivedPayments, ...rest } = p;
+      const { sentPayments, inboundPayments, ...rest } = p;
       void sentPayments;
-      void receivedPayments;
+      void inboundPayments;
       return [rest];
     });
   }
@@ -67,19 +74,20 @@ export class MockPaymentIntentRepo implements IPaymentIntentRepository {
           cancelledAt: payment.cancelledAt,
           cancelReason: payment.cancelReason
         })),
-        receivedPayments: p.receivedPayments.map((receivedPayment) => ({
-          id: receivedPayment.id,
-          state: receivedPayment.state,
-          createdAt: receivedPayment.createdAt,
-          paymentIntentId: receivedPayment.paymentIntentId,
-          packetId: receivedPayment.packetId,
-          peerId: receivedPayment.peerId,
-          peerAssetCode: receivedPayment.peerAssetCode,
-          peerAssetScale: receivedPayment.peerAssetScale,
-          sourceAmount: receivedPayment.sourceAmount,
-          receiveAmount: receivedPayment.receiveAmount,
-          ledgerTransferId: receivedPayment.ledgerTransferId,
-          failReason: receivedPayment.failReason
+        inboundPayments: p.inboundPayments.map((inboundPayment) => ({
+          id: inboundPayment.id,
+          state: inboundPayment.state,
+          createdAt: inboundPayment.createdAt,
+          paymentIntentId: inboundPayment.paymentIntentId,
+          packetId: inboundPayment.packetId,
+          peerId: inboundPayment.peerId,
+          peerAssetCode: inboundPayment.peerAssetCode,
+          peerAssetScale: inboundPayment.peerAssetScale,
+          sourceAmount: inboundPayment.sourceAmount,
+          receiveAmount: inboundPayment.receiveAmount,
+          ledgerTransferId: inboundPayment.ledgerTransferId,
+          failReason: inboundPayment.failReason,
+          expiresAt: inboundPayment.expiresAt
         }))
       });
     }
@@ -98,6 +106,95 @@ export class MockPaymentIntentRepo implements IPaymentIntentRepository {
     return results;
   }
 
+  async fetchPaymentIntentsPage(
+    opts: IPageOpts
+  ): Promise<IPage<Omit<IPaymentIntent, 'sentPayments' | 'inboundPayments'>>> {
+    const all = this.getAll();
+    const filtered =
+      opts.walletAddressId == null
+        ? all
+        : all.filter((p) => p.receiverWalletAddressId === opts.walletAddressId);
+    const page = this._page(all, filtered, opts);
+    return {
+      ...page,
+      items: page.items.map((p) => {
+        const { sentPayments, inboundPayments, ...rest } = p;
+        void sentPayments;
+        void inboundPayments;
+        return rest;
+      })
+    };
+  }
+
+  async fetchSentPaymentsPage(
+    opts: IPageOpts & { paymentIntentId?: string }
+  ): Promise<IPage<ISentPayment>> {
+    const all = this.getAll().flatMap((intent) => intent.sentPayments);
+    const filtered = all.filter(
+      (p) =>
+        (opts.walletAddressId == null ||
+          p.senderWalletAddressId === opts.walletAddressId) &&
+        (opts.paymentIntentId == null ||
+          p.paymentIntentId === opts.paymentIntentId)
+    );
+    return this._page(all, filtered, opts);
+  }
+
+  // Keyset pagination over (createdAt, id) — mirrors the Mongo implementation.
+  // The cursor is resolved against the unfiltered collection, like the
+  // Mongo boundary findOne.
+  private _page<T extends { id: string; createdAt: Date }>(
+    all: T[],
+    filtered: T[],
+    opts: {
+      cursor?: string;
+      limit: number;
+      backwards: boolean;
+      sortOrder?: SortOrder;
+    }
+  ): IPage<T> {
+    if (!Number.isInteger(opts.limit) || opts.limit < 1) {
+      throw new InvalidArgument(
+        `limit must be a positive integer, got ${opts.limit}`
+      );
+    }
+    const cmp = (a: T, b: T) =>
+      a.createdAt.getTime() - b.createdAt.getTime() ||
+      (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+
+    const descending = (opts.sortOrder ?? DEFAULT_SORT_ORDER) === 'desc';
+    // Mirrors the Mongo implementation: paging forward through a descending
+    // list walks the (createdAt, id) index towards older documents.
+    const scanAscending = opts.backwards === descending;
+
+    let boundary: T | undefined;
+    if (opts.cursor != null) {
+      boundary = all.find((item) => item.id === opts.cursor);
+      if (!boundary) {
+        throw new InvalidCursorError(`Unknown cursor: ${opts.cursor}`);
+      }
+    }
+
+    const inRange = boundary
+      ? filtered.filter((item) =>
+          scanAscending ? cmp(item, boundary) > 0 : cmp(item, boundary) < 0
+        )
+      : filtered;
+
+    const sorted = [...inRange].sort(cmp);
+    if (!scanAscending) sorted.reverse();
+
+    const hasMore = sorted.length > opts.limit;
+    const items = sorted.slice(0, opts.limit);
+    if (opts.backwards) items.reverse();
+
+    return {
+      items,
+      hasNextPage: opts.backwards ? opts.cursor != null : hasMore,
+      hasPreviousPage: opts.backwards ? hasMore : opts.cursor != null
+    };
+  }
+
   async storeQuotes(
     quoteUpdates: { quoteIds: string[]; paymentIntent: IPaymentIntent }[]
   ): Promise<void> {
@@ -114,94 +211,94 @@ export class MockPaymentIntentRepo implements IPaymentIntentRepository {
     }
   }
 
-  async storeReceivedPayments(
-    receivedPaymentUpdates: {
-      receivedPaymentIds: string[];
+  async storeInboundPayments(
+    inboundPaymentUpdates: {
+      inboundPaymentIds: string[];
       paymentIntent: IPaymentIntent;
     }[]
   ): Promise<void> {
-    for (const update of receivedPaymentUpdates) {
+    for (const update of inboundPaymentUpdates) {
       this._store.set(update.paymentIntent.id, update.paymentIntent);
     }
   }
 
-  async storeAcceptedReceivedPayments(
-    receivedPaymentUpdates: {
-      receivedPayments: {
+  async storeAcceptedInboundPayments(
+    inboundPaymentUpdates: {
+      inboundPayments: {
         id: string;
-        state: ReceivedPaymentState;
+        state: InboundPaymentState;
         ledgerTransferId: string;
       }[];
     }[]
   ): Promise<void> {
-    for (const update of receivedPaymentUpdates) {
-      for (const receivedPayment of update.receivedPayments) {
+    for (const update of inboundPaymentUpdates) {
+      for (const inboundPayment of update.inboundPayments) {
         const found = this.getAll()
-          .flatMap((intent) => intent.receivedPayments)
-          .find((rp) => rp.id === receivedPayment.id);
+          .flatMap((intent) => intent.inboundPayments)
+          .find((rp) => rp.id === inboundPayment.id);
         if (!found) {
-          throw new Error('Could not find received payment in store');
+          throw new Error('Could not find inbound payment in store');
         }
-        found.state = receivedPayment.state;
-        found.ledgerTransferId = receivedPayment.ledgerTransferId;
+        found.state = inboundPayment.state;
+        found.ledgerTransferId = inboundPayment.ledgerTransferId;
       }
     }
   }
 
-  async storeFailedReceivedPayments(
-    receivedPaymentUpdates: {
-      receivedPayments: {
+  async storeFailedInboundPayments(
+    inboundPaymentUpdates: {
+      inboundPayments: {
         id: string;
-        state: ReceivedPaymentState;
+        state: InboundPaymentState;
         failReason?: string;
       }[];
     }[]
   ): Promise<void> {
-    for (const update of receivedPaymentUpdates) {
-      for (const receivedPayment of update.receivedPayments) {
+    for (const update of inboundPaymentUpdates) {
+      for (const inboundPayment of update.inboundPayments) {
         const found = this.getAll()
-          .flatMap((intent) => intent.receivedPayments)
-          .find((rp) => rp.id === receivedPayment.id);
+          .flatMap((intent) => intent.inboundPayments)
+          .find((rp) => rp.id === inboundPayment.id);
         if (!found) {
-          throw new Error('Could not find received payment in store');
+          throw new Error('Could not find inbound payment in store');
         }
-        found.state = receivedPayment.state;
-        if (receivedPayment.failReason) {
-          found.failReason = receivedPayment.failReason;
+        found.state = inboundPayment.state;
+        if (inboundPayment.failReason) {
+          found.failReason = inboundPayment.failReason;
         }
       }
     }
   }
 
-  async storeFulfillableReceivedPayments(
-    receivedPaymentUpdates: {
-      receivedPayments: { id: string; state: ReceivedPaymentState }[];
+  async storeFulfillableInboundPayments(
+    inboundPaymentUpdates: {
+      inboundPayments: { id: string; state: InboundPaymentState }[];
     }[]
   ): Promise<void> {
-    for (const update of receivedPaymentUpdates) {
-      for (const receivedPayment of update.receivedPayments) {
+    for (const update of inboundPaymentUpdates) {
+      for (const inboundPayment of update.inboundPayments) {
         const found = this.getAll()
-          .flatMap((intent) => intent.receivedPayments)
-          .find((rp) => rp.id === receivedPayment.id);
+          .flatMap((intent) => intent.inboundPayments)
+          .find((rp) => rp.id === inboundPayment.id);
         if (!found) {
-          throw new Error('Could not find received payment in store');
+          throw new Error('Could not find inbound payment in store');
         }
-        found.state = receivedPayment.state;
+        found.state = inboundPayment.state;
       }
     }
   }
 
-  async storeFinalizedReceivedPayments(
-    receivedPaymentUpdates: {
+  async storeFinalizedInboundPayments(
+    inboundPaymentUpdates: {
       paymentIntent: {
         id: string;
         receivedAmount: bigint;
         state: PaymentIntentState;
       };
-      receivedPayments: { id: string; state: ReceivedPaymentState }[];
+      inboundPayments: { id: string; state: InboundPaymentState }[];
     }[]
   ): Promise<void> {
-    for (const update of receivedPaymentUpdates) {
+    for (const update of inboundPaymentUpdates) {
       const paymentIntent = this._store.get(update.paymentIntent.id);
       if (!paymentIntent) {
         throw new Error('Could not find paymentIntent in store');
@@ -210,14 +307,14 @@ export class MockPaymentIntentRepo implements IPaymentIntentRepository {
       paymentIntent.state = update.paymentIntent.state;
       paymentIntent.receivedAmount = update.paymentIntent.receivedAmount;
 
-      for (const receivedPayment of update.receivedPayments) {
-        const found = paymentIntent.receivedPayments.find(
-          (rp) => rp.id === receivedPayment.id
+      for (const inboundPayment of update.inboundPayments) {
+        const found = paymentIntent.inboundPayments.find(
+          (rp) => rp.id === inboundPayment.id
         );
         if (!found) {
-          throw new Error('Could not find received payment in store');
+          throw new Error('Could not find inbound payment in store');
         }
-        found.state = receivedPayment.state;
+        found.state = inboundPayment.state;
       }
     }
   }

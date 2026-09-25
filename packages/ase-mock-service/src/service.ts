@@ -1,10 +1,10 @@
+import { AdminApiClient, createAdminClient } from 'admin-client-lib';
 import Fastify, {
   FastifyInstance,
   FastifyReply,
   FastifyRequest
 } from 'fastify';
 import { NotificationType } from 'notifications-domain-lib';
-import { PaymentCreatedPayload } from 'payments-public-types-lib';
 import { RATES } from './rates-data';
 
 const HOST = process.env['HOST'] || '0.0.0.0';
@@ -30,8 +30,14 @@ class WebhookServiceError extends Error {
 
 export class MockWebhookIntegrationService {
   private static server: FastifyInstance;
+  private static adminClient: AdminApiClient;
   public static async start() {
+    this.adminClient = createAdminClient(ADMIN_URL);
     this.server = Fastify({ logger: true });
+
+    this.server.get('/healthz', async () => {
+      return { status: 'ok', timestamp: new Date().toISOString() };
+    });
 
     this.server.post<{ Body: Webhook }>('/webhooks', async (request, reply) => {
       try {
@@ -73,25 +79,31 @@ export class MockWebhookIntegrationService {
   }
 
   private static async handlePaymentCreatedWebhook(webhook: Webhook) {
-    const payload = webhook.data as PaymentCreatedPayload;
+    const payload = webhook.data;
     if (!webhook.id) {
       throw new WebhookServiceError('Created payment id is missing', 400);
     }
-    if (!payload.paymentIntentId) {
+    if (
+      !payload.paymentIntentId ||
+      typeof payload.paymentIntentId !== 'string'
+    ) {
       throw new WebhookServiceError('Payment intent id is missing', 400);
     }
+    if (!payload.id || typeof payload.id !== 'string') {
+      throw new WebhookServiceError('Payment id is missing', 400);
+    }
 
-    const response = await fetch(
-      `${ADMIN_URL}/payment-intents/${payload.paymentIntentId}/payments/${payload.id}/approve`,
-      {
-        method: 'POST'
-      }
-    );
-    if (!response.ok) {
-      const detail = await response.text().catch(() => response.statusText);
+    const response = await this.adminClient.payments.approvePaymentRaw({
+      id: payload.id,
+      intentId: payload.paymentIntentId
+    });
+    if (!response.raw.ok) {
+      const detail = await response
+        .value()
+        .catch(() => response.raw.statusText);
       throw new WebhookServiceError(
         `Failed to approve payment ${payload.id}: ${detail}`,
-        response.status
+        response.raw.status
       );
     }
   }

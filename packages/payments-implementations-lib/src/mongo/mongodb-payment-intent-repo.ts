@@ -1,20 +1,25 @@
-import { Collection, CollectionInfo, Db, MongoClient } from 'mongodb';
+import { Collection, CollectionInfo, Db, Filter, MongoClient } from 'mongodb';
 import {
+  DEFAULT_SORT_ORDER,
   FinalizedRemoteQuoteUpdate,
+  InvalidCursorError,
+  IPage,
+  IPageOpts,
   ISentPayment,
   IPaymentIntent,
   IPaymentIntentRepository,
-  IReceivedPayment,
+  IInboundPayment,
   PaymentIntentState,
   SentPaymentState,
-  ReceivedPaymentState
+  SortOrder,
+  InboundPaymentState
 } from 'payments-domain-lib';
-import { ILogger } from 'common-types-lib';
+import { ILogger, InvalidArgument } from 'common-types-lib';
 
 const DB_NAME = 'payments';
 const PAYMENT_INTENTS_COLLECTION_NAME = 'paymentIntents';
 const SENT_PAYMENTS_COLLECTION_NAME = 'sentPayments';
-const RECEIVED_PAYMENTS_COLLECTION_NAME = 'receivedPayments';
+const INBOUND_PAYMENTS_COLLECTION_NAME = 'inboundPayments';
 const TIMEOUT_MS = 5_000;
 
 export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
@@ -22,10 +27,10 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
   private readonly _logger: ILogger;
   private _client!: MongoClient;
   private _paymentIntentCollection!: Collection<
-    Omit<IPaymentIntent, 'sentPayments' | 'receivedPayments'>
+    Omit<IPaymentIntent, 'sentPayments' | 'inboundPayments'>
   >;
   private _sentPaymentCollection!: Collection<ISentPayment>;
-  private _receivedPaymentCollection!: Collection<IReceivedPayment>;
+  private _inboundPaymentCollection!: Collection<IInboundPayment>;
 
   constructor(connectionString: string, logger: ILogger) {
     this._connectionString = connectionString;
@@ -75,6 +80,12 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
           { remoteUrl: 1 },
           { unique: true, sparse: true }
         );
+        // supports keyset pagination filtered by receiver wallet address
+        await this._paymentIntentCollection.createIndex({
+          receiverWalletAddressId: 1,
+          createdAt: 1,
+          id: 1
+        });
       }
 
       const paymentsCollectionExists = collections.some(
@@ -96,26 +107,32 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
         await this._sentPaymentCollection.createIndex({
           paymentIntentId: 1
         });
+        // supports keyset pagination filtered by sender wallet address
+        await this._sentPaymentCollection.createIndex({
+          senderWalletAddressId: 1,
+          createdAt: 1,
+          id: 1
+        });
       }
 
-      const receivedPaymentsCollectionExists = collections.some(
-        (collection) => collection.name === RECEIVED_PAYMENTS_COLLECTION_NAME
+      const inboundPaymentsCollectionExists = collections.some(
+        (collection) => collection.name === INBOUND_PAYMENTS_COLLECTION_NAME
       );
       // load or create the collection (and add its indexes) - should check version and perform migrations
-      if (receivedPaymentsCollectionExists) {
-        this._receivedPaymentCollection = db.collection<IReceivedPayment>(
-          RECEIVED_PAYMENTS_COLLECTION_NAME
+      if (inboundPaymentsCollectionExists) {
+        this._inboundPaymentCollection = db.collection<IInboundPayment>(
+          INBOUND_PAYMENTS_COLLECTION_NAME
         );
       } else {
-        this._receivedPaymentCollection =
-          await db.createCollection<IReceivedPayment>(
-            RECEIVED_PAYMENTS_COLLECTION_NAME
+        this._inboundPaymentCollection =
+          await db.createCollection<IInboundPayment>(
+            INBOUND_PAYMENTS_COLLECTION_NAME
           );
-        await this._receivedPaymentCollection.createIndex(
+        await this._inboundPaymentCollection.createIndex(
           { id: 1 },
           { unique: true }
         );
-        await this._receivedPaymentCollection.createIndex({
+        await this._inboundPaymentCollection.createIndex({
           paymentIntentId: 1
         });
       }
@@ -147,7 +164,7 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
     try {
       await this._paymentIntentCollection.insertMany(
         payments.map((p) => {
-          const doc: Omit<IPaymentIntent, 'sentPayments' | 'receivedPayments'> =
+          const doc: Omit<IPaymentIntent, 'sentPayments' | 'inboundPayments'> =
             {
               id: p.id,
               receiverWalletAddressId: p.receiverWalletAddressId,
@@ -206,7 +223,7 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
 
   async fetchByIds(
     ids: string[]
-  ): Promise<Omit<IPaymentIntent, 'sentPayments' | 'receivedPayments'>[]> {
+  ): Promise<Omit<IPaymentIntent, 'sentPayments' | 'inboundPayments'>[]> {
     this._checkInitialisedOrThrow();
 
     if (ids.length === 0) return [];
@@ -247,13 +264,13 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
     if (ids.length === 0) return [];
 
     try {
-      const [paymentIntentDocs, paymentDocs, receivedPaymentDocs] =
+      const [paymentIntentDocs, paymentDocs, inboundPaymentDocs] =
         await Promise.all([
           this._paymentIntentCollection.find({ id: { $in: ids } }).toArray(),
           this._sentPaymentCollection
             .find({ paymentIntentId: { $in: ids } })
             .toArray(),
-          this._receivedPaymentCollection
+          this._inboundPaymentCollection
             .find({ paymentIntentId: { $in: ids } })
             .toArray()
         ]);
@@ -297,21 +314,22 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
             cancelledAt: payment.cancelledAt,
             cancelReason: payment.cancelReason
           })),
-        receivedPayments: receivedPaymentDocs
+        inboundPayments: inboundPaymentDocs
           .filter((rp) => rp.paymentIntentId === doc.id)
-          .map((receivedPayment) => ({
-            id: receivedPayment.id,
-            state: receivedPayment.state,
-            createdAt: receivedPayment.createdAt,
-            paymentIntentId: receivedPayment.paymentIntentId,
-            packetId: receivedPayment.packetId,
-            peerId: receivedPayment.peerId,
-            peerAssetCode: receivedPayment.peerAssetCode,
-            peerAssetScale: receivedPayment.peerAssetScale,
-            sourceAmount: receivedPayment.sourceAmount,
-            receiveAmount: receivedPayment.receiveAmount,
-            ledgerTransferId: receivedPayment.ledgerTransferId,
-            failReason: receivedPayment.failReason
+          .map((inboundPayment) => ({
+            id: inboundPayment.id,
+            state: inboundPayment.state,
+            createdAt: inboundPayment.createdAt,
+            paymentIntentId: inboundPayment.paymentIntentId,
+            packetId: inboundPayment.packetId,
+            peerId: inboundPayment.peerId,
+            peerAssetCode: inboundPayment.peerAssetCode,
+            peerAssetScale: inboundPayment.peerAssetScale,
+            sourceAmount: inboundPayment.sourceAmount,
+            receiveAmount: inboundPayment.receiveAmount,
+            expiresAt: inboundPayment.expiresAt,
+            ledgerTransferId: inboundPayment.ledgerTransferId,
+            failReason: inboundPayment.failReason
           }))
       }));
     } catch (err) {
@@ -344,6 +362,164 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
         `Unable to fetch payment intent ids by remote URLs - error: ${(err as Error).message}`
       );
     }
+  }
+
+  async fetchPaymentIntentsPage(
+    opts: IPageOpts
+  ): Promise<IPage<Omit<IPaymentIntent, 'sentPayments' | 'inboundPayments'>>> {
+    this._checkInitialisedOrThrow();
+
+    try {
+      const filter: Record<string, unknown> = {};
+      if (opts.walletAddressId != null) {
+        filter['receiverWalletAddressId'] = opts.walletAddressId;
+      }
+
+      const page = await this._fetchPageDocs(
+        this._paymentIntentCollection,
+        filter,
+        opts
+      );
+
+      return {
+        ...page,
+        items: page.items.map((doc) => ({
+          id: doc.id,
+          receiverWalletAddressId: doc.receiverWalletAddressId,
+          receiverWalletAddress: doc.receiverWalletAddress,
+          state: doc.state,
+          destination: doc.destination,
+          assetCode: doc.assetCode,
+          assetScale: doc.assetScale,
+          createdAt: doc.createdAt,
+          expiresAt: doc.expiresAt,
+          incomingAmount: doc.incomingAmount,
+          receivedAmount: doc.receivedAmount,
+          destinationIlpAddress: doc.destinationIlpAddress,
+          remoteUrl: doc.remoteUrl,
+          peerId: doc.peerId,
+          quotes: doc.quotes.map((quote) => ({ ...quote }))
+        }))
+      };
+    } catch (err) {
+      if (err instanceof InvalidArgument) throw err;
+      this._logger.error(err);
+      throw new Error(
+        `Unable to fetch payment intents page - error: ${(err as Error).message}`
+      );
+    }
+  }
+
+  async fetchSentPaymentsPage(
+    opts: IPageOpts & { paymentIntentId?: string }
+  ): Promise<IPage<ISentPayment>> {
+    this._checkInitialisedOrThrow();
+
+    try {
+      const filter: Record<string, unknown> = {};
+      if (opts.walletAddressId != null) {
+        filter['senderWalletAddressId'] = opts.walletAddressId;
+      }
+      if (opts.paymentIntentId != null) {
+        filter['paymentIntentId'] = opts.paymentIntentId;
+      }
+
+      const page = await this._fetchPageDocs(
+        this._sentPaymentCollection,
+        filter,
+        opts
+      );
+
+      return {
+        ...page,
+        items: page.items.map((payment) => ({
+          id: payment.id,
+          state: payment.state,
+          createdAt: payment.createdAt,
+          paymentIntentId: payment.paymentIntentId,
+          senderWalletAddress: payment.senderWalletAddress,
+          senderWalletAddressId: payment.senderWalletAddressId,
+          quoteId: payment.quoteId,
+          assetCode: payment.assetCode,
+          assetScale: payment.assetScale,
+          debitAmount: payment.debitAmount,
+          receiveAmount: payment.receiveAmount,
+          sentAmount: payment.sentAmount,
+          ledgerTransferId: payment.ledgerTransferId,
+          failReason: payment.failReason,
+          cancelledAt: payment.cancelledAt,
+          cancelReason: payment.cancelReason
+        }))
+      };
+    } catch (err) {
+      if (err instanceof InvalidArgument) throw err;
+      this._logger.error(err);
+      throw new Error(
+        `Unable to fetch sent payments page - error: ${(err as Error).message}`
+      );
+    }
+  }
+
+  // Keyset pagination over (createdAt, id). The cursor is the last document's id.
+  // Given the cursor, figure out where that document sits in the (createdAt, id)
+  // ordering, then use that position as the starting point for the next page.
+  private async _fetchPageDocs<T extends { id: string; createdAt: Date }>(
+    collection: Collection<T>,
+    filter: Record<string, unknown>,
+    opts: {
+      cursor?: string;
+      limit: number;
+      backwards: boolean;
+      sortOrder?: SortOrder;
+    }
+  ): Promise<IPage<T>> {
+    const { cursor, limit, backwards } = opts;
+    if (!Number.isInteger(limit) || limit < 1) {
+      throw new InvalidArgument(
+        `limit must be a positive integer, got ${limit}`
+      );
+    }
+    const descending = (opts.sortOrder ?? DEFAULT_SORT_ORDER) === 'desc';
+
+    let boundary: { id: string; createdAt: Date } | null = null;
+    if (cursor != null) {
+      boundary = (await collection.findOne({ id: cursor } as Filter<T>, {
+        projection: { _id: 0, id: 1, createdAt: 1 }
+      })) as { id: string; createdAt: Date } | null;
+      if (!boundary) {
+        throw new InvalidCursorError(`Unknown cursor: ${cursor}`);
+      }
+    }
+
+    // Which way we walk the (createdAt, id) index from the cursor. Paging
+    // forward through a descending list moves towards *older*
+    const scanAscending = backwards === descending;
+
+    const cmp = scanAscending ? '$gt' : '$lt';
+    const range = boundary
+      ? {
+          $or: [
+            { createdAt: { [cmp]: boundary.createdAt } },
+            { createdAt: boundary.createdAt, id: { [cmp]: boundary.id } }
+          ]
+        }
+      : {};
+
+    const docs = (await collection
+      .find({ ...filter, ...range } as Filter<T>)
+      .sort(scanAscending ? { createdAt: 1, id: 1 } : { createdAt: -1, id: -1 })
+      .limit(limit + 1)
+      .toArray()) as unknown as T[];
+
+    const hasMore = docs.length > limit;
+    const items = docs.slice(0, limit);
+    if (backwards) items.reverse();
+
+    return {
+      items,
+      hasNextPage: backwards ? cursor != null : hasMore,
+      hasPreviousPage: backwards ? hasMore : cursor != null
+    };
   }
 
   async storeQuotes(
@@ -433,111 +609,112 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
     }
   }
 
-  async storeReceivedPayments(
-    receivedPaymentUpdates: {
-      receivedPaymentIds: string[];
+  async storeInboundPayments(
+    inboundPaymentUpdates: {
+      inboundPaymentIds: string[];
       paymentIntent: IPaymentIntent;
     }[]
   ): Promise<void> {
     this._checkInitialisedOrThrow();
 
-    if (receivedPaymentUpdates.length === 0) return;
+    if (inboundPaymentUpdates.length === 0) return;
 
-    const newReceivedPaymentEntities: IReceivedPayment[] = [];
+    const newInboundPaymentEntities: IInboundPayment[] = [];
 
-    for (const update of receivedPaymentUpdates) {
-      const receivedPayments = update.paymentIntent.receivedPayments.filter(
-        (rp) => update.receivedPaymentIds.includes(rp.id)
+    for (const update of inboundPaymentUpdates) {
+      const inboundPayments = update.paymentIntent.inboundPayments.filter(
+        (rp) => update.inboundPaymentIds.includes(rp.id)
       );
 
-      for (const receivedPayment of receivedPayments) {
-        newReceivedPaymentEntities.push({
-          id: receivedPayment.id,
-          state: receivedPayment.state,
-          createdAt: receivedPayment.createdAt,
-          paymentIntentId: receivedPayment.paymentIntentId,
-          packetId: receivedPayment.packetId,
-          peerId: receivedPayment.peerId,
-          peerAssetCode: receivedPayment.peerAssetCode,
-          peerAssetScale: receivedPayment.peerAssetScale,
-          sourceAmount: receivedPayment.sourceAmount,
-          receiveAmount: receivedPayment.receiveAmount
+      for (const inboundPayment of inboundPayments) {
+        newInboundPaymentEntities.push({
+          id: inboundPayment.id,
+          state: inboundPayment.state,
+          createdAt: inboundPayment.createdAt,
+          paymentIntentId: inboundPayment.paymentIntentId,
+          packetId: inboundPayment.packetId,
+          peerId: inboundPayment.peerId,
+          peerAssetCode: inboundPayment.peerAssetCode,
+          peerAssetScale: inboundPayment.peerAssetScale,
+          sourceAmount: inboundPayment.sourceAmount,
+          receiveAmount: inboundPayment.receiveAmount,
+          expiresAt: inboundPayment.expiresAt
         });
       }
     }
 
     try {
-      await this._receivedPaymentCollection.insertMany(
-        newReceivedPaymentEntities
+      await this._inboundPaymentCollection.insertMany(
+        newInboundPaymentEntities
       );
     } catch (e) {
       this._logger.error(e);
       throw new Error(
-        `Unable to store received payments - error: ${(e as Error).message}`
+        `Unable to store inbound payments - error: ${(e as Error).message}`
       );
     }
   }
 
-  async storeAcceptedReceivedPayments(
-    receivedPaymentUpdates: {
-      receivedPayments: {
+  async storeAcceptedInboundPayments(
+    inboundPaymentUpdates: {
+      inboundPayments: {
         id: string;
-        state: ReceivedPaymentState;
+        state: InboundPaymentState;
         ledgerTransferId: string;
       }[];
     }[]
   ): Promise<void> {
     this._checkInitialisedOrThrow();
 
-    if (receivedPaymentUpdates.length === 0) return;
+    if (inboundPaymentUpdates.length === 0) return;
 
     try {
-      const receivedPaymentWrites = receivedPaymentUpdates.flatMap((update) =>
-        update.receivedPayments.map((receivedPayment) => ({
+      const inboundPaymentWrites = inboundPaymentUpdates.flatMap((update) =>
+        update.inboundPayments.map((inboundPayment) => ({
           updateOne: {
-            filter: { id: receivedPayment.id },
+            filter: { id: inboundPayment.id },
             update: {
               $set: {
-                state: receivedPayment.state,
-                ledgerTransferId: receivedPayment.ledgerTransferId
+                state: inboundPayment.state,
+                ledgerTransferId: inboundPayment.ledgerTransferId
               }
             }
           }
         }))
       );
 
-      await this._receivedPaymentCollection.bulkWrite(receivedPaymentWrites);
+      await this._inboundPaymentCollection.bulkWrite(inboundPaymentWrites);
     } catch (e) {
       this._logger.error(e);
       throw new Error(
-        `Unable to store accepted received payments - error: ${(e as Error).message}`
+        `Unable to store accepted inbound payments - error: ${(e as Error).message}`
       );
     }
   }
 
-  async storeFailedReceivedPayments(
-    receivedPaymentUpdates: {
-      receivedPayments: {
+  async storeFailedInboundPayments(
+    inboundPaymentUpdates: {
+      inboundPayments: {
         id: string;
-        state: ReceivedPaymentState;
+        state: InboundPaymentState;
         failReason?: string;
       }[];
     }[]
   ): Promise<void> {
     this._checkInitialisedOrThrow();
 
-    if (receivedPaymentUpdates.length === 0) return;
+    if (inboundPaymentUpdates.length === 0) return;
 
     try {
-      const receivedPaymentWrites = receivedPaymentUpdates.flatMap((update) =>
-        update.receivedPayments.map((receivedPayment) => ({
+      const inboundPaymentWrites = inboundPaymentUpdates.flatMap((update) =>
+        update.inboundPayments.map((inboundPayment) => ({
           updateOne: {
-            filter: { id: receivedPayment.id },
+            filter: { id: inboundPayment.id },
             update: {
               $set: {
-                state: receivedPayment.state,
-                ...(receivedPayment.failReason
-                  ? { failReason: receivedPayment.failReason }
+                state: inboundPayment.state,
+                ...(inboundPayment.failReason
+                  ? { failReason: inboundPayment.failReason }
                   : {})
               }
             }
@@ -545,63 +722,63 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
         }))
       );
 
-      await this._receivedPaymentCollection.bulkWrite(receivedPaymentWrites);
+      await this._inboundPaymentCollection.bulkWrite(inboundPaymentWrites);
     } catch (e) {
       this._logger.error(e);
       throw new Error(
-        `Unable to store failed received payments - error: ${(e as Error).message}`
+        `Unable to store failed inbound payments - error: ${(e as Error).message}`
       );
     }
   }
 
-  async storeFulfillableReceivedPayments(
-    receivedPaymentUpdates: {
-      receivedPayments: { id: string; state: ReceivedPaymentState }[];
+  async storeFulfillableInboundPayments(
+    inboundPaymentUpdates: {
+      inboundPayments: { id: string; state: InboundPaymentState }[];
     }[]
   ): Promise<void> {
     this._checkInitialisedOrThrow();
 
-    if (receivedPaymentUpdates.length === 0) return;
+    if (inboundPaymentUpdates.length === 0) return;
 
     try {
-      const receivedPaymentWrites = receivedPaymentUpdates.flatMap((update) =>
-        update.receivedPayments.map((receivedPayment) => ({
+      const inboundPaymentWrites = inboundPaymentUpdates.flatMap((update) =>
+        update.inboundPayments.map((inboundPayment) => ({
           updateOne: {
-            filter: { id: receivedPayment.id },
+            filter: { id: inboundPayment.id },
             update: {
               $set: {
-                state: receivedPayment.state
+                state: inboundPayment.state
               }
             }
           }
         }))
       );
 
-      await this._receivedPaymentCollection.bulkWrite(receivedPaymentWrites);
+      await this._inboundPaymentCollection.bulkWrite(inboundPaymentWrites);
     } catch (e) {
       this._logger.error(e);
       throw new Error(
-        `Unable to store fulfillable received payments - error: ${(e as Error).message}`
+        `Unable to store fulfillable inbound payments - error: ${(e as Error).message}`
       );
     }
   }
 
-  async storeFinalizedReceivedPayments(
-    receivedPaymentUpdates: {
+  async storeFinalizedInboundPayments(
+    inboundPaymentUpdates: {
       paymentIntent: {
         id: string;
         receivedAmount: bigint;
         state: PaymentIntentState;
       };
-      receivedPayments: { id: string; state: ReceivedPaymentState }[];
+      inboundPayments: { id: string; state: InboundPaymentState }[];
     }[]
   ): Promise<void> {
     this._checkInitialisedOrThrow();
 
-    if (receivedPaymentUpdates.length === 0) return;
+    if (inboundPaymentUpdates.length === 0) return;
 
     try {
-      const intentWrites = receivedPaymentUpdates.map((update) => ({
+      const intentWrites = inboundPaymentUpdates.map((update) => ({
         updateOne: {
           filter: { id: update.paymentIntent.id },
           update: {
@@ -613,23 +790,23 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
         }
       }));
 
-      const receivedPaymentWrites = receivedPaymentUpdates.flatMap((update) =>
-        update.receivedPayments.map((receivedPayment) => ({
+      const inboundPaymentWrites = inboundPaymentUpdates.flatMap((update) =>
+        update.inboundPayments.map((inboundPayment) => ({
           updateOne: {
-            filter: { id: receivedPayment.id },
-            update: { $set: { state: receivedPayment.state } }
+            filter: { id: inboundPayment.id },
+            update: { $set: { state: inboundPayment.state } }
           }
         }))
       );
 
       await Promise.all([
         this._paymentIntentCollection.bulkWrite(intentWrites),
-        this._receivedPaymentCollection.bulkWrite(receivedPaymentWrites)
+        this._inboundPaymentCollection.bulkWrite(inboundPaymentWrites)
       ]);
     } catch (e) {
       this._logger.error(e);
       throw new Error(
-        `Unable to store finalized received payments - error: ${(e as Error).message}`
+        `Unable to store finalized inbound payments - error: ${(e as Error).message}`
       );
     }
   }

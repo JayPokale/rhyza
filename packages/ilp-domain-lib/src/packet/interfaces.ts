@@ -28,6 +28,9 @@ interface PaymentPacketCorrelation extends BasePacketCorrelation {
   // packets store the base64 STREAM fulfillment here for a later fulfill
   // reply. Outgoing prepares leave it unset.
   fulfillment?: string;
+  // Outbound prepares store the base64 execution condition so a later
+  // fulfill can be hashed against it.
+  executionCondition?: string;
 }
 
 export type IPacketCorrelation =

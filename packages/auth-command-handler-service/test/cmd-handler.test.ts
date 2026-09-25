@@ -2,7 +2,8 @@
 
 import assert from 'node:assert';
 import { describe, test } from 'node:test';
-import { KeyObject, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
+import { KeyLike } from 'crypto';
 import {
   createHeaders,
   generateTestKeys
@@ -19,10 +20,13 @@ import {
   CreateGrantCmdPayload,
   GrantAggregate,
   GrantCreatedEvent,
+  GrantInteractionStartedEvent,
+  GrantInteractionStartFailedEvent,
   IGrant,
   IGrantRepository,
   IJsonWebKey,
-  IWalletAddressService
+  IWalletAddressService,
+  StartInteractionCmd
 } from 'auth-domain-lib';
 import { AuthCommandHandler } from '../src/cmd-handler';
 import { PinoLogger } from '../../implementations-lib/dist';
@@ -108,7 +112,7 @@ const REQUEST_METHOD = 'POST';
 const REQUEST_BODY = '{}';
 
 async function signedSignatureData(
-  privateKey: KeyObject,
+  privateKey: KeyLike,
   kid: string
 ): Promise<CreateGrantCmdPayload['signatureData']> {
   const request = {
@@ -164,6 +168,105 @@ describe('AuthCommandHandler — grant creation', () => {
     ) as GrantCreatedEvent;
     assert.ok(event, 'expected a GrantCreatedEvent');
     assert.equal(event.payload.id, commandPayloadId);
+    assert.equal(event.requestId, requestId);
+  });
+});
+
+describe('AuthCommandHandler — grant interaction', () => {
+  async function createInteractiveGrant(
+    consumer: MockConsumer,
+    producer: MockProducer
+  ): Promise<{ id: string; interactionNonce: string }> {
+    const keys = generateTestKeys();
+    const id = randomUUID();
+
+    await consumer.deliver([
+      new CreateGrantCmd(
+        {
+          id,
+          client: JSON.stringify(keys.publicKey),
+          signatureData: await signedSignatureData(
+            keys.privateKey,
+            keys.publicKey.kid
+          ),
+          access: [{ type: 'OUTGOING_PAYMENT', actions: ['CREATE'] }],
+          interact: { start: ['REDIRECT'] }
+        },
+        randomUUID()
+      )
+    ]);
+
+    const createdEvent = producer.sent.find(
+      (m) => m.msgName === GrantCreatedEvent.name
+    ) as GrantCreatedEvent;
+    assert.ok(createdEvent, 'expected a GrantCreatedEvent');
+
+    return {
+      id,
+      interactionNonce: createdEvent.payload.interactionNonce as string
+    };
+  }
+
+  test('StartInteractionCmd for a pending interactive grant yields GrantInteractionStartedEvent', async () => {
+    const { producer, consumer } = await startedHandler();
+    const { id, interactionNonce } = await createInteractiveGrant(
+      consumer,
+      producer
+    );
+
+    const requestId = randomUUID();
+    await consumer.deliver([
+      new StartInteractionCmd(
+        { id, interactionNonce: interactionNonce },
+        requestId
+      )
+    ]);
+
+    const event = producer.sent.find(
+      (m) => m.msgName === GrantInteractionStartedEvent.name
+    ) as GrantInteractionStartedEvent;
+    assert.ok(event, 'expected a GrantInteractionStartedEvent');
+    assert.equal(event.payload.id, id);
+    assert.equal(event.requestId, requestId);
+  });
+
+  test('StartInteractionCmd with an incorrect nonce yields GrantInteractionStartFailedEvent', async () => {
+    const { producer, consumer } = await startedHandler();
+    const { id } = await createInteractiveGrant(consumer, producer);
+
+    const requestId = randomUUID();
+    await consumer.deliver([
+      new StartInteractionCmd(
+        { id, interactionNonce: 'wrong-nonce' },
+        requestId
+      )
+    ]);
+
+    const event = producer.sent.find(
+      (m) => m.msgName === GrantInteractionStartFailedEvent.name
+    ) as GrantInteractionStartFailedEvent;
+    assert.ok(event, 'expected a GrantInteractionStartFailedEvent');
+    assert.equal(event.payload.grantId, id);
+    assert.equal(event.payload.errorName, 'InvalidInteractionError');
+    assert.equal(event.requestId, requestId);
+  });
+
+  test('StartInteractionCmd for an unknown grant yields GrantInteractionStartFailedEvent', async () => {
+    const { producer, consumer } = await startedHandler();
+
+    const requestId = randomUUID();
+    await consumer.deliver([
+      new StartInteractionCmd(
+        { id: randomUUID(), interactionNonce: 'any-nonce' },
+        requestId
+      )
+    ]);
+
+    const event = producer.sent.find(
+      (m) => m.msgName === GrantInteractionStartFailedEvent.name
+    ) as GrantInteractionStartFailedEvent;
+    assert.ok(event, 'expected a GrantInteractionStartFailedEvent');
+    assert.equal(event.payload.errorName, 'GrantNotFoundError');
     assert.equal(event.requestId, requestId);
   });
 });

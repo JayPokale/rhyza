@@ -29,6 +29,10 @@ body:json {
   }
 }
 
+vars:pre-request {
+  adminB: localhost:4001
+}
+
 tests {
   test("created or already exists", function () {
     expect([201, 409]).to.include(res.getStatus());

@@ -22,6 +22,8 @@ import {
   IntrospectTokenRequest,
   RotateTokenRequest,
   RevokeTokenRequest,
+  StartInteractionRequest,
+  StartInteractionResponse,
   AcceptInteractionRequest,
   RejectInteractionRequest,
   GetGrantRequest,
@@ -31,9 +33,13 @@ import {
   Interaction,
   ContinueGrantResponse,
   RevokeGrantResponse,
+  RevokeTokenResponse,
   IntrospectTokenResponse,
   RotateTokenResponse,
-  Grant
+  Grant,
+  FinishInteractionRequest,
+  FinishInteractionResponse,
+  HandleInteractionChoiceResponse
 } from 'auth-public-types-lib';
 
 import { IMessage, IMessageConsumer, IMessageProducer } from 'common-types-lib';
@@ -43,21 +49,29 @@ import {
   RevokeGrantCmd,
   RotateTokenCmd,
   RevokeTokenCmd,
-  AcceptInteractionCommand,
-  RejectInteractionCommand,
+  AcceptInteractionCmd,
+  RejectInteractionCmd,
   GrantCreateFailedEvent,
   GrantContinuedEvent,
   GrantContinueFailedEvent,
   IntrospectTokenCmd,
-  GrantDomainEvent,
+  AuthDomainEvent,
   GrantCreatedEvent,
   GrantRevokedEvent,
   GrantRevokeFailedEvent,
   TokenIntrospectedEvent,
-  TokenIntrospectionFailedEvent,
   TokenRotatedEvent,
   TokenRotationFailedEvent,
-  IAccessItem
+  TokenRevokedEvent,
+  TokenRevokeFailedEvent,
+  IAccessItem,
+  StartInteractionCmd,
+  GrantInteractionStartedEvent,
+  GrantInteractionStartFailedEvent,
+  FinishInteractionCmd,
+  GrantInteractionFinishedEvent,
+  GrantInteractionFinishFailedEvent,
+  GrantInteractionChoiceFailedEvent
 } from 'auth-domain-lib';
 import crypto from 'crypto';
 import { IGrantRepository } from 'auth-domain-lib/src';
@@ -324,35 +338,70 @@ export class AuthServiceServer {
       );
       await this._msgProducer.send(cmd);
     } else if (call.request instanceof RevokeGrantRequest) {
-      const commandId = call.request.getId();
+      const commandId = crypto.randomUUID();
       this._storePendingResponse(commandId, call, callback);
+
+      const signatureDataMsg = call.request.getSignatureData();
+      if (!signatureDataMsg) {
+        callback(new Error('Missing signature data'));
+        return;
+      }
+      const signatureData = {
+        url: signatureDataMsg.getUrl(),
+        method: signatureDataMsg.getMethod(),
+        body: signatureDataMsg.getBody(),
+        headers: JSON.parse(signatureDataMsg.getHeaders()),
+        kid: signatureDataMsg.getKid()
+      };
 
       const cmd = new RevokeGrantCmd(
         {
           id: call.request.getId(),
           continueId: call.request.getContinueId(),
-          continueToken: call.request.getContinueToken()
+          continueToken: call.request.getContinueToken(),
+          signatureData
         },
         commandId
       );
       await this._msgProducer.send(cmd);
     } else if (call.request instanceof AcceptInteractionRequest) {
-      const commandId = call.request.getId();
+      const commandId = crypto.randomUUID();
       this._storePendingResponse(commandId, call, callback);
 
-      const cmd = new AcceptInteractionCommand(
+      const cmd = new AcceptInteractionCmd(
         {
-          id: call.request.getId(),
-          nonce: call.request.getNonce()
+          id: call.request.getId()
         },
         commandId
       );
       await this._msgProducer.send(cmd);
     } else if (call.request instanceof RejectInteractionRequest) {
-      const commandId = call.request.getId();
+      const commandId = crypto.randomUUID();
       this._storePendingResponse(commandId, call, callback);
 
-      const cmd = new RejectInteractionCommand(
+      const cmd = new RejectInteractionCmd(
+        {
+          id: call.request.getId()
+        },
+        commandId
+      );
+      await this._msgProducer.send(cmd);
+    } else if (call.request instanceof StartInteractionRequest) {
+      const commandId = crypto.randomUUID();
+      this._storePendingResponse(commandId, call, callback);
+
+      const cmd = new StartInteractionCmd(
+        {
+          id: call.request.getId()
+        },
+        commandId
+      );
+      await this._msgProducer.send(cmd);
+    } else if (call.request instanceof FinishInteractionRequest) {
+      const commandId = crypto.randomUUID();
+      this._storePendingResponse(commandId, call, callback);
+
+      const cmd = new FinishInteractionCmd(
         {
           id: call.request.getId(),
           nonce: call.request.getNonce()
@@ -361,7 +410,7 @@ export class AuthServiceServer {
       );
       await this._msgProducer.send(cmd);
     } else if (call.request instanceof IntrospectTokenRequest) {
-      const commandId = call.request.getId();
+      const commandId = crypto.randomUUID();
       this._storePendingResponse(commandId, call, callback);
 
       const cmd = new IntrospectTokenCmd(
@@ -378,7 +427,8 @@ export class AuthServiceServer {
                   assetCode: item.getLimits().getAssetCode(),
                   assetScale: item.getLimits().getAssetScale(),
                   debitAmount: item.getLimits().getDebitAmountValue(),
-                  receiveAmount: item.getLimits().getReceiveAmountValue()
+                  receiveAmount: item.getLimits().getReceiveAmountValue(),
+                  interval: item.getLimits().getInterval()
                 }
               : undefined
           }))
@@ -387,27 +437,55 @@ export class AuthServiceServer {
       );
       await this._msgProducer.send(cmd);
     } else if (call.request instanceof RotateTokenRequest) {
-      const commandId = call.request.getId();
+      const commandId = crypto.randomUUID();
       this._storePendingResponse(commandId, call, callback);
+
+      const signatureDataMsg = call.request.getSignatureData();
+      if (!signatureDataMsg) {
+        callback(new Error('Missing signature data'));
+        return;
+      }
+      const signatureData = {
+        url: signatureDataMsg.getUrl(),
+        method: signatureDataMsg.getMethod(),
+        body: signatureDataMsg.getBody(),
+        headers: JSON.parse(signatureDataMsg.getHeaders()),
+        kid: signatureDataMsg.getKid()
+      };
 
       const cmd = new RotateTokenCmd(
         {
           id: call.request.getId(),
           value: call.request.getTokenValue(),
-          managementId: call.request.getManagementId()
+          managementId: call.request.getManagementId(),
+          signatureData
         },
         commandId
       );
       await this._msgProducer.send(cmd);
     } else if (call.request instanceof RevokeTokenRequest) {
-      const commandId = call.request.getId();
+      const commandId = crypto.randomUUID();
       this._storePendingResponse(commandId, call, callback);
+
+      const signatureDataMsg = call.request.getSignatureData();
+      if (!signatureDataMsg) {
+        callback(new Error('Missing signature data'));
+        return;
+      }
+      const signatureData = {
+        url: signatureDataMsg.getUrl(),
+        method: signatureDataMsg.getMethod(),
+        body: signatureDataMsg.getBody(),
+        headers: JSON.parse(signatureDataMsg.getHeaders()),
+        kid: signatureDataMsg.getKid()
+      };
 
       const cmd = new RevokeTokenCmd(
         {
           id: call.request.getId(),
           value: call.request.getTokenValue(),
-          managementId: call.request.getManagementId()
+          managementId: call.request.getManagementId(),
+          signatureData
         },
         commandId
       );
@@ -436,8 +514,11 @@ export class AuthServiceServer {
 
       const response = new Grant();
       response.setId(grant.id);
-      response.setStartMethodsList(grant.startMethods);
       response.setState(grant.state);
+
+      if (grant.startMethods) {
+        response.setStartMethodsList(grant.startMethods);
+      }
 
       if (grant.continueToken) {
         response.setContinueToken(grant.continueToken);
@@ -471,13 +552,9 @@ export class AuthServiceServer {
 
       if (grant.finishMethod) response.setFinishMethod(grant.finishMethod);
 
-      if (grant.interactionNonce)
-        response.setInteractionNonce(grant.interactionNonce);
-
       if (grant.interaction) {
         const interaction = new Interaction();
-        interaction.setClientNonce(grant.interaction.clientNonce);
-        interaction.setExpiresInMs(grant.interaction.expiresInMs);
+        interaction.setExpiresAt(grant.interaction.expiresAt.getTime());
         interaction.setState(grant.interaction.state);
         interaction.setInteractRef(grant.interaction.interactRef);
         response.setInteraction(interaction);
@@ -521,7 +598,10 @@ export class AuthServiceServer {
       }
     }, timeoutMs);
 
-    this._responseMap.set(commandId, { callback, timer });
+    this._responseMap.set(commandId, {
+      callback,
+      timer
+    });
   }
 
   private async _handleBatch(messages: IMessage[]): Promise<void> {
@@ -537,21 +617,22 @@ export class AuthServiceServer {
     const pending = this._responseMap.get(requestId);
     if (!pending) return;
 
-    const event = message as GrantDomainEvent;
+    const event = message as AuthDomainEvent;
 
-    if (GrantDomainEvent.isGrantCreatedEvent(event)) {
+    if (AuthDomainEvent.isGrantCreatedEvent(event)) {
       const response = new CreateGrantResponse();
       const payload: GrantCreatedEvent['payload'] = event.payload;
       response.setId(payload.id);
+
+      if (payload.interactionNonce) {
+        response.setInteractionNonce(payload.interactionNonce);
+      }
 
       if (payload.continueToken) {
         response.setContinueToken(payload.continueToken);
       }
       if (payload.continueId) {
         response.setContinueId(payload.continueId);
-      }
-      if (payload.interactionNonce) {
-        response.setInteractionNonce(payload.interactionNonce);
       }
 
       if (payload.accessTokenValue) {
@@ -578,7 +659,7 @@ export class AuthServiceServer {
       }
 
       this._resolvePendingResponse(pending, requestId, null, response);
-    } else if (GrantDomainEvent.isGrantCreateFailedEvent(event)) {
+    } else if (AuthDomainEvent.isGrantCreateFailedEvent(event)) {
       const payload: GrantCreateFailedEvent['payload'] = event.payload;
       this._resolvePendingResponse(pending, requestId, {
         code: grpc.status.INTERNAL,
@@ -587,7 +668,7 @@ export class AuthServiceServer {
         name: payload.errorName || 'CommandError',
         metadata: new grpc.Metadata()
       });
-    } else if (GrantDomainEvent.isGrantContinuedEvent(event)) {
+    } else if (AuthDomainEvent.isGrantContinuedEvent(event)) {
       const response = new ContinueGrantResponse();
       const payload: GrantContinuedEvent['payload'] = event.payload;
 
@@ -618,7 +699,7 @@ export class AuthServiceServer {
         response.setContinueToken(payload.continueToken);
       }
       this._resolvePendingResponse(pending, requestId, null, response);
-    } else if (GrantDomainEvent.isGrantContinueFailedEvent(event)) {
+    } else if (AuthDomainEvent.isGrantContinueFailedEvent(event)) {
       this._resolvePendingResponse(pending, requestId, {
         code: grpc.status.INTERNAL,
         message:
@@ -630,12 +711,12 @@ export class AuthServiceServer {
           'CommandError',
         metadata: new grpc.Metadata()
       });
-    } else if (GrantDomainEvent.isGrantRevokedEvent(event)) {
+    } else if (AuthDomainEvent.isGrantRevokedEvent(event)) {
       const response = new RevokeGrantResponse();
       const payload: GrantRevokedEvent['payload'] = event.payload;
       response.setId(payload.id);
       this._resolvePendingResponse(pending, requestId, null, response);
-    } else if (GrantDomainEvent.isGrantRevokeFailedEvent(event)) {
+    } else if (AuthDomainEvent.isGrantRevokeFailedEvent(event)) {
       this._resolvePendingResponse(pending, requestId, {
         code: grpc.status.INTERNAL,
         message:
@@ -647,7 +728,31 @@ export class AuthServiceServer {
           'CommandError',
         metadata: new grpc.Metadata()
       });
-    } else if (GrantDomainEvent.isTokenIntrospectedEvent(event)) {
+    } else if (AuthDomainEvent.isGrantInteractionFinishedEvent(event)) {
+      const response = new FinishInteractionResponse();
+      const payload: GrantInteractionFinishedEvent['payload'] = event.payload;
+      response.setId(payload.id);
+      response.setInteractNonce(payload.interactNonce);
+      response.setClientNonce(payload.clientNonce);
+      response.setInteractRef(payload.interactRef);
+      if (payload.clientFinishUri) {
+        response.setFinishUri(payload.clientFinishUri);
+      }
+      this._resolvePendingResponse(pending, requestId, null, response);
+    } else if (AuthDomainEvent.isGrantInteractionFinishFailedEvent(event)) {
+      this._resolvePendingResponse(pending, requestId, {
+        code: grpc.status.INTERNAL,
+        message:
+          (event.payload as GrantInteractionFinishFailedEvent['payload'])
+            .message || 'Command processing failed',
+        details: (event.payload as GrantInteractionFinishFailedEvent['payload'])
+          .message,
+        name:
+          (event.payload as GrantInteractionFinishFailedEvent['payload'])
+            .errorName || 'CommandError',
+        metadata: new grpc.Metadata()
+      });
+    } else if (AuthDomainEvent.isTokenIntrospectedEvent(event)) {
       const response = new IntrospectTokenResponse();
       const payload: TokenIntrospectedEvent['payload'] = event.payload;
       response.setGrantId(payload.id);
@@ -656,20 +761,7 @@ export class AuthServiceServer {
         response.addAccess(this.getAccessListResponse(access));
       }
       this._resolvePendingResponse(pending, requestId, null, response);
-    } else if (GrantDomainEvent.isTokenIntrospectionFailedEvent(event)) {
-      this._resolvePendingResponse(pending, requestId, {
-        code: grpc.status.INTERNAL,
-        message:
-          (event.payload as TokenIntrospectionFailedEvent['payload']).message ||
-          'Command processing failed',
-        details: (event.payload as TokenIntrospectionFailedEvent['payload'])
-          .message,
-        name:
-          (event.payload as TokenIntrospectionFailedEvent['payload'])
-            .errorName || 'CommandError',
-        metadata: new grpc.Metadata()
-      });
-    } else if (GrantDomainEvent.isTokenRotatedEvent(event)) {
+    } else if (AuthDomainEvent.isTokenRotatedEvent(event)) {
       const response = new RotateTokenResponse();
       const payload: TokenRotatedEvent['payload'] = event.payload;
       response.setGrantId(payload.id);
@@ -682,7 +774,7 @@ export class AuthServiceServer {
         response.addAccess(this.getAccessListResponse(access));
       }
       this._resolvePendingResponse(pending, requestId, null, response);
-    } else if (GrantDomainEvent.isTokenRotationFailedEvent(event)) {
+    } else if (AuthDomainEvent.isTokenRotationFailedEvent(event)) {
       this._resolvePendingResponse(pending, requestId, {
         code: grpc.status.INTERNAL,
         message:
@@ -692,6 +784,61 @@ export class AuthServiceServer {
         name:
           (event.payload as TokenRotationFailedEvent['payload']).errorName ||
           'CommandError',
+        metadata: new grpc.Metadata()
+      });
+    } else if (AuthDomainEvent.isTokenRevokedEvent(event)) {
+      const response = new RevokeTokenResponse();
+      const payload: TokenRevokedEvent['payload'] = event.payload;
+      response.setId(payload.id);
+      this._resolvePendingResponse(pending, requestId, null, response);
+    } else if (AuthDomainEvent.isTokenRevokeFailedEvent(event)) {
+      this._resolvePendingResponse(pending, requestId, {
+        code: grpc.status.INTERNAL,
+        message:
+          (event.payload as TokenRevokeFailedEvent['payload']).message ||
+          'Command processing failed',
+        details: (event.payload as TokenRevokeFailedEvent['payload']).message,
+        name:
+          (event.payload as TokenRevokeFailedEvent['payload']).errorName ||
+          'CommandError',
+        metadata: new grpc.Metadata()
+      });
+    } else if (AuthDomainEvent.isGrantInteractionStartedEvent(event)) {
+      const response = new StartInteractionResponse();
+      const payload: GrantInteractionStartedEvent['payload'] = event.payload;
+      response.setId(payload.id);
+      response.setNonce(payload.nonce);
+      response.setClientUri(payload.clientUri);
+      response.setClientName(payload.clientName);
+      this._resolvePendingResponse(pending, requestId, null, response);
+    } else if (AuthDomainEvent.isGrantInteractionStartFailedEvent(event)) {
+      this._resolvePendingResponse(pending, requestId, {
+        code: grpc.status.INTERNAL,
+        message:
+          (event.payload as GrantInteractionStartFailedEvent['payload'])
+            .message || 'Command processing failed',
+        details: (event.payload as GrantInteractionStartFailedEvent['payload'])
+          .message,
+        name:
+          (event.payload as GrantInteractionStartFailedEvent['payload'])
+            .errorName || 'CommandError',
+        metadata: new grpc.Metadata()
+      });
+    } else if (AuthDomainEvent.isGrantInteractionChoiceHandledEvent(event)) {
+      const response = new HandleInteractionChoiceResponse();
+      response.setSuccess(true);
+      this._resolvePendingResponse(pending, requestId, null, response);
+    } else if (AuthDomainEvent.isGrantInteractionChoiceFailedEvent(event)) {
+      this._resolvePendingResponse(pending, requestId, {
+        code: grpc.status.INTERNAL,
+        message:
+          (event.payload as GrantInteractionChoiceFailedEvent['payload'])
+            .message || 'Command processing failed',
+        details: (event.payload as GrantInteractionChoiceFailedEvent['payload'])
+          .message,
+        name:
+          (event.payload as GrantInteractionChoiceFailedEvent['payload'])
+            .errorName || 'CommandError',
         metadata: new grpc.Metadata()
       });
     } else {

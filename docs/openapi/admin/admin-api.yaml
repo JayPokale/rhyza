@@ -1,7 +1,14 @@
 openapi: 3.1.0
 info:
   title: Rafiki Admin API
-  version: 0.0.0
+  version: 0.0.2
+  license:
+    name: ISC
+    identifier: ISC
+servers:
+  - url: /
+    description: Base URL is determined by the Rafiki deployment.
+security: []
 tags:
   - name: assets
     x-displayName: Assets
@@ -27,7 +34,7 @@ paths:
         with the same peer id.
       tags:
         - peers
-      operationId: Peers_createPeer
+      operationId: createPeer
       parameters: []
       responses:
         '201':
@@ -63,11 +70,12 @@ paths:
       description: Create a new asset.
       tags:
         - assets
-      operationId: Assets_createAsset
+      operationId: createAsset
       parameters: []
       responses:
         '201':
-          description: The request has succeeded and an asset has been created as a result.
+          description: >-
+            The request has succeeded and an asset has been created as a result.
           content:
             application/json:
               schema:
@@ -91,7 +99,7 @@ paths:
       description: Create a new wallet address.
       tags:
         - wallet-addresses
-      operationId: WalletAddresses_createWalletAddress
+      operationId: createWalletAddress
       parameters: []
       responses:
         '201':
@@ -114,12 +122,75 @@ paths:
             schema:
               $ref: '#/components/schemas/WalletAddressCreate'
   /payment-intents:
+    get:
+      summary: List Payment Intents
+      description: >-
+        List payment intents with cursor pagination, ordered by creation
+        time. Optionally filter by receiver wallet address id.
+      tags:
+        - payment-intents
+      operationId: PaymentIntents_listPaymentIntents
+      parameters:
+        - name: walletAddressId
+          in: query
+          description: Filter by receiver wallet address id
+          required: false
+          schema:
+            type: string
+        - name: cursor
+          in: query
+          description: >-
+            Opaque cursor from a previous page's startCursor/endCursor. Valid
+            only for the query that produced it. Reusing a cursor with a
+            different sortOrder or filter returns 400.
+          required: false
+          schema:
+            type: string
+        - name: first
+          in: query
+          description: Page size, paginating forward from the cursor. Mutually exclusive with last.
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+        - name: last
+          in: query
+          description: Page size, paginating backward from the cursor (requires cursor). Mutually exclusive with first.
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+        - name: sortOrder
+          in: query
+          description: Ordering by creation time. Defaults to desc (newest first).
+          required: false
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+            default: desc
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentIntentsPage'
+        '400':
+          description: Invalid pagination parameters, or a cursor that was not issued for this query.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     post:
       summary: Create Payment Intent
       description: Create a new payment intent for a receiver's account.
       tags:
         - payment-intents
-      operationId: PaymentIntents_createPaymentIntent
+      operationId: createPaymentIntent
       parameters: []
       responses:
         '201':
@@ -147,7 +218,7 @@ paths:
       description: Retrieve details of a specific payment intent by its unique identifier.
       tags:
         - payment-intents
-      operationId: PaymentIntents_getPaymentIntent
+      operationId: getPaymentIntent
       parameters:
         - name: id
           in: path
@@ -174,7 +245,7 @@ paths:
       description: Complete a payment intent by its unique identifier.
       tags:
         - payment-intents
-      operationId: PaymentIntents_completePaymentIntent
+      operationId: completePaymentIntent
       parameters:
         - name: id
           in: path
@@ -207,7 +278,7 @@ paths:
       description: Create a quote for a payment intent.
       tags:
         - quotes
-      operationId: Quotes_createQuote
+      operationId: createQuote
       parameters: []
       responses:
         '201':
@@ -236,12 +307,82 @@ paths:
             schema:
               $ref: '#/components/schemas/QuoteCreate'
   /payments:
+    get:
+      summary: List Payments
+      description: >-
+        List payments with cursor pagination, ordered by creation time.
+        Optionally filter by sender wallet address id and/or parent
+        payment intent id.
+      tags:
+        - payments
+      operationId: Payments_listPayments
+      parameters:
+        - name: walletAddressId
+          in: query
+          description: Filter by sender wallet address id
+          required: false
+          schema:
+            type: string
+        - name: paymentIntentId
+          in: query
+          description: Filter by parent payment intent id
+          required: false
+          schema:
+            type: string
+        - name: cursor
+          in: query
+          description: >-
+            Opaque cursor from a previous page's startCursor/endCursor. Valid
+            only for the query that produced it. Reusing a cursor with a
+            different sortOrder or filter returns 400.
+          required: false
+          schema:
+            type: string
+        - name: first
+          in: query
+          description: Page size, paginating forward from the cursor. Mutually exclusive with last.
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+        - name: last
+          in: query
+          description: Page size, paginating backward from the cursor (requires cursor). Mutually exclusive with first.
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+        - name: sortOrder
+          in: query
+          description: Ordering by creation time. Defaults to desc (newest first).
+          required: false
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+            default: desc
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentsPage'
+        '400':
+          description: Invalid pagination parameters, or a cursor that was not issued for this query.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     post:
       summary: Create Payment
       description: Create a payment for a sender's account.
       tags:
         - payments
-      operationId: Payments_createPayment
+      operationId: createPayment
       parameters: []
       responses:
         '201':
@@ -269,7 +410,7 @@ paths:
       description: Approve a payment, allowing it to proceed.
       tags:
         - payments
-      operationId: Payments_approvePayment
+      operationId: approvePayment
       parameters:
         - name: intentId
           in: path
@@ -297,17 +438,15 @@ paths:
                     type: string
                     description: Unique identifier of the approved payment
                   state:
-                    type: string
-                    enum:
-                      - COMPLETED
-                      - FAILED
+                    $ref: '#/components/schemas/PaymentState'
+                additionalProperties: false
   /payment-intents/{intentId}/payments/{id}/cancel:
     post:
       summary: Cancel Payment
       description: Cancel a pending payment
       tags:
         - payments
-      operationId: Payments_cancelPayment
+      operationId: cancelPayment
       parameters:
         - name: intentId
           in: path
@@ -321,6 +460,12 @@ paths:
           required: true
           schema:
             type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentCancel'
       responses:
         '200':
           description: The request has succeeded.
@@ -334,19 +479,14 @@ paths:
                   id:
                     type: string
                     description: Unique identifier of the cancelled payment
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PaymentCancel'
+                additionalProperties: false
   /payment-intents/{intentId}/payments/{id}:
     get:
       summary: Get Payment
       description: Retrieve details of a specific payment by its ID within a payment intent.
       tags:
         - payments
-      operationId: Payments_getPayment
+      operationId: getPayment
       parameters:
         - name: intentId
           in: path
@@ -642,12 +782,17 @@ components:
         - destination
         - walletAddress
         - receivedAmount
+        - createdAt
       properties:
         id:
           type: string
           description: The unique identifier for the payment intent.
-        state:
+        createdAt:
           type: string
+          format: date-time
+          description: When the payment intent was created.
+        state:
+          $ref: '#/components/schemas/PaymentIntentState'
           description: The current status of the payment intent.
         destination:
           type: string
@@ -732,10 +877,14 @@ components:
           description: The exchange rate of quote.
     PaymentCreate:
       type: object
-      description: Schema for creating a new payment.
+      description: >-
+        Schema for creating a new payment. Exactly one of paymentIntentId or
+        paymentIntentUrl must be supplied.
       required:
         - walletAddress
-        - paymentIntentId
+      oneOf:
+        - required: [paymentIntentId]
+        - required: [paymentIntentUrl]
       properties:
         id:
           type: string
@@ -746,6 +895,13 @@ components:
         paymentIntentId:
           type: string
           description: The ID of the payment intent being paid.
+        paymentIntentUrl:
+          type: string
+          format: uri
+          description: >-
+            The URL of the incoming payment being paid, for an intent held by
+            another node. It is imported on first use; the canonical local id
+            is returned as paymentIntentId.
         quoteId:
           type: string
           description: The ID of the quote used for this payment.
@@ -767,6 +923,8 @@ components:
           description: The unique identifier for the payment intent.
     PaymentCancel:
       type: object
+      required:
+        - intentId
       properties:
         reason:
           type: string
@@ -777,37 +935,107 @@ components:
       required:
         - id
         - state
+        - paymentIntentId
         - senderWalletAddress
-        - assetCode
-        - assetScale
         - debitAmount
         - receiveAmount
         - sentAmount
+        - createdAt
       properties:
         id:
           type: string
           description: Unique identifier for the payment.
         state:
-          type: string
+          $ref: '#/components/schemas/PaymentState'
           description: The current state of the payment.
+        paymentIntentId:
+          type: string
+          description: The parent payment intent's id.
         senderWalletAddress:
           type: string
           description: The wallet address of the sender.
-        assetCode:
-          type: string
-          description: The asset code used for the payment.
-        assetScale:
-          type: number
-          description: The asset scale used for the payment.
         quoteId:
           type: string
           description: The ID of the quote associated with this payment.
         debitAmount:
-          type: string
-          description: The amount debited from the sender.
+          $ref: '#/components/schemas/Amount'
+          description: The amount debited from the sender, in the sender-side asset.
         receiveAmount:
-          type: string
-          description: The amount received by the destination.
+          oneOf:
+            - $ref: '#/components/schemas/Amount'
+            - type: 'null'
+          description: >-
+            The amount received by the destination, in the receive-side asset.
+            Null for a payment created without a quote, which fixes only the
+            debit side.
         sentAmount:
+          $ref: '#/components/schemas/Amount'
+          description: The total amount sent so far, in the sender-side asset.
+        createdAt:
           type: string
-          description: The total amount sent so far.
+          format: date-time
+          description: When the payment was created.
+        failReason:
+          type: string
+          description: Failure detail when the payment failed.
+    PageInfo:
+      type: object
+      description: Cursor pagination metadata for a page of results.
+      required:
+        - hasNextPage
+        - hasPreviousPage
+      properties:
+        startCursor:
+          type: string
+          description: Cursor of the first item in the page; pass as cursor with last to page backward.
+        endCursor:
+          type: string
+          description: Cursor of the last item in the page; pass as cursor with first to page forward.
+        hasNextPage:
+          type: boolean
+          description: Whether more results exist after this page.
+        hasPreviousPage:
+          type: boolean
+          description: Whether more results exist before this page.
+    PaymentIntentsPage:
+      type: object
+      description: A page of payment intents in the requested creation order.
+      required:
+        - result
+        - pagination
+      properties:
+        result:
+          type: array
+          items:
+            $ref: '#/components/schemas/PaymentIntent'
+        pagination:
+          $ref: '#/components/schemas/PageInfo'
+    PaymentsPage:
+      type: object
+      description: A page of payments in the requested creation order.
+      required:
+        - result
+        - pagination
+      properties:
+        result:
+          type: array
+          items:
+            $ref: '#/components/schemas/Payment'
+        pagination:
+          $ref: '#/components/schemas/PageInfo'
+    PaymentIntentState:
+      type: string
+      enum:
+        - CREATED
+        - COMPLETED
+    PaymentState:
+      type: string
+      enum:
+        - CREATED
+        - PROCESSING
+        - SENDING
+        - CONFIRMED
+        - REJECTED
+        - COMPLETED
+        - CANCELLED
+        - FAILED

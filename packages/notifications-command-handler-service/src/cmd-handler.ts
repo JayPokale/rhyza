@@ -1,20 +1,29 @@
-import { CommandTopics, IMessage, IMessageConsumer } from 'common-types-lib';
+import {
+  CommandTopics,
+  ILogger,
+  IMessage,
+  IMessageConsumer
+} from 'common-types-lib';
 import {
   CreateNotificationCmd,
   NotificationAggregate,
-  NotificationStatus
+  NotificationStatus,
+  RetryNotificationTickCmd
 } from 'notifications-domain-lib';
 
 export class NotificationsCommandHandler {
   private _msgConsumer: IMessageConsumer;
   private _notificationAggregate: NotificationAggregate;
+  private _logger: ILogger;
 
   constructor(
     msgConsumer: IMessageConsumer,
-    notificationAggregate: NotificationAggregate
+    notificationAggregate: NotificationAggregate,
+    logger: ILogger
   ) {
     this._msgConsumer = msgConsumer;
     this._notificationAggregate = notificationAggregate;
+    this._logger = logger;
   }
 
   async start(): Promise<void> {
@@ -43,13 +52,25 @@ export class NotificationsCommandHandler {
               payload.data
             );
           if (notification.status === NotificationStatus.SENT) {
-            console.log(
-              `Notification sent for command ${msg.msgName} — id ${notification.id} (${notification.attempts} attempt(s))`
+            this._logger.info(
+              `Notification sent for command ${msg.msgName} — id ${notification.id}`
             );
           } else {
-            console.error(
-              `Notification NOT sent for command ${msg.msgName} — id ${notification.id}, type ${payload.type}, status ${notification.status} after ${notification.attempts} attempt(s). Skipping to avoid blocking the partition.`
+            this._logger.error(
+              `Notification NOT sent for command ${msg.msgName} — id ${notification.id}, type ${payload.type}, status ${notification.status}`
             );
+          }
+          break;
+        }
+        case RetryNotificationTickCmd.name: {
+          const payload = (msg as RetryNotificationTickCmd).payload;
+          try {
+            await this._notificationAggregate.retryNotification(payload.id);
+            this._logger.info(
+              `Notification sent for command ${msg.msgName} — id ${payload.id}`
+            );
+          } catch (err) {
+            this._logger.error('error retrying notification: ', err);
           }
           break;
         }
@@ -61,7 +82,7 @@ export class NotificationsCommandHandler {
     }
 
     if (unhandled.length > 0) {
-      console.warn(
+      this._logger.warn(
         `Unhandled Notification command: ${[...new Set(unhandled.map((m) => m.msgName))].join(', ')}`
       );
     }

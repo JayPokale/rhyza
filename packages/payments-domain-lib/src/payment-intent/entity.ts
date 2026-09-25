@@ -20,12 +20,12 @@ import {
   IPaymentIntent,
   ISentPayment,
   IQuote,
-  IReceivedPayment,
+  IInboundPayment,
   PaymentIntentDestination,
   PaymentIntentState,
   SentPaymentState,
   QuoteState,
-  ReceivedPaymentState
+  InboundPaymentState
 } from './interfaces';
 
 const MAX_PAYMENT_INTENT_EXPIRY_MS = 1000 * 60 * 60 * 24 * 30; // 30 days
@@ -55,17 +55,20 @@ class Quote implements IBaseQuote {
   private _id: string;
   private _senderWalletAddress: string;
   private _senderWalletAddressId: string;
+  private _createdAt: Date;
   private _data: QuoteData;
 
   private constructor(
     id: string,
     senderWalletAddress: string,
     senderWalletAddressId: string,
+    createdAt: Date,
     data: QuoteData
   ) {
     this._id = id;
     this._senderWalletAddress = senderWalletAddress;
     this._senderWalletAddressId = senderWalletAddressId;
+    this._createdAt = createdAt;
     this._data = data;
   }
 
@@ -81,24 +84,32 @@ class Quote implements IBaseQuote {
     debitAmount?: bigint,
     receiveAmount?: bigint
   ): Quote {
-    return new Quote(id, senderWalletAddress, senderWalletAddressId, {
-      state: 'PENDING',
-      peerId,
-      peerAssetCode,
-      peerAssetScale,
-      sourceAmount,
-      senderAssetCode,
-      debitAmount,
-      receiveAmount
-    });
+    return new Quote(
+      id,
+      senderWalletAddress,
+      senderWalletAddressId,
+      new Date(),
+      {
+        state: 'PENDING',
+        peerId,
+        peerAssetCode,
+        peerAssetScale,
+        sourceAmount,
+        senderAssetCode,
+        debitAmount,
+        receiveAmount
+      }
+    );
   }
 
   static fromObject(obj: IQuote): Quote {
+    const createdAt = obj.createdAt ?? new Date();
     if (obj.state === 'COMPLETED') {
       return new Quote(
         obj.id,
         obj.senderWalletAddress,
         obj.senderWalletAddressId,
+        createdAt,
         {
           state: 'COMPLETED',
           debitAmount: obj.debitAmount,
@@ -112,6 +123,7 @@ class Quote implements IBaseQuote {
         obj.id,
         obj.senderWalletAddress,
         obj.senderWalletAddressId,
+        createdAt,
         {
           state: 'FAILED',
           errorName: obj.errorName,
@@ -123,6 +135,7 @@ class Quote implements IBaseQuote {
         obj.id,
         obj.senderWalletAddress,
         obj.senderWalletAddressId,
+        createdAt,
         {
           state: 'PENDING',
           peerId: obj.peerId,
@@ -265,7 +278,8 @@ class Quote implements IBaseQuote {
     const base = {
       id: this._id,
       senderWalletAddress: this._senderWalletAddress,
-      senderWalletAddressId: this._senderWalletAddressId
+      senderWalletAddressId: this._senderWalletAddressId,
+      createdAt: this._createdAt
     };
     if (this._data.state === 'COMPLETED') {
       const { debitAmount, receiveAmount, exchangeRate, expiresAt } =
@@ -310,6 +324,10 @@ class Quote implements IBaseQuote {
 
   get senderWalletAddressId(): string {
     return this._senderWalletAddressId;
+  }
+
+  get createdAt(): Date {
+    return this._createdAt;
   }
 }
 
@@ -589,9 +607,9 @@ class SentPayment {
   }
 }
 
-class ReceivedPayment {
+class InboundPayment {
   private _id: string;
-  private _state: ReceivedPaymentState;
+  private _state: InboundPaymentState;
   private _paymentIntentId: string;
   private _packetId: string;
   private _peerId: string;
@@ -600,10 +618,11 @@ class ReceivedPayment {
   private _sourceAmount: bigint;
   private _receiveAmount: bigint;
   private _createdAt: Date;
+  private _expiresAt?: Date;
   private _ledgerTransferId?: string;
   private _failReason?: string;
 
-  private constructor(args: IReceivedPayment) {
+  private constructor(args: IInboundPayment) {
     this._id = args.id;
     this._state = args.state;
     this._paymentIntentId = args.paymentIntentId;
@@ -614,6 +633,7 @@ class ReceivedPayment {
     this._sourceAmount = args.sourceAmount;
     this._receiveAmount = args.receiveAmount;
     this._createdAt = args.createdAt;
+    this._expiresAt = args.expiresAt;
     this._ledgerTransferId = args.ledgerTransferId;
     this._failReason = args.failReason;
   }
@@ -627,22 +647,23 @@ class ReceivedPayment {
     peerAssetScale: number;
     sourceAmount: bigint;
     receiveAmount: bigint;
-  }): ReceivedPayment {
-    return new ReceivedPayment({
+    expiresAt?: Date;
+  }): InboundPayment {
+    return new InboundPayment({
       ...args,
       state: 'VALIDATED',
       createdAt: new Date()
     });
   }
 
-  static fromObject(obj: IReceivedPayment): ReceivedPayment {
-    return new ReceivedPayment(obj);
+  static fromObject(obj: IInboundPayment): InboundPayment {
+    return new InboundPayment(obj);
   }
 
   accept(ledgerTransferId: string): void {
     if (this._state !== 'VALIDATED') {
       throw new PaymentInvalidStateError(
-        `Received payment ${this._id} cannot be accepted from state ${this._state}`
+        `Inbound payment ${this._id} cannot be accepted from state ${this._state}`
       );
     }
     this._state = 'ACCEPTED';
@@ -652,7 +673,7 @@ class ReceivedPayment {
   markFulfillable(): void {
     if (this._state !== 'ACCEPTED') {
       throw new PaymentInvalidStateError(
-        `Received payment ${this._id} cannot be marked fulfillable from state ${this._state}`
+        `Inbound payment ${this._id} cannot be marked fulfillable from state ${this._state}`
       );
     }
     this._state = 'FULFILLABLE';
@@ -665,7 +686,7 @@ class ReceivedPayment {
       this._state !== 'FULFILLABLE'
     ) {
       throw new PaymentInvalidStateError(
-        `Received payment ${this._id} cannot fail from state ${this._state}`
+        `Inbound payment ${this._id} cannot fail from state ${this._state}`
       );
     }
     this._state = 'FAILED';
@@ -677,14 +698,14 @@ class ReceivedPayment {
   finalize(): { receiveAmount: bigint } {
     if (this._state !== 'FULFILLABLE') {
       throw new PaymentInvalidStateError(
-        `Received payment ${this._id} cannot be finalized from state ${this._state}`
+        `Inbound payment ${this._id} cannot be finalized from state ${this._state}`
       );
     }
     this._state = 'FINALIZED';
     return { receiveAmount: this._receiveAmount };
   }
 
-  toObject(): IReceivedPayment {
+  toObject(): IInboundPayment {
     return {
       id: this._id,
       state: this._state,
@@ -696,6 +717,7 @@ class ReceivedPayment {
       sourceAmount: this._sourceAmount,
       receiveAmount: this._receiveAmount,
       createdAt: this._createdAt,
+      expiresAt: this._expiresAt,
       ledgerTransferId: this._ledgerTransferId,
       failReason: this._failReason
     };
@@ -705,7 +727,7 @@ class ReceivedPayment {
     return this._id;
   }
 
-  get state(): ReceivedPaymentState {
+  get state(): InboundPaymentState {
     return this._state;
   }
 }
@@ -724,7 +746,7 @@ export class PaymentIntent implements IPaymentIntent {
   private _receivedAmount: bigint;
   private _quotes: Quote[] = [];
   private _sentPayments: SentPayment[] = [];
-  private _receivedPayments: ReceivedPayment[] = [];
+  private _inboundPayments: InboundPayment[] = [];
   private _destinationIlpAddress: string | undefined;
   private _remoteUrl: string | undefined;
   private _peerId: string | undefined;
@@ -743,7 +765,7 @@ export class PaymentIntent implements IPaymentIntent {
     state: PaymentIntentState = PaymentIntentState.CREATED,
     quotes: Quote[] = [],
     sentPayments: SentPayment[] = [],
-    receivedPayments: ReceivedPayment[] = [],
+    inboundPayments: InboundPayment[] = [],
     destinationIlpAddress?: string,
     remoteUrl?: string,
     peerId?: string
@@ -760,7 +782,7 @@ export class PaymentIntent implements IPaymentIntent {
     this._state = state;
     this._quotes = quotes;
     this._sentPayments = sentPayments;
-    this._receivedPayments = receivedPayments;
+    this._inboundPayments = inboundPayments;
 
     this._createdAt = createdAt;
     this._expiresAt = expiresAt;
@@ -843,7 +865,7 @@ export class PaymentIntent implements IPaymentIntent {
       obj.state,
       obj.quotes.map((q) => Quote.fromObject(q)),
       obj.sentPayments.map((p) => SentPayment.fromObject(p)),
-      obj.receivedPayments.map((rp) => ReceivedPayment.fromObject(rp)),
+      obj.inboundPayments.map((rp) => InboundPayment.fromObject(rp)),
       obj.destinationIlpAddress,
       obj.remoteUrl,
       obj.peerId
@@ -865,7 +887,7 @@ export class PaymentIntent implements IPaymentIntent {
       receivedAmount: this._receivedAmount,
       quotes: this._quotes.map((q) => q.toObject()),
       sentPayments: this._sentPayments.map((p) => p.toObject()),
-      receivedPayments: this._receivedPayments.map((rp) => rp.toObject()),
+      inboundPayments: this._inboundPayments.map((rp) => rp.toObject()),
       destinationIlpAddress: this._destinationIlpAddress,
       remoteUrl: this._remoteUrl,
       peerId: this._peerId
@@ -1468,9 +1490,6 @@ export class PaymentIntent implements IPaymentIntent {
       this._receivedAmount += receiveAmount;
     }
 
-    if (this.isIncomingAmountMet) {
-      this._state = 'COMPLETED';
-    }
     return payment.toObject();
   }
 
@@ -1508,7 +1527,7 @@ export class PaymentIntent implements IPaymentIntent {
     return payment.toObject();
   }
 
-  addReceivedPayment(args: {
+  addInboundPayment(args: {
     id: string;
     packetId: string;
     peerId: string;
@@ -1516,7 +1535,8 @@ export class PaymentIntent implements IPaymentIntent {
     peerAssetScale: number;
     sourceAmount: bigint;
     fxRate?: number;
-  }): IReceivedPayment {
+    expiresAt?: Date;
+  }): IInboundPayment {
     const { id, packetId, peerId, peerAssetCode, peerAssetScale, fxRate } =
       args;
 
@@ -1538,15 +1558,15 @@ export class PaymentIntent implements IPaymentIntent {
       );
     }
 
-    if (this._receivedPayments.find((rp) => rp.id === id)) {
+    if (this._inboundPayments.find((rp) => rp.id === id)) {
       throw new InvalidPaymentIdError(
-        `Duplicate received payment id ${id} exists for ${this.id} payment intent`
+        `Duplicate inbound payment id ${id} exists for ${this.id} payment intent`
       );
     }
 
     if (args.sourceAmount <= 0n) {
       throw new InvalidPaymentAmountError(
-        `Received payment ${id} must have a positive sourceAmount`
+        `Inbound payment ${id} must have a positive sourceAmount`
       );
     }
 
@@ -1557,7 +1577,7 @@ export class PaymentIntent implements IPaymentIntent {
       fxRate
     });
 
-    const receivedPayment = ReceivedPayment.create({
+    const inboundPayment = InboundPayment.create({
       id,
       paymentIntentId: this.id,
       packetId,
@@ -1565,75 +1585,76 @@ export class PaymentIntent implements IPaymentIntent {
       peerAssetCode,
       peerAssetScale,
       sourceAmount: args.sourceAmount,
-      receiveAmount
+      receiveAmount,
+      expiresAt: args.expiresAt
     });
 
-    this._receivedPayments.push(receivedPayment);
-    return receivedPayment.toObject();
+    this._inboundPayments.push(inboundPayment);
+    return inboundPayment.toObject();
   }
 
-  acceptReceivedPayment(args: {
+  acceptInboundPayment(args: {
     id: string;
     ledgerTransferId: string;
-  }): IReceivedPayment {
+  }): IInboundPayment {
     const { id, ledgerTransferId } = args;
 
-    const receivedPayment = this._receivedPayments.find((rp) => rp.id === id);
-    if (!receivedPayment) {
+    const inboundPayment = this._inboundPayments.find((rp) => rp.id === id);
+    if (!inboundPayment) {
       throw new PaymentNotFoundError(
-        `Received payment ${id} not found for ${this.id} payment intent`
+        `Inbound payment ${id} not found for ${this.id} payment intent`
       );
     }
 
-    receivedPayment.accept(ledgerTransferId);
-    return receivedPayment.toObject();
+    inboundPayment.accept(ledgerTransferId);
+    return inboundPayment.toObject();
   }
 
-  failReceivedPayment(args: { id: string; reason?: string }): IReceivedPayment {
+  failInboundPayment(args: { id: string; reason?: string }): IInboundPayment {
     const { id, reason } = args;
 
-    const receivedPayment = this._receivedPayments.find((rp) => rp.id === id);
-    if (!receivedPayment) {
+    const inboundPayment = this._inboundPayments.find((rp) => rp.id === id);
+    if (!inboundPayment) {
       throw new PaymentNotFoundError(
-        `Received payment ${id} not found for ${this.id} payment intent`
+        `Inbound payment ${id} not found for ${this.id} payment intent`
       );
     }
 
-    receivedPayment.fail(reason);
-    return receivedPayment.toObject();
+    inboundPayment.fail(reason);
+    return inboundPayment.toObject();
   }
 
-  markReceivedPaymentFulfillable(args: { id: string }): IReceivedPayment {
+  markInboundPaymentFulfillable(args: { id: string }): IInboundPayment {
     const { id } = args;
 
-    const receivedPayment = this._receivedPayments.find((rp) => rp.id === id);
-    if (!receivedPayment) {
+    const inboundPayment = this._inboundPayments.find((rp) => rp.id === id);
+    if (!inboundPayment) {
       throw new PaymentNotFoundError(
-        `Received payment ${id} not found for ${this.id} payment intent`
+        `Inbound payment ${id} not found for ${this.id} payment intent`
       );
     }
 
-    receivedPayment.markFulfillable();
-    return receivedPayment.toObject();
+    inboundPayment.markFulfillable();
+    return inboundPayment.toObject();
   }
 
-  finalizeReceivedPayment(args: { id: string }): IReceivedPayment {
+  finalizeInboundPayment(args: { id: string }): IInboundPayment {
     const { id } = args;
 
-    const receivedPayment = this._receivedPayments.find((rp) => rp.id === id);
-    if (!receivedPayment) {
+    const inboundPayment = this._inboundPayments.find((rp) => rp.id === id);
+    if (!inboundPayment) {
       throw new PaymentNotFoundError(
-        `Received payment ${id} not found for ${this.id} payment intent`
+        `Inbound payment ${id} not found for ${this.id} payment intent`
       );
     }
 
-    const { receiveAmount } = receivedPayment.finalize();
+    const { receiveAmount } = inboundPayment.finalize();
     this._receivedAmount += receiveAmount;
 
     if (this.isIncomingAmountMet) {
       this._state = 'COMPLETED';
     }
-    return receivedPayment.toObject();
+    return inboundPayment.toObject();
   }
 
   cancelPayment(args: { id: string; reason?: string }): void {
@@ -1712,8 +1733,8 @@ export class PaymentIntent implements IPaymentIntent {
     return this._sentPayments.map((p) => p.toObject());
   }
 
-  get receivedPayments(): IReceivedPayment[] {
-    return this._receivedPayments.map((rp) => rp.toObject());
+  get inboundPayments(): IInboundPayment[] {
+    return this._inboundPayments.map((rp) => rp.toObject());
   }
 
   get destinationIlpAddress(): string | undefined {
