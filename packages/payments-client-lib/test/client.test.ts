@@ -507,6 +507,22 @@ describe('Payments Client', () => {
       assert.equal(result.id, paymentId);
     });
 
+    test('create payment with grantId', async () => {
+      const paymentIntentId = await createPaymentIntent(100);
+      const paymentId = randomUUID();
+      const result = await paymentsClient.createPayment(
+        paymentId,
+        senderWalletAddressId,
+        SENDER_WALLET_ADDRESS,
+        paymentIntentId,
+        undefined,
+        100,
+        'grant-1'
+      );
+
+      assert.equal(result.id, paymentId);
+    });
+
     test('duplicate id is rejected', async () => {
       const paymentIntentId = await createPaymentIntent(100);
       const paymentId = randomUUID();
