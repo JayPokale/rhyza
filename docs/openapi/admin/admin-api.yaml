@@ -1200,26 +1200,12 @@ components:
         id:
           type: string
           description: The unique identifier for the grant.
-        startMethods:
-          type: array
-          description: The interaction methods the client requested to start an interaction.
-          items:
-            type: string
-        continueToken:
-          type: string
-          description: The token used to continue the grant.
-        continueId:
-          type: string
-          description: The id used alongside the continue token to continue the grant.
         interactionNonce:
           type: string
           description: The nonce used by the client to verify an interaction hash.
         state:
           $ref: '#/components/schemas/GrantState'
           description: The current state of the grant.
-        finalizationReason:
-          type: string
-          description: The reason the grant reached its final state, if applicable.
         client:
           type: string
           description: The client's wallet address, or a JWK if directed identity was used.
@@ -1233,22 +1219,9 @@ components:
           description: The accesses requested in the grant.
           items:
             $ref: '#/components/schemas/AccessItem'
-        finishMethod:
-          type: string
-          description: The finish method the client will use when an interaction finishes.
-        finishUri:
-          type: string
-          description: The URI the client requested to be redirected to when an interaction finishes.
-        finishNonce:
-          type: string
-          description: The nonce the client provided to verify the interaction hash when an interaction finishes.
         interaction:
           $ref: '#/components/schemas/Interaction'
           description: The grant's interaction session.
-        lastContinuedAt:
-          type: string
-          format: date-time
-          description: When the grant was last continued.
     GrantState:
       type: string
       description: The current state of a grant.

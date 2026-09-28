@@ -3,12 +3,35 @@
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import {
   AuthClient,
+  GetGrantResult,
   httpStatusFromGrpcError,
   toClientApiErrorResponse
 } from 'auth-client-lib';
 
 interface GrantRouteOptions extends FastifyPluginOptions {
   authClient: AuthClient;
+}
+
+interface AdminApiGrant {
+  id: string;
+  state: GetGrantResult['state'];
+  client: string;
+  interactionNonce?: string;
+  subjectIds?: GetGrantResult['subjectIds'];
+  accesses?: GetGrantResult['accesses'];
+  interaction?: GetGrantResult['interaction'];
+}
+
+function toAdminApiGrant(authClientGrant: GetGrantResult): AdminApiGrant {
+  return {
+    id: authClientGrant.id,
+    state: authClientGrant.state,
+    client: authClientGrant.client,
+    interactionNonce: authClientGrant.interactionNonce,
+    subjectIds: authClientGrant.subjectIds,
+    accesses: authClientGrant.accesses,
+    interaction: authClientGrant.interaction
+  };
 }
 
 export async function grantRoutes(
@@ -29,7 +52,7 @@ export async function grantRoutes(
       if (!grant) {
         return reply.status(404);
       }
-      return reply.status(200).send(grant);
+      return reply.status(200).send(toAdminApiGrant(grant));
     } catch (err) {
       server.log.error(err);
       const httpStatus = httpStatusFromGrpcError(err);

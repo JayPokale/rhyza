@@ -498,7 +498,6 @@ function fromPbGrant(grant: PbGrant): GetGrantResult {
     continueId: grant.getContinueId(),
     interactionNonce: grant.getInteractionNonce(),
     state: grant.getState(),
-    finalizationReason: grant.getFinalizationReason(),
     client: grant.getClient(),
     subjectIds: grant.getSubjectIdsList().map(fromPbSubjectId),
     accesses: grant.getAccessesList().map(fromPbAccessItem),

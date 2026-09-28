@@ -55,24 +55,6 @@ export interface Grant {
      */
     id: string;
     /**
-     * The interaction methods the client requested to start an interaction.
-     * @type {Array<string>}
-     * @memberof Grant
-     */
-    startMethods?: Array<string>;
-    /**
-     * The token used to continue the grant.
-     * @type {string}
-     * @memberof Grant
-     */
-    continueToken?: string;
-    /**
-     * The id used alongside the continue token to continue the grant.
-     * @type {string}
-     * @memberof Grant
-     */
-    continueId?: string;
-    /**
      * The nonce used by the client to verify an interaction hash.
      * @type {string}
      * @memberof Grant
@@ -84,12 +66,6 @@ export interface Grant {
      * @memberof Grant
      */
     state: GrantState;
-    /**
-     * The reason the grant reached its final state, if applicable.
-     * @type {string}
-     * @memberof Grant
-     */
-    finalizationReason?: string;
     /**
      * The client's wallet address, or a JWK if directed identity was used.
      * @type {string}
@@ -109,35 +85,11 @@ export interface Grant {
      */
     accesses?: Array<AccessItem>;
     /**
-     * The finish method the client will use when an interaction finishes.
-     * @type {string}
-     * @memberof Grant
-     */
-    finishMethod?: string;
-    /**
-     * The URI the client requested to be redirected to when an interaction finishes.
-     * @type {string}
-     * @memberof Grant
-     */
-    finishUri?: string;
-    /**
-     * The nonce the client provided to verify the interaction hash when an interaction finishes.
-     * @type {string}
-     * @memberof Grant
-     */
-    finishNonce?: string;
-    /**
      * The grant's interaction session.
      * @type {Interaction}
      * @memberof Grant
      */
     interaction?: Interaction;
-    /**
-     * When the grant was last continued.
-     * @type {Date}
-     * @memberof Grant
-     */
-    lastContinuedAt?: Date;
 }
 
 
@@ -162,20 +114,12 @@ export function GrantFromJSONTyped(json: any, ignoreDiscriminator: boolean): Gra
     return {
         
         'id': json['id'],
-        'startMethods': json['startMethods'] == null ? undefined : json['startMethods'],
-        'continueToken': json['continueToken'] == null ? undefined : json['continueToken'],
-        'continueId': json['continueId'] == null ? undefined : json['continueId'],
         'interactionNonce': json['interactionNonce'] == null ? undefined : json['interactionNonce'],
         'state': GrantStateFromJSON(json['state']),
-        'finalizationReason': json['finalizationReason'] == null ? undefined : json['finalizationReason'],
         'client': json['client'] == null ? undefined : json['client'],
         'subjectIds': json['subjectIds'] == null ? undefined : ((json['subjectIds'] as Array<any>).map(SubjectIdFromJSON)),
         'accesses': json['accesses'] == null ? undefined : ((json['accesses'] as Array<any>).map(AccessItemFromJSON)),
-        'finishMethod': json['finishMethod'] == null ? undefined : json['finishMethod'],
-        'finishUri': json['finishUri'] == null ? undefined : json['finishUri'],
-        'finishNonce': json['finishNonce'] == null ? undefined : json['finishNonce'],
         'interaction': json['interaction'] == null ? undefined : InteractionFromJSON(json['interaction']),
-        'lastContinuedAt': json['lastContinuedAt'] == null ? undefined : (new Date(json['lastContinuedAt'])),
     };
 }
 
@@ -191,20 +135,12 @@ export function GrantToJSONTyped(value?: Grant | null, ignoreDiscriminator: bool
     return {
         
         'id': value['id'],
-        'startMethods': value['startMethods'],
-        'continueToken': value['continueToken'],
-        'continueId': value['continueId'],
         'interactionNonce': value['interactionNonce'],
         'state': GrantStateToJSON(value['state']),
-        'finalizationReason': value['finalizationReason'],
         'client': value['client'],
         'subjectIds': value['subjectIds'] == null ? undefined : ((value['subjectIds'] as Array<any>).map(SubjectIdToJSON)),
         'accesses': value['accesses'] == null ? undefined : ((value['accesses'] as Array<any>).map(AccessItemToJSON)),
-        'finishMethod': value['finishMethod'],
-        'finishUri': value['finishUri'],
-        'finishNonce': value['finishNonce'],
         'interaction': InteractionToJSON(value['interaction']),
-        'lastContinuedAt': value['lastContinuedAt'] == null ? value['lastContinuedAt'] : value['lastContinuedAt'].toISOString(),
     };
 }
 

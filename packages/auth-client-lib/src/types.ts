@@ -69,7 +69,6 @@ export interface GetGrantResult {
   continueId: string;
   interactionNonce: string;
   state: string;
-  finalizationReason: string;
   client: string;
   subjectIds: SubjectId[];
   accesses: AccessItem[];
