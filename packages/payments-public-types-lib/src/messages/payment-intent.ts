@@ -305,7 +305,7 @@ export class PaymentCreatedEvent extends PaymentIntentDomainEvent {
   payload: PaymentCreatedPayload;
 
   constructor(payload: PaymentCreatedPayload, requestId?: string) {
-    super(payload.id);
+    super(payload.paymentIntentId);
     this.payload = payload;
     this.requestId = requestId;
   }
@@ -313,6 +313,7 @@ export class PaymentCreatedEvent extends PaymentIntentDomainEvent {
 
 export type PaymentCreateFailedPayload = {
   paymentIntentId: string;
+  grantId?: string;
 } & FailedMessagePayload;
 
 export class PaymentCreateFailedEvent extends PaymentIntentDomainEvent {
@@ -328,6 +329,7 @@ export class PaymentCreateFailedEvent extends PaymentIntentDomainEvent {
 
 export type PaymentCompletedPayload = {
   id: string;
+  grantId?: string;
   paymentIntentId: string;
   senderWalletAddress: string;
   senderWalletAddressId: string;
@@ -355,6 +357,7 @@ export class PaymentCompletedEvent extends PaymentIntentDomainEvent {
 export type PaymentCompleteFailedPayload = {
   id: string;
   paymentIntentId: string;
+  grantId?: string;
 } & FailedMessagePayload;
 
 export class PaymentCompleteFailedEvent extends PaymentIntentDomainEvent {
@@ -370,6 +373,7 @@ export class PaymentCompleteFailedEvent extends PaymentIntentDomainEvent {
 
 export type PaymentCancelledPayload = {
   id: string;
+  grantId?: string;
 };
 
 export class PaymentCancelledEvent extends PaymentIntentDomainEvent {
@@ -384,6 +388,7 @@ export class PaymentCancelledEvent extends PaymentIntentDomainEvent {
 
 export type PaymentCancelFailedPayload = {
   paymentIntentId: string;
+  grantId?: string;
 } & FailedMessagePayload;
 
 export class PaymentCancelFailedEvent extends PaymentIntentDomainEvent {
@@ -517,6 +522,7 @@ export class RemotePaymentPreparedEvent extends PaymentIntentDomainEvent {
 
 export type PaymentFailedPayload = {
   id: string;
+  grantId?: string;
   paymentIntentId: string;
   senderWalletAddress: string;
   debitAmount: string | null;

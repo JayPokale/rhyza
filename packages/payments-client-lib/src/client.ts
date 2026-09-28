@@ -251,7 +251,8 @@ export class PaymentsClient {
     walletAddress: string,
     paymentIntentId: string,
     quoteId?: string,
-    debitAmount?: number
+    debitAmount?: number,
+    grantId?: string
   ): Promise<CreatePaymentResult> {
     const request = new PbCreatePaymentRequest();
     request.setId(id);
@@ -265,6 +266,10 @@ export class PaymentsClient {
 
     if (debitAmount) {
       request.setDebitAmount(debitAmount);
+    }
+
+    if (grantId) {
+      request.setGrantId(grantId);
     }
 
     return new Promise((resolve, reject) => {

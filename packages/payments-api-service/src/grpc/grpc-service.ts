@@ -305,7 +305,8 @@ export class PaymentsServiceServer {
           senderWalletAddress: call.request.getWalletAddress(),
           paymentIntentId: call.request.getPaymentIntentId(),
           quoteId: call.request.getQuoteId(),
-          debitAmount: call.request.getDebitAmount() || undefined
+          debitAmount: call.request.getDebitAmount() || undefined,
+          grantId: call.request.getGrantId() || undefined
         },
         commandId
       );
