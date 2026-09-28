@@ -661,6 +661,34 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /grant/{id}:
+    get:
+      summary: Get grant
+      description: >-
+        Get the grant associated with the provided id.
+        tags:
+        - payments
+      operationId: getGrant
+      parameters:
+        - name: id
+          in: path
+          description: Unique identifier for the grant
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Grant'
+        '404':
+          description: Payment not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 components:
   schemas:
     ErrorResponse:
@@ -1162,3 +1190,138 @@ components:
         - COMPLETED
         - CANCELLED
         - FAILED
+    Grant:
+      type: object
+      description: Represents an Open Payments grant.
+      required:
+        - id
+        - state
+      properties:
+        id:
+          type: string
+          description: The unique identifier for the grant.
+        startMethods:
+          type: array
+          description: The interaction methods the client requested to start an interaction.
+          items:
+            type: string
+        continueToken:
+          type: string
+          description: The token used to continue the grant.
+        continueId:
+          type: string
+          description: The id used alongside the continue token to continue the grant.
+        interactionNonce:
+          type: string
+          description: The nonce used by the client to verify an interaction hash.
+        state:
+          $ref: '#/components/schemas/GrantState'
+          description: The current state of the grant.
+        finalizationReason:
+          type: string
+          description: The reason the grant reached its final state, if applicable.
+        client:
+          type: string
+          description: The client's wallet address, or a JWK if directed identity was used.
+        subjectIds:
+          type: array
+          description: The subject identifiers requested by the client.
+          items:
+            $ref: '#/components/schemas/SubjectId'
+        accesses:
+          type: array
+          description: The accesses requested in the grant.
+          items:
+            $ref: '#/components/schemas/AccessItem'
+        finishMethod:
+          type: string
+          description: The finish method the client will use when an interaction finishes.
+        finishUri:
+          type: string
+          description: The URI the client requested to be redirected to when an interaction finishes.
+        finishNonce:
+          type: string
+          description: The nonce the client provided to verify the interaction hash when an interaction finishes.
+        interaction:
+          $ref: '#/components/schemas/Interaction'
+          description: The grant's interaction session.
+        lastContinuedAt:
+          type: string
+          format: date-time
+          description: When the grant was last continued.
+    GrantState:
+      type: string
+      description: The current state of a grant.
+      enum:
+        - PROCESSING
+        - PENDING
+        - APPROVED
+        - ISSUED
+        - REJECTED
+        - REVOKED
+    AccessItem:
+      type: object
+      description: A single access item requested by a grant.
+      required:
+        - type
+        - actions
+      properties:
+        type:
+          type: string
+          description: The type of resource being requested.
+        actions:
+          type: array
+          items:
+            type: string
+        identifier:
+          type: string
+          description: The wallet address URL the access is referring to, if applicable.
+        limits:
+          $ref: '#/components/schemas/AccessLimits'
+    AccessLimits:
+      type: object
+      description: Limits imposed on an access item requested by a grant.
+      properties:
+        receiver:
+          type: string
+        interval:
+          type: string
+        debitAmount:
+          $ref: '#/components/schemas/Amount'
+        receiveAmount:
+          $ref: '#/components/schemas/Amount'
+    SubjectId:
+      type: object
+      description: A single subject id requested by a grant.
+      required:
+        - format
+        - id
+      properties:
+        format:
+          type: string
+        id:
+          type: string
+    Interaction:
+      type: object
+      description: An interaction on a grant.
+      required:
+        - interactRef
+        - state
+      properties:
+        interactRef:
+          type: string
+          description: The reference identifying this interaction.
+        clientNonce:
+          type: string
+          description: The nonce the client provided when starting the interaction.
+        state:
+          type: string
+          description: The current state of the interaction.
+          enum:
+            - PENDING
+            - APPROVED
+            - REJECTED
+        expiresAt:
+          type: integer
+          format: int64
+          description: When the interaction expires, as a Unix timestamp.

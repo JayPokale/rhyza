@@ -1,4 +1,5 @@
 apis/AssetsApi.ts
+apis/DefaultApi.ts
 apis/LiquidityApi.ts
 apis/PaymentIntentsApi.ts
 apis/PaymentsApi.ts
@@ -7,12 +8,17 @@ apis/QuotesApi.ts
 apis/WalletAddressesApi.ts
 apis/index.ts
 index.ts
+models/AccessItem.ts
+models/AccessLimits.ts
 models/Amount.ts
 models/ApprovePayment200Response.ts
 models/AssetCreate.ts
 models/AssetCreateResponse.ts
 models/CancelPayment200Response.ts
 models/ErrorResponse.ts
+models/Grant.ts
+models/GrantState.ts
+models/Interaction.ts
 models/JsonWebKey.ts
 models/LiquidityDeposit202Response.ts
 models/LiquidityDepositRequest.ts
@@ -36,6 +42,7 @@ models/PeerHttpIncoming.ts
 models/PeerHttpOutgoing.ts
 models/Quote.ts
 models/QuoteCreate.ts
+models/SubjectId.ts
 models/WalletAddressCreate.ts
 models/WalletAddressCreateResponse.ts
 models/WalletAddressKeyCreateResponse.ts
