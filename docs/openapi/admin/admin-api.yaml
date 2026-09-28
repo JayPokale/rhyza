@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Rafiki Admin API
-  version: 0.0.4
+  version: 0.0.5
   license:
     name: ISC
     identifier: ISC
