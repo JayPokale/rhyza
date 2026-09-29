@@ -51,7 +51,7 @@ If requests to credit or debit user accounts are lengthy processes, we recommend
 
 ### Error handling
 
-Rhyza retries the webhook request at increasing intervals if the request times out or if a non-200 status is returned, indicating an error. The first retry occurs after 10 seconds. Additional retries occur after 20 more seconds, then after 30 more seconds, and so on. Rhyza continues to rety until a `200` status is returned.
+Rhyza retries the webhook request at increasing intervals if the request times out or if a non-200 status is returned, indicating an error. The first retry occurs after 10 seconds. Additional retries occur after 20 more seconds, then after 30 more seconds, and so on. Rhyza continues to retry until a `200` status is returned.
 
 FSPs can fine-tune timeouts and maximum retries by configuring the environment variables listed below.
 
@@ -59,87 +59,3 @@ FSPs can fine-tune timeouts and maximum retries by configuring the environment v
 | ------------------- | --------------- | --------------------------------------------------------------------------------------------------------------- |
 | `WEBHOOK_TIMEOUT`   | `notifications` | The time, in milliseconds, after which a webhook request times out                                              |
 | `WEBHOOK_MAX_RETRY` | `notifications` | The maximum number of retries for a webhook event when a non-200 status is returned or if the request timed out |
-
-## Webhook events
-
-### Payment intents
-
-| Event type                                              | Description                  |
-| ------------------------------------------------------- | ---------------------------- |
-| [`payment_intent.created`](#payment-intent-created)     | A payment intent was created |
-| [`payment_intent.completed`](#payment-intent-completed) | A payment intent completed   |
-
-#### Payment intent created
-
-A payment intent was created for the recipient. The intent has not yet received funds. This event requires no action from the FSP.
-
-#### Payment intent completed
-
-The recipient's payment intent has received the expected amount and is complete or the intent was completed manually. This event requires no action from the FSP.
-
-### Payments
-
-| Event type                                | Description            |
-| ----------------------------------------- | ---------------------- |
-| [`payment.created`](#payment-created)     | A payment was created  |
-| [`payment.received`](#payment-received)   | A payment was received |
-| [`payment.completed`](#payment-completed) | A payment completed    |
-| [`payment.failed`](#payment-failed)       | A payment failed       |
-
-#### Payment created
-
-A payment was created and is awaiting approval. The FSP should verify the sender's account balance and perform any other necessary checks, then use the Admin API to <LinkOut href="/apis/scalar/admin-api#tag/payments/POST/payment-intents/{intentId}/payments/{id}/approve">approve</LinkOut> or <LinkOut href="/apis/scalar/admin-api#tag/payments/POST/payment-intents/{intentId}/payments/{id}/cancel">cancel</LinkOut> the payment.
-
-When approving a payment, the FSP should put a hold on the sender's account.
-
-<details>
-  <summary>Expand for event sequence</summary>
-
-A payment for $12 was created.
-
-  <Mermaid
-    graph={`sequenceDiagram
-      participant R as Rhyza
-
-      R->>FSP: Fires payment.created event to webhook endpoint,<br/> debitAmount: $12
-      FSP->>FSP: Checks that sender's account has sufficient funds
-      alt Account has sufficient funds
-        FSP->>FSP: Put hold of $12 on sender's account
-        FSP->>R: Admin API call: POST /payment-intents/{intentId}/payments/{id}/approve
-        R-->>FSP: 201 success
-      else Account has insufficient funds
-        FSP->>R: Admin API call: POST /payment-intents/{intentId}/payments/{id}/cancel
-        R->>FSP: 200 success
-      end
-
-    `}
-
-/>
-
-</details>
-
-#### <mark>Payment received</mark>
-
-#### <mark>Payment completed</mark>
-
-As much as possible was sent to the recipient against their payment intent.
-
-<details>
-  <summary>Expand for event sequence</summary>
-  An outgoing payment of $12 is complete. $11.50 was sent to the recipient. The sender's FSP chose to keep $0.50 as a service fee.
-  <Mermaid
-    graph={`sequenceDiagram
-      participant R as Rhyza
-      participant FSP
-
-      R->>FSP: Fires payment.completed event to webhook endpoint,<br>debitAmount: $12, sentAmount: $11.50</br>
-      FSP->>R: Admin API call: POST
-
-`}
-/>
-
-</details>
-
-#### <mark>Payment failed</mark>
-
-The payment failed to send and retries were unsuccessful. The FSP should remove hold from the sender's account.

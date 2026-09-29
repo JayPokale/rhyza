@@ -4,7 +4,11 @@ title: Local playground
 next: Admin API overview
 ---
 
-import { LinkOut, Mermaid } from '@interledger/docs-design-system'
+import {
+  LinkOut,
+  Mermaid,
+  MermaidWrapper
+} from '@interledger/docs-design-system'
 
 The local playground is a pre-configured [Docker Compose](https://docs.docker.com/compose/) environment that allows developers to run the entire Rhyza stack on their local machine. This setup is ideal for development, testing, and exploring Rhyza's APIs.
 
@@ -118,37 +122,25 @@ Use these requests to perform tasks such as creating assets, setting up wallet a
 
 The **Remote Payment** collection walks through a complete ILP payment between the sender (Node A) and the receiver (Node B), using the **Rafiki v2 Local Peers** environment. It's organized into three numbered folders, run in order:
 
-- **1. Setup** - Creates a USD asset, wallet address, and peer on each node (each node peers with the other's `ilp-connector-service`), then funds the sender's liquidity so it has funds to send.
-- **2. Flow** - Creates a payment intent on the receiver, a quote on the sender referencing that intent, and the payment itself on the sender.
+1. **Setup** - Creates a USD asset, wallet address, and peer on each node (each node peers with the other's `ilp-connector-service`), then funds the sender's liquidity so it has funds to send.
+2. **Flow** - Creates a payment intent on the receiver, a quote on the sender referencing that intent, and the payment itself on the sender.
+3. **Verify** - Checks the incoming payment on the receiver and the payment's status on the sender to confirm it completed.
 
-  <details>
-  <summary>Expand for the 2. Flow sequence</summary>
-  <Mermaid
-    graph={`sequenceDiagram
-      participant Bruno as Bruno client
-      participant Receiver as Receiver (Node B)
-      participant Sender as Sender (Node A)
-  <summary>Expand for the 2. Flow sequence</summary>
-  <Mermaid
-    graph={`sequenceDiagram
-      participant Bruno as Bruno client
-      participant Receiver as Receiver (Node B)
-      participant Sender as Sender (Node A)
+#### Example flow
 
-                Bruno->>Receiver: POST /payment-intents
-                Receiver-->>Bruno: 201 Created
+<Mermaid
+  graph={`sequenceDiagram
+    participant Bruno as Bruno client
+    participant Receiver as Receiver (Node B)
+    participant Sender as Sender (Node A)
 
-                Bruno->>Sender: POST /quotes
-                Sender-->>Bruno: 201 Created
+    Bruno->>Receiver: POST /payment-intents
+    Receiver-->>Bruno: 201 Created
+    Bruno->>Sender: POST /quotes
+    Sender-->>Bruno: 201 Created
+    Bruno->>Sender: POST /payments
+    Sender-->>Bruno: 201 Created
+    Note over Sender,Receiver: Payment sent<br/>over ILP
 
-                Bruno->>Sender: POST /payments
-                Sender-->>Bruno: 201 Created
-
-                Note over Sender,Receiver: Payment sent<br/>over ILP
-
-      `}
-      />
-
-  </details>
-
-- **3. Verify** - Checks the incoming payment on the receiver and the payment's status on the sender to confirm it completed.
+`}
+/>

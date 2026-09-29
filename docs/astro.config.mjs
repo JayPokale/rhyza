@@ -185,7 +185,7 @@ export default defineConfig({
               link: '/apis/api-overview'
             },
             {
-              label: 'Admin API specification',
+              label: 'Admin API',
               link: '/apis/scalar/admin-api',
               attrs: {
                 target: '_blank',
@@ -194,7 +194,7 @@ export default defineConfig({
               }
             },
             {
-              label: 'Webhooks API specification',
+              label: 'Webhooks API',
               link: '/apis/scalar/webhooks',
               attrs: {
                 target: '_blank',
@@ -203,7 +203,7 @@ export default defineConfig({
               }
             },
             {
-              label: 'Identity Provider Service API specification',
+              label: 'Identity Provider Service API',
               link: '/apis/scalar/idp-service-api',
               attrs: {
                 target: '_blank',
