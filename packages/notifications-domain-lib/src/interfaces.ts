@@ -12,7 +12,8 @@ export interface INotification {
 }
 
 export enum NotificationStatus {
-  CREATED = 'CREATED',
+  SENDING = 'SENDING',
+  PENDING_RETRY = 'PENDING_RETRY',
   SENT = 'SENT',
   FAILED = 'FAILED'
 }
@@ -26,7 +27,9 @@ export enum NotificationType {
 }
 
 export interface INotificationRepository {
+  get(id: string): Promise<INotification | null>;
   store(notification: INotification): Promise<void>;
+  getPendingRetryNotificationIds(limit: number): Promise<string[]>;
 }
 
 export interface INotificationSenderService {

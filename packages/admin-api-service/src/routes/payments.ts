@@ -8,17 +8,71 @@ import {
   CancelPaymentRequest,
   GetPaymentRequest,
   PaymentCancel,
-  PaymentCreate
+  PaymentCreate,
+  PaymentsListPaymentsRequest
 } from 'admin-client-lib';
 import {
+  IAmount,
   PaymentsClient,
+  GetPaymentResult,
   httpStatusFromGrpcError,
   toClientApiErrorResponse
 } from 'payments-client-lib';
+import { parsePageQuery } from '../pagination.js';
 
 interface PaymentRouteOptions extends FastifyPluginOptions {
   palClient: PalClient;
   paymentsClient: PaymentsClient;
+}
+
+interface AmountBody {
+  value: string;
+  assetCode: string;
+  assetScale: number;
+}
+
+interface PaymentBody {
+  id: string;
+  state: string;
+  paymentIntentId: string;
+  senderWalletAddress: string;
+  quoteId?: string;
+  debitAmount: AmountBody;
+  receiveAmount: AmountBody;
+  sentAmount: AmountBody;
+  createdAt: string;
+  failReason?: string;
+}
+
+function toAmountBody(amount: IAmount): AmountBody {
+  return {
+    value: String(amount.value),
+    assetCode: amount.assetCode,
+    assetScale: amount.assetScale
+  };
+}
+
+function toPaymentBody(payment: GetPaymentResult): PaymentBody {
+  const body: PaymentBody = {
+    id: payment.id,
+    state: payment.state,
+    paymentIntentId: payment.paymentIntentId,
+    senderWalletAddress: payment.senderWalletAddress,
+    debitAmount: toAmountBody(payment.debitAmount),
+    receiveAmount: toAmountBody(payment.receiveAmount),
+    sentAmount: toAmountBody(payment.sentAmount),
+    createdAt: payment.createdAt
+  };
+
+  if (payment.quoteId) {
+    body.quoteId = payment.quoteId;
+  }
+
+  if (payment.failReason) {
+    body.failReason = payment.failReason;
+  }
+
+  return body;
 }
 
 export async function paymentRoutes(
@@ -62,33 +116,46 @@ export async function paymentRoutes(
     }
   });
 
-  server.get<{
-    Params: GetPaymentRequest;
-  }>('/payment-intents/:intentId/payments/:id', async (request, reply) => {
-    const { intentId, id } = request.params;
+  server.get<{ Querystring: PaymentsListPaymentsRequest }>(
+    '/payments',
+    async (request, reply) => {
+      try {
+        const page = await paymentsClient.getPaymentsPage({
+          ...parsePageQuery(request.query),
+          paymentIntentId: request.query.paymentIntentId
+        });
 
-    let payment;
-    try {
-      payment = await paymentsClient.getPayment(intentId, id);
-    } catch (err) {
-      server.log.error(err);
-      const httpStatus = httpStatusFromGrpcError(err);
-      const { error } = toClientApiErrorResponse(err);
-      return reply.status(httpStatus).send({ error: error.description });
+        return reply.status(200).send({
+          result: page.items.map(toPaymentBody),
+          pagination: page.pagination
+        });
+      } catch (err) {
+        server.log.error(err);
+        const httpStatus = httpStatusFromGrpcError(err);
+        const { error } = toClientApiErrorResponse(err);
+        return reply.status(httpStatus).send({ error: error.description });
+      }
     }
+  );
 
-    return reply.status(200).send({
-      id: payment.id,
-      state: payment.state,
-      senderWalletAddress: payment.senderWalletAddress,
-      assetCode: payment.assetCode,
-      assetScale: payment.assetScale,
-      quoteId: payment.quoteId,
-      debitAmount: String(payment.debitAmount),
-      receiveAmount: String(payment.receiveAmount),
-      sentAmount: String(payment.sentAmount)
-    });
-  });
+  server.get<{ Params: GetPaymentRequest }>(
+    '/payment-intents/:intentId/payments/:id',
+    async (request, reply) => {
+      const { intentId, id } = request.params;
+
+      let payment;
+      try {
+        payment = await paymentsClient.getPayment(intentId, id);
+      } catch (err) {
+        server.log.error(err);
+        const httpStatus = httpStatusFromGrpcError(err);
+        const { error } = toClientApiErrorResponse(err);
+        return reply.status(httpStatus).send({ error: error.description });
+      }
+
+      return reply.status(200).send(toPaymentBody(payment));
+    }
+  );
 
   server.post<{
     Params: ApprovePaymentRequest;

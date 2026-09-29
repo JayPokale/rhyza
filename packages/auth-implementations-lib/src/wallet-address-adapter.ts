@@ -14,4 +14,16 @@ export class WalletAddressAdapter implements IWalletAddressService {
 
     return keys;
   }
+
+  async getWalletAddressPublicName(
+    walletAddressUrl: string
+  ): Promise<string | undefined> {
+    const client = await createUnauthenticatedClient({});
+
+    const { publicName } = await client.walletAddress.get({
+      url: walletAddressUrl
+    });
+
+    return publicName;
+  }
 }

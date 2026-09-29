@@ -5,8 +5,8 @@ import Fastify, {
   FastifyRequest
 } from 'fastify';
 import { NotificationType } from 'notifications-domain-lib';
-import { PaymentCreatedPayload } from 'payments-public-types-lib';
 import { RATES } from './rates-data';
+import { ResponseError } from 'admin-client-lib/dist/generated';
 
 const HOST = process.env['HOST'] || '0.0.0.0';
 const PORT = parseInt(process.env['PORT'] || '3000', 10);
@@ -66,40 +66,55 @@ export class MockWebhookIntegrationService {
   private static async handleWebhook(webhook: Webhook) {
     switch (webhook.type) {
       case NotificationType.PaymentCreated:
+        console.log('Webhook received:', webhook);
         await this.handlePaymentCreatedWebhook(webhook);
         break;
       case NotificationType.PaymentIntentCreated:
       case NotificationType.PaymentIntentCompleted:
       case NotificationType.PaymentCompleted:
       case NotificationType.PaymentFailed:
+        console.log('Webhook received:', webhook);
         break;
-      default:
-        console.warn(`Webhook type ${webhook.type} is not supported`);
-        break;
+      default: {
+        const errorMessage = `Webhook type ${webhook.type} is not supported`;
+        throw new WebhookServiceError(errorMessage, 400);
+      }
     }
   }
 
   private static async handlePaymentCreatedWebhook(webhook: Webhook) {
-    const payload = webhook.data as PaymentCreatedPayload;
+    const payload = webhook.data;
     if (!webhook.id) {
       throw new WebhookServiceError('Created payment id is missing', 400);
     }
-    if (!payload.paymentIntentId) {
+    if (
+      !payload.paymentIntentId ||
+      typeof payload.paymentIntentId !== 'string'
+    ) {
       throw new WebhookServiceError('Payment intent id is missing', 400);
     }
+    if (!payload.id || typeof payload.id !== 'string') {
+      throw new WebhookServiceError('Payment id is missing', 400);
+    }
 
-    const response = await this.adminClient.payments.approvePaymentRaw({
-      id: payload.id,
-      intentId: payload.paymentIntentId
-    });
-    if (!response.raw.ok) {
-      const detail = await response
-        .value()
-        .catch(() => response.raw.statusText);
-      throw new WebhookServiceError(
-        `Failed to approve payment ${payload.id}: ${detail}`,
-        response.raw.status
+    try {
+      await this.adminClient.payments.approvePayment(
+        payload.paymentIntentId,
+        payload.id
       );
+      console.log(`Payment ${payload.id} approved successfully`);
+    } catch (err) {
+      if (err instanceof ResponseError) {
+        const detail = (await err.response
+          .json()
+          .catch(() => err.response.statusText)) as Record<string, unknown>;
+
+        throw new WebhookServiceError(
+          `Failed to approve payment ${payload.id}: ${detail.error}`,
+          err.response.status
+        );
+      }
+      throw err;
     }
   }
 

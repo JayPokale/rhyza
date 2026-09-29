@@ -12,12 +12,17 @@ import { ReflectionService } from '@grpc/reflection';
 import {
   AssetAggregate,
   AssetNotFoundError,
+  DuplicateWalletAddressKeyError,
+  WalletAddressKeyAlreadyRevokedError,
   FxAggregate,
   ILedgerReadSideRepository,
+  InvalidWalletAddressJwkError,
   PeerAggregate,
   PeerNotFoundError,
   WalletAddressAggregate,
-  WalletAddressAliasNotFoundError
+  WalletAddressAliasNotFoundError,
+  WalletAddressKeyNotFoundError,
+  WalletAddressNotFoundError
 } from 'pal-domain-lib';
 import {
   AssetActivatedEvent,
@@ -223,6 +228,8 @@ export class PalGrpcServer {
       getAsset: this._handleUnary.bind(this),
       createWalletAddress: this._handleUnary.bind(this),
       getWalletAddresses: this._handleUnary.bind(this),
+      addWalletAddressKey: this._handleUnary.bind(this),
+      getWalletAddressKeys: this._handleUnary.bind(this),
       resolveWalletAddressAlias: this._handleUnary.bind(this),
       createWalletAddressAlias: this._handleUnary.bind(this),
       createLedger: this._handleUnary.bind(this),
@@ -327,6 +334,24 @@ export class PalGrpcServer {
     this._requestHandlerRegistry.register(
       PalGrpcService.createWalletAddressAlias,
       this._walletAddressGrpcHandler.handleCreateWalletAddressAliasRequest.bind(
+        this._walletAddressGrpcHandler
+      )
+    );
+    this._requestHandlerRegistry.register(
+      PalGrpcService.addWalletAddressKey,
+      this._walletAddressGrpcHandler.handleAddWalletAddressKeyRequest.bind(
+        this._walletAddressGrpcHandler
+      )
+    );
+    this._requestHandlerRegistry.register(
+      PalGrpcService.getWalletAddressKeys,
+      this._walletAddressGrpcHandler.handleGetWalletAddressKeysRequest.bind(
+        this._walletAddressGrpcHandler
+      )
+    );
+    this._requestHandlerRegistry.register(
+      PalGrpcService.revokeWalletAddressKey,
+      this._walletAddressGrpcHandler.handleRevokeWalletAddressKeyRequest.bind(
         this._walletAddressGrpcHandler
       )
     );
@@ -517,11 +542,28 @@ export class PalGrpcServer {
       if (
         err instanceof PeerNotFoundError ||
         err instanceof AssetNotFoundError ||
-        err instanceof WalletAddressAliasNotFoundError
+        err instanceof WalletAddressAliasNotFoundError ||
+        err instanceof WalletAddressNotFoundError ||
+        err instanceof WalletAddressKeyNotFoundError
       ) {
         callback({
           code: grpc.status.NOT_FOUND,
           message: (err as Error).message
+        });
+      } else if (err instanceof DuplicateWalletAddressKeyError) {
+        callback({
+          code: grpc.status.ALREADY_EXISTS,
+          message: err.message
+        });
+      } else if (err instanceof WalletAddressKeyAlreadyRevokedError) {
+        callback({
+          code: grpc.status.FAILED_PRECONDITION,
+          message: err.message
+        });
+      } else if (err instanceof InvalidWalletAddressJwkError) {
+        callback({
+          code: grpc.status.INVALID_ARGUMENT,
+          message: err.message
         });
       } else if (err instanceof Error) {
         callback({

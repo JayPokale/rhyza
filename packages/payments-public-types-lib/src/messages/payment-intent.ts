@@ -213,9 +213,12 @@ export type PaymentIntentCompletedPayload = {
   createdAt: Date;
   expiresAt: Date;
   incomingAmount: string | null;
-  receivedAmount: string | null;
+  receivedAmount: string;
   state: PaymentIntentState;
+  receiverWalletAddress: string;
   receiverWalletAddressId?: string;
+  destination: string;
+  destinationIlpAddress?: string;
   assetCode: string;
   assetScale: number;
 };
@@ -251,6 +254,7 @@ export type QuoteCompletedPayload = {
   senderWalletAddress: string;
   senderWalletAddressId: string;
   expiresAt: string;
+  createdAt: string;
   debitAmount: string;
   receiveAmount: string;
   exchangeRate: number;
@@ -285,6 +289,7 @@ export type PaymentCreatedPayload = {
   id: string;
   paymentIntentId: string;
   senderWalletAddress: string;
+  senderWalletAddressId: string;
   debitAmount: string | null;
   receiveAmount: string | null;
   sentAmount: string | null;
@@ -325,6 +330,7 @@ export type PaymentCompletedPayload = {
   id: string;
   paymentIntentId: string;
   senderWalletAddress: string;
+  senderWalletAddressId: string;
   debitAmount: string | null;
   receiveAmount: string | null;
   sentAmount: string | null;

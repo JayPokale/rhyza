@@ -128,6 +128,12 @@ The **Remote Payment** collection walks through a complete ILP payment between t
       participant Bruno as Bruno client
       participant Receiver as Receiver (Node B)
       participant Sender as Sender (Node A)
+  <summary>Expand for the 2. Flow sequence</summary>
+  <Mermaid
+    graph={`sequenceDiagram
+      participant Bruno as Bruno client
+      participant Receiver as Receiver (Node B)
+      participant Sender as Sender (Node A)
 
                 Bruno->>Receiver: POST /payment-intents
                 Receiver-->>Bruno: 201 Created

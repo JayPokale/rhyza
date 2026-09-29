@@ -24,8 +24,61 @@ service PaymentsGrpc {
   // Fetches a payment intent by ID.
   rpc GetPaymentIntent(GetPaymentIntentRequest) returns (GetPaymentIntentResponse);
 
-  // Fetches a payment by concatenated ID (paymentIntentId_paymentId).
+  // Fetches a quote by ID.
+  rpc GetQuote(GetQuoteRequest) returns (GetQuoteResponse);
+
+  // Fetches a payment by its parent intent ID and its own ID.
   rpc GetPayment(GetPaymentRequest) returns (GetPaymentResponse);
+
+  // Fetches a keyset-paginated page of payment intents.
+  rpc GetPaymentIntentsPage(GetPaymentIntentsPageRequest) returns (GetPaymentIntentsPageResponse);
+
+  // Fetches a keyset-paginated page of payments.
+  rpc GetPaymentsPage(GetPaymentsPageRequest) returns (GetPaymentsPageResponse);
+}
+
+/*
+ * Shared resource messages
+ */
+
+// A monetary amount together with the asset that denominates it.
+message Amount {
+  uint64 value = 1;
+  string asset_code = 2;
+  uint32 asset_scale = 3;
+}
+
+// A payment intent resource (Open Payments incoming payment).
+message PaymentIntent {
+  string id = 1;
+  string receiver_wallet_address = 2;
+  string state = 3;
+  string destination = 4;
+  optional uint64 incoming_amount = 5;
+  uint64 received_amount = 6;
+  string asset_code = 7;
+  uint32 asset_scale = 8;
+  optional string expires_at = 9;
+  optional string destination_ilp_address = 10;
+  string created_at = 11;
+  optional string remote_url = 12;
+}
+
+// A payment resource (Open Payments outgoing payment).
+message Payment {
+  string id = 1;
+  string state = 2;
+  string sender_wallet_address = 3;
+  string sender_wallet_address_id = 4;
+  string payment_intent_id = 5;
+  optional string quote_id = 6;
+  Amount debit_amount = 7;
+  Amount receive_amount = 8;
+  Amount sent_amount = 9;
+  string created_at = 10;
+  // Parent intent's remoteUrl (set for REMOTE intents) — the receiver resource URL.
+  optional string remote_url = 11;
+  optional string fail_reason = 12;
 }
 
 /*
@@ -52,9 +105,18 @@ message CompletePaymentIntentRequest{
   string id = 1;
 }
 
+// Response containing the completed payment intent details.
 message CompletePaymentIntentResponse {
   string id = 1;
-  string state = 2;
+  string receiver_wallet_address = 2;
+  string state = 3;
+  string destination = 4;
+  optional uint64 incoming_amount = 5;
+  uint64 received_amount = 6;
+  string asset_code = 7;
+  uint32 asset_scale = 8;
+  optional string expires_at = 9;
+  string created_at = 10;
 }
 
 /*
@@ -79,9 +141,10 @@ message CreateQuoteResponse {
   string sender_wallet_address = 3;
   string sender_wallet_address_id = 4;
   string expires_at = 5;
-  uint64 debit_amount = 6;
-  uint64 receive_amount = 7;
-  double exchange_rate = 8;
+  string created_at = 6;
+  uint64 debit_amount = 7;
+  uint64 receive_amount = 8;
+  double exchange_rate = 9;
 }
 
 /*
@@ -128,7 +191,7 @@ message CancelPaymentResponse {
 }
 
 /*
- * Get Payment Intent messages
+ * Get / list messages
  */
 
 // Request to fetch a payment intent by ID.
@@ -138,21 +201,41 @@ message GetPaymentIntentRequest {
 
 // Response containing the payment intent details.
 message GetPaymentIntentResponse {
-  string id = 1;
-  string receiver_wallet_address = 2;
-  string state = 3;
-  string destination = 4;
-  optional uint64 incoming_amount = 5;
-  uint64 received_amount = 6;
-  string asset_code = 7;
-  uint32 asset_scale = 8;
-  optional string expires_at = 9;
-  optional string destination_ilp_address = 10;
+  PaymentIntent payment_intent = 1;
 }
 
 /*
- * Get Payment messages
+ * Get Quote messages
  */
+
+// Request to fetch a quote by ID.
+message GetQuoteRequest {
+  string id = 1;
+  string payment_intent_id = 2;
+}
+
+// Response containing quote details.
+// Base quote fields are always set; state-specific fields are optional.
+message GetQuoteResponse {
+  // IBaseQuote
+  string id = 1;
+  string payment_intent_id = 2;
+  string state = 3;
+  string sender_wallet_address = 4;
+  string sender_wallet_address_id = 5;
+  string created_at = 6;
+  // ICompletedQuote / IPendingQuote (amounts); expires_at and exchange_rate from ICompletedQuote
+  optional string expires_at = 7;
+  optional uint64 debit_amount = 8;
+  optional uint64 receive_amount = 9;
+  optional double exchange_rate = 10;
+  // IPendingQuote
+  optional uint64 source_amount = 11;
+  optional string sender_asset_code = 12;
+  // IFailedQuote
+  optional string error_name = 13;
+  optional string message = 14;
+}
 
 // Request to fetch a payment by its parent intent ID and its own ID.
 message GetPaymentRequest {
@@ -162,15 +245,61 @@ message GetPaymentRequest {
 
 // Response containing the payment details.
 message GetPaymentResponse {
-  string id = 1;
-  string state = 2;
-  string sender_wallet_address = 3;
-  string sender_wallet_address_id = 4;
-  string payment_intent_id = 5;
-  string asset_code = 6;
-  uint32 asset_scale = 7;
-  optional string quote_id = 8;
-  uint64 debit_amount = 9;
-  uint64 receive_amount = 10;
-  uint64 sent_amount = 11;
+  Payment payment = 1;
+}
+
+enum SortOrder {
+  SORT_ORDER_UNSPECIFIED = 0;
+  SORT_ORDER_ASC = 1;
+  SORT_ORDER_DESC = 2;
+}
+
+// Request for a page of payment intents.
+message GetPaymentIntentsPageRequest {
+  // Filters by receiver wallet address id; omit to list across all.
+  optional string wallet_address_id = 1;
+  // Opaque cursor from a previous page's start_cursor/end_cursor.
+  optional string cursor = 2;
+  // Page size; 0 means server default (20). Server clamps to 100.
+  uint32 limit = 3;
+  // false = forward (first/after), true = backward (last/before).
+  bool backwards = 4;
+  // Ordering by createdAt. Unspecified means server default.
+  SortOrder sort_order = 5;
+}
+
+// A page of payment intents, in the requested (createdAt, id) order.
+message GetPaymentIntentsPageResponse {
+  repeated PaymentIntent payment_intents = 1;
+  bool has_next_page = 2;
+  bool has_previous_page = 3;
+  // Opaque cursors for the previous / next page.
+  optional string start_cursor = 4;
+  optional string end_cursor = 5;
+}
+
+// Request for a page of payments.
+message GetPaymentsPageRequest {
+  // Filters by sender wallet address id; omit to list across all.
+  optional string wallet_address_id = 1;
+  // Filters by parent payment intent id.
+  optional string payment_intent_id = 2;
+  // Opaque cursor from a previous page's start_cursor/end_cursor.
+  optional string cursor = 3;
+  // Page size; 0 means server default (20). Server clamps to 100.
+  uint32 limit = 4;
+  // false = forward (first/after), true = backward (last/before).
+  bool backwards = 5;
+  // Ordering by createdAt. Unspecified means server default.
+  SortOrder sort_order = 6;
+}
+
+// A page of payments, in the requested (createdAt, id) order.
+message GetPaymentsPageResponse {
+  repeated Payment payments = 1;
+  bool has_next_page = 2;
+  bool has_previous_page = 3;
+  // Opaque cursors for the previous / next page.
+  optional string start_cursor = 4;
+  optional string end_cursor = 5;
 }

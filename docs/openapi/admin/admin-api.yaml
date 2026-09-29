@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Rafiki Admin API
-  version: 0.0.1
+  version: 0.0.4
   license:
     name: ISC
     identifier: ISC
@@ -121,7 +121,157 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/WalletAddressCreate'
+  /wallet-addresses/{id}/keys:
+    post:
+      summary: Register Wallet Address Key
+      description: >-
+        Register a JWK for a wallet address. A wallet address can have multiple
+        active keys. Use the internal Rhyza id returned from
+        `POST /wallet-addresses`.
+      tags:
+        - wallet-addresses
+      operationId: createWalletAddressKey
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The internal Rhyza id of the wallet address.
+          schema:
+            type: string
+      requestBody:
+        description: Ed25519 public JWK to register for the wallet address.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JsonWebKey'
+      responses:
+        '201':
+          description: The request has succeeded and a wallet address key has been created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletAddressKeyCreateResponse'
+        '400':
+          description: The JWK is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Wallet address not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: A key with this kid already exists for the wallet address.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /wallet-addresses/{id}/keys/{keyId}/revoke:
+    post:
+      summary: Revoke Wallet Address Key
+      description: >-
+        Soft-revoke a wallet address key. The key record is kept and is no
+        longer served from `GET /jwks.json`. Revoking a key that is already
+        revoked returns 409 and does not change `revokedAt`.
+      tags:
+        - wallet-addresses
+      operationId: revokeWalletAddressKey
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The PAL identifier of the wallet address.
+          schema:
+            type: string
+        - name: keyId
+          in: path
+          required: true
+          description: The identifier of the wallet address key to revoke.
+          schema:
+            type: string
+      responses:
+        '204':
+          description: The key is revoked.
+        '404':
+          description: Wallet address key not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: The wallet address key is already revoked.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /payment-intents:
+    get:
+      summary: List Payment Intents
+      description: >-
+        List payment intents with cursor pagination, ordered by creation
+        time. Optionally filter by receiver wallet address id.
+      tags:
+        - payment-intents
+      operationId: PaymentIntents_listPaymentIntents
+      parameters:
+        - name: walletAddressId
+          in: query
+          description: Filter by receiver wallet address id
+          required: false
+          schema:
+            type: string
+        - name: cursor
+          in: query
+          description: >-
+            Opaque cursor from a previous page's startCursor/endCursor. Valid
+            only for the query that produced it. Reusing a cursor with a
+            different sortOrder or filter returns 400.
+          required: false
+          schema:
+            type: string
+        - name: first
+          in: query
+          description: Page size, paginating forward from the cursor. Mutually exclusive with last.
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+        - name: last
+          in: query
+          description: Page size, paginating backward from the cursor (requires cursor). Mutually exclusive with first.
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+        - name: sortOrder
+          in: query
+          description: Ordering by creation time. Defaults to desc (newest first).
+          required: false
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+            default: desc
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentIntentsPage'
+        '400':
+          description: Invalid pagination parameters, or a cursor that was not issued for this query.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     post:
       summary: Create Payment Intent
       description: Create a new payment intent for a receiver's account.
@@ -244,6 +394,76 @@ paths:
             schema:
               $ref: '#/components/schemas/QuoteCreate'
   /payments:
+    get:
+      summary: List Payments
+      description: >-
+        List payments with cursor pagination, ordered by creation time.
+        Optionally filter by sender wallet address id and/or parent
+        payment intent id.
+      tags:
+        - payments
+      operationId: Payments_listPayments
+      parameters:
+        - name: walletAddressId
+          in: query
+          description: Filter by sender wallet address id
+          required: false
+          schema:
+            type: string
+        - name: paymentIntentId
+          in: query
+          description: Filter by parent payment intent id
+          required: false
+          schema:
+            type: string
+        - name: cursor
+          in: query
+          description: >-
+            Opaque cursor from a previous page's startCursor/endCursor. Valid
+            only for the query that produced it. Reusing a cursor with a
+            different sortOrder or filter returns 400.
+          required: false
+          schema:
+            type: string
+        - name: first
+          in: query
+          description: Page size, paginating forward from the cursor. Mutually exclusive with last.
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+        - name: last
+          in: query
+          description: Page size, paginating backward from the cursor (requires cursor). Mutually exclusive with first.
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+        - name: sortOrder
+          in: query
+          description: Ordering by creation time. Defaults to desc (newest first).
+          required: false
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+            default: desc
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentsPage'
+        '400':
+          description: Invalid pagination parameters, or a cursor that was not issued for this query.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     post:
       summary: Create Payment
       description: Create a payment for a sender's account.
@@ -571,11 +791,63 @@ components:
       type: object
       description: Response schema after creating a wallet address.
       required:
+        - id
         - address
       properties:
+        id:
+          type: string
+          description: >-
+            The internal Rhyza id of the created wallet address. Use this for
+            wallet-entity Admin operations such as key registration.
         address:
           type: string
           description: The unique identifier (URL) of the created wallet address.
+    JsonWebKey:
+      type: object
+      description: A JWK representation of an Ed25519 public key.
+      required:
+        - kid
+        - alg
+        - kty
+        - crv
+        - x
+      properties:
+        kid:
+          type: string
+          description: Unique identifier for the key.
+        alg:
+          type: string
+          description: The cryptographic algorithm family used with the key.
+          enum:
+            - EdDSA
+        use:
+          type: string
+          description: The intended use of the key.
+          enum:
+            - sig
+        kty:
+          type: string
+          description: The key type.
+          enum:
+            - OKP
+        crv:
+          type: string
+          description: The cryptographic curve used with the key.
+          enum:
+            - Ed25519
+        x:
+          type: string
+          description: The base64url-encoded public key.
+          pattern: '^[A-Za-z0-9_-]+$'
+    WalletAddressKeyCreateResponse:
+      type: object
+      description: Response schema after registering a wallet address key.
+      required:
+        - id
+      properties:
+        id:
+          type: string
+          description: The unique identifier of the created wallet address key.
     PaymentIntentCreate:
       type: object
       description: Schema for creating a new payment intent.
@@ -649,10 +921,15 @@ components:
         - destination
         - walletAddress
         - receivedAmount
+        - createdAt
       properties:
         id:
           type: string
           description: The unique identifier for the payment intent.
+        createdAt:
+          type: string
+          format: date-time
+          description: When the payment intent was created.
         state:
           $ref: '#/components/schemas/PaymentIntentState'
           description: The current status of the payment intent.
@@ -786,12 +1063,12 @@ components:
       required:
         - id
         - state
+        - paymentIntentId
         - senderWalletAddress
-        - assetCode
-        - assetScale
         - debitAmount
         - receiveAmount
         - sentAmount
+        - createdAt
       properties:
         id:
           type: string
@@ -799,27 +1076,76 @@ components:
         state:
           $ref: '#/components/schemas/PaymentState'
           description: The current state of the payment.
+        paymentIntentId:
+          type: string
+          description: The parent payment intent's id.
         senderWalletAddress:
           type: string
           description: The wallet address of the sender.
-        assetCode:
-          type: string
-          description: The asset code used for the payment.
-        assetScale:
-          type: number
-          description: The asset scale used for the payment.
         quoteId:
           type: string
           description: The ID of the quote associated with this payment.
         debitAmount:
-          type: string
-          description: The amount debited from the sender.
+          $ref: '#/components/schemas/Amount'
+          description: The amount debited from the sender, in the sender-side asset.
         receiveAmount:
-          type: string
-          description: The amount received by the destination.
+          $ref: '#/components/schemas/Amount'
+          description: The amount received by the destination, in the receive-side asset.
         sentAmount:
+          $ref: '#/components/schemas/Amount'
+          description: The total amount sent so far, in the sender-side asset.
+        createdAt:
           type: string
-          description: The total amount sent so far.
+          format: date-time
+          description: When the payment was created.
+        failReason:
+          type: string
+          description: Failure detail when the payment failed.
+    PageInfo:
+      type: object
+      description: Cursor pagination metadata for a page of results.
+      required:
+        - hasNextPage
+        - hasPreviousPage
+      properties:
+        startCursor:
+          type: string
+          description: Cursor of the first item in the page; pass as cursor with last to page backward.
+        endCursor:
+          type: string
+          description: Cursor of the last item in the page; pass as cursor with first to page forward.
+        hasNextPage:
+          type: boolean
+          description: Whether more results exist after this page.
+        hasPreviousPage:
+          type: boolean
+          description: Whether more results exist before this page.
+    PaymentIntentsPage:
+      type: object
+      description: A page of payment intents in the requested creation order.
+      required:
+        - result
+        - pagination
+      properties:
+        result:
+          type: array
+          items:
+            $ref: '#/components/schemas/PaymentIntent'
+        pagination:
+          $ref: '#/components/schemas/PageInfo'
+    PaymentsPage:
+      type: object
+      description: A page of payments in the requested creation order.
+      required:
+        - result
+        - pagination
+      properties:
+        result:
+          type: array
+          items:
+            $ref: '#/components/schemas/Payment'
+        pagination:
+          $ref: '#/components/schemas/PageInfo'
     PaymentIntentState:
       type: string
       enum:
