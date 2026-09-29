@@ -684,7 +684,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Grant'
         '404':
-          description: Payment not found.
+          description: Grant not found.
           content:
             application/json:
               schema:
