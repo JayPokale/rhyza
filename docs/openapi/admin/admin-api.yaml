@@ -24,6 +24,8 @@ tags:
     x-displayName: Peers
   - name: liquidity
     x-displayName: Liquidity
+  - name: rates
+    x-displayName: Rates
 paths:
   /peers:
     post:
@@ -661,8 +663,70 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /rates:
+    post:
+      summary: Set Exchange Rate
+      description: >-
+        Store an exchange rate. A null peerId stores an intra-ASE rate.
+        A peerId stores that peer's rate.
+      tags:
+        - rates
+      operationId: setFxRate
+      parameters: []
+      requestBody:
+        description: Exchange rate to store
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FxRateSet'
+      responses:
+        '200':
+          description: The exchange rate has been stored.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+        '400':
+          description: >-
+            sourceAssetCode, destinationAssetCode, rate, or rateTtlSecs is missing.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 components:
   schemas:
+    FxRateSet:
+      type: object
+      description: Exchange rate to store.
+      required:
+        - sourceAssetCode
+        - destinationAssetCode
+        - rate
+        - peerId
+        - rateTtlSecs
+      properties:
+        sourceAssetCode:
+          type: string
+          description: Asset code the rate converts from.
+          example: USD
+        destinationAssetCode:
+          type: string
+          description: Asset code the rate converts to.
+          example: EUR
+        rate:
+          type: number
+          description: Units of destination asset per one unit of source asset.
+          example: 0.92
+        peerId:
+          type: ['string', 'null']
+          description: >-
+            Peer whose rate this is. Null stores an intra-ASE rate.
+        rateTtlSecs:
+          type: number
+          description: Seconds until the stored rate expires.
+          example: 60
     ErrorResponse:
       type: object
       description: Response schema for API errors.
