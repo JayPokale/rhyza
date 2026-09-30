@@ -12,6 +12,13 @@ import rehypeAutolinkHeadings from 'rehype-autolink-headings'
 export default defineConfig({
   site: 'https://rhyza.dev',
   outDir: './build',
+  // The three specs had a page each before they merged onto /apis/.
+  redirects: {
+    '/apis/scalar/admin-api': '/apis/#tag/admin-api-overview',
+    '/apis/scalar/webhooks': '/apis/#tag/webhooks-api-overview',
+    '/apis/scalar/idp-service-api':
+      '/apis/#tag/identity-provider-service-api-overview'
+  },
   markdown: {
     processor: unified({
       remarkPlugins: [remarkMath],
@@ -186,30 +193,15 @@ export default defineConfig({
             },
             {
               label: 'Admin API specification',
-              link: '/apis/scalar/admin-api',
-              attrs: {
-                target: '_blank',
-                rel: 'noopener noreferrer',
-                'data-icon': 'external'
-              }
+              link: '/apis/#tag/admin-api-overview'
             },
             {
               label: 'Webhooks API specification',
-              link: '/apis/scalar/webhooks',
-              attrs: {
-                target: '_blank',
-                rel: 'noopener noreferrer',
-                'data-icon': 'external'
-              }
+              link: '/apis/#tag/webhooks-api-overview'
             },
             {
               label: 'Identity Provider Service API specification',
-              link: '/apis/scalar/idp-service-api',
-              attrs: {
-                target: '_blank',
-                rel: 'noopener noreferrer',
-                'data-icon': 'external'
-              }
+              link: '/apis/#tag/identity-provider-service-api-overview'
             }
           ]
         },
@@ -238,7 +230,9 @@ export default defineConfig({
       ],
       plugins: [
         starlightLinksValidator({
-          exclude: ['/apis/scalar/**'],
+          // The API reference is a custom page, which the validator cannot see
+          // into. /apis/api-overview/ is a docs page and stays validated.
+          exclude: ['/apis/', '/apis/#*/**'],
           errorOnLocalLinks: false,
           errorOnFallbackPages: false,
           errorOnInvalidHashes: false

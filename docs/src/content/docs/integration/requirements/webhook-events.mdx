@@ -140,7 +140,7 @@ The `payment_intent.completed` event indicates a recipient's payment intent has 
 
 The `payment.created` event indicates a payment was created and is awaiting approval. The FSP should verify the sender's account balance and perform any other necessary verifications before approving the payment.
 
-If the sender has insufficient funds or if the payment should otherwise not be fulfilled, the FSP can choose not to call the Admin API's <LinkOut href="/apis/scalar/admin-api#tag/payments/POST/payment-intents/{intentId}/payments/{id}/approve">Approve Payment</LinkOut> endpoint. Otherwise, the FSP should put a hold on the sender's account and approve the payment in Rhyza via the Approve Payment endpoint.
+If the sender has insufficient funds or if the payment should otherwise not be fulfilled, the FSP can choose not to call the Admin API's <LinkOut href="/apis/#tag/payments/POST/payment-intents/{intentId}/payments/{id}/approve">Approve Payment</LinkOut> endpoint. Otherwise, the FSP should put a hold on the sender's account and approve the payment in Rhyza via the Approve Payment endpoint.
 
 <details>
   <summary>Expand for event sequence</summary>
