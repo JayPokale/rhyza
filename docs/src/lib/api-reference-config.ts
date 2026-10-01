@@ -11,10 +11,8 @@ export function getApiReferenceConfig(): ScalarConfiguration {
   return {
     content: mergeSpecs(),
     hideClientButton: true,
-    hideModels: true,
     hideTestRequestButton: true,
     isEditable: false,
-    defaultOpenAllTags: true,
     mcp: { disabled: true },
     agent: { disabled: true },
     documentDownloadType: 'none',
