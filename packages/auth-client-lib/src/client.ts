@@ -23,6 +23,7 @@ import {
   FinishInteractionResponse as PbFinishInteractionResponse,
   ContinueGrantRequest as PbContinueGrantRequest,
   RevokeGrantRequest as PbRevokeGrantRequest,
+  AdminRevokeGrantRequest as PbAdminRevokeGrantRequest,
   IntrospectTokenResponse as PbIntrospectTokenResponse,
   IntrospectTokenRequest as PbIntrospectTokenRequest,
   RotateTokenRequest as PbRotateTokenRequest,
@@ -194,6 +195,24 @@ export class AuthClient {
 
     return new Promise((resolve, reject) => {
       this._grpcClient.revokeGrant(
+        request,
+        (error: ServiceError | null, response: PbRevokeGrantResponse) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve({ id: response.getId() });
+          }
+        }
+      );
+    });
+  }
+
+  adminRevokeGrant(id: string): Promise<RevokeGrantResult> {
+    const request = new PbAdminRevokeGrantRequest();
+    request.setId(id);
+
+    return new Promise((resolve, reject) => {
+      this._grpcClient.adminRevokeGrant(
         request,
         (error: ServiceError | null, response: PbRevokeGrantResponse) => {
           if (error) {

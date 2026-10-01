@@ -60,4 +60,23 @@ export async function grantRoutes(
       return reply.status(httpStatus).send({ error: error.description });
     }
   });
+
+  server.post<{
+    Params: {
+      id: string;
+    };
+  }>('/grants/:id/revoke', async (request, reply) => {
+    const { id } = request.params;
+
+    try {
+      const result = await authClient.adminRevokeGrant(id);
+
+      return reply.status(200).send(result);
+    } catch (err) {
+      server.log.error(err);
+      const httpStatus = httpStatusFromGrpcError(err);
+      const { error } = toClientApiErrorResponse(err);
+      return reply.status(httpStatus).send({ error: error.description });
+    }
+  });
 }
