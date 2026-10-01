@@ -667,7 +667,7 @@ paths:
       description: >-
         Get the grant associated with the provided id.
         tags:
-        - payments
+        - grants
       operationId: getGrant
       parameters:
         - name: id

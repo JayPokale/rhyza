@@ -118,8 +118,7 @@ export class AdminApiService {
       producer: this.msgProducer
     });
     this.server.register(grantRoutes, {
-      authClient: this.authClient,
-      producer: this.msgProducer
+      authClient: this.authClient
     });
 
     await this.server.listen({ port: PORT, host: HOST });
