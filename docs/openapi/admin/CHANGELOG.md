@@ -3,10 +3,6 @@
 
 ## API Changes
 
-### GET /grant/{id}
--  endpoint added
-
-
 ### POST /grant/{id}
 -  endpoint added
 
