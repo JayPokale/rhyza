@@ -18,9 +18,12 @@
   pointer-events: none;
   cursor: default;
 }
-[data-sidebar-id='api-1/tag/admin-api-overview'] button,
-[data-sidebar-id='api-1/tag/webhooks-api-overview'] button,
-[data-sidebar-id='api-1/tag/identity-provider-service-api-overview'] button {
+/* The visible sidebar, on desktop and in the mobile menu, renders these rows
+ * as <a>. Scalar also keeps a hidden copy that uses <button>. */
+[data-sidebar-id='api-1/tag/admin-api-overview'] :is(a, button),
+[data-sidebar-id='api-1/tag/webhooks-api-overview'] :is(a, button),
+[data-sidebar-id='api-1/tag/identity-provider-service-api-overview']
+  :is(a, button) {
   background-color: transparent !important;
   color: inherit !important;
 }
