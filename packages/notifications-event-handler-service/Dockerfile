@@ -41,7 +41,6 @@ RUN pnpm --filter implementations-lib build
 RUN pnpm --filter auth-domain-lib build
 RUN pnpm --filter notifications-domain-lib build
 RUN pnpm --filter payments-public-types-lib build
-RUN pnpm --filter notifications-domain-lib build
 RUN pnpm --filter notifications-implementations-lib build
 RUN pnpm --filter notifications-event-handler-service build
 
