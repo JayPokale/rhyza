@@ -61,7 +61,7 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get the grant associated with the provided id. tags: - payments
+     * Get the grant associated with the provided id. tags: - grants
      * Get grant
      */
     async getGrantRaw(requestParameters: GetGrantRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<Grant>> {
@@ -72,7 +72,7 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get the grant associated with the provided id. tags: - payments
+     * Get the grant associated with the provided id. tags: - grants
      * Get grant
      */
     async getGrant(id: string, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Grant> {
