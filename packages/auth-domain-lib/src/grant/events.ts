@@ -2,8 +2,10 @@ import { DomainEventTopics, DomainEvent } from 'common-types-lib';
 import {
   GrantState,
   IAccessItem,
+  IJsonWebKey,
   ISubjectId,
-  InteractionChoice
+  InteractionChoice,
+  InteractionState
 } from './interfaces';
 
 const BOUNDED_CONTEXT_NAME = 'auth';
@@ -202,6 +204,16 @@ export class GrantContinueFailedEvent extends AuthDomainEvent {
 
 export interface GrantRevokedPayload {
   id: string;
+  createdAt: Date;
+  status: GrantState;
+  access?: IAccessItem[];
+  client?: string | IJsonWebKey;
+  clientName?: string;
+  subjectIds?: ISubjectId[];
+  interaction?: {
+    state: InteractionState;
+    createdAt: Date;
+  };
 }
 
 export class GrantRevokedEvent extends AuthDomainEvent {
