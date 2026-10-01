@@ -1,22 +1,15 @@
-# API Changelog 0.0.5 vs. 0.0.6
-
-
-## API Changes
-
-### POST /grant/{id}
--  endpoint added
-
-
-
-
-
-# API Changelog 0.0.4 vs. 0.0.5
+# API Changelog 0.0.4 vs. 0.0.6
 
 
 ## API Changes
 
 ### GET /grant/{id}
 -  endpoint added
+
+
+### POST /grant/{id}
+-  endpoint added
+
 
 
 
