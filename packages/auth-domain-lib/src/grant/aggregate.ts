@@ -547,7 +547,9 @@ export class GrantAggregate {
 
       return new GrantRevokedEvent(
         {
-          id
+          id,
+          status: grant.state,
+          createdAt: grant.createdAt
         },
         cmd.requestId
       );
