@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Rafiki Admin API
-  version: 0.0.4
+  version: 0.0.5
   license:
     name: ISC
     identifier: ISC
@@ -681,16 +681,17 @@ paths:
             schema:
               $ref: '#/components/schemas/FxRateSet'
       responses:
-        '200':
+        '204':
           description: The exchange rate has been stored.
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: false
         '400':
           description: >-
             sourceAssetCode, destinationAssetCode, rate, or rateTtlSecs is missing.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Failed to set the exchange rate.
           content:
             application/json:
               schema:

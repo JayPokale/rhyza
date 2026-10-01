@@ -1,4 +1,5 @@
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
+import { ErrorResponse, FxRateSet } from 'admin-client-lib';
 import { PalClient } from 'pal-client-lib';
 
 interface RateRouteOptions extends FastifyPluginOptions {
@@ -11,13 +12,8 @@ export async function ratesRoutes(
 ): Promise<void> {
   const { palClient } = opts;
   server.post<{
-    Body: {
-      sourceAssetCode: string;
-      destinationAssetCode: string;
-      rate: number;
-      peerId: string | null;
-      rateTtlSecs: number;
-    };
+    Body: FxRateSet;
+    Reply: ErrorResponse | undefined;
   }>('/rates', async (request, reply) => {
     const {
       sourceAssetCode,
@@ -39,13 +35,18 @@ export async function ratesRoutes(
       });
     }
 
-    const rate = await palClient.setFxRate(
-      sourceAssetCode,
-      destinationAssetCode,
-      fxRate,
-      peerId,
-      rateTtlSecs
-    );
-    return reply.status(200).send({ rate });
+    try {
+      await palClient.setFxRate(
+        sourceAssetCode,
+        destinationAssetCode,
+        fxRate,
+        peerId,
+        rateTtlSecs
+      );
+    } catch (error) {
+      return reply.status(500).send({ error: 'Failed to set FX rate' });
+    }
+
+    return reply.status(204).send();
   });
 }
