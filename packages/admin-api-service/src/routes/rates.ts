@@ -44,7 +44,7 @@ export async function ratesRoutes(
         peerId,
         rateTtlSecs
       );
-    } catch (error) {
+    } catch {
       return reply.status(500).send({ error: 'Failed to set FX rate' });
     }
 
