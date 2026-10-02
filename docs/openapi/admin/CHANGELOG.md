@@ -1,34 +1,22 @@
 # API Changelog 0.0.3 vs. 0.0.4
 
-
 ## API Changes
 
 ### POST /wallet-addresses/{id}/keys/{keyId}/revoke
--  endpoint added
 
-
-
-
-
-
+- endpoint added
 
 # API Changelog 0.0.2 vs. 0.0.3
-
 
 ## API Changes
 
 ### POST /wallet-addresses
--  added the required property `id` to the response with the `201` status
 
+- added the required property `id` to the response with the `201` status
 
 ### POST /wallet-addresses/{id}/keys
--  endpoint added
 
-
-
-
-
-
+- endpoint added
 
 # API Changelog 0.0.1 vs. 0.0.2
 

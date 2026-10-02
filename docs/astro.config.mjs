@@ -157,11 +157,15 @@ export default defineConfig({
               items: [
                 {
                   label: 'Integration checklist',
-                  link: '/integration/requirements/overview'
+                  link: '/integration/requirements/checklist'
                 },
                 {
                   label: 'Assets',
                   link: '/integration/requirements/assets'
+                },
+                {
+                  label: 'Exchange rates',
+                  link: '/integration/requirements/exchange-rates'
                 },
                 {
                   label: 'Peers',
@@ -174,10 +178,6 @@ export default defineConfig({
                 {
                   label: 'Webhook events',
                   link: '/integration/requirements/webhook-events'
-                },
-                {
-                  label: 'Exchange rates',
-                  link: '/integration/requirements/exchange-rates'
                 }
               ]
             },
@@ -202,15 +202,15 @@ export default defineConfig({
               link: '/apis/api-overview'
             },
             {
-              label: 'Admin API specification',
+              label: 'Admin API',
               link: '/apis/#tag/admin-api-overview'
             },
             {
-              label: 'Webhooks API specification',
+              label: 'Webhooks API',
               link: '/apis/#tag/webhooks-api-overview'
             },
             {
-              label: 'Identity Provider Service API specification',
+              label: 'Identity Provider Service API',
               link: '/apis/#tag/identity-provider-service-api-overview'
             }
           ]
