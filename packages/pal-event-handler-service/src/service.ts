@@ -449,6 +449,14 @@ export class PalLedgerEventHandlerService {
       await this._integrationEventsConsumer.disconnect(false);
     }
 
+    if (this._internalEventHandler) {
+      await this._internalEventHandler.destroy();
+    }
+    if (this._internalEventsConsumer) {
+      await this._internalEventsConsumer.stop();
+      await this._internalEventsConsumer.disconnect(false);
+    }
+
     if (this._producer) {
       await this._producer.disconnect();
     }

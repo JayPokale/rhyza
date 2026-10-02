@@ -178,7 +178,7 @@ export class LedgerStateEventHandler {
     this._lastSnapshotMap.set(ledger.id, snapshot);
     this._lastSnapshotTakenAt = snapshot.msgTimestamp;
 
-    this._logger.debug(
+    this._logger.info(
       `Snapshot created for ledger: ${ledger.id} v${ledger.version}, with lastEventIndexPartition: ${snapshot.lastEventIndexPartition} and lastEventIndexOffset: ${snapshot.lastEventIndexOffset}`
     );
   }
