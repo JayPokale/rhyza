@@ -101,6 +101,7 @@ export interface RafikiInstanceSpec {
 export interface RafikiInstanceStatus {
   /** Human-readable summary of the operator's current state. */
   phase: 'Pending' | 'Running' | 'Degraded' | 'Error';
+  instanceNamespace: string,
   message?: string;
   /** ISO-8601 timestamp of the last reconcile attempt. */
   lastReconciled?: string;

@@ -179,7 +179,8 @@ available in the cluster.
 docker build -t rafiki-v2/admin-api-service:latest \
   -f packages/admin-api-service/Dockerfile .
 
-# Repeat for each service, or use a build script.
+# OR Build all service images with this build script:
+./scripts/build_all_images.sh
 
 # Load each into the cluster (kind example — see Step 3 for other options):
 kind load docker-image rafiki-v2/admin-api-service:latest --name rafiki-dev

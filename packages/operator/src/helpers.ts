@@ -1,9 +1,7 @@
 import * as k8s from '@kubernetes/client-node';
-import { V1ConfigMap } from '@kubernetes/client-node';
+import { ApiException, V1ConfigMap, V1Job } from '@kubernetes/client-node';
 import { RafikiInstanceSpec, RafikiInstanceStatus } from './types';
-import {
-  PromiseMiddlewareWrapper
-} from '@kubernetes/client-node/dist/gen/middleware';
+import { PromiseMiddlewareWrapper } from '@kubernetes/client-node/dist/gen/middleware';
 import {
   ObjectAppsV1Api,
   ObjectBatchV1Api,
@@ -11,7 +9,6 @@ import {
   ObjectCustomObjectsApi,
   ObjectRbacAuthorizationV1Api
 } from '@kubernetes/client-node/dist/gen/types/ObjectParamAPI';
-
 
 const FIELD_MANAGER = 'rafiki-operator';
 const SSA_OPTIONS = {
@@ -21,7 +18,7 @@ const SSA_OPTIONS = {
 export class KubernetesHelpers {
   private static _instance: KubernetesHelpers;
   private _kc: k8s.KubeConfig;
-  private _namespace: string;
+  private _systemNamespace!: string;
   private _coreApi: ObjectCoreV1Api;
   private _appsApi: ObjectAppsV1Api;
   private _batchApi: ObjectBatchV1Api;
@@ -29,17 +26,14 @@ export class KubernetesHelpers {
   private _rbacApi: ObjectRbacAuthorizationV1Api;
   private _cachedSsaConfiguration!: k8s.Configuration<k8s.ObservableMiddleware>;
 
-  private constructor(
-    kc: k8s.KubeConfig,
-    namespace: string,
-  ) {
+  private constructor(kc: k8s.KubeConfig, namespace: string) {
     this._kc = kc;
-    this._namespace = namespace;
+    this._systemNamespace = namespace;
 
     this._coreApi = kc.makeApiClient(k8s.CoreV1Api);
-    this._appsApi= kc.makeApiClient(k8s.AppsV1Api);
-    this._batchApi= kc.makeApiClient(k8s.BatchV1Api);
-    this._customObjectsApi= kc.makeApiClient(k8s.CustomObjectsApi);
+    this._appsApi = kc.makeApiClient(k8s.AppsV1Api);
+    this._batchApi = kc.makeApiClient(k8s.BatchV1Api);
+    this._customObjectsApi = kc.makeApiClient(k8s.CustomObjectsApi);
     this._rbacApi = kc.makeApiClient(k8s.RbacAuthorizationV1Api);
   }
 
@@ -59,8 +53,8 @@ export class KubernetesHelpers {
     return this._rbacApi;
   }
 
-  get namespace(): string {
-    return this._namespace;
+  get systemNamespace(): string {
+    return this._systemNamespace;
   }
 
   public static getInstance(): KubernetesHelpers {
@@ -71,10 +65,7 @@ export class KubernetesHelpers {
     throw new Error('KubernetesHelpers instance not initialized');
   }
 
-  public static async Setup(
-    kc: k8s.KubeConfig,
-    namespace: string
-  ) {
+  public static async Setup(kc: k8s.KubeConfig, namespace: string) {
     this._instance = new KubernetesHelpers(kc, namespace);
     await this._instance._setupConfiguration();
   }
@@ -113,25 +104,18 @@ export class KubernetesHelpers {
     });
   }
 
-
-  async ensureNamespace(): Promise<void> {
+  async ensureNamespace(namespace: string): Promise<void> {
     try {
-      await this._coreApi.readNamespace({ name: this._namespace  });
-      //await coreApi.readNamespace(namespace);
+      await this._coreApi.readNamespace({ name: namespace });
     } catch {
       await this._coreApi.createNamespace({
         body: {
           apiVersion: 'v1',
           kind: 'Namespace',
-          metadata: { name: this._namespace }
+          metadata: { name: namespace }
         }
       });
-      /*await coreApi.createNamespace({
-        apiVersion: 'v1',
-        kind: 'Namespace',
-        metadata: { name: namespace }
-      });*/
-      console.log(`[Namespace] Created ${this._namespace}`);
+      console.log(`[Namespace] Created ${namespace}`);
     }
   }
 
@@ -149,7 +133,7 @@ export class KubernetesHelpers {
       await this._customObjectsApi.patchNamespacedCustomObjectStatus(
         {
           name,
-          namespace: this._namespace,
+          namespace: this._systemNamespace,
           group: 'rafiki.interledger.org',
           version: 'v1alpha1',
           plural: 'rafikiinstances',
@@ -161,7 +145,7 @@ export class KubernetesHelpers {
             // Keep your metadata and status updates here
             metadata: {
               name: name,
-              namespace: this._namespace
+              namespace: this._systemNamespace
             },
             status
           },
@@ -179,12 +163,18 @@ export class KubernetesHelpers {
   public async applyStatefulSet(
     manifest: k8s.V1StatefulSet
   ): Promise<void> {
-    const name = manifest.metadata!.name!;
+    if (
+      !manifest.metadata ||
+      !manifest.metadata.name ||
+      !manifest.metadata.namespace
+    ) {
+      throw new Error('Missing metadata, metadata.name or metadata.namespace');
+    }
 
     await this._appsApi.patchNamespacedStatefulSet(
       {
-        name,
-        namespace: this._namespace,
+        name: manifest.metadata.name,
+        namespace: manifest.metadata.namespace,
         body: manifest,
         fieldManager: FIELD_MANAGER,
         force: true,
@@ -193,19 +183,20 @@ export class KubernetesHelpers {
       this._cachedSsaConfiguration
     );
 
-    console.log(`[StatefulSet] Applied ${name}`);
+    console.log(`[StatefulSet] Applied ${manifest.metadata.name}`);
   }
-
 
   public async applyDeployment(
     manifest: k8s.V1Deployment
   ): Promise<void> {
-    const name = manifest.metadata!.name!;
+    if (!manifest.metadata || !manifest.metadata.name || !manifest.metadata.namespace) {
+      throw new Error('Missing metadata, metadata.name or metadata.namespace');
+    }
 
     await this._appsApi.patchNamespacedDeployment(
       {
-        name,
-        namespace: this._namespace,
+        name: manifest.metadata.name,
+        namespace: manifest.metadata.namespace,
         body: manifest,
         fieldManager: FIELD_MANAGER,
         force: true,
@@ -214,17 +205,24 @@ export class KubernetesHelpers {
       this._cachedSsaConfiguration
     );
 
-    console.log(`[Deployment] Applied ${name}`);
+    console.log(`[Deployment] Applied ${manifest.metadata.name}`);
   }
 
-   async applyService(
+  async applyService(
     manifest: k8s.V1Service
   ): Promise<void> {
-    const name = manifest.metadata!.name!;
+    if (
+      !manifest.metadata ||
+      !manifest.metadata.name ||
+      !manifest.metadata.namespace
+    ) {
+      throw new Error('Missing metadata, metadata.name or metadata.namespace');
+    }
+
     await this._coreApi.patchNamespacedService(
       {
-        name,
-        namespace: this._namespace,
+        name: manifest.metadata.name,
+        namespace: manifest.metadata.namespace,
         body: manifest,
         fieldManager: FIELD_MANAGER,
         force: true,
@@ -233,66 +231,90 @@ export class KubernetesHelpers {
       this._cachedSsaConfiguration
     );
 
-    console.log(`[Service] Applied ${name}`);
+    console.log(`[Service] Applied ${manifest.metadata.name}`);
   }
 
+  // NOTE: jobs are immutable, so without the runAgain param it will
+  // not run again is the job was already executed
+  async applyJob(manifest: k8s.V1Job,runAgain: boolean,): Promise<void> {
+    if (
+      !manifest.metadata ||
+      !manifest.metadata.name ||
+      !manifest.metadata.namespace
+    ) {
+      throw new Error('Missing metadata, metadata.name or metadata.namespace');
+    }
 
-// NOTE: intentionally NOT converted to server-side apply like the helpers
-// above. A Job's spec.template is immutable after creation, so this isn't a
-// "make it match" reconcile — it's "create once, then never touch again."
-// Re-applying (even via SSA) after the topics already exist is unnecessary
-// and patching most Job fields post-creation is rejected by the API server.
-   async applyJob(
-    manifest: k8s.V1Job
-  ): Promise<void> {
-    const name = manifest.metadata!.name!;
+    let existingJob: V1Job | null = null;
     try {
-      const existing = await this._batchApi.readNamespacedJob({ name, namespace: this._namespace });
-      if (existing.status?.succeeded && existing.status.succeeded > 0) {
-        console.log(`[Job] ${name} already completed — skipping`);
-        return;
+      // not existing will throw
+      existingJob = await this._batchApi.readNamespacedJob({
+        name: manifest.metadata.name,
+        namespace: manifest.metadata.namespace
+      });
+
+      // eslint-disable-next-line  @typescript-eslint/no-explicit-any
+    } catch (e: any) {
+      if (e instanceof ApiException) {
+        console.log(`[Job] with name: ${manifest.metadata.name} doesn't exist`);
+      } else {
+        throw e;
       }
-      /*const existing = await client.readNamespacedJob(name, ns);
-      // If the job already succeeded, skip re-creating it — topics already exist
-      if (existing.body.status?.succeeded && existing.body.status.succeeded > 0) {
-        console.log(`[Job] ${name} already completed — skipping`);
-        return;
-      }*/
-      console.log(`[Job] ${name} exists but not succeeded — leaving it alone`);
-    } catch {
-      // Job doesn't exist yet — create it
+    }
+
+    if (existingJob && !runAgain) {
+      console.log(
+        `[Job] with name: ${manifest.metadata.name} already exists exist`
+      );
+      return;
+    }
+
+    if (existingJob) {
+      // delete
+      await this._batchApi.deleteNamespacedJob({
+        name: manifest.metadata.name,
+        namespace: manifest.metadata.namespace
+      });
+    }
+
+    try {
+      // create it
       await this._batchApi.createNamespacedJob({
-        namespace: this._namespace,
+        namespace: manifest.metadata.namespace,
         body: manifest
       });
-      console.log(`[Job] Created ${name}`);
+      console.log(`[Job] Created ${manifest.metadata.name}`);
+      // eslint-disable-next-line  @typescript-eslint/no-explicit-any
+    } catch (e: any) {
+      console.log(`[Job] Error creating job: ${manifest.metadata.name} - ${e}`);
     }
   }
 
-
   // ---------------------------------------------------------------------------
-// RBAC helper — let app pods' initContainers read the Kafka init Job
-//
-// App Deployments don't set serviceAccountName, so their pods (and the
-// waitForKafkaInit initContainer) run as the "default" ServiceAccount in
-// the instance's namespace. That account has no permissions by default,
-// so "kubectl get job init-kafka" from an initContainer is forbidden
-// unless we grant it here.
-// ---------------------------------------------------------------------------
+  // RBAC helper — let app pods' initContainers read the Kafka init Job
+  //
+  // App Deployments don't set serviceAccountName, so their pods (and the
+  // waitForKafkaInit initContainer) run as the "default" ServiceAccount in
+  // the instance's namespace. That account has no permissions by default,
+  // so "kubectl get job init-kafka" from an initContainer is forbidden
+  // unless we grant it here.
+  // ---------------------------------------------------------------------------
 
-  async ensureJobReaderRbac( ): Promise<void> {
+  async ensureJobReaderRbac(namespace: string): Promise<void> {
     const roleName = 'rafiki-job-reader';
 
     try {
-      await this._rbacApi.readNamespacedRole({ name: roleName, namespace: this._namespace });
-      //await rbacApi.readNamespacedRole(roleName, namespace);
+      await this._rbacApi.readNamespacedRole({
+        name: roleName,
+        namespace: namespace
+      });
     } catch {
       await this._rbacApi.createNamespacedRole({
-        namespace: this._namespace,
+        namespace: namespace,
         body: {
           apiVersion: 'rbac.authorization.k8s.io/v1',
           kind: 'Role',
-          metadata: { name: roleName, namespace: this._namespace },
+          metadata: { name: roleName, namespace: namespace },
           rules: [{ apiGroups: ['batch'], resources: ['jobs'], verbs: ['get'] }]
         }
       });
@@ -300,19 +322,22 @@ export class KubernetesHelpers {
     }
 
     try {
-      await this._rbacApi.readNamespacedRoleBinding({ name: roleName, namespace: this._namespace });
+      await this._rbacApi.readNamespacedRoleBinding({
+        name: roleName,
+        namespace: namespace
+      });
     } catch {
       await this._rbacApi.createNamespacedRoleBinding({
-        namespace: this._namespace,
+        namespace: namespace,
         body: {
           apiVersion: 'rbac.authorization.k8s.io/v1',
           kind: 'RoleBinding',
-          metadata: { name: roleName, namespace: this._namespace },
+          metadata: { name: roleName, namespace: namespace },
           subjects: [
             {
               kind: 'ServiceAccount',
               name: 'default',
-              namespace: this._namespace
+              namespace: namespace
             }
           ],
           roleRef: {
@@ -364,8 +389,6 @@ export class KubernetesHelpers {
     };
   }
 
-
-
   /** Builds a standard Deployment object. */
   makeDeployment(
     name: string,
@@ -406,8 +429,6 @@ export class KubernetesHelpers {
     };
   }
 
-
-
   clusterIpService(
     name: string,
     namespace: string,
@@ -428,8 +449,7 @@ export class KubernetesHelpers {
     };
   }
 
-
-   async createConfigMap(): Promise<V1ConfigMap> {
+  async createConfigMap(): Promise<V1ConfigMap> {
     const configMap: k8s.V1ConfigMap = {
       apiVersion: 'v1',
       kind: 'ConfigMap',
@@ -455,7 +475,6 @@ exporters:
 
   async createCustomObject(
     namespace: string,
-    spec: RafikiInstanceSpec,
     objectManifest: k8s.KubernetesObject
   ): Promise<boolean> {
     try {

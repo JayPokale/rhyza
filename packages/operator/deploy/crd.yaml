@@ -144,6 +144,9 @@ spec:
                   type: string
                 observedGeneration:
                   type: integer
+                # The namespace where this specific instance's services live
+                targetNamespace:
+                  type: string
 
       # subresources.status lets the operator update .status separately
       # from .spec, which prevents accidental spec overwrites.

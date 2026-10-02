@@ -51,19 +51,21 @@ create --topic logs
 
 # High-throughput topics with 24 partitions
 # Partitions allow multiple consumers to read in parallel for throughput.
-create --partitions 24 --topic payment-commands
-create --partitions 24 --topic payment-domain-events
-create --partitions 24 --topic asset-domain-events
-create --partitions 24 --topic peer-domain-events
-create --partitions 24 --topic ledger-commands
-create --partitions 24 --topic ledger-domain-events
-create --partitions 24 --topic ledger-snapshot-events
-create --partitions 24 --topic ledger-state-events
-create --partitions 24 --topic wallet-address-domain-events
-create --partitions 24 --topic ilp-domain-events
-create --partitions 24 --topic ilp-commands
-create --partitions 24 --topic ilp-connector-commands
-create --partitions 24 --topic notification-commands
+create --if-not-exists --partitions 24 --topic payment-commands
+create --if-not-exists --partitions 24 --topic payment-domain-events
+create --if-not-exists --partitions 24 --topic asset-domain-events
+create --if-not-exists --partitions 24 --topic peer-domain-events
+create --if-not-exists --partitions 24 --topic ledger-commands
+create --if-not-exists --partitions 24 --topic ledger-domain-events
+create --if-not-exists --partitions 24 --topic ledger-snapshot-events
+create --if-not-exists --partitions 24 --topic ledger-state-events
+create --if-not-exists --partitions 24 --topic ledger-timer-events
+create --if-not-exists --partitions 24 --topic wallet-address-domain-events
+create --if-not-exists --partitions 24 --topic fxrate-domain-events
+create --if-not-exists --partitions 24 --topic ilp-domain-events
+create --if-not-exists --partitions 24 --topic ilp-commands
+create --if-not-exists --partitions 24 --topic ilp-connector-commands
+create --if-not-exists --partitions 24 --topic notification-commands
 
 echo "All Kafka topics created successfully."
 /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:19092 --list
@@ -78,6 +80,8 @@ echo "All Kafka topics created successfully."
       labels: { app: 'init-kafka', 'rafiki/role': 'init' }
     },
     spec: {
+      // cleanup after done, this allows us to re-schedule when necessary
+      // ttlSecondsAfterFinished: 90,
       // If the Job fails (e.g. Kafka is temporarily unavailable), retry up to 5 times.
       backoffLimit: 5,
       template: {

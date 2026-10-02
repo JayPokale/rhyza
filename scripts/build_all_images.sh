@@ -14,4 +14,5 @@ find ./packages -maxdepth 2 -name "Dockerfile" | grep -v "$IGNORE_PATTERN" | whi
   image_tag="$IMAGE_PREFIX$(node -e "process.stdout.write(require('$dir/package.json').name)")"
   echo "Building $image_tag from $dir... for imageTag: $image_tag"
   docker build -f "$dockerfile" -t "$image_tag" .
+  minikube image load "$image_tag"
 done

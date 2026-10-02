@@ -1,4 +1,4 @@
-# sample-rafiki-instance.yaml
+# single-rafiki-instance.yaml
 #
 # Example RafikiInstance custom resource.
 #
@@ -14,10 +14,12 @@
 apiVersion: rafiki.interledger.org/v1alpha1
 kind: RafikiInstance
 metadata:
+  # Instance name, this is also the namespace where all objects for this instance will be located
   name: my-rafiki
   # The namespace where all Rafiki services will be created.
-  # The operator creates this namespace automatically if it doesn't exist.
-  namespace: rafiki
+
+  # Namespace for the system objects - don't change this
+  namespace: rafiki-system
 spec:
   # Number of replicas for stateless application services.
   # Keep at 1 for local development.
@@ -29,9 +31,11 @@ spec:
     name: my-mongo-secret
     key: password
 
+
+
   # Container image registry. Replace with your actual registry.
   # Images must be pre-built and pushed — see README.md.
-  # For local dev, this matches images tagged "rafiki-v2/<service>:<tag>".
+  # For local dev, this matches images tagged "rafiki-v2-<service>:<tag>".
   imageRegistry: 'rafiki-v2'
 
   # Image tag to use for all Rafiki services.
@@ -43,13 +47,17 @@ spec:
 
   # Deploy the observability stack (Prometheus, Grafana, Tempo, OTEL, Redpanda Console).
   # Set to false to skip for a lighter-weight deployment.
-  observability: false
+  observability: true
+
 
   # --- Exposing open-payments-resource-service to the internet ---
   # Uncomment to create an Ingress. `host` is baked into wallet address IDs
   # returned by the resource server, so it must be the exact hostname your
   # DNS points at the ingress controller's load balancer.
   #
+  # Default will be open-payments-api.INSTANCE_NAME.cluster, where INSTANCE_NAME
+  # is name of this deployment, in the metadata section on top
+
   #openPaymentsApiHost: 'payments.integrator.com'
   #adminApiHost: 'payments.integrator.com'
   #

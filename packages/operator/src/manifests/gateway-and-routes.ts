@@ -11,23 +11,22 @@ import { RafikiInstanceSpec } from '../types.js';
 import { KubernetesHelpers } from '../helpers';
 
 
-const GATEWAY_NAME = 'rafiki-ext-gateway';
 
-export async function createRafikiExternalGateway(
-  kc: k8s.KubeConfig,
-  customApi: k8s.CustomObjectsApi,
+
+export async function createExternalGateway(
   namespace: string,
-  spec: RafikiInstanceSpec
-): Promise<void>{
+  gatewayClassName: string,
+  gatewayName:string
+): Promise<void> {
   const gatewayManifest = {
     apiVersion: 'gateway.networking.k8s.io/v1',
     kind: 'Gateway',
     metadata: {
-      name: GATEWAY_NAME,
+      name: gatewayName,
       namespace: namespace
     },
     spec: {
-      gatewayClassName: spec.gatewayClassName || 'traefik', // Uses the Traefik GatewayClass by default
+      gatewayClassName: gatewayClassName || 'traefik', // Uses the Traefik GatewayClass by default
       listeners: [
         {
           name: 'http',
@@ -47,26 +46,23 @@ export async function createRafikiExternalGateway(
     `Creating Gateway "${gatewayManifest.metadata.name}" in namespace "${namespace}"...`
   );
 
-  const success =
-    await KubernetesHelpers.getInstance().createCustomObject(
-      namespace,
-      spec,
-      gatewayManifest
-    );
+  const success = await KubernetesHelpers.getInstance().createCustomObject(
+    namespace,
+    gatewayManifest
+  );
 
-  if(success){
+  if (success) {
     console.log('Gateway created successfully!');
-  }else{
+  } else {
     console.error('Failed to create Gateway');
   }
 }
 
 
-export async function createExternalRoutesGateway(
-  kc: k8s.KubeConfig,
-  customApi: k8s.CustomObjectsApi,
+export async function createExternalGatewayRoutes(
   namespace: string,
-  spec: RafikiInstanceSpec
+  spec: RafikiInstanceSpec,
+  parentGatewayName:string
 ): Promise<void> {
   const openPaymentsManifest = {
     apiVersion: 'gateway.networking.k8s.io/v1',
@@ -76,9 +72,9 @@ export async function createExternalRoutesGateway(
       namespace: namespace
     },
     spec: {
-      parentRefs: [{ name: GATEWAY_NAME }],
+      parentRefs: [{ name: parentGatewayName }],
       hostnames: [
-        spec.openPaymentsApiHost || 'open-payments-api.rafiki.cluster'
+        spec.openPaymentsApiHost || `open-payments-api.${namespace}.cluster`
       ],
       rules: [
         {
@@ -99,7 +95,6 @@ export async function createExternalRoutesGateway(
 
   const success = await KubernetesHelpers.getInstance().createCustomObject(
     namespace,
-    spec,
     openPaymentsManifest
   );
 

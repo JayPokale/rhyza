@@ -1,0 +1,70 @@
+# single-rafiki-instance.yaml
+#
+# Example RafikiInstance custom resource.
+#
+# Before applying this, create the MongoDB password Secret it references
+# (see README.md "Providing the MongoDB password"):
+#   kubectl create namespace rafiki
+#   kubectl -n rafiki create secret generic my-mongo-secret \
+#     --from-literal=password='a-real-secret-value'
+#
+# Then apply this to trigger the operator:
+#   kubectl apply -f sample-rafiki-instance.yaml
+
+apiVersion: rafiki.interledger.org/v1alpha1
+kind: RafikiInstance
+metadata:
+  # Instance name, this is also the namespace where all objects for this instance will be located
+  name: receiver-rafiki
+  # The namespace where all Rafiki services will be created.
+
+  # Namespace for the system objects - don't change this
+  namespace: rafiki-system
+spec:
+  # Number of replicas for stateless application services.
+  # Keep at 1 for local development.
+  replicas: 1
+
+  # Reference to the Secret holding the MongoDB root password.
+  # The operator only reads it — create and rotate it yourself.
+  mongoPasswordSecretRef:
+    name: my-mongo-secret
+    key: password
+
+
+
+  # Container image registry. Replace with your actual registry.
+  # Images must be pre-built and pushed — see README.md.
+  # For local dev, this matches images tagged "rafiki-v2/<service>:<tag>".
+  imageRegistry: 'rafiki-v2'
+
+  # Image tag to use for all Rafiki services.
+  imageTag: 'latest'
+
+  # Webhook URL for the notifications service to call.
+  # In development, this points to the ase-mock-service.
+  webhookUrl: 'http://ase-mock-service.rafiki.svc.cluster.local:3000/webhooks'
+
+  # Deploy the observability stack (Prometheus, Grafana, Tempo, OTEL, Redpanda Console).
+  # Set to false to skip for a lighter-weight deployment.
+  observability: false
+
+  # --- Exposing open-payments-resource-service to the internet ---
+  # Uncomment to create an Ingress. `host` is baked into wallet address IDs
+  # returned by the resource server, so it must be the exact hostname your
+  # DNS points at the ingress controller's load balancer.
+  #
+  # Default will be open-payments-api.INSTANCE_NAME.cluster, where INSTANCE_NAME
+  # is name of this deployment, in the metadata section on top
+
+  #openPaymentsApiHost: 'payments.integrator.com'
+  #adminApiHost: 'payments.integrator.com'
+  #
+  # Bring your own cert (created/rotated outside the operator):
+  # tlsSecretName: 'payments-integrator-com-tls'
+  #
+  # ...or let cert-manager provision one automatically (requires
+  # cert-manager to already be installed in the cluster):
+  # tlsIssuer: 'letsencrypt-prod'
+  #
+  # gatewayClassName: 'traefik'

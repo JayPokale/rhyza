@@ -44,8 +44,13 @@ spec:
           # Replace this with your actual image after building and pushing.
           # See README.md for how to build and push the image.
           image: rafiki-operator:dev
-          imagePullPolicy: Never
+          imagePullPolicy: IfNotPresent
 
+          env:
+            - name: GATEWAY_CLASSNAME
+              value: "traefik"
+            - name: API_PORT
+              value: "8008"
           # Resource limits — keep the operator lightweight
           resources:
             requests:
