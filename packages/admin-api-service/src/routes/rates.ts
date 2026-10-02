@@ -23,15 +23,16 @@ export async function ratesRoutes(
       rateTtlSecs
     } = request.body;
 
-    if (
-      !sourceAssetCode ||
-      !destinationAssetCode ||
-      fxRate == null ||
-      rateTtlSecs == null
-    ) {
+    if (!sourceAssetCode || !destinationAssetCode || !fxRate || !rateTtlSecs) {
       return reply.status(400).send({
         error:
-          'sourceAssetCode, destinationAssetCode, rate and rateTtlSecs are required'
+          'sourceAssetCode, destinationAssetCode, non-zero rate and non-zero rateTtlSecs are required'
+      });
+    }
+
+    if (fxRate <= 0 || rateTtlSecs <= 0) {
+      return reply.status(400).send({
+        error: 'rate and rateTtlSecs must be greater than 0'
       });
     }
 

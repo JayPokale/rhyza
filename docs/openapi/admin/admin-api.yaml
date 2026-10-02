@@ -685,7 +685,8 @@ paths:
           description: The exchange rate has been stored.
         '400':
           description: >-
-            sourceAssetCode, destinationAssetCode, rate, or rateTtlSecs is missing.
+            sourceAssetCode, destinationAssetCode, rate, or rateTtlSecs is missing,
+            or rate or rateTtlSecs is not greater than 0.
           content:
             application/json:
               schema:
@@ -718,6 +719,7 @@ components:
           example: EUR
         rate:
           type: number
+          exclusiveMinimum: 0
           description: Units of destination asset per one unit of source asset.
           example: 0.92
         peerId:
@@ -726,6 +728,7 @@ components:
             Peer whose rate this is. Null stores an intra-ASE rate.
         rateTtlSecs:
           type: number
+          exclusiveMinimum: 0
           description: Seconds until the stored rate expires.
           example: 60
     ErrorResponse:
