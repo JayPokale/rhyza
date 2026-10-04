@@ -1,0 +1,4 @@
+[
+  { "arch": "linux/amd64", "name": "amd64" },
+  { "arch": "linux/arm64", "name": "arm64" }
+]

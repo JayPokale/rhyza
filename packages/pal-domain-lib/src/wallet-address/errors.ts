@@ -1,3 +1,8 @@
 export class CannotCreateDuplicateWalletAddressError extends Error {}
 export class CannotCreateDuplicateWalletAddressAliasError extends Error {}
 export class WalletAddressAliasNotFoundError extends Error {}
+export class WalletAddressNotFoundError extends Error {}
+export class DuplicateWalletAddressKeyError extends Error {}
+export class InvalidWalletAddressJwkError extends Error {}
+export class WalletAddressKeyNotFoundError extends Error {}
+export class WalletAddressKeyAlreadyRevokedError extends Error {}

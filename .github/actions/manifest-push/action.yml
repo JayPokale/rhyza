@@ -1,0 +1,62 @@
+name: Push manifest list for arm64 and amd64
+description: Creates and pushes a multi-arch GHCR manifest that combines the amd64 and arm64 images, including parent version aliases for official releases.
+
+inputs:
+  app_name:
+    description: The name of the application.
+    required: true
+  package:
+    required: true
+    description: Package we are building, for example, admin-api-service.
+  gh_token:
+    description: GitHub token to use for authentication.
+    required: true
+  version:
+    required: true
+    description: Version we are tagging as, for example v1.2.3 or v1.2.3-rc1
+  tag_parents:
+    description: If true, also push major and minor alias manifests. Use only for release/v* publishes.
+    required: false
+    default: 'false'
+  has_hierarchy:
+    description: Whether this version has a parent hierarchy. Computed once in the release workflow.
+    required: false
+    default: 'false'
+  major_parent:
+    description: The major parent tag (e.g. v1 or v1-rc1).
+    required: false
+    default: ''
+  minor_parent:
+    description: The minor parent tag (e.g. v1.2 or v1.2-rc1).
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Login to GHCR
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.repository_owner }}
+        password: ${{ inputs.gh_token }}
+    - name: Create and push version manifest
+      shell: bash
+      env:
+        MANIFEST: ghcr.io/${{ github.repository_owner }}/${{ inputs.app_name }}-${{ inputs.package }}:${{ inputs.version }}
+        AMD64: ghcr.io/${{ github.repository_owner }}/${{ inputs.app_name }}-${{ inputs.package }}-amd64:${{ inputs.version }}
+        ARM64: ghcr.io/${{ github.repository_owner }}/${{ inputs.app_name }}-${{ inputs.package }}-arm64:${{ inputs.version }}
+      run: |
+        docker manifest create "$MANIFEST" --amend "$AMD64" --amend "$ARM64"
+        PUSH_COMMAND="docker manifest push" bash "${GITHUB_WORKSPACE}/.github/scripts/docker-push-retry.sh" "$MANIFEST"
+    - name: Create and push parent manifests
+      if: ${{ inputs.tag_parents == 'true' && inputs.has_hierarchy == 'true' }}
+      shell: bash
+      env:
+        PREFIX: ghcr.io/${{ github.repository_owner }}/${{ inputs.app_name }}-${{ inputs.package }}
+        MINOR: ${{ inputs.minor_parent }}
+        MAJOR: ${{ inputs.major_parent }}
+      run: |
+        docker manifest create "$PREFIX:$MINOR" --amend "$PREFIX-amd64:$MINOR" --amend "$PREFIX-arm64:$MINOR"
+        docker manifest create "$PREFIX:$MAJOR" --amend "$PREFIX-amd64:$MAJOR" --amend "$PREFIX-arm64:$MAJOR"
+        PUSH_COMMAND="docker manifest push" bash "${GITHUB_WORKSPACE}/.github/scripts/docker-push-retry.sh" "$PREFIX:$MINOR" "$PREFIX:$MAJOR"

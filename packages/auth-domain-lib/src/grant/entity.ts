@@ -3,6 +3,7 @@ import { isDeepStrictEqual } from 'util';
 import { v4 as uuid } from 'uuid';
 import {
   InvalidGrantError,
+  InvalidGrantInputError,
   InvalidInteractionError,
   NonInteractiveGrantError,
   UnknownAccessTokenError,
@@ -22,12 +23,36 @@ import {
   InteractiveAccessType,
   IJsonWebKey,
   AccessAction,
-  ISubjectId
+  ISubjectId,
+  isJWK
 } from './interfaces';
 
 export const GRANT_POLL_MS = 5_000; // 5 seconds
 const INTERACTION_EXPIRY_MS = 600_000; // 10 minutes
 const ACCESS_TOKEN_EXPIRY_MS = 10_000; // 10 seconds
+
+interface IGrantInput {
+  id: string;
+  startMethods?: IStartMethod[];
+  continueToken?: string;
+  continueId?: string;
+  state: GrantState;
+  interaction?: IInteraction;
+  client?: string | IJsonWebKey;
+  clientName?: string;
+  subjectIds?: ISubjectId[];
+  accesses?: IAccessItem[];
+  finishMethod?: IFinishMethod;
+  finishUri?: string;
+  finishNonce?: string;
+  interactionNonce?: string;
+  lastContinuedAt?: Date;
+}
+
+export type CreateGrantInput = Omit<
+  IGrantInput,
+  'continueToken' | 'continueId' | 'state'
+>;
 
 function generateContinueToken(): string {
   return crypto.randomBytes(16).toString('hex').toUpperCase();
@@ -73,12 +98,14 @@ function compareAccessItems(
 
 export class GrantEntity implements IGrant {
   private _id: string;
-  private _startMethods: IStartMethod[];
+  private _createdAt: Date;
+  private _startMethods?: IStartMethod[];
   private _continueToken?: string;
   private _continueId?: string;
   private _lastContinuedAt?: Date;
   private _state: GrantState;
   private _client?: string | IJsonWebKey;
+  private _clientName?: string;
   private _subjectIds?: ISubjectId[];
   private _accesses?: IAccessItem[];
   private _finishNonce?: string;
@@ -100,6 +127,7 @@ export class GrantEntity implements IGrant {
     this._lastContinuedAt = input.lastContinuedAt;
     this._state = input.state ?? GrantState.PROCESSING;
     this._client = input.client;
+    this._clientName = input.clientName;
     this._subjectIds = input.subjectIds;
     this._accesses = input.accesses;
     this._finishNonce = input.finishNonce;
@@ -107,6 +135,7 @@ export class GrantEntity implements IGrant {
     this._finishUri = input.finishUri;
     this._interactionNonce = input.interactionNonce;
     this._interaction = input.interaction;
+    this._createdAt = input.createdAt;
 
     if (input.accessTokens) {
       for (const accessToken of input.accessTokens) {
@@ -129,18 +158,29 @@ export class GrantEntity implements IGrant {
       | 'continueId'
       | 'lastContinuedAt'
       | 'accessTokens'
+      | 'createdAt'
     >
   ): {
     entity: GrantEntity;
     accessToken?: IAccessToken;
   } {
+    const createdAt = new Date();
+
     const isInteractiveGrant = input.accesses?.some((access) =>
       InteractiveAccessType.includes(access.type)
     );
 
+    if (
+      isInteractiveGrant &&
+      (!input.startMethods?.length || !input.clientName || isJWK(input.client))
+    ) {
+      throw new InvalidGrantInputError();
+    }
+
     if (isInteractiveGrant) {
       const entity = new GrantEntity({
         ...input,
+        createdAt,
         interactionNonce: generateNonce(),
         accessTokens: []
       });
@@ -151,6 +191,7 @@ export class GrantEntity implements IGrant {
     } else {
       const entity = new GrantEntity({
         ...input,
+        createdAt,
         accessTokens: []
       });
       entity.stateTransition(GrantState.ISSUED);
@@ -163,6 +204,7 @@ export class GrantEntity implements IGrant {
   toObject(): IGrant {
     return {
       id: this._id,
+      createdAt: this._createdAt,
       interactionNonce: this._interactionNonce,
       interaction: this._interaction,
       startMethods: this._startMethods,
@@ -171,6 +213,7 @@ export class GrantEntity implements IGrant {
       lastContinuedAt: this._lastContinuedAt,
       state: this._state,
       client: this._client,
+      clientName: this._clientName,
       subjectIds: this._subjectIds,
       accesses: this._accesses,
       finishNonce: this._finishNonce,
@@ -181,7 +224,11 @@ export class GrantEntity implements IGrant {
   }
 
   // Generates an interaction for the grant.
-  startInteraction(): IInteraction & { nonce: string } {
+  startInteraction(): IInteraction & {
+    nonce: string;
+    clientUri: string;
+    clientName: string;
+  } {
     if (!this._startMethods || !this._interactionNonce) {
       throw new NonInteractiveGrantError();
     }
@@ -199,13 +246,22 @@ export class GrantEntity implements IGrant {
       state: InteractionState.PENDING
     };
 
-    return { ...this._interaction, nonce: this._interactionNonce };
+    return {
+      ...this._interaction,
+      nonce: this._interactionNonce,
+      clientUri: this._client as string,
+      clientName: this._clientName as string
+    };
   }
 
   // Updates the approval state of the interaction.
   handleInteraction(choice: InteractionChoice) {
     if (!this._interaction) {
       throw new UnknownInteractionError();
+    }
+
+    if (Date.now() > this._interaction.expiresAt.getTime()) {
+      throw new InvalidInteractionError();
     }
 
     if (this._interaction.state !== InteractionState.PENDING) {
@@ -474,7 +530,11 @@ export class GrantEntity implements IGrant {
     return this._id;
   }
 
-  get startMethods(): IStartMethod[] {
+  get createdAt(): Date {
+    return this._createdAt;
+  }
+
+  get startMethods(): IStartMethod[] | undefined {
     return this._startMethods;
   }
 
@@ -498,6 +558,10 @@ export class GrantEntity implements IGrant {
     return this._client;
   }
 
+  get clientName(): string | undefined {
+    return this._clientName;
+  }
+
   get subjectIds(): ISubjectId[] | undefined {
     return this._subjectIds;
   }
@@ -512,6 +576,10 @@ export class GrantEntity implements IGrant {
 
   get finishNonce(): string | undefined {
     return this._finishNonce;
+  }
+
+  get finishUri(): string | undefined {
+    return this._finishUri;
   }
 
   get interactionNonce(): string | undefined {

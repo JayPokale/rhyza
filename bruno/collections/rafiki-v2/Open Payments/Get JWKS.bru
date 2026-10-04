@@ -1,0 +1,11 @@
+meta {
+  name: Get JWKS
+  type: http
+  seq: 10
+}
+
+get {
+  url: http://{{openPaymentsResourceServerUrl}}/sender/jwks.json
+  body: json
+  auth: none
+}

@@ -1,9 +1,12 @@
 'use strict';
 
 import Fastify, { FastifyBaseLogger, FastifyInstance } from 'fastify';
+import fastifyCookie from '@fastify/cookie';
+import fastifySession from '@fastify/session';
 import { AuthClient } from 'auth-client-lib';
 import { grantRoutes } from './routes/grant';
 import { tokenRoutes } from './routes/token';
+import { interactionRoutes } from './routes/interaction';
 
 import authServerOpenApiJsonSchema from '../../../open-payments-specifications/json/auth-server.json';
 import { errorHandler } from './errors';
@@ -26,6 +29,10 @@ const OPEN_PAYMENTS_AUTH_SERVER_URL =
 declare module 'fastify' {
   interface FastifyRequest {
     gnapToken: string | null;
+  }
+
+  interface Session {
+    interactionSessionId: string;
   }
 }
 export class OpenPaymentsAuthServer {
@@ -69,11 +76,22 @@ export class OpenPaymentsAuthServer {
 
     this.server.setErrorHandler(errorHandler);
 
+    this.server.register(fastifyCookie);
+    this.server.register(fastifySession, {
+      cookieName: 'interactionSessionId',
+      secret: 'test-secret-replace-me-i-need-to-be-32-characters-long'
+      // TODO: { cookie: { maxAge: MAX_SESSION_LENGTH }}
+    });
+
     this.server.register(grantRoutes, {
       authClient: this.authClient,
       openPaymentsAuthServerUrl: OPEN_PAYMENTS_AUTH_SERVER_URL
     });
     this.server.register(tokenRoutes, {
+      authClient: this.authClient,
+      openPaymentsAuthServerUrl: OPEN_PAYMENTS_AUTH_SERVER_URL
+    });
+    this.server.register(interactionRoutes, {
       authClient: this.authClient,
       openPaymentsAuthServerUrl: OPEN_PAYMENTS_AUTH_SERVER_URL
     });

@@ -17,15 +17,11 @@ Part of Rhyza's [integration requirements](/integration/requirements/assets) inc
 
 An asset is made up of the following properties.
 
-<div class="overflow-table" style="border-bottom: 1px solid var(--sl-color-gray-6);">
-
 | Property     | Type    | Description                                                                                                                                                 | Example |
 | ------------ | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
 | `value`      | BigInt  | A numerical amount                                                                                                                                          | `10000` |
 | `assetCode`  | String  | A code representing the asset. An <LinkOut href="https://en.wikipedia.org/wiki/ISO_4217">ISO 4217 currency code</LinkOut> should be used whenever possible. | `"USD"` |
 | `assetScale` | Integer | The display scale of the asset, used to format human-readable amounts.                                                                                      | `2`     |
-
-</div>
 
 While the `assetScale` is used for display purposes, Rhyza's internal ledger operates at a fixed high precision (**scale 20**). All accounting entries are stored at this scale to ensure consistent precision across all types of assets and transactions.
 
@@ -52,7 +48,7 @@ Rhyza manages peer liquidity through a set of specialized accounts for each peer
 Every peer relationship involves four primary ledger accounts (and their internal system counterparts):
 
 | Account type     | What the account represents                                                                                   |
-| :--------------- | :------------------------------------------------------------------------------------------------------------ |
+| ---------------- | ------------------------------------------------------------------------------------------------------------- |
 | **Liquidity**    | Tracks pre-funded capital or credit lines. This is where settlement deposits are recorded.                    |
 | **Clearing**     | Tracks the net balance of successful Interledger packet exchanges.                                            |
 | **Suspense**     | Temporarily holds funds during the two-phase commit (reservation) process.                                    |

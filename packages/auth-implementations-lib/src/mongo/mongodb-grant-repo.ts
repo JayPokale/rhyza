@@ -5,7 +5,8 @@ import {
   IGrantRepository,
   IRevokedGrantUpdate,
   IRotatedGrantUpdate,
-  IContinuedGrantUpdate
+  IContinuedGrantUpdate,
+  IFinishedInteractiveGrantUpdate
 } from 'auth-domain-lib';
 import { ILogger } from 'common-types-lib';
 
@@ -112,6 +113,7 @@ export class MongoDbGrantRepo implements IGrantRepository {
   ): IGrant {
     return {
       id: doc.id,
+      createdAt: doc.createdAt,
       startMethods: doc.startMethods,
       continueToken: doc.continueToken,
       continueId: doc.continueId,
@@ -146,6 +148,7 @@ export class MongoDbGrantRepo implements IGrantRepository {
       await this._grantCollection.insertMany(
         grants.map((grant) => ({
           id: grant.id,
+          createdAt: grant.createdAt,
           startMethods: grant.startMethods,
           continueToken: grant.continueToken,
           continueId: grant.continueId,
@@ -273,6 +276,35 @@ export class MongoDbGrantRepo implements IGrantRepository {
       this._logger.error(err);
       throw new Error(
         `Unable to store continued grants - error: ${(err as Error).message}`
+      );
+    }
+  }
+
+  async storeFinishedInteractiveGrants(
+    grants: IFinishedInteractiveGrantUpdate[]
+  ): Promise<void> {
+    this._checkInitialisedOrThrow();
+
+    if (grants.length === 0) return;
+
+    try {
+      await this._grantCollection.bulkWrite(
+        grants.map((grant) => ({
+          updateOne: {
+            filter: { id: grant.id },
+            update: {
+              $set: {
+                state: grant.state
+              }
+            }
+          }
+        })),
+        { ordered: false }
+      );
+    } catch (err) {
+      this._logger.error(err);
+      throw new Error(
+        `Unable to store finished interactive grants - error: ${(err as Error).message}`
       );
     }
   }

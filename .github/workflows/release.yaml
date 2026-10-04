@@ -1,0 +1,180 @@
+name: Release
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - release/v*
+
+permissions: {}
+
+jobs:
+  config:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      packages: ${{ steps.matrix.outputs.packages }}
+      platforms: ${{ steps.matrix.outputs.platforms }}
+    steps:
+      - uses: actions/checkout@v6
+      - id: matrix
+        run: |
+          echo "packages=$(jq -c . .github/release-packages.json)" >> "$GITHUB_OUTPUT"
+          echo "platforms=$(jq -c . .github/release-platforms.json)" >> "$GITHUB_OUTPUT"
+
+  version-generator:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.version-generator.outputs.NEW_VERSION }}
+      tagPushed: ${{ steps.version-generator.outputs.SHOULD_PUSH_TAG }}
+      dockerPush: ${{ steps.version-generator.outputs.PUSH_DOCKER_IMAGE }}
+      generateRelease: ${{ steps.version-generator.outputs.GENERATE_RELEASE }}
+      hasHierarchy: ${{ steps.hierarchy.outputs.has_hierarchy }}
+      majorParent: ${{ steps.hierarchy.outputs.major_parent }}
+      minorParent: ${{ steps.hierarchy.outputs.minor_parent }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Configure git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+      - id: version-generator
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+        run: bash .github/scripts/compute-release-version.sh
+      - name: Calculate version hierarchy
+        id: hierarchy
+        uses: ./.github/actions/parent-versions
+        with:
+          version: ${{ steps.version-generator.outputs.NEW_VERSION }}
+      - name: Push git tag
+        if: steps.version-generator.outputs.SHOULD_PUSH_TAG == 'true'
+        env:
+          NEW_VERSION: ${{ steps.version-generator.outputs.NEW_VERSION }}
+        run: |
+          git tag -fa "$NEW_VERSION" -m "$NEW_VERSION"
+          git push -f origin "$NEW_VERSION"
+
+  docker-build:
+    runs-on: ${{ matrix.platform.name == 'arm64' && 'ubuntu-22.04-arm' || 'ubuntu-latest' }}
+    needs: [config, version-generator]
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    strategy:
+      matrix:
+        platform: ${{ fromJSON(needs.config.outputs.platforms) }}
+        package: ${{ fromJSON(needs.config.outputs.packages) }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          platforms: ${{ matrix.platform.arch }}
+      - name: Build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          platforms: ${{ matrix.platform.arch }}
+          file: packages/${{ matrix.package }}/Dockerfile
+          tags: ghcr.io/${{ github.repository_owner }}/rhyza-${{ matrix.package }}-${{ matrix.platform.name }}:${{ needs.version-generator.outputs.version }}
+          outputs: type=docker,dest=/tmp/${{ github.sha }}-${{ matrix.package }}-${{ matrix.platform.name }}-${{ needs.version-generator.outputs.version }}.tar
+      - name: Save docker image to cache
+        uses: actions/cache@v4
+        with:
+          path: /tmp/${{ github.sha }}-${{ matrix.package }}-${{ matrix.platform.name }}-${{ needs.version-generator.outputs.version }}.tar
+          key: ${{ github.sha }}-${{ matrix.package }}-${{ matrix.platform.name }}-${{ needs.version-generator.outputs.version }}
+
+  push:
+    name: Push to registry
+    needs: [config, version-generator, docker-build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    if: needs.version-generator.outputs.dockerPush == 'true'
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        platform: ${{ fromJSON(needs.config.outputs.platforms) }}
+        package: ${{ fromJSON(needs.config.outputs.packages) }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/image-push
+        with:
+          app_name: rhyza
+          package: ${{ matrix.package }}
+          platform_name: ${{ matrix.platform.name }}
+          version: ${{ needs.version-generator.outputs.version }}
+          gh_token: ${{ secrets.GITHUB_TOKEN }}
+          tag_parents: ${{ needs.version-generator.outputs.generateRelease }}
+          has_hierarchy: ${{ needs.version-generator.outputs.hasHierarchy }}
+          major_parent: ${{ needs.version-generator.outputs.majorParent }}
+          minor_parent: ${{ needs.version-generator.outputs.minorParent }}
+
+  push-manifest:
+    name: Push multi-arch manifest list
+    needs: [config, version-generator, push]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    if: needs.version-generator.outputs.dockerPush == 'true'
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        package: ${{ fromJSON(needs.config.outputs.packages) }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Push manifest list
+        uses: ./.github/actions/manifest-push
+        with:
+          app_name: rhyza
+          package: ${{ matrix.package }}
+          gh_token: ${{ secrets.GITHUB_TOKEN }}
+          version: ${{ needs.version-generator.outputs.version }}
+          tag_parents: ${{ needs.version-generator.outputs.generateRelease }}
+          has_hierarchy: ${{ needs.version-generator.outputs.hasHierarchy }}
+          major_parent: ${{ needs.version-generator.outputs.majorParent }}
+          minor_parent: ${{ needs.version-generator.outputs.minorParent }}
+
+  generate-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    needs: [push-manifest, version-generator]
+    if: needs.version-generator.outputs.generateRelease == 'true'
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+      - name: Create Release
+        uses: ncipollo/release-action@v1.16.0
+        with:
+          allowUpdates: true
+          omitBodyDuringUpdate: true
+          draft: false
+          makeLatest: legacy
+          generateReleaseNotes: true
+          prerelease: ${{ endsWith(needs.version-generator.outputs.version, '-alpha') }}
+          name: ${{ needs.version-generator.outputs.version }}
+          tag: ${{ needs.version-generator.outputs.version }}
+          token: ${{ github.token }}

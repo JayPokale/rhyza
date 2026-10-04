@@ -57,6 +57,20 @@ The Rafiki payment entities has been renamed & restructured for better performan
 
 This naming change impacts the the language used in the Admin API and webhook events.
 
+### Opaque Identifiers
+
+In Rafiki, many externally visible identifiers were the underlying database ids, and clients could construct or reinterpret them. In Rhyza, some identifiers and tokens handed to clients are **opaque**: an encoded value that only Rhyza knows how to interpret. Clients must treat them as-is, passing them back exactly as received. What is encoded inside is an internal detail and may change without notice.
+
+This lets Rhyza bundle whatever context it needs to resolve a value (for example, a parent resource or the query that produced it) without exposing that context or relying on the client to supply it correctly.
+
+In general, clients should treat all identifiers Rhyza returns as opaque, even when they look like plain UUIDs. Use them exactly as given and never construct, parse, or compare them structurally.
+
+Used for:
+
+- **Pagination cursors** in the Open Payments and Admin APIs. A cursor is only valid for the query that produced it, and Rhyza rejects it if the filters or sort order changes.
+- **Open Payments resource ids** for child resources of a payment intent, such as quotes and payments.
+- **Open Payments grant and access token identifiers** issued by the auth server, such as grant tokens.
+
 ### Unified Admin API
 
 Instead of two separate GraphQL Admin APIs for `auth` and `backend`, Rafiki has a single REST Admin API server which covers all of the possible functionality of Rafiki. This simplifies ASE integration (+ documentation tooling) while also providing us the ability to automatically generate client libraries/SDKs.
