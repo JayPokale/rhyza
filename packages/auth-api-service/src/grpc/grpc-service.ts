@@ -514,8 +514,11 @@ export class AuthServiceServer {
 
       const response = new Grant();
       response.setId(grant.id);
-      response.setStartMethodsList(grant.startMethods);
       response.setState(grant.state);
+
+      if (grant.startMethods) {
+        response.setStartMethodsList(grant.startMethods);
+      }
 
       if (grant.continueToken) {
         response.setContinueToken(grant.continueToken);
@@ -732,6 +735,9 @@ export class AuthServiceServer {
       response.setInteractNonce(payload.interactNonce);
       response.setClientNonce(payload.clientNonce);
       response.setInteractRef(payload.interactRef);
+      if (payload.clientFinishUri) {
+        response.setFinishUri(payload.clientFinishUri);
+      }
       this._resolvePendingResponse(pending, requestId, null, response);
     } else if (AuthDomainEvent.isGrantInteractionFinishFailedEvent(event)) {
       this._resolvePendingResponse(pending, requestId, {
@@ -802,6 +808,8 @@ export class AuthServiceServer {
       const payload: GrantInteractionStartedEvent['payload'] = event.payload;
       response.setId(payload.id);
       response.setNonce(payload.nonce);
+      response.setClientUri(payload.clientUri);
+      response.setClientName(payload.clientName);
       this._resolvePendingResponse(pending, requestId, null, response);
     } else if (AuthDomainEvent.isGrantInteractionStartFailedEvent(event)) {
       this._resolvePendingResponse(pending, requestId, {

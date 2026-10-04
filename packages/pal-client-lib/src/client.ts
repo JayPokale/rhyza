@@ -12,7 +12,12 @@ import {
   PalClientLedgerUnknownError,
   PalClientPeerAlreadyExistsError,
   PalClientPeerNotFoundError,
-  PalClientUnknownError
+  PalClientUnknownError,
+  PalClientWalletAddressNotFoundError,
+  PalClientWalletAddressKeyNotFoundError,
+  PalClientWalletAddressKeyAlreadyRevokedError,
+  PalClientDuplicateWalletAddressKeyError,
+  PalClientInvalidWalletAddressJwkError
 } from './local-types';
 import {
   PbCreateAssetRequest,
@@ -30,6 +35,15 @@ import {
   ILedgerAccountDto,
   PbGetLedgerAccountsResponse,
   IPalAssetDto,
+  IPalJsonWebKeyDto,
+  IPalWalletAddressKeyDto,
+  jsonWebKeyToPb,
+  walletAddressKeyFromPb,
+  PbAddWalletAddressKeyRequest,
+  PbAddWalletAddressKeyResponse,
+  PbGetWalletAddressKeysRequest,
+  PbGetWalletAddressKeysResponse,
+  PbRevokeWalletAddressKeyRequest,
   PbCreatePeerRequest,
   PbPeerCommsMethodDefinition,
   IPalPeerDto,
@@ -192,6 +206,7 @@ export class PalClient {
           }
 
           return resolve({
+            id: response.getId(),
             domain: response.getDomain() ?? null,
             pathName: response.getPathName(),
             publicName: response.getPublicName(),
@@ -238,6 +253,90 @@ export class PalClient {
           });
 
           return resolve(respObj);
+        }
+      );
+    });
+  }
+
+  async addWalletAddressKey(
+    walletAddressId: string,
+    jwk: IPalJsonWebKeyDto
+  ): Promise<string> {
+    const request = new PbAddWalletAddressKeyRequest();
+    request.setWalletAddressId(walletAddressId);
+    request.setJwk(jsonWebKeyToPb(jwk));
+
+    return new Promise((resolve, reject) => {
+      this._grpcClient.addWalletAddressKey(
+        request,
+        (
+          error: ServiceError | null,
+          response: PbAddWalletAddressKeyResponse
+        ) => {
+          if (error) {
+            return reject(mapWalletAddressKeyError(error));
+          }
+
+          return resolve(response.getId());
+        }
+      );
+    });
+  }
+
+  async getWalletAddressKeys(
+    walletAddressId: string
+  ): Promise<IPalWalletAddressKeyDto[]> {
+    const request = new PbGetWalletAddressKeysRequest();
+    request.setWalletAddressId(walletAddressId);
+
+    return new Promise((resolve, reject) => {
+      this._grpcClient.getWalletAddressKeys(
+        request,
+        (
+          error: ServiceError | null,
+          response: PbGetWalletAddressKeysResponse
+        ) => {
+          if (error) {
+            return reject(mapWalletAddressKeyError(error));
+          }
+
+          try {
+            return resolve(response.getKeysList().map(walletAddressKeyFromPb));
+          } catch (e) {
+            return reject(new PalClientUnknownError((e as Error).message));
+          }
+        }
+      );
+    });
+  }
+
+  async revokeWalletAddressKey(
+    walletAddressId: string,
+    keyId: string
+  ): Promise<void> {
+    const request = new PbRevokeWalletAddressKeyRequest();
+    request.setWalletAddressId(walletAddressId);
+    request.setKeyId(keyId);
+
+    return new Promise((resolve, reject) => {
+      this._grpcClient.revokeWalletAddressKey(
+        request,
+        (error: ServiceError | null) => {
+          if (error) {
+            if (error.code === grpc.status.NOT_FOUND) {
+              return reject(
+                new PalClientWalletAddressKeyNotFoundError(error.message)
+              );
+            }
+            if (error.code === grpc.status.FAILED_PRECONDITION) {
+              return reject(
+                new PalClientWalletAddressKeyAlreadyRevokedError(error.message)
+              );
+            }
+            return reject(new PalClientUnknownError(error.message));
+          }
+
+          return resolve();
         }
       );
     });
@@ -743,4 +842,17 @@ export class PalClient {
       });
     });
   }
+}
+
+function mapWalletAddressKeyError(error: ServiceError): Error {
+  if (error.code === grpc.status.NOT_FOUND) {
+    return new PalClientWalletAddressNotFoundError(error.message);
+  }
+  if (error.code === grpc.status.ALREADY_EXISTS) {
+    return new PalClientDuplicateWalletAddressKeyError(error.message);
+  }
+  if (error.code === grpc.status.INVALID_ARGUMENT) {
+    return new PalClientInvalidWalletAddressJwkError(error.message);
+  }
+  return new PalClientUnknownError(error.message);
 }

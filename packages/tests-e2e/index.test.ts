@@ -93,6 +93,7 @@ describe('E2E tests', () => {
         publicName
       }
     );
+    assert.ok(walletAddress.id);
     assert.equal(walletAddress.address, address);
   };
 

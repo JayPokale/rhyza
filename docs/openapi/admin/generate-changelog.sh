@@ -4,8 +4,19 @@ FILE_PATH="docs/openapi/admin/admin-api.yaml"
 BASE_BRANCH="main"
 MODE="changelog"
 
-if ! command -v oasdiff &> /dev/null; then
-    echo "Error: 'oasdiff' is not installed or not in your PATH."
+if command -v oasdiff &> /dev/null; then
+    echo "Using local oasdiff: $(command -v oasdiff)"
+    OASDIFF_CMD=(oasdiff)
+elif command -v docker &> /dev/null; then
+    echo "Local oasdiff not found. Using Docker: tufin/oasdiff"
+    OASDIFF_CMD=(
+        docker run --rm
+        -v "$(pwd):/work"
+        -w /work
+        tufin/oasdiff
+    )
+else
+    echo "Error: 'oasdiff' is not installed and Docker is not available."
     exit 1
 fi
 
@@ -14,24 +25,21 @@ if [ ! -f "$FILE_PATH" ]; then
     exit 1
 fi
 
-MERGE_BASE=$(git merge-base HEAD "$BASE_BRANCH")
+BASE_REF="origin/${BASE_BRANCH}"
 
-if [ -z "$MERGE_BASE" ]; then
-    echo "Error: Could not find a common ancestor between HEAD and $BASE_BRANCH."
-    exit 1
-fi
-
-TEMP_BASE=$(mktemp)
+# Created inside the repo so it is visible to the Docker fallback's bind mount.
+TEMP_BASE="$(mktemp "./.oasdiff-base.XXXXXX")"
 trap 'rm -f "$TEMP_BASE"' EXIT
 
-if ! git show "${MERGE_BASE}:${FILE_PATH}" > "$TEMP_BASE" 2>/dev/null; then
-    echo "Error: Could not find '$FILE_PATH' at the merge base ($MERGE_BASE)."
+if ! git show "${BASE_REF}:${FILE_PATH}" > "$TEMP_BASE" 2>/dev/null; then
+    echo "Error: Could not find '$FILE_PATH' at $BASE_REF."
+    echo "Try: git fetch origin $BASE_BRANCH"
     exit 1
 fi
 
 echo "Comparing: $FILE_PATH (Current)"
-echo "Against:   $BASE_BRANCH (Merge Base commit: ${MERGE_BASE:0:7})"
+echo "Against:   $BASE_REF"
 echo "Mode:      $MODE"
 echo "--------------------------------------------------------"
 
-oasdiff "$MODE" "$TEMP_BASE" "$FILE_PATH" --format markdown
+"${OASDIFF_CMD[@]}" "$MODE" "$TEMP_BASE" "$FILE_PATH" --format markdown

@@ -120,12 +120,14 @@ export interface IInteraction {
 
 export interface IGrant {
   id: string;
-  startMethods: IStartMethod[];
+  createdAt: Date;
+  startMethods?: IStartMethod[];
   continueToken?: string;
   continueId?: string;
   lastContinuedAt?: Date;
   state: GrantState;
   client?: string | IJsonWebKey;
+  clientName?: string;
   subjectIds?: ISubjectId[];
   accesses?: IAccessItem[];
   finishNonce?: string;
@@ -174,6 +176,7 @@ export interface IAccessRequest {
 }
 
 export interface IWalletAddressService {
+  getWalletAddressPublicName(url: string): Promise<string | undefined>;
   getWalletAddressKeys(url: string): Promise<IJsonWebKey[]>;
 }
 

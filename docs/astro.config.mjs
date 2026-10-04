@@ -51,6 +51,9 @@ export default defineConfig({
         root: {
           label: 'English',
           lang: 'en'
+        },
+        es: {
+          label: 'Español'
         }
       },
       head: [
@@ -92,10 +95,12 @@ export default defineConfig({
           items: [
             {
               label: 'Introducing Rhyza',
+              translations: { es: 'Sobre Rhyza' },
               link: '/overview/overview'
             },
             {
               label: 'Concepts',
+              translations: { es: 'Conceptos' },
               collapsed: true,
               items: [
                 {
@@ -104,22 +109,27 @@ export default defineConfig({
                 },
                 {
                   label: 'Accounting',
+                  translations: { es: 'Transacciones en Rhyza' },
                   link: '/overview/concepts/accounting'
                 },
                 {
                   label: 'Clearing and settlement',
+                  translations: { es: 'Compensación y liquidación' },
                   link: '/overview/concepts/clearing-settlement'
                 },
                 {
                   label: 'Interledger',
+                  translations: { es: 'Interledger' },
                   link: '/overview/concepts/interledger'
                 },
                 {
                   label: 'Open Payments',
+                  translations: { es: 'Open Payments' },
                   link: '/overview/concepts/open-payments'
                 },
                 {
                   label: 'Wallet addresses',
+                  translations: { es: 'Wallet addresses' },
                   link: '/overview/concepts/wallet-addresses'
                 }
               ]
@@ -140,11 +150,15 @@ export default defineConfig({
               items: [
                 {
                   label: 'Integration checklist',
-                  link: '/integration/requirements/overview'
+                  link: '/integration/requirements/checklist'
                 },
                 {
                   label: 'Assets',
                   link: '/integration/requirements/assets'
+                },
+                {
+                  label: 'Exchange rates',
+                  link: '/integration/requirements/exchange-rates'
                 },
                 {
                   label: 'Peers',
@@ -157,10 +171,6 @@ export default defineConfig({
                 {
                   label: 'Webhook events',
                   link: '/integration/requirements/webhook-events'
-                },
-                {
-                  label: 'Exchange rates',
-                  link: '/integration/requirements/exchange-rates'
                 }
               ]
             },
@@ -177,7 +187,7 @@ export default defineConfig({
           ]
         },
         {
-          label: 'Admin APIs',
+          label: 'API Specifications',
           collapsed: true,
           items: [
             {
@@ -185,7 +195,7 @@ export default defineConfig({
               link: '/apis/api-overview'
             },
             {
-              label: 'Admin API specification',
+              label: 'Admin API',
               link: '/apis/scalar/admin-api',
               attrs: {
                 target: '_blank',
@@ -194,8 +204,17 @@ export default defineConfig({
               }
             },
             {
-              label: 'Webhooks API specification',
+              label: 'Webhooks API',
               link: '/apis/scalar/webhooks',
+              attrs: {
+                target: '_blank',
+                rel: 'noopener noreferrer',
+                'data-icon': 'external'
+              }
+            },
+            {
+              label: 'Identity Provider Service API',
+              link: '/apis/scalar/idp-service-api',
               attrs: {
                 target: '_blank',
                 rel: 'noopener noreferrer',

@@ -2,8 +2,10 @@ import { DomainEventTopics, DomainEvent } from 'common-types-lib';
 import {
   GrantState,
   IAccessItem,
+  IJsonWebKey,
   ISubjectId,
-  InteractionChoice
+  InteractionChoice,
+  InteractionState
 } from './interfaces';
 
 const BOUNDED_CONTEXT_NAME = 'auth';
@@ -202,6 +204,16 @@ export class GrantContinueFailedEvent extends AuthDomainEvent {
 
 export interface GrantRevokedPayload {
   id: string;
+  createdAt: Date;
+  status: GrantState;
+  access?: IAccessItem[];
+  client?: string | IJsonWebKey;
+  clientName?: string;
+  subjectIds?: ISubjectId[];
+  interaction?: {
+    state: InteractionState;
+    createdAt: Date;
+  };
 }
 
 export class GrantRevokedEvent extends AuthDomainEvent {
@@ -285,6 +297,8 @@ export class TokenRotationFailedEvent extends AuthDomainEvent {
 export interface GrantInteractionStartedPayload {
   id: string;
   nonce: string;
+  clientUri: string;
+  clientName: string;
 }
 
 export class GrantInteractionStartedEvent extends AuthDomainEvent {
@@ -349,6 +363,7 @@ export interface GrantInteractionFinishedPayload {
   interactNonce: string;
   clientNonce: string;
   interactRef: string;
+  clientFinishUri?: string;
 }
 
 export class GrantInteractionFinishedEvent extends AuthDomainEvent {

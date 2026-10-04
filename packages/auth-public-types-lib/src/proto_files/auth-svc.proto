@@ -185,6 +185,8 @@ message StartInteractionRequest {
 message StartInteractionResponse {
 	string id = 1;
 	string nonce = 2;
+	string client_uri = 3;
+	string client_name = 4;
 }
 
 message FinishInteractionRequest {
@@ -197,6 +199,7 @@ message FinishInteractionResponse {
 	string interact_nonce = 2;
 	string client_nonce = 3;
 	string interact_ref = 4;
+	string finish_uri = 5;
 }
 
 message HandleInteractionChoiceResponse {
