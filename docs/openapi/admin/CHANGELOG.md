@@ -1,3 +1,15 @@
+# API Changelog 0.0.4 vs. 0.0.5
+
+## API Changes
+
+### POST /liquidity/deposit
+- :warning: added the new required request property `amountScale`
+- :warning: removed the success response with the status `202`
+-  added the success response with the status `200`
+
+## Info
+-  a breaking change was detected but the major version did not increase, from `0.0.4` to `0.0.5`
+-
 # API Changelog 0.0.3 vs. 0.0.4
 
 ## API Changes
