@@ -242,6 +242,7 @@ export class PalGrpcServer {
       getWalletAddresses: this._handleUnary.bind(this),
       addWalletAddressKey: this._handleUnary.bind(this),
       getWalletAddressKeys: this._handleUnary.bind(this),
+      revokeWalletAddressKey: this._handleUnary.bind(this),
       resolveWalletAddressAlias: this._handleUnary.bind(this),
       createWalletAddressAlias: this._handleUnary.bind(this),
       createLedger: this._handleUnary.bind(this),
