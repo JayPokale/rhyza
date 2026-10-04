@@ -335,7 +335,115 @@ test('pal client - LiquidityManagement - Withdraw from ASE', async () => {
 test('pal client - LiquidityManagement - Withdraw excess liquidity from ASE should fail', async () => {
   try {
     const reqId = 'req4';
+    await client.ledgerWithdrawFromAse({
+      peerId: PEER_ONE_ID,
+      assetCode: ASSET_CODE,
+      amount: '1',
+      amountScale: ASSET_SCALE,
+      requestId: reqId
+    });
+    assert.fail();
+  } catch (e) {
+    assert.ok(e instanceof PalClientLedgerInsufficientFundsForWithdrawalError);
+  }
+});
+
+test('pal client - LiquidityManagement - Deposit to Peer', async () => {
+  const reqId = 'req2';
+  const resp = await client.ledgerDepositToPeer({
+    peerId: PEER_ONE_ID,
+    assetCode: ASSET_CODE,
+    amount: DEPOSIT_AMOUNT.toString(),
+    amountScale: ASSET_SCALE,
+    requestId: reqId
+  });
+
+  assert.ok(resp);
+  assert.equal(resp.requestId, reqId);
+  assert.equal(resp.peerId, PEER_ONE_ID);
+  assert.equal(resp.isError, false);
+  assert.equal(resp.externalId, undefined);
+  assert.equal(resp.errorMessage, undefined);
+});
+
+test('pal client - LiquidityManagement - Withdraw from Peer', async () => {
+  const reqId = 'req4';
+  const resp = await client.ledgerWithdrawFromPeer({
+    peerId: PEER_ONE_ID,
+    assetCode: ASSET_CODE,
+    amount: DEPOSIT_AMOUNT.toString(),
+    amountScale: ASSET_SCALE,
+    requestId: reqId
+  });
+
+  assert.ok(resp);
+  assert.equal(resp.requestId, reqId);
+  assert.equal(resp.peerId, PEER_ONE_ID);
+  assert.equal(resp.isError, false);
+  assert.equal(resp.externalId, undefined);
+  assert.equal(resp.errorMessage, undefined);
+});
+
+test('pal client - LiquidityManagement - Withdraw excess liquidity from Peer should fail', async () => {
+  try {
+    const reqId = 'req4';
     await client.ledgerWithdrawFromPeer({
+      peerId: PEER_ONE_ID,
+      assetCode: ASSET_CODE,
+      amount: '1',
+      amountScale: ASSET_SCALE,
+      requestId: reqId
+    });
+    assert.fail();
+  } catch (e) {
+    assert.ok(e instanceof PalClientLedgerInsufficientFundsForWithdrawalError);
+  }
+});
+
+/*
+ * Liquidity Management Tests
+ * */
+
+test('pal client - LiquidityManagement - Deposit to ASE', async () => {
+  const reqId = 'req1';
+  const resp = await client.ledgerDepositToAse({
+    peerId: PEER_ONE_ID,
+    assetCode: ASSET_CODE,
+    amount: DEPOSIT_AMOUNT.toString(),
+    amountScale: ASSET_SCALE,
+    requestId: reqId
+  });
+
+  assert.ok(resp);
+  assert.equal(resp.requestId, reqId);
+  assert.equal(resp.peerId, PEER_ONE_ID);
+  assert.equal(resp.isError, false);
+  assert.equal(resp.externalId, undefined);
+  assert.equal(resp.errorMessage, undefined);
+});
+
+test('pal client - LiquidityManagement - Withdraw from ASE', async () => {
+  const reqId = 'req3';
+  const resp = await client.ledgerWithdrawFromAse({
+    peerId: PEER_ONE_ID,
+    assetCode: ASSET_CODE,
+    amount: DEPOSIT_AMOUNT.toString(),
+    amountScale: ASSET_SCALE,
+    requestId: reqId
+  });
+
+  assert.ok(resp);
+  assert.equal(resp.requestId, reqId);
+  assert.equal(resp.peerId, PEER_ONE_ID);
+  assert.equal(resp.isError, false);
+  assert.equal(resp.externalId, undefined);
+  assert.equal(resp.errorMessage, undefined);
+});
+
+test('pal client - LiquidityManagement - Withdraw excess liquidity from ASE should fail', async () => {
+  try {
+    const reqId = 'req4';
+    await client.ledgerWithdrawFromAse({
       peerId: PEER_ONE_ID,
       assetCode: ASSET_CODE,
       amount: '1',

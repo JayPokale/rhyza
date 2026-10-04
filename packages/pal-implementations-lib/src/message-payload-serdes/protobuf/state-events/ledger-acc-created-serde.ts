@@ -27,6 +27,7 @@ export class LedgerAccountsCreatedStateEventSerde extends ProtoBufBaseStateEvent
       pbAccount.setAssetDisplayScale(acc.assetDisplayScale);
       pbAccount.setDebitedAmount(acc.debitedAmount);
       pbAccount.setCreditedAmount(acc.creditedAmount);
+      if (acc.peerId) pbAccount.setPeerId(acc.peerId);
       pbAccountsList.push(pbAccount);
     });
     pbPayload.setAccountsList(pbAccountsList);

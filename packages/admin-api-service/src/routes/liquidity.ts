@@ -15,8 +15,6 @@ export async function liquidityRoutes(
 ): Promise<void> {
   const { palClient } = opts;
 
-  // TODO: carve out a better path for depositing liquidity than dragging in kafka,
-  // creating the command, and returning 202?
   server.post<{
     Body: LiquidityDepositRequest;
   }>('/liquidity/deposit', async (request, reply) => {
