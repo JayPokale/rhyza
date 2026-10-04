@@ -627,7 +627,6 @@ test('pal client - resolve wallet address alias with domain', async () => {
 });
 
 test('pal client - resolve non existing wallet address alias with domain should fail', async () => {
-test('pal client - resolve non existing wallet address alias with domain should fail', async () => {
   const address = await client.resolveWalletAddressAlias(
     ALIAS_DOMAIN,
     'NON_EXISTING'
