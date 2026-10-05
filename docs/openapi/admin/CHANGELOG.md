@@ -2,6 +2,9 @@
 
 ## API Changes
 
+### POST /wallet-addresses/{id}/deactivate
+-  endpoint added
+
 ### POST /liquidity/deposit
 - :warning: added the new required request property `amountScale`
 - :warning: removed the success response with the status `202`

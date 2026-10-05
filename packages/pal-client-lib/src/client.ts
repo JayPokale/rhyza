@@ -13,6 +13,7 @@ import {
   PalClientPeerAlreadyExistsError,
   PalClientPeerNotFoundError,
   PalClientUnknownError,
+  PalClientWalletAddressAlreadyInactiveError,
   PalClientWalletAddressNotFoundError,
   PalClientWalletAddressKeyNotFoundError,
   PalClientWalletAddressKeyAlreadyRevokedError,
@@ -24,6 +25,7 @@ import {
   PbCreateWalletAddressAliasRequest,
   PbCreateWalletAddressRequest,
   PbCreateWalletAddressResponse,
+  PbDeactivateWalletAddressRequest,
   PbGetAssetRequest,
   PbGetAssetResponse,
   PbGetWalletAddressesRequest,
@@ -253,6 +255,34 @@ export class PalClient {
           });
 
           return resolve(respObj);
+        }
+      );
+    });
+  }
+
+  deactivateWalletAddress(walletAddressId: string): Promise<void> {
+    const request = new PbDeactivateWalletAddressRequest();
+    request.setWalletAddressId(walletAddressId);
+
+    return new Promise((resolve, reject) => {
+      this._grpcClient.deactivateWalletAddress(
+        request,
+        (error: ServiceError | null) => {
+          if (error) {
+            if (error.code === grpc.status.NOT_FOUND) {
+              return reject(
+                new PalClientWalletAddressNotFoundError(error.message)
+              );
+            }
+            if (error.code === grpc.status.FAILED_PRECONDITION) {
+              return reject(
+                new PalClientWalletAddressAlreadyInactiveError(error.message)
+              );
+            }
+            return reject(new PalClientUnknownError(error.message));
+          }
+
+          return resolve();
         }
       );
     });

@@ -2,7 +2,9 @@ import { ILogger, ITelemetryService } from 'common-types-lib';
 import {
   AssetAggregate,
   InvalidWalletAddressJwkError,
-  WalletAddressAggregate
+  WalletAddressAggregate,
+  WalletAddressAlreadyInactiveError,
+  WalletAddressNotFoundError
 } from 'pal-domain-lib';
 import { ServerUnaryCall } from '@grpc/grpc-js';
 import { Status } from '@grpc/grpc-js/build/src/constants';
@@ -14,6 +16,7 @@ import {
   PbAddWalletAddressKeyRequest,
   PbAddWalletAddressKeyResponse,
   PbCreateWalletAddressAliasRequest,
+  PbDeactivateWalletAddressRequest,
   PbCreateWalletAddressRequest,
   PbCreateWalletAddressResponse,
   PbGetWalletAddressKeysRequest,
@@ -175,6 +178,39 @@ export class WalletAddressGrpcHandler {
     );
 
     return { resp: new Empty() };
+  }
+
+  async handleDeactivateWalletAddressRequest(
+    call: ServerUnaryCall<PbDeactivateWalletAddressRequest, Empty>
+  ): Promise<UnaryResponse<Empty>> {
+    const walletAddressId = call.request.getWalletAddressId();
+
+    try {
+      await this._walletAddressAggregate.deactivate(walletAddressId);
+      return { resp: new Empty() };
+    } catch (e) {
+      if (e instanceof WalletAddressNotFoundError) {
+        const msg = `Wallet address with ID ${walletAddressId} not found`;
+        this._logger.warn(msg);
+        return {
+          error: {
+            code: Status.NOT_FOUND,
+            message: msg
+          }
+        };
+      } else if (e instanceof WalletAddressAlreadyInactiveError) {
+        const msg = `Wallet address with ID ${walletAddressId} is already inactive`;
+        this._logger.warn(msg);
+        return {
+          error: {
+            code: Status.FAILED_PRECONDITION,
+            message: msg
+          }
+        };
+      } else {
+        throw e;
+      }
+    }
   }
 
   async handleAddWalletAddressKeyRequest(

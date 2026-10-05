@@ -21,6 +21,7 @@ import {
   PeerNotFoundError,
   WalletAddressAggregate,
   WalletAddressAliasNotFoundError,
+  WalletAddressAlreadyInactiveError,
   WalletAddressKeyNotFoundError,
   WalletAddressNotFoundError
 } from 'pal-domain-lib';
@@ -343,6 +344,12 @@ export class PalGrpcServer {
       )
     );
     this._requestHandlerRegistry.register(
+      PalGrpcService.deactivateWalletAddress,
+      this._walletAddressGrpcHandler.handleDeactivateWalletAddressRequest.bind(
+        this._walletAddressGrpcHandler
+      )
+    );
+    this._requestHandlerRegistry.register(
       PalGrpcService.resolveWalletAddressAlias,
       this._walletAddressGrpcHandler.handleResolveWalletAddressAliasRequest.bind(
         this._walletAddressGrpcHandler
@@ -598,7 +605,10 @@ export class PalGrpcServer {
           code: grpc.status.ALREADY_EXISTS,
           message: err.message
         });
-      } else if (err instanceof WalletAddressKeyAlreadyRevokedError) {
+      } else if (
+        err instanceof WalletAddressKeyAlreadyRevokedError ||
+        err instanceof WalletAddressAlreadyInactiveError
+      ) {
         callback({
           code: grpc.status.FAILED_PRECONDITION,
           message: err.message

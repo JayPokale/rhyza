@@ -43,6 +43,10 @@ export interface CreateWalletAddressRequest {
     walletAddressCreate: WalletAddressCreate;
 }
 
+export interface DeactivateWalletAddressRequest {
+    id: string;
+}
+
 export interface CreateWalletAddressKeyRequest {
     id: string;
     jsonWebKey: JsonWebKey;
@@ -162,6 +166,52 @@ export class WalletAddressesApi extends runtime.BaseAPI {
     async createWalletAddressKey(id: string, jsonWebKey: JsonWebKey, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<WalletAddressKeyCreateResponse> {
         const response = await this.createWalletAddressKeyRaw({ id: id, jsonWebKey: jsonWebKey }, initOverrides);
         return await response.value();
+    }
+
+    /**
+     * Creates request options for deactivateWalletAddress without sending the request
+     */
+    async deactivateWalletAddressRequestOpts(requestParameters: DeactivateWalletAddressRequest): Promise<runtime.RequestOpts> {
+        if (requestParameters['id'] == null) {
+            throw new runtime.RequiredError(
+                'id',
+                'Required parameter "id" was null or undefined when calling deactivateWalletAddress().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+
+        let urlPath = `/wallet-addresses/{id}/deactivate`;
+        urlPath = urlPath.replace('{id}', encodeURIComponent(String(requestParameters['id'])));
+
+        return {
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+        };
+    }
+
+    /**
+     * Deactivate a wallet address. While inactive, the Open Payments wallet address document is not found, and no resources can be created against it. Deactivating a wallet address that is already inactive returns 409.
+     * Deactivate Wallet Address
+     */
+    async deactivateWalletAddressRaw(requestParameters: DeactivateWalletAddressRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<void>> {
+        const requestOptions = await this.deactivateWalletAddressRequestOpts(requestParameters);
+        const response = await this.request(requestOptions, initOverrides);
+
+        return new runtime.VoidApiResponse(response);
+    }
+
+    /**
+     * Deactivate a wallet address. While inactive, the Open Payments wallet address document is not found, and no resources can be created against it. Deactivating a wallet address that is already inactive returns 409.
+     * Deactivate Wallet Address
+     */
+    async deactivateWalletAddress(id: string, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<void> {
+        await this.deactivateWalletAddressRaw({ id: id }, initOverrides);
     }
 
     /**
