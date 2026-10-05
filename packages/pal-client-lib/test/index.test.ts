@@ -23,6 +23,7 @@ const FIXED_ASSET_CODE = 'EUR';
 const ASSET_CODE = `${testPrefix}_${FIXED_ASSET_CODE}`;
 const ASSET_SCALE = 2;
 const DEPOSIT_AMOUNT = 5000n;
+const MIN_AMOUNT = (1 * 10 ** ASSET_SCALE).toString();
 
 const PEER_ONE_ID = `${testPrefix}_peer1`;
 const PEER_ONE_NAME = `${testPrefix} Peer One`;
@@ -338,7 +339,7 @@ test('pal client - LiquidityManagement - Withdraw excess liquidity from ASE shou
     await client.ledgerWithdrawFromAse({
       peerId: PEER_ONE_ID,
       assetCode: ASSET_CODE,
-      amount: '1',
+      amount: MIN_AMOUNT,
       amountScale: ASSET_SCALE,
       requestId: reqId
     });
@@ -390,7 +391,7 @@ test('pal client - LiquidityManagement - Withdraw excess liquidity from Peer sho
     await client.ledgerWithdrawFromPeer({
       peerId: PEER_ONE_ID,
       assetCode: ASSET_CODE,
-      amount: '1',
+      amount: MIN_AMOUNT,
       amountScale: ASSET_SCALE,
       requestId: reqId
     });
@@ -446,7 +447,7 @@ test('pal client - LiquidityManagement - Withdraw excess liquidity from ASE shou
     await client.ledgerWithdrawFromAse({
       peerId: PEER_ONE_ID,
       assetCode: ASSET_CODE,
-      amount: '1',
+      amount: MIN_AMOUNT,
       amountScale: ASSET_SCALE,
       requestId: reqId
     });
@@ -498,7 +499,7 @@ test('pal client - LiquidityManagement - Withdraw excess liquidity from Peer sho
     await client.ledgerWithdrawFromPeer({
       peerId: PEER_ONE_ID,
       assetCode: ASSET_CODE,
-      amount: '1',
+      amount: MIN_AMOUNT,
       amountScale: ASSET_SCALE,
       requestId: reqId
     });
