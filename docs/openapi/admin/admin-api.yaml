@@ -1,13 +1,13 @@
 openapi: 3.1.0
 info:
-  title: Rafiki Admin API
-  version: 0.0.5
+  title: Rhyza Admin API
+  version: 0.0.6
   license:
     name: ISC
     identifier: ISC
 servers:
   - url: /
-    description: Base URL is determined by the Rafiki deployment.
+    description: Base URL is determined by the Rhyza deployment.
 security: []
 tags:
   - name: assets
@@ -606,8 +606,7 @@ paths:
       description: >-
         Deposit liquidity so the node can send payments. Debits the asset system
         account and credits the peer's ASE liquidity account by producing a
-        ledger PostTransaction command. Fire-and-forget: returns 202 before the
-        ledger posts the transaction (see the sync TODO in the route).
+        ledger DepositToAse command. This is request-response style, returns 200 when complete.
       tags:
         - liquidity
       operationId: Liquidity_deposit
@@ -623,6 +622,7 @@ paths:
                 - assetCode
                 - peerId
                 - amount
+                - amountScale
               properties:
                 assetCode:
                   type: string
@@ -637,8 +637,11 @@ paths:
                     Amount in raw ledger units at the asset scale
                     (100000 = 1000.00 at scale 2).
                   example: 100000
+                amountScale:
+                  type: number
+                  description: The number of decimal places for the amount asset (e.g., 2 for "USD").
       responses:
-        '202':
+        '200':
           description: >-
             Deposit accepted and produced to the ledger (not yet confirmed).
           content:
@@ -709,10 +712,10 @@ components:
       properties:
         code:
           type: string
-          description: The asset code (e.g., "USD", "EUR", "BTC").
+          description: The asset code (e.g., "USD", "EUR", "BTC"). Must be unique per asset. An ISO4217 currency code should be used whenever possible.
         scale:
           type: number
-          description: The number of decimal places for the asset (e.g., 2 for "USD").
+          description: The number of decimal places to display for the asset. For example, a USD amount of 1000 with a scale of 2 will display as $10.00. The internal Rhyza ledger operates at a fixed high precision scale of 20.
     AssetCreateResponse:
       type: object
       description: Response schema after creating an asset.

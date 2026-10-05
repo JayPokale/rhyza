@@ -12,7 +12,7 @@ export * from './Grant';
 export * from './GrantState';
 export * from './Interaction';
 export * from './JsonWebKey';
-export * from './LiquidityDeposit202Response';
+export * from './LiquidityDeposit200Response';
 export * from './LiquidityDepositRequest';
 export * from './PageInfo';
 export * from './Payment';

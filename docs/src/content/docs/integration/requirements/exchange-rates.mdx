@@ -49,14 +49,10 @@ GET https://cloud-nine-wallet/rates?base=USD
 GET https://cloud-nine-wallet/rates?base=USD&peerId=480ef339-7842-4501-a905-923fc1339cef
 ```
 
-<div class="overflow-table">
-
 | Query parameter | Type   | Description                                                                                   | Required |
 | --------------- | ------ | --------------------------------------------------------------------------------------------- | -------- |
 | `base`          | String | The base asset code to get rates for.                                                         | Y        |
 | `peerId`        | String | The unique identifier of the peer to get a peer-scoped rate for. Omitted for Intra-FSP rates. | N        |
-
-</div>
 
 ### Pull response specification
 
@@ -72,15 +68,11 @@ The endpoint must return a JSON response containing the base asset and a mapping
 }
 ```
 
-<div class="overflow-table">
-
 | Field                | Type   | Description                                                                                                                                | Required |
 | -------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------ | -------- |
 | `base`               | String | The asset code represented as an <LinkOut href="https://en.wikipedia.org/wiki/ISO_4217">ISO 4217</LinkOut> currency code, for example USD. | Y        |
 | `rates`              | Object | Object containing `<asset_code : exchange_rate>` pairs.                                                                                    | Y        |
 | `rates.<asset_code>` | Number | The exchange rate relative to the `base` asset.                                                                                            | Y        |
-
-</div>
 
 ## Push model
 
@@ -115,8 +107,6 @@ POST https://rhyza.example.com/rates
 }
 ```
 
-<div class="overflow-table">
-
 | Field                  | Type   | Description                                                                                     | Required |
 | ---------------------- | ------ | ----------------------------------------------------------------------------------------------- | -------- |
 | `peerId`               | String | The unique identifier of the peer this rate applies to. Omit to set the Intra-FSP rate instead. | N        |
@@ -124,8 +114,6 @@ POST https://rhyza.example.com/rates
 | `destinationAssetCode` | String | The destination currency code (e.g., "EUR").                                                    | Y        |
 | `rate`                 | Number | The exchange rate from the source asset to the destination asset.                               | Y        |
 | `rateTtlSecs`          | Number | The time-to-live for this rate in seconds. If omitted, a default (3600) is used.                | N        |
-
-</div>
 
 ## Rate caching
 
@@ -146,12 +134,8 @@ Pulled and pushed rates expire differently:
 
 The following variables are used by the `pal-api-service` to manage exchange rates.
 
-<div class="overflow-table">
-
 | Variable                       | Type   | Description                                                                    | Default |
 | ------------------------------ | ------ | ------------------------------------------------------------------------------ | ------- |
 | `EXCHANGE_RATES_URL`           | URL    | The external endpoint used for the Pull model.                                 | -       |
 | `EXCHANGE_RATES_LIFETIME_SECS` | Number | The duration (in seconds) Rhyza caches pulled exchange rates.                  | `3600`  |
 | `EXCHANGE_RATES_TIMEOUT_SECS`  | Number | The timeout (in seconds) Rhyza waits when pulling exchange rates from the FSP. | `10`    |
-
-</div>
