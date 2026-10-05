@@ -29,6 +29,16 @@ import {
   HealthCheckRequest,
   HealthCheckResponse,
   HealthService,
+  LedgerDepositToAseFailedEvent,
+  LedgerDepositToAseSucceededEvent,
+  LedgerDepositToPeerFailedEvent,
+  LedgerDepositToPeerSucceededEvent,
+  LedgerWithdrawFromAseFailedEvent,
+  LedgerWithdrawFromAseFailedWithInsufficientFundsEvent,
+  LedgerWithdrawFromAseSucceededEvent,
+  LedgerWithdrawFromPeerFailedEvent,
+  LedgerWithdrawFromPeerFailedWithInsufficientFundsEvent,
+  LedgerWithdrawFromPeerSucceededEvent,
   PalGrpcService,
   PeerCreationCompletedEvent
 } from 'pal-public-types-lib';
@@ -128,7 +138,7 @@ export class PalGrpcServer {
     this._msgProducer = producer;
     this._msgConsumer = consumer;
     this._ledgerReadSideRepo = ledgerReadSideRepo;
-    this._logger = logger;
+    this._logger = logger.child(this.constructor.name);
     this._telemetryService = telemetryService;
     this._responseTimeoutMs = DEFAULT_RESPONSE_TIMEOUT_MS;
 
@@ -176,6 +186,8 @@ export class PalGrpcServer {
 
     this._ledgerGrpcHandler = new LedgerGrpcHandler(
       this._ledgerReadSideRepo,
+      this._responseRegistry,
+      this._msgProducer,
       this._logger,
       this._telemetryService
     );
@@ -230,6 +242,7 @@ export class PalGrpcServer {
       getWalletAddresses: this._handleUnary.bind(this),
       addWalletAddressKey: this._handleUnary.bind(this),
       getWalletAddressKeys: this._handleUnary.bind(this),
+      revokeWalletAddressKey: this._handleUnary.bind(this),
       resolveWalletAddressAlias: this._handleUnary.bind(this),
       createWalletAddressAlias: this._handleUnary.bind(this),
       createLedger: this._handleUnary.bind(this),
@@ -242,7 +255,8 @@ export class PalGrpcServer {
       activatePeer: this._handleUnary.bind(this),
       deactivatePeer: this._handleUnary.bind(this),
       getFxRate: this._handleUnary.bind(this),
-      setFxRate: this._handleUnary.bind(this)
+      setFxRate: this._handleUnary.bind(this),
+      executeLedgerLiquidityManagementRequest: this._handleUnary.bind(this)
     });
 
     this._requestsHistogram = this._telemetryService.getHistogram(
@@ -409,6 +423,14 @@ export class PalGrpcServer {
         this._ledgerGrpcHandler
       )
     );
+    // liquidity management requests
+    this._requestHandlerRegistry.register(
+      PalGrpcService.executeLedgerLiquidityManagementRequest,
+      this._ledgerGrpcHandler.handleLiquidityRequest.bind(
+        this._ledgerGrpcHandler
+      ),
+      true
+    );
   }
 
   private _registerEventHandlers() {
@@ -423,6 +445,24 @@ export class PalGrpcServer {
       [PeerCreationCompletedEvent.name],
       this._peerGrpcHandler.handlePeerCreationCompletedEvent.bind(
         this._peerGrpcHandler
+      )
+    );
+
+    this._eventHandlerRegistry.register(
+      [
+        LedgerDepositToPeerSucceededEvent.name,
+        LedgerDepositToAseSucceededEvent.name,
+        LedgerWithdrawFromPeerSucceededEvent.name,
+        LedgerWithdrawFromAseSucceededEvent.name,
+        LedgerDepositToPeerFailedEvent.name,
+        LedgerDepositToAseFailedEvent.name,
+        LedgerWithdrawFromPeerFailedEvent.name,
+        LedgerWithdrawFromAseFailedEvent.name,
+        LedgerWithdrawFromPeerFailedWithInsufficientFundsEvent.name,
+        LedgerWithdrawFromAseFailedWithInsufficientFundsEvent.name
+      ],
+      this._ledgerGrpcHandler.handleLiquidityRequestEvents.bind(
+        this._ledgerGrpcHandler
       )
     );
 

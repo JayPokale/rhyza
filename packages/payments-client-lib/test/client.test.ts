@@ -84,7 +84,7 @@ describe('Payments Client', () => {
       // already exists — fine for reruns
     }
 
-    const receiverAlias = await palClient.ResolveWalletAddressAlias(
+    const receiverAlias = await palClient.resolveWalletAddressAlias(
       receiverDomain,
       receiverPathName
     );
@@ -93,7 +93,7 @@ describe('Payments Client', () => {
 
     receiverWalletAddressId = receiverAlias.walletAddressId;
 
-    const senderAlias = await palClient.ResolveWalletAddressAlias(
+    const senderAlias = await palClient.resolveWalletAddressAlias(
       senderDomain,
       senderPathName
     );
@@ -660,7 +660,7 @@ describe('Payments Client', () => {
         'Page Receiver',
         ASSET_CODE
       );
-      const alias = await palClient.ResolveWalletAddressAlias(domain, pathName);
+      const alias = await palClient.resolveWalletAddressAlias(domain, pathName);
       assert.ok(alias, 'page receiver wallet address alias must resolve');
       pageReceiverWalletAddressId = alias.walletAddressId;
 
@@ -803,7 +803,7 @@ describe('Payments Client', () => {
         'Page Sender',
         ASSET_CODE
       );
-      const alias = await palClient.ResolveWalletAddressAlias(domain, pathName);
+      const alias = await palClient.resolveWalletAddressAlias(domain, pathName);
       assert.ok(alias, 'page sender wallet address alias must resolve');
       pageSenderWalletAddressId = alias.walletAddressId;
 

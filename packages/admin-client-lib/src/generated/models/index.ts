@@ -7,7 +7,7 @@ export * from './AssetCreateResponse';
 export * from './CancelPayment200Response';
 export * from './ErrorResponse';
 export * from './JsonWebKey';
-export * from './LiquidityDeposit202Response';
+export * from './LiquidityDeposit200Response';
 export * from './LiquidityDepositRequest';
 export * from './PageInfo';
 export * from './Payment';

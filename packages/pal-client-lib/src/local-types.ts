@@ -36,6 +36,24 @@ export type IGetIntraAseFxRate = {
   destinationAssetCode: string;
 };
 
+export type IPalClientLiquidityRequest = {
+  requestId: string;
+  peerId: string;
+  assetCode: string;
+  amount: string;
+  amountScale: number;
+  externalId?: string;
+};
+
+export type IPalClientLiquidityResponse = {
+  peerId: string;
+  requestId: string;
+  externalId?: string;
+
+  isError: boolean;
+  errorMessage?: string;
+};
+
 /**
  * Local error types
  */
@@ -47,6 +65,8 @@ export class PalClientLedgerNotFoundError extends Error {}
 export class PalClientLedgerAlreadyExistsError extends Error {}
 export class PalClientLedgerAccountAlreadyExistsError extends Error {}
 export class PalClientLedgerAccountCreationFailedError extends Error {}
+
+export class PalClientLedgerInsufficientFundsForWithdrawalError extends Error {}
 
 // peer errors
 export class PalClientPeerAlreadyExistsError extends Error {}
