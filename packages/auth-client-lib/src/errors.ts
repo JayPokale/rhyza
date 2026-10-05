@@ -4,7 +4,7 @@ import { IClientErrorResponse } from './types';
 export function createServiceError(
   code: status,
   message: string,
-  name = 'ServiceError'
+  name = 'AuthServiceError'
 ): ServiceError {
   return {
     code,
