@@ -21,6 +21,7 @@ import {
   PeerNotFoundError,
   WalletAddressAggregate,
   WalletAddressAliasNotFoundError,
+  WalletAddressAlreadyActiveError,
   WalletAddressAlreadyInactiveError,
   WalletAddressKeyNotFoundError,
   WalletAddressNotFoundError
@@ -344,6 +345,12 @@ export class PalGrpcServer {
       )
     );
     this._requestHandlerRegistry.register(
+      PalGrpcService.activateWalletAddress,
+      this._walletAddressGrpcHandler.handleActivateWalletAddressRequest.bind(
+        this._walletAddressGrpcHandler
+      )
+    );
+    this._requestHandlerRegistry.register(
       PalGrpcService.deactivateWalletAddress,
       this._walletAddressGrpcHandler.handleDeactivateWalletAddressRequest.bind(
         this._walletAddressGrpcHandler
@@ -607,6 +614,7 @@ export class PalGrpcServer {
         });
       } else if (
         err instanceof WalletAddressKeyAlreadyRevokedError ||
+        err instanceof WalletAddressAlreadyActiveError ||
         err instanceof WalletAddressAlreadyInactiveError
       ) {
         callback({

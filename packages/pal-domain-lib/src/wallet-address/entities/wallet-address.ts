@@ -81,6 +81,10 @@ export class PalWalletAddress implements IPalWalletAddressDto {
     return this._isActive;
   }
 
+  activate(): void {
+    this._isActive = true;
+  }
+
   deactivate(): void {
     this._isActive = false;
   }

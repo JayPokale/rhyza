@@ -43,6 +43,10 @@ export interface CreateWalletAddressRequest {
     walletAddressCreate: WalletAddressCreate;
 }
 
+export interface ActivateWalletAddressRequest {
+    id: string;
+}
+
 export interface CreateWalletAddressKeyRequest {
     id: string;
     jsonWebKey: JsonWebKey;
@@ -166,6 +170,52 @@ export class WalletAddressesApi extends runtime.BaseAPI {
     async createWalletAddressKey(id: string, jsonWebKey: JsonWebKey, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<WalletAddressKeyCreateResponse> {
         const response = await this.createWalletAddressKeyRaw({ id: id, jsonWebKey: jsonWebKey }, initOverrides);
         return await response.value();
+    }
+
+    /**
+     * Creates request options for activateWalletAddress without sending the request
+     */
+    async activateWalletAddressRequestOpts(requestParameters: ActivateWalletAddressRequest): Promise<runtime.RequestOpts> {
+        if (requestParameters['id'] == null) {
+            throw new runtime.RequiredError(
+                'id',
+                'Required parameter "id" was null or undefined when calling activateWalletAddress().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+
+        let urlPath = `/wallet-addresses/{id}/activate`;
+        urlPath = urlPath.replace('{id}', encodeURIComponent(String(requestParameters['id'])));
+
+        return {
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+        };
+    }
+
+    /**
+     * Activate a wallet address that was previously deactivated. Once active, the Open Payments wallet address document is served again. Activating a wallet address that is already active returns 409.
+     * Activate Wallet Address
+     */
+    async activateWalletAddressRaw(requestParameters: ActivateWalletAddressRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<void>> {
+        const requestOptions = await this.activateWalletAddressRequestOpts(requestParameters);
+        const response = await this.request(requestOptions, initOverrides);
+
+        return new runtime.VoidApiResponse(response);
+    }
+
+    /**
+     * Activate a wallet address that was previously deactivated. Once active, the Open Payments wallet address document is served again. Activating a wallet address that is already active returns 409.
+     * Activate Wallet Address
+     */
+    async activateWalletAddress(id: string, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<void> {
+        await this.activateWalletAddressRaw({ id: id }, initOverrides);
     }
 
     /**

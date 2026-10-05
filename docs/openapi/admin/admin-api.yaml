@@ -121,6 +121,38 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/WalletAddressCreate'
+  /wallet-addresses/{id}/activate:
+    post:
+      summary: Activate Wallet Address
+      description: >-
+        Activate a wallet address that was previously deactivated. Once
+        active, the Open Payments wallet address document is served again.
+        Activating a wallet address that is already active returns 409.
+      tags:
+        - wallet-addresses
+      operationId: activateWalletAddress
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The internal Rhyza id of the wallet address.
+          schema:
+            type: string
+      responses:
+        '204':
+          description: The wallet address is activated.
+        '404':
+          description: Wallet address not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: The wallet address is already active.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /wallet-addresses/{id}/deactivate:
     post:
       summary: Deactivate Wallet Address

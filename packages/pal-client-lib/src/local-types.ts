@@ -75,6 +75,7 @@ export class PalClientPeerNotFoundError extends Error {}
 // wallet address key errors
 export class PalClientWalletAddressNotFoundError extends Error {}
 export class PalClientWalletAddressAlreadyInactiveError extends Error {}
+export class PalClientWalletAddressAlreadyActiveError extends Error {}
 export class PalClientWalletAddressKeyNotFoundError extends Error {}
 export class PalClientWalletAddressKeyAlreadyRevokedError extends Error {}
 export class PalClientDuplicateWalletAddressKeyError extends Error {}

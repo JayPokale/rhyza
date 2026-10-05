@@ -2,6 +2,7 @@ import {
   CannotCreateDuplicateWalletAddressAliasError,
   CannotCreateDuplicateWalletAddressError,
   WalletAddressAliasNotFoundError,
+  WalletAddressAlreadyActiveError,
   WalletAddressAlreadyInactiveError,
   WalletAddressKeyNotFoundError,
   WalletAddressNotFoundError
@@ -84,6 +85,26 @@ export class WalletAddressAggregate {
     );
 
     return newWallet.id;
+  }
+
+  async activate(walletAddressId: string): Promise<void> {
+    const [walletDto] = await this._repo.fetch([walletAddressId]);
+    if (!walletDto) {
+      throw new WalletAddressNotFoundError(
+        `Wallet Address with id ${walletAddressId} does not exist`
+      );
+    }
+
+    const wallet = PalWalletAddress.fromDto(walletDto);
+    if (wallet.isActive) {
+      throw new WalletAddressAlreadyActiveError(
+        `Wallet Address with id ${walletAddressId} is already active`
+      );
+    }
+
+    wallet.activate();
+    this._logger.info(`Wallet address ${walletAddressId} activated`);
+    await this._repo.store(wallet.toDto());
   }
 
   async deactivate(walletAddressId: string): Promise<void> {
