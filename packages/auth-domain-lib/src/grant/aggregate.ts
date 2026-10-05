@@ -65,7 +65,7 @@ export interface IGrantService {
 export class GrantAggregate {
   private newGrantIds: string[] = [];
   private grantIdsWithRotatedTokens = new Map<string, IRotatedGrantUpdate>();
-  private cmdsToResolve: {
+  private clientKeysToResolve: {
     grantId: string;
     requestId: string;
     kid: string;
@@ -140,7 +140,7 @@ export class GrantAggregate {
               | RevokeTokenCmd
           ).payload.id
         );
-        this.cmdsToResolve.push({
+        this.clientKeysToResolve.push({
           grantId: cmd.payload.id,
           requestId: (
             cmd as
@@ -186,7 +186,7 @@ export class GrantAggregate {
       this.grantMap.set(grant.id, GrantEntity.fromObject(grant));
     }
 
-    for (const { grantId, requestId, kid } of this.cmdsToResolve) {
+    for (const { grantId, requestId, kid } of this.clientKeysToResolve) {
       const grant = this.grantMap.get(grantId);
       if (!grant) continue; // Grant not found error thrown in command handler.
 
@@ -973,7 +973,7 @@ export class GrantAggregate {
       this.newGrantInteractions.clear();
       this.updatedGrantInteractions.clear();
       this.finishedInteractiveGrantIds.clear();
-      this.cmdsToResolve = [];
+      this.clientKeysToResolve = [];
       this.requestIdToClientKeyMap.clear();
       this.requestIdToClientNameMap.clear();
     }
