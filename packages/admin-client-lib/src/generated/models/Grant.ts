@@ -34,6 +34,13 @@ import {
     AccessItemToJSON,
     AccessItemToJSONTyped,
 } from './AccessItem';
+import type { Client } from './Client';
+import {
+    ClientFromJSON,
+    ClientFromJSONTyped,
+    ClientToJSON,
+    ClientToJSONTyped,
+} from './Client';
 import type { SubjectId } from './SubjectId';
 import {
     SubjectIdFromJSON,
@@ -68,10 +75,10 @@ export interface Grant {
     state: GrantState;
     /**
      * The client's wallet address, or a JWK if directed identity was used.
-     * @type {string}
+     * @type {Client}
      * @memberof Grant
      */
-    client?: string;
+    client?: Client;
     /**
      * The subject identifiers requested by the client.
      * @type {Array<SubjectId>}
@@ -116,7 +123,7 @@ export function GrantFromJSONTyped(json: any, ignoreDiscriminator: boolean): Gra
         'id': json['id'],
         'interactionNonce': json['interactionNonce'] == null ? undefined : json['interactionNonce'],
         'state': GrantStateFromJSON(json['state']),
-        'client': json['client'] == null ? undefined : json['client'],
+        'client': json['client'] == null ? undefined : ClientFromJSON(json['client']),
         'subjectIds': json['subjectIds'] == null ? undefined : ((json['subjectIds'] as Array<any>).map(SubjectIdFromJSON)),
         'accesses': json['accesses'] == null ? undefined : ((json['accesses'] as Array<any>).map(AccessItemFromJSON)),
         'interaction': json['interaction'] == null ? undefined : InteractionFromJSON(json['interaction']),
@@ -137,7 +144,7 @@ export function GrantToJSONTyped(value?: Grant | null, ignoreDiscriminator: bool
         'id': value['id'],
         'interactionNonce': value['interactionNonce'],
         'state': GrantStateToJSON(value['state']),
-        'client': value['client'],
+        'client': ClientToJSON(value['client']),
         'subjectIds': value['subjectIds'] == null ? undefined : ((value['subjectIds'] as Array<any>).map(SubjectIdToJSON)),
         'accesses': value['accesses'] == null ? undefined : ((value['accesses'] as Array<any>).map(AccessItemToJSON)),
         'interaction': InteractionToJSON(value['interaction']),

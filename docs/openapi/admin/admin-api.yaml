@@ -1210,7 +1210,7 @@ components:
           $ref: '#/components/schemas/GrantState'
           description: The current state of the grant.
         client:
-          type: string
+          $ref: '#/components/schemas/Client' 
           description: The client's wallet address, or a JWK if directed identity was used.
         subjectIds:
           type: array
@@ -1235,6 +1235,72 @@ components:
         - ISSUED
         - REJECTED
         - REVOKED
+    Client:
+      description: Client identification for grant requests.
+      oneOf:
+        - title: Wallet address object
+          type: object
+          required: [walletAddress]
+          properties:
+            walletAddress:
+              type: string
+              format: uri
+              description: Wallet address of the client instance that is making this request.
+          additionalProperties: false
+        - title: Directed identity (JWK)
+          type: object
+          required: [jwk]
+          properties:
+            jwk:
+              $ref: '#/components/schemas/json-web-key'
+          additionalProperties: false
+        - title: Wallet address string (deprecated)
+          type: string
+          format: uri
+          description: 'DEPRECATED: This string format of the client wallet address is maintained only for backwards compatibility. Migrate to the object form with `jwk` or `walletAddress`.'
+          deprecated: true
+    json-web-key:
+      type: object
+      properties:
+        kid:
+          type: string
+        alg:
+          type: string
+          description: 'The cryptographic algorithm family used with the key. The only allowed value is `EdDSA`. '
+          enum:
+            - EdDSA
+        use:
+          type: string
+          enum:
+            - sig
+        kty:
+          type: string
+          enum:
+            - OKP
+        crv:
+          description: 'The cryptographic curve used with the key. This parameter identifies the elliptic curve (for EC keys) or the Edwards curve (for OKP keys). The only allowed value is `Ed25519`.'
+          type: string
+          enum:
+            - Ed25519
+        x:
+          type: string
+          pattern: '^[a-zA-Z0-9-_]+$'
+          description: The base64 url-encoded public key.
+      required:
+        - kid
+        - alg
+        - kty
+        - crv
+        - x
+      title: Ed25519 Public Key
+      description: A JWK representation of an Ed25519 Public Key
+      examples:
+        - kid: key-1
+          alg: EdDSA
+          use: sig
+          kty: OKP
+          crv: Ed25519
+          x: 11qYAYKxCrfVS_7TyWQHOg7hcvPapiMlrwIaaPcHURo
     AccessItem:
       type: object
       description: A single access item requested by a grant.
