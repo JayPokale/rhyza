@@ -234,30 +234,33 @@ export class PalGrpcServer {
       watch: this._handleHealthWatchStream.bind(this)
     });
 
-    // all unary calls are handled by the same handler, which distributes requests
-    this._server.addService(PalGrpcService, {
-      createAsset: this._handleUnary.bind(this),
-      getAsset: this._handleUnary.bind(this),
-      createWalletAddress: this._handleUnary.bind(this),
-      getWalletAddresses: this._handleUnary.bind(this),
-      addWalletAddressKey: this._handleUnary.bind(this),
-      getWalletAddressKeys: this._handleUnary.bind(this),
-      revokeWalletAddressKey: this._handleUnary.bind(this),
-      resolveWalletAddressAlias: this._handleUnary.bind(this),
-      createWalletAddressAlias: this._handleUnary.bind(this),
-      createLedger: this._handleUnary.bind(this),
-      createLedgerAccount: this._handleUnary.bind(this),
-      getLedgerAccounts: this._handleUnary.bind(this),
-      createPeer: this._handleUnary.bind(this),
-      getPeer: this._handleUnary.bind(this),
-      getPeerByIlpAddress: this._handleUnary.bind(this),
-      setPeerCommunicationMethod: this._handleUnary.bind(this),
-      activatePeer: this._handleUnary.bind(this),
-      deactivatePeer: this._handleUnary.bind(this),
-      getFxRate: this._handleUnary.bind(this),
-      setFxRate: this._handleUnary.bind(this),
-      executeLedgerLiquidityManagementRequest: this._handleUnary.bind(this)
+    /*
+    NOTE: All unary calls are handled by the same
+    handler, which distributes requests
+    */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const serviceObject: any = {};
+    Object.keys(PalGrpcService).forEach((methodName) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const request: grpc.MethodDefinition<any, any> =
+        PalGrpcService[methodName];
+      if (!request.requestStream && !request.responseStream) {
+        // this is unary call
+        serviceObject[methodName] = this._handleUnary.bind(this);
+        this._logger.info(`Added unary call: ${methodName}`);
+      } else {
+        this._logger.warn(
+          `Skipped non-unary call: ${methodName}, must be registered manually.`
+        );
+      }
     });
+
+    /*
+    NOTE: ensure non-unary calls are registered manually to
+    serviceObject before adding the service.
+     */
+    this._server.addService(PalGrpcService, serviceObject);
+    this._logger.info(`PalGrpcService registered.`);
 
     this._requestsHistogram = this._telemetryService.getHistogram(
       REQUESTS_HISTOGRAM_NAME

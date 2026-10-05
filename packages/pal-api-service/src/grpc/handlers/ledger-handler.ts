@@ -44,7 +44,7 @@ export class LedgerGrpcHandler {
   private readonly _ledgerReadSideRepo: ILedgerReadSideRepository;
   private readonly _msgProducer: IMessageProducer;
   private readonly _responseRegistry: PendingResponseRegistry;
-  private readonly _perLeedgerInternalAssetScales: Map<string, number>;
+  private readonly _perLedgerInternalAssetScales: Map<string, number>;
   private readonly _telemetryService: ITelemetryService;
 
   constructor(
@@ -59,14 +59,14 @@ export class LedgerGrpcHandler {
     this._msgProducer = msgProducer;
     this._logger = logger.child(this.constructor.name);
     this._telemetryService = telemetryService;
-    this._perLeedgerInternalAssetScales = new Map<string, number>();
+    this._perLedgerInternalAssetScales = new Map<string, number>();
     this._logger.info('LedgerGrpcHandler created');
   }
 
   private async _getLedgerInternalAssetScale(
     ledgerId: string
   ): Promise<number> {
-    const scale = this._perLeedgerInternalAssetScales.get(ledgerId);
+    const scale = this._perLedgerInternalAssetScales.get(ledgerId);
     if (scale) {
       return scale;
     }
@@ -75,7 +75,7 @@ export class LedgerGrpcHandler {
     if (!ledger.length) {
       throw new Error(`Ledger with id ${ledgerId} not found`);
     }
-    this._perLeedgerInternalAssetScales.set(ledgerId, ledger[0].assetScale);
+    this._perLedgerInternalAssetScales.set(ledgerId, ledger[0].assetScale);
     return ledger[0].assetScale;
   }
 
