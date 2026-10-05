@@ -10,9 +10,11 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "auth-domain-lib": "workspace:*",
     "common-types-lib": "workspace:*",
     "implementations-lib": "workspace:*",
     "notifications-domain-lib": "workspace:*",
+    "notifications-implementations-lib": "workspace:*",
     "payments-public-types-lib": "workspace:*"
   },
   "devDependencies": {

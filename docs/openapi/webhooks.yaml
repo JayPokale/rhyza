@@ -2,12 +2,14 @@ openapi: 3.1.0
 info:
   title: Rhyza Webhooks API
   version: 0.0.0
+  description: >-
+    The main communication channel between an FSP and their Rhyza instance consists of the Admin API and webhook events. For Rhyza to notify an FSP about webhook events, the FSP must expose a webhook endpoint that listens for the dispatched events. The events provide time-sensitive status updates, warnings, and errors so that the FSP can react accordingly.
 webhooks:
   paymentIntentCreated:
     post:
       summary: Payment intent created
       description: >-
-        Sent when a payment intent is created. At this point, the payment
+        Sent when a payment intent is created for a recipient. At this point, the payment
         intent has not yet received any funds.
       requestBody:
         required: true
@@ -35,10 +37,10 @@ webhooks:
   paymentCreated:
     post:
       summary: Payment created
-      description: >-
-        Sent when a payment is created and is awaiting approval. The FSP
-        should do any necessary checks (like to verify the sender has sufficient funds) and approve or cancel
-        the payment via the Admin API.
+      description: |
+        Sent when a payment is created and awaiting approval. The FSP should verify the sender's account balance and perform any other necessary checks before approving the payment via the Admin API's Approve Payment endpoint.
+
+        If the sender has insufficient funds or if the payment should otherwise not be fulfilled, the FSP can cancel the payment via the Admin API's Cancel Payment endpoint.
       requestBody:
         required: true
         content:
@@ -51,7 +53,8 @@ webhooks:
   paymentCompleted:
     post:
       summary: Payment completed
-      description: Sent when a payment has completed successfully.
+      description: |
+        Sent when a payment has completed successfully or when as much as possible was sent to the recipient against the payment intent.
       requestBody:
         required: true
         content:
@@ -65,7 +68,7 @@ webhooks:
     post:
       summary: Payment failed
       description: >-
-        Sent when a payment failed to send. The FSP should release the sender's funds.
+        Sent when a payment failed to send and any retries were unsuccessful. The FSP should remove any holds on the sender's account.
       requestBody:
         required: true
         content:
@@ -75,6 +78,19 @@ webhooks:
       responses:
         '200':
           description: Payment failed
+  grantRevoked:
+    post:
+      summary: Grant revoked
+      description: Sent when a grant is revoked.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/grantEvent'
+      responses:
+        '200':
+          description: Grant revoked
 
 components:
   schemas:
@@ -88,13 +104,16 @@ components:
         id:
           type: string
           format: uuid
+          description: A unique ID that the FSP can use to determine whether the event was previously received, preventing duplicate event processing
         type:
           type: string
           enum:
             - payment_intent.created
+            - payment_intent.completed
             - payment.created
             - payment.completed
             - payment.failed
+            - grant.revoked
         data:
           type: object
 
@@ -170,11 +189,16 @@ components:
                   type: string
                   enum:
                     - CREATED
+                    - PROCESSING
+                    - SENDING
+                    - CONFIRMED
+                    - REJECTED
                     - COMPLETED
+                    - CANCELLED
                     - FAILED
                 paymentIntentId:
                   type: string
-                  format: uri
+                  format: uuid
                 debitAmount:
                   $ref: '#/components/schemas/amount'
                 sentAmount:
@@ -185,7 +209,7 @@ components:
                   type: string
                   format: date-time
     paymentEventError:
-        allOf:
+      allOf:
         - $ref: '#/components/schemas/webhookEvent'
         - type: object
           properties:
@@ -224,3 +248,171 @@ components:
           type: string
         assetScale:
           type: integer
+    baseAccessLimit:
+      type: object
+      required:
+        - receiver
+        - assetCode
+        - assetScale
+      properties:
+        receiver:
+          type: string
+          format: uri
+        assetCode:
+          type: string
+        assetScale:
+          type: integer
+        interval:
+          type: string
+    debitAmountAccessLimit:
+      allOf:
+        - $ref: '#/components/schemas/baseAccessLimit'
+        - type: object
+          required:
+            - debitAmount
+          properties:
+            debitAmount:
+              type: string
+              format: uint64
+            receiveAmount:
+              type: string
+              format: uint64
+    receiveAmountAccessLimit:
+      allOf:
+        - $ref: '#/components/schemas/baseAccessLimit'
+        - type: object
+          required:
+            - receiveAmount
+          properties:
+            debitAmount:
+              type: string
+              format: uint64
+            receiveAmount:
+              type: string
+              format: uint64
+    accessLimit:
+      anyOf:
+        - $ref: '#/components/schemas/debitAmountAccessLimit'
+        - $ref: '#/components/schemas/receiveAmountAccessLimit'
+    jsonWebKey:
+      type: object
+      required:
+        - kty
+        - kid
+        - alg
+        - crv
+        - x
+      properties:
+        kty:
+          type: string
+        kid:
+          type: string
+        use:
+          type: string
+        alg:
+          type: string
+        crv:
+          type: string
+        x:
+          type: string
+    grantState:
+      type: string
+      enum:
+        - PROCESSING
+        - PENDING
+        - APPROVED
+        - ISSUED
+        - REVOKED
+        - REJECTED
+    accessAction:
+      type: string
+      enum:
+        - CREATE
+        - COMPLETE
+        - READ
+        - READ_ALL
+        - LIST
+        - LIST_ALL
+    accessItem:
+      type: object
+      required:
+        - type
+        - actions
+      properties:
+        type:
+          type: string
+          enum:
+            - INCOMING_PAYMENT
+            - OUTGOING_PAYMENT
+            - QUOTE
+        limits:
+          $ref: '#/components/schemas/accessLimit'
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/accessAction'
+        identifier:
+          type: string
+          format: uri
+    grantEvent:
+      allOf:
+        - $ref: '#/components/schemas/webhookEvent'
+        - type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - grant.revoked
+            data:
+              type: object
+              required:
+                - id
+                - createdAt
+                - status
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                createdAt:
+                  type: string
+                  format: date-time
+                status:
+                  $ref: '#/components/schemas/grantState'
+                access:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/accessItem'
+                client:
+                  oneOf:
+                    - type: string
+                      format: uri
+                    - $ref: '#/components/schemas/jsonWebKey'
+                clientName:
+                  type: string
+                subjectIds:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - id
+                      - format
+                    properties:
+                      id: 
+                        type: string
+                      format:
+                        type: string
+                interaction:
+                  type: object
+                  required:
+                    - createdAt
+                    - state
+                  properties:
+                    createdAt:
+                      type: string
+                      format: date-time
+                    state:
+                      type: string
+                      enum:
+                        - PENDING
+                        - APPROVED
+                        - REJECTED

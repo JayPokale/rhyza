@@ -14,8 +14,8 @@ import {
   CreateLedgerAccountsForPeerCmd,
   CreateLedgerCmd,
   DepositToAseCmd,
-  DepositToPeerCmd,
   LEDGER_INTERNAL_ASSET_SCALE,
+  DepositToPeerCmd,
   IPalPeerAccounts,
   LedgerAccountsCreatedStateEvent,
   LedgerAccountsCreatedStatePayload,
@@ -54,6 +54,7 @@ import {
   LedgerOutgoingTransferRejectFailedEvent,
   LedgerCreatedEvent
 } from 'pal-public-types-lib';
+
 import {
   amountFromBigIntOfSize,
   convertAmountScale
@@ -175,7 +176,6 @@ test('PAL Ledger Domain LowLevel API - Create ledger account for asset', async (
 
   await aggregate.processCommands(cmd);
 
-  // check state events
   const stateEvents = await mockProducer.fetchStateEvents(EUR_LEDGER_ID);
   const lastStateEvent = stateEvents.at(-1) as LedgerAccountsCreatedStateEvent;
   assert.ok(lastStateEvent);

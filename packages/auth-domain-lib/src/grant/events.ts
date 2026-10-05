@@ -1,13 +1,27 @@
 import { DomainEventTopics, DomainEvent } from 'common-types-lib';
-import { GrantState, IAccessItem, ISubjectId } from './interfaces';
+import {
+  GrantState,
+  IAccessItem,
+  IJsonWebKey,
+  ISubjectId,
+  InteractionChoice,
+  InteractionState
+} from './interfaces';
 
 const BOUNDED_CONTEXT_NAME = 'auth';
 const AGGREGATE_NAME = 'grant';
+
+interface GrantDomainErrorPayload {
+  grantId: string;
+  errorName: string;
+  message: string;
+}
 
 export abstract class AuthDomainEvent extends DomainEvent {
   contextName: string = BOUNDED_CONTEXT_NAME;
   aggregateName: string = AGGREGATE_NAME;
   aggregateId: string;
+  msgKey: string;
   msgTopic: string = DomainEventTopics.AuthEvents;
   isErrorEvent: boolean = false;
 
@@ -83,6 +97,18 @@ export abstract class AuthDomainEvent extends DomainEvent {
     evt: DomainEvent
   ): evt is GrantInteractionStartFailedEvent {
     return evt.msgName === GrantInteractionStartFailedEvent.name;
+  }
+
+  static isGrantInteractionFinishedEvent(
+    evt: DomainEvent
+  ): evt is GrantInteractionFinishedEvent {
+    return evt.msgName === GrantInteractionFinishedEvent.name;
+  }
+
+  static isGrantInteractionFinishFailedEvent(
+    evt: DomainEvent
+  ): evt is GrantInteractionFinishFailedEvent {
+    return evt.msgName === GrantInteractionFinishFailedEvent.name;
   }
 
   static isGrantInteractionChoiceHandledEvent(
@@ -178,6 +204,16 @@ export class GrantContinueFailedEvent extends AuthDomainEvent {
 
 export interface GrantRevokedPayload {
   id: string;
+  createdAt: Date;
+  status: GrantState;
+  access?: IAccessItem[];
+  client?: string | IJsonWebKey;
+  clientName?: string;
+  subjectIds?: ISubjectId[];
+  interaction?: {
+    state: InteractionState;
+    createdAt: Date;
+  };
 }
 
 export class GrantRevokedEvent extends AuthDomainEvent {
@@ -261,6 +297,8 @@ export class TokenRotationFailedEvent extends AuthDomainEvent {
 export interface GrantInteractionStartedPayload {
   id: string;
   nonce: string;
+  clientUri: string;
+  clientName: string;
 }
 
 export class GrantInteractionStartedEvent extends AuthDomainEvent {
@@ -320,9 +358,42 @@ export class TokenRevokeFailedEvent extends AuthDomainEvent {
   }
 }
 
+export interface GrantInteractionFinishedPayload {
+  id: string;
+  interactNonce: string;
+  clientNonce: string;
+  interactRef: string;
+  clientFinishUri?: string;
+}
+
+export class GrantInteractionFinishedEvent extends AuthDomainEvent {
+  payload: GrantInteractionFinishedPayload;
+
+  constructor(payload: GrantInteractionFinishedPayload, requestId?: string) {
+    super(payload.id, requestId);
+    this.payload = payload;
+  }
+}
+
+export type GrantInteractionFinishFailedPayload = GrantDomainErrorPayload;
+
+export class GrantInteractionFinishFailedEvent extends AuthDomainEvent {
+  payload: GrantInteractionFinishFailedPayload;
+  isErrorEvent = true;
+
+  constructor(
+    payload: GrantInteractionFinishFailedPayload,
+    requestId?: string
+  ) {
+    super(payload.grantId, requestId);
+    this.aggregateId = this.msgKey = payload.grantId;
+    this.payload = payload;
+  }
+}
+
 export interface GrantInteractionChoiceHandledPayload {
   id: string;
-  interactRef?: string;
+  choice: InteractionChoice;
 }
 
 export class GrantInteractionChoiceHandledEvent extends AuthDomainEvent {

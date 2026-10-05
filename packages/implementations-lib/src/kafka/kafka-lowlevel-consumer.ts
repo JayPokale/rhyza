@@ -64,6 +64,9 @@ export class KafkaLowLevelConsumer implements IMessageConsumer {
         'group.id': consumerConfigs.consumerGroupId,
         'enable.auto.commit': false, // we do it manually
         'fetch.wait.max.ms': this._batchTimeoutMs,
+        // Increase this to 1 MB to increase batching for large batchTimeoutMs,
+        // because for low batchTimeoutMs fetch.min.bytes is ignored
+        'fetch.min.bytes': 1024 * 1024,
         rebalance_cb: true,
         event_cb: true
       },

@@ -1,14 +1,18 @@
 import {
   CannotCreateDuplicateWalletAddressAliasError,
   CannotCreateDuplicateWalletAddressError,
-  WalletAddressAliasNotFoundError
+  WalletAddressAliasNotFoundError,
+  WalletAddressKeyNotFoundError,
+  WalletAddressNotFoundError
 } from './errors';
 import { IPalWalletAddressRepository } from './interfaces';
 import { PalWalletAddress } from './entities/wallet-address';
 import crypto from 'node:crypto';
 import { ILogger } from 'common-types-lib';
 import {
+  IPalJsonWebKeyDto,
   IPalWalletAddressDto,
+  IPalWalletAddressKeyDto,
   WalletAddressAliasCreatedEvent,
   WalletAddressCreatedEvent,
   WalletAddressDomainEvent
@@ -132,6 +136,65 @@ export class WalletAddressAggregate {
         domain: domain,
         pathName: pathName
       })
+    );
+  }
+
+  async addWalletAddressKey(
+    walletAddressId: string,
+    jwk: IPalJsonWebKeyDto
+  ): Promise<string> {
+    const [walletDto] = await this._repo.fetch([walletAddressId]);
+    if (!walletDto) {
+      throw new WalletAddressNotFoundError(
+        `Wallet Address with id ${walletAddressId} does not exist`
+      );
+    }
+
+    const wallet = PalWalletAddress.fromDto(walletDto);
+
+    const key = wallet.addKey(jwk);
+    await this._repo.storeKey(key.toObject());
+    this._logger.info(
+      `Stored wallet address key ${key.id} for wallet ${walletAddressId}`
+    );
+    return key.id;
+  }
+
+  async getWalletAddressKeys(
+    walletAddressId: string
+  ): Promise<IPalWalletAddressKeyDto[]> {
+    const [walletDto] = await this._repo.fetch([walletAddressId]);
+    if (!walletDto) return [];
+
+    return PalWalletAddress.fromDto(walletDto).keys.map((key) =>
+      key.toObject()
+    );
+  }
+
+  async revokeWalletAddressKey(
+    walletAddressId: string,
+    keyId: string
+  ): Promise<void> {
+    const [walletDto] = await this._repo.fetch([walletAddressId]);
+    if (!walletDto) {
+      throw new WalletAddressKeyNotFoundError(
+        `Wallet address key ${keyId} does not exist for wallet ${walletAddressId}`
+      );
+    }
+
+    const wallet = PalWalletAddress.fromDto(walletDto);
+    wallet.revokeKey(keyId);
+
+    const key = wallet.keys.find((stored) => stored.id === keyId);
+    if (!key) {
+      throw new WalletAddressKeyNotFoundError(
+        `Wallet address key ${keyId} does not exist for wallet ${walletAddressId}`
+      );
+    }
+
+    await this._repo.storeKey(key.toObject());
+    this._logger.info(
+      `Revoked wallet address key ${keyId} for wallet ${walletAddressId}`
     );
   }
 }

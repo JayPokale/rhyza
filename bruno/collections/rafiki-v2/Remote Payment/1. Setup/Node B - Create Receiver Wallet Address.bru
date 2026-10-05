@@ -23,6 +23,9 @@ script:post-response {
   if (body?.address) {
     bru.setVar("receiverWalletAddress", body.address);
   }
+  if (body?.id) {
+    bru.setVar("receiverWalletAddressId", body.id);
+  }
 }
 
 tests {

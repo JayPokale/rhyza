@@ -27,8 +27,8 @@ import {
 import { ILedgerDto } from 'pal-public-types-lib';
 import { clearInterval } from 'node:timers';
 
-// check every 30 secs
-const SNAPSHOT_NEEDED_CHECK_INTERVAL_MS = 30_000;
+// check every 5 mins
+const SNAPSHOT_NEEDED_CHECK_INTERVAL_MS = 5 * 60 * 1000;
 
 export type LedgerStateEventHandlerConfigs = {
   maxStateEventsBetweenSnapshots: number;
@@ -130,38 +130,57 @@ export class LedgerStateEventHandler {
 
     // has enough time passed?
     const msSinceLastSnapshot = Date.now() - (this._lastSnapshotTakenAt || 0);
-    return msSinceLastSnapshot >= this._configs.maxTimeBetweenSnapshotsMs;
+    const needed =
+      msSinceLastSnapshot >= this._configs.maxTimeBetweenSnapshotsMs;
+    return needed;
   }
 
   private async _snapshotIfNeeded(
     ledger: Ledger,
-    stateEvents: LedgerStateEvent[]
+    lastStateEvent: LedgerStateEvent | undefined
   ): Promise<void> {
+    this._logger.debug(
+      `Checking if snapshot is needed for ledger ${ledger.id}...`
+    );
     if (!this._isSnapshotNeeded(ledger)) {
+      this._logger.debug(`Snapshot not needed for ledger ${ledger.id}.`);
       return;
     }
 
-    const lastEvent = stateEvents.at(-1);
-    if (!lastEvent) {
-      // no state events, no snapshot to create
+    lastStateEvent = lastStateEvent || this._lastStateEventMap.get(ledger.id);
+    if (!lastStateEvent) {
+      this._logger.debug(
+        `Snapshot not done because no state events were received since last snapshot (or svc start) for ledger ${ledger.id}...`
+      );
       return;
     }
 
-    // if we're given events, use it for the lastEventIndexPartition/offset
+    // take snapshot
     const snapshot = ledger.executeSnapshot();
 
-    if (lastEvent.msgPartition != null && lastEvent.msgOffset != null) {
-      snapshot.lastEventIndexPartition = lastEvent.msgPartition;
-      snapshot.lastEventIndexOffset = lastEvent.msgOffset;
+    if (
+      lastStateEvent.msgPartition === null ||
+      lastStateEvent.msgOffset === null
+    ) {
+      this._logger.warn(
+        `Snapshot failed for ledger: ${ledger.id} v${ledger.version} - could not get lastEvent partition or offset for event msgName: ${lastStateEvent.msgName} and msgId: ${lastStateEvent.msgId}.`
+      );
+      return;
     }
 
-    this._logger.debug(
-      `Snapshot created for ledger: ${ledger.id} v${ledger.version}, with lastEventIndexPartition: ${snapshot.lastEventIndexPartition} and lastEventIndexOffset: ${snapshot.lastEventIndexOffset}`
-    );
+    // set snapshot lastEvent partition and offset
+    snapshot.lastEventIndexPartition = lastStateEvent.msgPartition;
+    snapshot.lastEventIndexOffset = lastStateEvent.msgOffset;
 
     this._uncommittedSnapshots.push(snapshot);
+    // remove the last event to avoid snapshotting the same last event
+    this._lastStateEventMap.delete(ledger.id);
     this._lastSnapshotMap.set(ledger.id, snapshot);
     this._lastSnapshotTakenAt = snapshot.msgTimestamp;
+
+    this._logger.info(
+      `Snapshot created for ledger: ${ledger.id} v${ledger.version}, with lastEventIndexPartition: ${snapshot.lastEventIndexPartition} and lastEventIndexOffset: ${snapshot.lastEventIndexOffset}`
+    );
   }
 
   private async _updateReadSideProjections(
@@ -241,13 +260,11 @@ export class LedgerStateEventHandler {
         stateEvents
       );
 
-      // update last state event
-      this._lastStateEventMap.set(
-        aggregateId,
-        stateEvents[stateEvents.length - 1]
-      );
+      // update last state event for ledger
+      const lastEvent = stateEvents[stateEvents.length - 1];
+      this._lastStateEventMap.set(aggregateId, lastEvent);
 
-      await this._snapshotIfNeeded(ledger, stateEvents);
+      await this._snapshotIfNeeded(ledger, lastEvent);
       await this._updateReadSideProjections(ledger, stateEvents);
     }
 
@@ -263,11 +280,8 @@ export class LedgerStateEventHandler {
       );
       if (wasAlreadySnapshot) continue;
 
-      const lastNonSnapshotedEvent = this._lastStateEventMap.get(aggregateId);
-      await this._snapshotIfNeeded(
-        ledger,
-        lastNonSnapshotedEvent ? [lastNonSnapshotedEvent] : []
-      );
+      const lastNonSnapshotEvent = this._lastStateEventMap.get(aggregateId);
+      await this._snapshotIfNeeded(ledger, lastNonSnapshotEvent);
     }
 
     // persist the read side projections for anything that has changed
@@ -355,7 +369,9 @@ export class LedgerStateEventHandler {
       await this._messageProducer.send(msgs);
     }, snapshotCheckIntervalMs);
 
-    this._logger.info(`${this.constructor.name} initialized`);
+    this._logger.info(
+      `${this.constructor.name} initialized - snapshot check interval is: ${snapshotCheckIntervalMs / 1000} secs`
+    );
   }
 
   async destroy(): Promise<void> {

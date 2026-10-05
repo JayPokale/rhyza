@@ -12,7 +12,8 @@ export interface INotification {
 }
 
 export enum NotificationStatus {
-  CREATED = 'CREATED',
+  SENDING = 'SENDING',
+  PENDING_RETRY = 'PENDING_RETRY',
   SENT = 'SENT',
   FAILED = 'FAILED'
 }
@@ -22,11 +23,14 @@ export enum NotificationType {
   PaymentIntentCompleted = 'payment_intent.completed',
   PaymentCreated = 'payment.created',
   PaymentCompleted = 'payment.completed',
-  PaymentFailed = 'payment.failed'
+  PaymentFailed = 'payment.failed',
+  GrantRevoked = 'grant.revoked'
 }
 
 export interface INotificationRepository {
+  get(id: string): Promise<INotification | null>;
   store(notification: INotification): Promise<void>;
+  getPendingRetryNotificationIds(limit: number): Promise<string[]>;
 }
 
 export interface INotificationSenderService {

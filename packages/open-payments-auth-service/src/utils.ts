@@ -1,8 +1,19 @@
+import * as crypto from 'crypto';
 import { AccessItem } from 'auth-client-lib';
 import { OpenPaymentsAuthServerRouteError } from './errors';
 import { components } from './types/generated/auth-server-types';
 
 const DELIMITER = '_';
+
+export function calculateInteractionHash(
+  clientNonce: string,
+  finishNonce: string,
+  interactRef: string,
+  grantUri: string
+): string {
+  const data = [clientNonce, finishNonce, interactRef, grantUri].join('\n');
+  return crypto.createHash('sha256').update(data).digest('base64url');
+}
 
 function encodeCompoundId(grantId: string, otherId: string): string {
   return Buffer.from(`${grantId}${DELIMITER}${otherId}`).toString('base64url');

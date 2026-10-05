@@ -104,10 +104,6 @@ export class KafkaConsumer implements IMessageConsumer {
 
     await this._consumer.run({
       eachBatch: async (batchPayload: KafkaJS.EachBatchPayload) => {
-        this._logger?.debug(
-          `Got batch with ${batchPayload.batch.messages.length} messages from topic ${batchPayload.batch.topic} partition ${batchPayload.batch.partition} first offset ${batchPayload.batch.firstOffset()} last offset ${batchPayload.batch.lastOffset()}`
-        );
-
         // Shouldn't happen, for debug
         if (
           batchPayload.batch.isEmpty() ||

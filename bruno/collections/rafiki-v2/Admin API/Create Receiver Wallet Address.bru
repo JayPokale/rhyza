@@ -21,8 +21,11 @@ body:json {
 script:post-response {
   const body = res.getBody();
   
-  if (body?.id) {
+  if (body?.address) {
     bru.setVar("receiverWalletAddress", body.address);
+  }
+  if (body?.id) {
+    bru.setVar("receiverWalletAddressId", body.id);
   }
 }
 

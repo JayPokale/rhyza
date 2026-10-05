@@ -1,11 +1,18 @@
 import {
+  DEFAULT_SORT_ORDER,
   FinalizedRemoteQuoteUpdate,
+  IPage,
+  IPageOpts,
   IPaymentIntent,
   IPaymentIntentRepository,
+  ISentPayment,
   PaymentIntentState,
   SentPaymentState,
+  SortOrder,
   InboundPaymentState
 } from '../../src/payment-intent/interfaces';
+import { InvalidCursorError } from '../../src/payment-intent/errors';
+import { InvalidArgument } from 'common-types-lib';
 
 export class MockPaymentIntentRepo implements IPaymentIntentRepository {
   private _store: Map<string, IPaymentIntent> = new Map();
@@ -97,6 +104,95 @@ export class MockPaymentIntentRepo implements IPaymentIntentRepository {
       }
     }
     return results;
+  }
+
+  async fetchPaymentIntentsPage(
+    opts: IPageOpts
+  ): Promise<IPage<Omit<IPaymentIntent, 'sentPayments' | 'inboundPayments'>>> {
+    const all = this.getAll();
+    const filtered =
+      opts.walletAddressId == null
+        ? all
+        : all.filter((p) => p.receiverWalletAddressId === opts.walletAddressId);
+    const page = this._page(all, filtered, opts);
+    return {
+      ...page,
+      items: page.items.map((p) => {
+        const { sentPayments, inboundPayments, ...rest } = p;
+        void sentPayments;
+        void inboundPayments;
+        return rest;
+      })
+    };
+  }
+
+  async fetchSentPaymentsPage(
+    opts: IPageOpts & { paymentIntentId?: string }
+  ): Promise<IPage<ISentPayment>> {
+    const all = this.getAll().flatMap((intent) => intent.sentPayments);
+    const filtered = all.filter(
+      (p) =>
+        (opts.walletAddressId == null ||
+          p.senderWalletAddressId === opts.walletAddressId) &&
+        (opts.paymentIntentId == null ||
+          p.paymentIntentId === opts.paymentIntentId)
+    );
+    return this._page(all, filtered, opts);
+  }
+
+  // Keyset pagination over (createdAt, id) — mirrors the Mongo implementation.
+  // The cursor is resolved against the unfiltered collection, like the
+  // Mongo boundary findOne.
+  private _page<T extends { id: string; createdAt: Date }>(
+    all: T[],
+    filtered: T[],
+    opts: {
+      cursor?: string;
+      limit: number;
+      backwards: boolean;
+      sortOrder?: SortOrder;
+    }
+  ): IPage<T> {
+    if (!Number.isInteger(opts.limit) || opts.limit < 1) {
+      throw new InvalidArgument(
+        `limit must be a positive integer, got ${opts.limit}`
+      );
+    }
+    const cmp = (a: T, b: T) =>
+      a.createdAt.getTime() - b.createdAt.getTime() ||
+      (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+
+    const descending = (opts.sortOrder ?? DEFAULT_SORT_ORDER) === 'desc';
+    // Mirrors the Mongo implementation: paging forward through a descending
+    // list walks the (createdAt, id) index towards older documents.
+    const scanAscending = opts.backwards === descending;
+
+    let boundary: T | undefined;
+    if (opts.cursor != null) {
+      boundary = all.find((item) => item.id === opts.cursor);
+      if (!boundary) {
+        throw new InvalidCursorError(`Unknown cursor: ${opts.cursor}`);
+      }
+    }
+
+    const inRange = boundary
+      ? filtered.filter((item) =>
+          scanAscending ? cmp(item, boundary) > 0 : cmp(item, boundary) < 0
+        )
+      : filtered;
+
+    const sorted = [...inRange].sort(cmp);
+    if (!scanAscending) sorted.reverse();
+
+    const hasMore = sorted.length > opts.limit;
+    const items = sorted.slice(0, opts.limit);
+    if (opts.backwards) items.reverse();
+
+    return {
+      items,
+      hasNextPage: opts.backwards ? opts.cursor != null : hasMore,
+      hasPreviousPage: opts.backwards ? hasMore : opts.cursor != null
+    };
   }
 
   async storeQuotes(

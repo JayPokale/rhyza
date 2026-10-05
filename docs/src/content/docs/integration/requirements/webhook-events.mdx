@@ -21,27 +21,19 @@ The webhook endpoint URL is configured using the `WEBHOOK_URL` environment varia
 
 When an event occurs, the `notifications` service makes request to the configured endpoint. The service expects a `200` status in return.
 
-<div class="overflow-table">
-
 | Variable      | Type            | Description                                                       |
 | ------------- | --------------- | ----------------------------------------------------------------- |
 | `WEBHOOK_URL` | `notifications` | The endpoint where requests are made when a webhook event occurs. |
-
-</div>
 
 ## Webhook event request body
 
 Each webhook event is sent as a JSON payload with the following structure in the request body. The parameters in the `data` object vary depending on the event.
 
-<div class="overflow-table">
-
-| Attribute | Type   | Description                                         | Required |
-| --------- | ------ | --------------------------------------------------- | -------- |
-| `id`      | String | UUID for the event                                  | Y        |
-| `type`    | Enum   | The `EventType`                                     | Y        |
-| `data`    | Object | Additional data that coincides with the `EventType` | Y        |
-
-</div>
+| Attribute | Type     | Description                                        | Required |
+| --------- | -------- | -------------------------------------------------- | -------- |
+| `id`      | `String` | UUID for the event                                 | Y        |
+| `type`    | `Enum`   | The event type                                     | Y        |
+| `data`    | `Object` | Additional data that coincides with the event type | Y        |
 
 :::tip[Duplicate events]
 The `id` in the webhook event payload is unique. An FSP can use the ID to determine whether the event was previously received, preventing duplicate event processing.
@@ -55,110 +47,15 @@ Additionally, the [Local Playground](/integration/playground/overview) contains 
 
 ### Asynchronous handling
 
-If requests to credit/debit user accounts are lengthy processes, we recommend using a worker to process received events. The worker allows the server to process events at a rate suitable for the FPS's system and reduces the number of failed/retried events since their event listener can immediately reply with a successful `200` status.
+If requests to credit or debit user accounts are lengthy processes, we recommend using a worker to process received events. The worker allows the server to process events at a rate suitable for the FPS's system and reduces the number of failed/retried events since the event listener can immediately reply with a successful `200` status.
 
 ### Error handling
 
-If a non-200 status is returned, indicating an error, or the request times out, Rhyza retries the webhook request at increasing intervals until a `200` status is returned. The first retry occurs after 10 seconds. Additional retries occur after 20 more seconds, then after 30 more seconds, and so on.
+Rhyza retries the webhook request at increasing intervals if the request times out or if a non-200 status is returned, indicating an error. The first retry occurs after 10 seconds. Additional retries occur after 20 more seconds, then after 30 more seconds, and so on. Rhyza continues to retry until a `200` status is returned.
 
-<div class="overflow-table">
+FSPs can fine-tune timeouts and maximum retries by configuring the environment variables listed below.
 
 | Variable            | Type            | Description                                                                                                     |
 | ------------------- | --------------- | --------------------------------------------------------------------------------------------------------------- |
 | `WEBHOOK_TIMEOUT`   | `notifications` | The time, in milliseconds, after which a webhook request times out                                              |
 | `WEBHOOK_MAX_RETRY` | `notifications` | The maximum number of retries for a webhook event when a non-200 status is returned or if the request timed out |
-
-</div>
-
-## Webhook events
-
-### Payment intents
-
-<div class="overflow-table">
-
-| Event type                                              | Description                   |
-| ------------------------------------------------------- | ----------------------------- |
-| [`payment_intent.created`](#payment-intent-created)     | A payment intent was created. |
-| [`payment_intent.completed`](#payment-intent-completed) | A payment intent completed.   |
-
-</div>
-
-#### Payment intent created
-
-<details>
-  <summary>Expand for event sequence</summary>
-  <Mermaid
-    graph={`sequenceDiagram
-      participant R as Rhyza
-      participant FSP as Financial service provider
-
-      R->>FSP: Fires payment_intent.created event to webhook endpoint
-      FSP->>FSP: No action required
-
-`}
-/>
-
-</details>
-
-The `payment_intent.created` event indicates a payment intent was created. At this point, the payment intent hasn't received any funds.
-
-#### <mark>Payment intent completed</mark>
-
-<details>
-  <summary>Expand for event sequence</summary>
-</details>
-
-### Payments
-
-<div class="overflow-table">
-
-| Event type                                | Description            |
-| ----------------------------------------- | ---------------------- |
-| [`payment.created`](#payment-created)     | A payment was created. |
-| [`payment.completed`](#payment-completed) | A payment completed.   |
-| [`payment.failed`](#payment-failed)       | A payment failed.      |
-
-</div>
-
-#### Payment created
-
-<details>
-  <summary>Expand for event sequence</summary>
-
-A payment for $12 was created.
-
-  <Mermaid
-    graph={`sequenceDiagram
-      participant R as Rhyza
-      participant FSP as Financial service provider
-
-      R->>FSP: Fires payment.created event to webhook endpoint,<br/> debitAmount: $12
-      FSP->>FSP: Checks that sender's account has sufficient funds
-      alt Account has sufficient funds
-        FSP->>FSP: Put hold of $12 on sender's account
-        FSP->>R: Admin API call: POST /payment-intents/{intentId}/payments/{id}/approve
-        R-->>FSP: success: true
-      else Account has insufficient funds
-        FSP->>FSP: Ignore or log failure
-      end
-
-`}
-/>
-
-</details>
-
-The `payment.created` event indicates a payment was created and is awaiting approval. The FSP should verify the sender's account balance and perform any other necessary verifications before approving the payment.
-
-If the sender has insufficient funds or if the payment should otherwise not be fulfilled, the FSP can choose not to call the Approve Payment endpoint. Otherwise, the FSP should put a hold on the sender's account and approve the payment in Rhyza via the Admin API.
-
-#### <mark>Payment completed</mark>
-
-<details>
-  <summary>Expand for event sequence</summary>
-</details>
-
-#### <mark>Payment failed</mark>
-
-<details>
-  <summary>Expand for event sequence</summary>
-</details>

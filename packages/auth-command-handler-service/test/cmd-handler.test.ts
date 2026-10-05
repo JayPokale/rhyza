@@ -2,7 +2,8 @@
 
 import assert from 'node:assert';
 import { describe, test } from 'node:test';
-import { KeyObject, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
+import { KeyLike } from 'crypto';
 import {
   createHeaders,
   generateTestKeys
@@ -111,7 +112,7 @@ const REQUEST_METHOD = 'POST';
 const REQUEST_BODY = '{}';
 
 async function signedSignatureData(
-  privateKey: KeyObject,
+  privateKey: KeyLike,
   kid: string
 ): Promise<CreateGrantCmdPayload['signatureData']> {
   const request = {

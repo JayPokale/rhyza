@@ -7,6 +7,10 @@ import {
   IGetPeerFxRateToDestinationAsset,
   PalClient,
   PalClientLedgerInsufficientFundsForWithdrawalError,
+  PalClientDuplicateWalletAddressKeyError,
+  PalClientWalletAddressKeyAlreadyRevokedError,
+  PalClientWalletAddressKeyNotFoundError,
+  PalClientWalletAddressNotFoundError,
   parseAddressToDomainAndPathName
 } from '../src';
 import { IPalPeerDto } from 'pal-public-types-lib';
@@ -331,7 +335,115 @@ test('pal client - LiquidityManagement - Withdraw from ASE', async () => {
 test('pal client - LiquidityManagement - Withdraw excess liquidity from ASE should fail', async () => {
   try {
     const reqId = 'req4';
+    await client.ledgerWithdrawFromAse({
+      peerId: PEER_ONE_ID,
+      assetCode: ASSET_CODE,
+      amount: '1',
+      amountScale: ASSET_SCALE,
+      requestId: reqId
+    });
+    assert.fail();
+  } catch (e) {
+    assert.ok(e instanceof PalClientLedgerInsufficientFundsForWithdrawalError);
+  }
+});
+
+test('pal client - LiquidityManagement - Deposit to Peer', async () => {
+  const reqId = 'req2';
+  const resp = await client.ledgerDepositToPeer({
+    peerId: PEER_ONE_ID,
+    assetCode: ASSET_CODE,
+    amount: DEPOSIT_AMOUNT.toString(),
+    amountScale: ASSET_SCALE,
+    requestId: reqId
+  });
+
+  assert.ok(resp);
+  assert.equal(resp.requestId, reqId);
+  assert.equal(resp.peerId, PEER_ONE_ID);
+  assert.equal(resp.isError, false);
+  assert.equal(resp.externalId, undefined);
+  assert.equal(resp.errorMessage, undefined);
+});
+
+test('pal client - LiquidityManagement - Withdraw from Peer', async () => {
+  const reqId = 'req4';
+  const resp = await client.ledgerWithdrawFromPeer({
+    peerId: PEER_ONE_ID,
+    assetCode: ASSET_CODE,
+    amount: DEPOSIT_AMOUNT.toString(),
+    amountScale: ASSET_SCALE,
+    requestId: reqId
+  });
+
+  assert.ok(resp);
+  assert.equal(resp.requestId, reqId);
+  assert.equal(resp.peerId, PEER_ONE_ID);
+  assert.equal(resp.isError, false);
+  assert.equal(resp.externalId, undefined);
+  assert.equal(resp.errorMessage, undefined);
+});
+
+test('pal client - LiquidityManagement - Withdraw excess liquidity from Peer should fail', async () => {
+  try {
+    const reqId = 'req4';
     await client.ledgerWithdrawFromPeer({
+      peerId: PEER_ONE_ID,
+      assetCode: ASSET_CODE,
+      amount: '1',
+      amountScale: ASSET_SCALE,
+      requestId: reqId
+    });
+    assert.fail();
+  } catch (e) {
+    assert.ok(e instanceof PalClientLedgerInsufficientFundsForWithdrawalError);
+  }
+});
+
+/*
+ * Liquidity Management Tests
+ * */
+
+test('pal client - LiquidityManagement - Deposit to ASE', async () => {
+  const reqId = 'req1';
+  const resp = await client.ledgerDepositToAse({
+    peerId: PEER_ONE_ID,
+    assetCode: ASSET_CODE,
+    amount: DEPOSIT_AMOUNT.toString(),
+    amountScale: ASSET_SCALE,
+    requestId: reqId
+  });
+
+  assert.ok(resp);
+  assert.equal(resp.requestId, reqId);
+  assert.equal(resp.peerId, PEER_ONE_ID);
+  assert.equal(resp.isError, false);
+  assert.equal(resp.externalId, undefined);
+  assert.equal(resp.errorMessage, undefined);
+});
+
+test('pal client - LiquidityManagement - Withdraw from ASE', async () => {
+  const reqId = 'req3';
+  const resp = await client.ledgerWithdrawFromAse({
+    peerId: PEER_ONE_ID,
+    assetCode: ASSET_CODE,
+    amount: DEPOSIT_AMOUNT.toString(),
+    amountScale: ASSET_SCALE,
+    requestId: reqId
+  });
+
+  assert.ok(resp);
+  assert.equal(resp.requestId, reqId);
+  assert.equal(resp.peerId, PEER_ONE_ID);
+  assert.equal(resp.isError, false);
+  assert.equal(resp.externalId, undefined);
+  assert.equal(resp.errorMessage, undefined);
+});
+
+test('pal client - LiquidityManagement - Withdraw excess liquidity from ASE should fail', async () => {
+  try {
+    const reqId = 'req4';
+    await client.ledgerWithdrawFromAse({
       peerId: PEER_ONE_ID,
       assetCode: ASSET_CODE,
       amount: '1',
@@ -521,12 +633,15 @@ test('pal client - create wallet address', async () => {
   );
 
   assert.ok(createdWallet);
+  assert.ok(createdWallet.id);
   assert.equal(createdWallet.domain, ALIAS_DOMAIN);
   assert.equal(createdWallet.pathName, ALIAS_PATHNAME);
   assert.equal(createdWallet.publicName, PUBLIC_NAME);
   assert.equal(createdWallet.assetCode, ASSET_CODE);
   assert.equal(createdWallet.assetScale, ASSET_SCALE);
   assert.equal(createdWallet.isActive, true);
+
+  createdWalletAddressId = createdWallet.id;
 });
 
 // must run this here to resolve / get the internal wallet address id
@@ -634,12 +749,96 @@ test('pal client - resolve non existing wallet address alias without domain shou
   assert.equal(address === null, true);
 });
 
+test('pal client - add wallet address key', async () => {
+  const keyId = await client.addWalletAddressKey(createdWalletAddressId, {
+    kid: `${testPrefix}_key-1`,
+    alg: 'EdDSA',
+    kty: 'OKP',
+    crv: 'Ed25519',
+    x: '11qYAYKxCrfVS_7TyWQHOg7hcvPapiMlrwIaaPcHURo'
+  });
+
+  assert.ok(keyId);
+  const keys = await client.getWalletAddressKeys(createdWalletAddressId);
+  assert.equal(keys.length, 1);
+  assert.equal(keys[0].id, keyId);
+  assert.equal(keys[0].walletAddressId, createdWalletAddressId);
+  assert.equal(keys[0].jwk.kid, `${testPrefix}_key-1`);
+  assert.equal(keys[0].revoked, false);
+});
+
+test('pal client - add duplicate wallet address key kid should fail', async () => {
+  try {
+    await client.addWalletAddressKey(createdWalletAddressId, {
+      kid: `${testPrefix}_key-1`,
+      alg: 'EdDSA',
+      kty: 'OKP',
+      crv: 'Ed25519',
+      x: '11qYAYKxCrfVS_7TyWQHOg7hcvPapiMlrwIaaPcHURo'
+    });
+    assert.fail();
+  } catch (e) {
+    assert.ok(e instanceof PalClientDuplicateWalletAddressKeyError);
+  }
+});
+
+test('pal client - revoke wallet address key', async () => {
+  const keys = await client.getWalletAddressKeys(createdWalletAddressId);
+  const key = keys.find((item) => item.jwk.kid === `${testPrefix}_key-1`);
+  assert.ok(key);
+  assert.equal(key.revoked, false);
+
+  await client.revokeWalletAddressKey(createdWalletAddressId, key.id);
+
+  const revoked = (
+    await client.getWalletAddressKeys(createdWalletAddressId)
+  ).find((item) => item.id === key.id);
+  assert.equal(revoked?.revoked, true);
+  assert.ok(revoked?.revokedAt instanceof Date);
+
+  try {
+    await client.revokeWalletAddressKey(createdWalletAddressId, key.id);
+    assert.fail();
+  } catch (e) {
+    assert.ok(e instanceof PalClientWalletAddressKeyAlreadyRevokedError);
+  }
+
+  const again = (
+    await client.getWalletAddressKeys(createdWalletAddressId)
+  ).find((item) => item.id === key.id);
+  assert.equal(again?.revokedAt?.getTime(), revoked?.revokedAt?.getTime());
+});
+
+test('pal client - revoke missing wallet address key should fail', async () => {
+  try {
+    await client.revokeWalletAddressKey(createdWalletAddressId, 'missing-key');
+    assert.fail();
+  } catch (e) {
+    assert.ok(e instanceof PalClientWalletAddressKeyNotFoundError);
+  }
+});
+
+test('pal client - add wallet address key for missing wallet should fail', async () => {
+  try {
+    await client.addWalletAddressKey('missing-wallet', {
+      kid: `${testPrefix}_missing`,
+      alg: 'EdDSA',
+      kty: 'OKP',
+      crv: 'Ed25519',
+      x: '11qYAYKxCrfVS_7TyWQHOg7hcvPapiMlrwIaaPcHURo'
+    });
+    assert.fail();
+  } catch (e) {
+    assert.ok(e instanceof PalClientWalletAddressNotFoundError);
+  }
+});
+
 /*
  * parseAddressToDomainAndPathName tests
  * */
 
 test('pal client - parseAddressToDomainAndPathName should work with full url', async () => {
-  const { domain, pathName } = await parseAddressToDomainAndPathName(
+  const { domain, pathName } = parseAddressToDomainAndPathName(
     'http://domain.com/path/name'
   );
 
@@ -648,7 +847,7 @@ test('pal client - parseAddressToDomainAndPathName should work with full url', a
 });
 
 test('pal client - parseAddressToDomainAndPathName should work with url missing protocol', async () => {
-  const { domain, pathName } = await parseAddressToDomainAndPathName(
+  const { domain, pathName } = parseAddressToDomainAndPathName(
     'domain.com/path/name'
   );
 
@@ -657,8 +856,7 @@ test('pal client - parseAddressToDomainAndPathName should work with url missing 
 });
 
 test('pal client - parseAddressToDomainAndPathName should work without a FQDN and return null domain', async () => {
-  const { domain, pathName } =
-    await parseAddressToDomainAndPathName('path/name');
+  const { domain, pathName } = parseAddressToDomainAndPathName('path/name');
 
   assert.equal(domain, null);
   assert.equal(pathName, 'path/name');
@@ -666,14 +864,14 @@ test('pal client - parseAddressToDomainAndPathName should work without a FQDN an
 
 test('pal client - parseAddressToDomainAndPathName should work with short FQDN', async () => {
   const { domain, pathName } =
-    await parseAddressToDomainAndPathName('a.io/path/name');
+    parseAddressToDomainAndPathName('a.io/path/name');
 
   assert.equal(domain, 'a.io');
   assert.equal(pathName, 'path/name');
 });
 
 test('pal client - parseAddressToDomainAndPathName should work with short FQDN with port and remove the port part', async () => {
-  const { domain, pathName } = await parseAddressToDomainAndPathName(
+  const { domain, pathName } = parseAddressToDomainAndPathName(
     'a.io:8080/path/name'
   );
 
@@ -687,4 +885,11 @@ test('pal client - parseAddressToDomainAndPathName should work with an odd FQDN 
 
   assert.equal(domain, null);
   assert.equal(pathName, '.path/name');
+});
+
+test('pal client - parseAddressToDomainAndPathName should work with only a name and return null domain', async () => {
+  const { domain, pathName } = parseAddressToDomainAndPathName('name');
+
+  assert.equal(domain, null);
+  assert.equal(pathName, 'name');
 });
