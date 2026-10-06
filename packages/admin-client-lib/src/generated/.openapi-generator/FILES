@@ -15,12 +15,14 @@ models/ApprovePayment200Response.ts
 models/AssetCreate.ts
 models/AssetCreateResponse.ts
 models/CancelPayment200Response.ts
+models/Client.ts
+models/DirectedIdentityJWK.ts
 models/ErrorResponse.ts
 models/Grant.ts
 models/GrantState.ts
 models/Interaction.ts
 models/JsonWebKey.ts
-models/LiquidityDeposit202Response.ts
+models/LiquidityDeposit200Response.ts
 models/LiquidityDepositRequest.ts
 models/PageInfo.ts
 models/Payment.ts
@@ -46,5 +48,6 @@ models/SubjectId.ts
 models/WalletAddressCreate.ts
 models/WalletAddressCreateResponse.ts
 models/WalletAddressKeyCreateResponse.ts
+models/WalletAddressObject.ts
 models/index.ts
 runtime.ts

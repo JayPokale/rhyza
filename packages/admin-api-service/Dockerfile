@@ -29,7 +29,7 @@ COPY packages/implementations-lib/package.json ./packages/implementations-lib/pa
 COPY packages/auth-public-types-lib/package.json ./packages/auth-public-types-lib/package.json
 COPY packages/auth-client-lib/package.json ./packages/auth-client-lib/package.json
 COPY packages/pal-public-types-lib/package.json ./packages/pal-public-types-lib/package.json
-COPY packages/pal-domain-lib/package.json ./packages/pal-domain-lib/package.json
+
 COPY packages/pal-client-lib/package.json ./packages/pal-client-lib/package.json
 COPY packages/payments-public-types-lib/package.json ./packages/payments-public-types-lib/package.json
 COPY packages/payments-client-lib/package.json ./packages/payments-client-lib/package.json
@@ -49,7 +49,7 @@ RUN pnpm --filter implementations-lib build
 RUN pnpm --filter auth-public-types-lib build
 RUN pnpm --filter auth-client-lib build
 RUN pnpm --filter pal-public-types-lib build
-RUN pnpm --filter pal-domain-lib build
+
 RUN pnpm --filter pal-client-lib build
 RUN pnpm --filter payments-public-types-lib build
 RUN pnpm --filter payments-client-lib build
@@ -68,7 +68,7 @@ COPY --from=prod-deps /workspace/packages/implementations-lib/node_modules ./pac
 COPY --from=prod-deps /workspace/packages/auth-public-types-lib/node_modules ./packages/auth-public-types-lib/node_modules
 COPY --from=prod-deps /workspace/packages/auth-client-lib/node_modules ./packages/auth-client-lib/node_modules
 COPY --from=prod-deps /workspace/packages/pal-public-types-lib/node_modules ./packages/pal-public-types-lib/node_modules
-COPY --from=prod-deps /workspace/packages/pal-domain-lib/node_modules ./packages/pal-domain-lib/node_modules
+
 COPY --from=prod-deps /workspace/packages/pal-client-lib/node_modules ./packages/pal-client-lib/node_modules
 COPY --from=prod-deps /workspace/packages/payments-public-types-lib/node_modules ./packages/payments-public-types-lib/node_modules
 COPY --from=prod-deps /workspace/packages/payments-client-lib/node_modules ./packages/payments-client-lib/node_modules
@@ -85,7 +85,7 @@ COPY --from=prod-deps /workspace/packages/implementations-lib/package.json ./pac
 COPY --from=prod-deps /workspace/packages/auth-public-types-lib/package.json ./packages/auth-public-types-lib/package.json
 COPY --from=prod-deps /workspace/packages/auth-client-lib/package.json ./packages/auth-client-lib/package.json
 COPY --from=prod-deps /workspace/packages/pal-public-types-lib/package.json ./packages/pal-public-types-lib/package.json
-COPY --from=prod-deps /workspace/packages/pal-domain-lib/package.json ./packages/pal-domain-lib/package.json
+
 COPY --from=prod-deps /workspace/packages/pal-client-lib/package.json ./packages/pal-client-lib/package.json
 COPY --from=prod-deps /workspace/packages/payments-public-types-lib/package.json ./packages/payments-public-types-lib/package.json
 COPY --from=prod-deps /workspace/packages/payments-client-lib/package.json ./packages/payments-client-lib/package.json
@@ -102,7 +102,7 @@ COPY --from=build /workspace/packages/implementations-lib/dist ./packages/implem
 COPY --from=build /workspace/packages/auth-public-types-lib/dist ./packages/auth-public-types-lib/dist
 COPY --from=build /workspace/packages/auth-client-lib/dist ./packages/auth-client-lib/dist
 COPY --from=build /workspace/packages/pal-public-types-lib/dist ./packages/pal-public-types-lib/dist
-COPY --from=build /workspace/packages/pal-domain-lib/dist ./packages/pal-domain-lib/dist
+
 COPY --from=build /workspace/packages/pal-client-lib/dist ./packages/pal-client-lib/dist
 COPY --from=build /workspace/packages/payments-public-types-lib/dist ./packages/payments-public-types-lib/dist
 COPY --from=build /workspace/packages/payments-client-lib/dist ./packages/payments-client-lib/dist
