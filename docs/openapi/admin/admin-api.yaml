@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Rhyza Admin API
-  version: 0.0.5
+  version: 0.0.6
   license:
     name: ISC
     identifier: ISC
