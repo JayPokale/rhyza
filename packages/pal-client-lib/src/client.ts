@@ -13,6 +13,8 @@ import {
   PalClientPeerAlreadyExistsError,
   PalClientPeerNotFoundError,
   PalClientUnknownError,
+  PalClientWalletAddressAlreadyActiveError,
+  PalClientWalletAddressAlreadyInactiveError,
   PalClientWalletAddressNotFoundError,
   PalClientWalletAddressKeyNotFoundError,
   PalClientWalletAddressKeyAlreadyRevokedError,
@@ -23,7 +25,9 @@ import {
   PbCreateAssetRequest,
   PbCreateWalletAddressAliasRequest,
   PbCreateWalletAddressRequest,
+  PbActivateWalletAddressRequest,
   PbCreateWalletAddressResponse,
+  PbDeactivateWalletAddressRequest,
   PbGetAssetRequest,
   PbGetAssetResponse,
   PbGetWalletAddressesRequest,
@@ -253,6 +257,62 @@ export class PalClient {
           });
 
           return resolve(respObj);
+        }
+      );
+    });
+  }
+
+  activateWalletAddress(walletAddressId: string): Promise<void> {
+    const request = new PbActivateWalletAddressRequest();
+    request.setWalletAddressId(walletAddressId);
+
+    return new Promise((resolve, reject) => {
+      this._grpcClient.activateWalletAddress(
+        request,
+        (error: ServiceError | null) => {
+          if (error) {
+            if (error.code === grpc.status.NOT_FOUND) {
+              return reject(
+                new PalClientWalletAddressNotFoundError(error.message)
+              );
+            }
+            if (error.code === grpc.status.FAILED_PRECONDITION) {
+              return reject(
+                new PalClientWalletAddressAlreadyActiveError(error.message)
+              );
+            }
+            return reject(new PalClientUnknownError(error.message));
+          }
+
+          return resolve();
+        }
+      );
+    });
+  }
+
+  deactivateWalletAddress(walletAddressId: string): Promise<void> {
+    const request = new PbDeactivateWalletAddressRequest();
+    request.setWalletAddressId(walletAddressId);
+
+    return new Promise((resolve, reject) => {
+      this._grpcClient.deactivateWalletAddress(
+        request,
+        (error: ServiceError | null) => {
+          if (error) {
+            if (error.code === grpc.status.NOT_FOUND) {
+              return reject(
+                new PalClientWalletAddressNotFoundError(error.message)
+              );
+            }
+            if (error.code === grpc.status.FAILED_PRECONDITION) {
+              return reject(
+                new PalClientWalletAddressAlreadyInactiveError(error.message)
+              );
+            }
+            return reject(new PalClientUnknownError(error.message));
+          }
+
+          return resolve();
         }
       );
     });
