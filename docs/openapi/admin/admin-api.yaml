@@ -126,8 +126,7 @@ paths:
       summary: Activate Wallet Address
       description: >-
         Activate a wallet address that was previously deactivated. Once
-        active, the Open Payments wallet address document is served again.
-        Activating a wallet address that is already active returns 409.
+        active, the Open Payments wallet address document becomes reachable again.
       tags:
         - wallet-addresses
       operationId: activateWalletAddress
