@@ -1,3 +1,10 @@
+# API Changelog 0.0.6 vs. 0.0.7
+
+## API Changes
+
+### POST /wallet-addresses/{id}/activate
+-  endpoint added
+
 # API Changelog 0.0.5 vs. 0.0.6
 
 ## API Changes
