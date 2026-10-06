@@ -20,13 +20,16 @@ interface IncomingPaymentRouteOptions extends FastifyPluginOptions {
   palClient: PalClient;
   paymentsClient: PaymentsClient;
   streamServer: StreamServer;
+  /** Base URL of this node's Open Payments resource server, used to construct resource ids. */
+  openPaymentsUrl: string;
 }
 
 export function toIncomingPaymentBody(
-  paymentIntent: GetPaymentIntentResult
+  paymentIntent: GetPaymentIntentResult,
+  openPaymentsUrl: string
 ): components['schemas']['incoming-payment'] {
   const body: components['schemas']['incoming-payment'] = {
-    id: paymentIntent.id,
+    id: `${openPaymentsUrl}/incoming-payments/${paymentIntent.id}`,
     completed: paymentIntent.state === 'COMPLETED',
     walletAddress: paymentIntent.receiverWalletAddress,
     createdAt: paymentIntent.createdAt,
@@ -52,11 +55,34 @@ export function toIncomingPaymentBody(
   return body;
 }
 
+function toIncomingPaymentWithMethods(
+  paymentIntent: GetPaymentIntentResult,
+  streamServer: StreamServer,
+  openPaymentsUrl: string
+): components['schemas']['incoming-payment-with-methods'] {
+  const streamCredentials = generateStreamCredentials(streamServer, {
+    paymentIntentId: paymentIntent.id,
+    assetCode: paymentIntent.assetCode,
+    assetScale: paymentIntent.assetScale
+  });
+
+  return {
+    ...toIncomingPaymentBody(paymentIntent, openPaymentsUrl),
+    methods: [
+      {
+        type: 'ilp',
+        ilpAddress: streamCredentials.ilpAddress,
+        sharedSecret: streamCredentials.sharedSecret
+      }
+    ]
+  };
+}
+
 export async function incomingPaymentRoutes(
   server: FastifyInstance,
   opts: IncomingPaymentRouteOptions
 ): Promise<void> {
-  const { palClient, paymentsClient, streamServer } = opts;
+  const { palClient, paymentsClient, streamServer, openPaymentsUrl } = opts;
 
   server.post<{
     Body: components['schemas']['create-incoming-payment-request'];
@@ -126,7 +152,17 @@ export async function incomingPaymentRoutes(
           JSON.stringify(metadata)
         );
 
-        return reply.status(201).send({ id: result.id });
+        const paymentIntent = await paymentsClient.getPaymentIntent(result.id);
+
+        return reply
+          .status(201)
+          .send(
+            toIncomingPaymentWithMethods(
+              paymentIntent,
+              streamServer,
+              openPaymentsUrl
+            )
+          );
       } catch (err) {
         const httpStatus = httpStatusFromGrpcError(err);
         const message = isGrpcServiceError(err)
@@ -153,24 +189,15 @@ export async function incomingPaymentRoutes(
       return reply.status(httpStatus).send(toClientApiErrorResponse(err));
     }
 
-    const streamCredentials = generateStreamCredentials(streamServer, {
-      paymentIntentId: paymentIntent.id,
-      assetCode: paymentIntent.assetCode,
-      assetScale: paymentIntent.assetScale
-    });
-
-    const response: components['schemas']['incoming-payment-with-methods'] = {
-      ...toIncomingPaymentBody(paymentIntent),
-      methods: [
-        {
-          type: 'ilp',
-          ilpAddress: streamCredentials.ilpAddress,
-          sharedSecret: streamCredentials.sharedSecret
-        }
-      ]
-    };
-
-    return reply.status(200).send(response);
+    return reply
+      .status(200)
+      .send(
+        toIncomingPaymentWithMethods(
+          paymentIntent,
+          streamServer,
+          openPaymentsUrl
+        )
+      );
   });
 
   server.get<{
@@ -218,7 +245,9 @@ export async function incomingPaymentRoutes(
 
       return reply.status(200).send({
         pagination: page.pagination,
-        result: page.items.map(toIncomingPaymentBody)
+        result: page.items.map((paymentIntent) =>
+          toIncomingPaymentBody(paymentIntent, openPaymentsUrl)
+        )
       });
     } catch (err) {
       const httpStatus = httpStatusFromGrpcError(err);
@@ -243,7 +272,7 @@ export async function incomingPaymentRoutes(
     }
 
     const response: components['schemas']['incoming-payment'] =
-      toIncomingPaymentBody(paymentIntent);
+      toIncomingPaymentBody(paymentIntent, openPaymentsUrl);
 
     return reply.status(200).send(response);
   });

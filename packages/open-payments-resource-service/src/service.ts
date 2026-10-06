@@ -89,6 +89,7 @@ export class OpenPaymentsResourceServer {
     this.server.register(incomingPaymentRoutes, {
       palClient: this.palClient,
       paymentsClient: this.paymentsClient,
+      openPaymentsUrl: OPEN_PAYMENTS_RESOURCE_SERVICE_URL,
       streamServer: createStreamServer({
         serverSecret: parseStreamServerSecret(STREAM_SERVER_SECRET_RAW),
         serverAddress: ILP_ADDRESS

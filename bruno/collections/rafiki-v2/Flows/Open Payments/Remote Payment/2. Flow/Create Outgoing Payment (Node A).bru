@@ -1,0 +1,34 @@
+meta {
+  name: Create Outgoing Payment (Node A)
+  type: http
+  seq: 3
+}
+
+post {
+  url: http://{{opAHost}}/outgoing-payments
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "walletAddress": "https://test.com/sender",
+    "quoteId": "http://{{opAHost}}/quotes/{{quoteId}}"
+  }
+}
+
+script:post-response {
+  const body = res.getBody();
+  if (body?.id) {
+    bru.setVar("outgoingPaymentId", body.id);
+    bru.setVar("outgoingPaymentIdSegment", body.id.split("/").pop());
+  }
+}
+
+docs {
+  The from-quote form. `quoteId` is wrapped in a URL by hand: the spec types
+  this input as `format: uri`, but POST /quotes currently returns a bare
+  compound id, so sending the id as-is is rejected by request validation
+  before it reaches the handler. Once quote ids are emitted as URLs this
+  becomes `{{quoteId}}` on its own.
+}
