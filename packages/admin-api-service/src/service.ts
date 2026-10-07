@@ -119,7 +119,7 @@ export class AdminApiService {
     });
     this.server.register(grantRoutes, {
       authClient: this.authClient
-    })
+    });
     this.server.register(ratesRoutes, {
       palClient: this.palClient
     });
