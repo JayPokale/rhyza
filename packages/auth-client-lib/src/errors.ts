@@ -68,3 +68,5 @@ export function httpStatusFromGrpcError(err: unknown): number {
       return 500;
   }
 }
+
+export class AuthClientUnknownError extends Error {}
