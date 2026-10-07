@@ -234,7 +234,7 @@ test('pal client - re-activating peer', async () => {
 
 test('pal client - created peer must have an new set of ledger accounts', async () => {
   // we have to wait for the ledger acount to be created in the read side of the ledger
-  await new Promise((resolve) => setTimeout(resolve, 1000));
+  await new Promise((resolve) => setTimeout(resolve, 10000));
   const accountIds: string[] = Object.values(peerOneDto.ledgerAccounts);
 
   const accounts = await client.getLedgerAccounts(accountIds);
