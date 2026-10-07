@@ -1,4 +1,4 @@
-# API Changelog 0.0.7 vs. 0.0.9
+# API Changelog 0.0.8 vs. 0.0.10
 
 
 ## API Changes
@@ -10,12 +10,20 @@
 ### POST /grant/{id}
 -  endpoint added
 
-# API Changelog 0.0.7 vs. 0.0.8
+# API Changelog 0.0.8 vs. 0.0.9
 
 
 ## API Changes
 
 ### GET /grant/{id}
+-  endpoint added
+
+# API Changelog 0.0.7 vs. 0.0.8
+
+
+## API Changes
+
+### POST /rates
 -  endpoint added
 
 # API Changelog 0.0.6 vs. 0.0.7
@@ -43,13 +51,16 @@
 
 ## API Changes
 ### POST /liquidity/deposit
+
 - :warning: added the new required request property `amountScale`
 - :warning: removed the success response with the status `202`
--  added the success response with the status `200`
+- added the success response with the status `200`
 
 ## Info
--  a breaking change was detected but the major version did not increase, from `0.0.4` to `0.0.5`
+
+- a breaking change was detected but the major version did not increase, from `0.0.4` to `0.0.5`
 -
+
 # API Changelog 0.0.3 vs. 0.0.4
 
 ## API Changes
@@ -184,6 +195,7 @@
 ## API Changes
 
 ### POST /liquidity/deposit
+
 - :warning: added the new required request property `amountScale`
 - :warning: removed the success response with the status `202`
--  added the success response with the status `200`
+- added the success response with the status `200`

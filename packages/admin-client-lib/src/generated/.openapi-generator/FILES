@@ -5,6 +5,7 @@ apis/PaymentIntentsApi.ts
 apis/PaymentsApi.ts
 apis/PeersApi.ts
 apis/QuotesApi.ts
+apis/RatesApi.ts
 apis/WalletAddressesApi.ts
 apis/index.ts
 index.ts
@@ -18,6 +19,7 @@ models/CancelPayment200Response.ts
 models/Client.ts
 models/DirectedIdentityJWK.ts
 models/ErrorResponse.ts
+models/FxRateSet.ts
 models/Grant.ts
 models/GrantState.ts
 models/Interaction.ts

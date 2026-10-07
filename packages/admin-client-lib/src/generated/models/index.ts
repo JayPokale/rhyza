@@ -10,6 +10,7 @@ export * from './CancelPayment200Response';
 export * from './Client';
 export * from './DirectedIdentityJWK';
 export * from './ErrorResponse';
+export * from './FxRateSet';
 export * from './Grant';
 export * from './GrantState';
 export * from './Interaction';

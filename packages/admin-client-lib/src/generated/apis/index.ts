@@ -7,4 +7,5 @@ export * from './PaymentIntentsApi';
 export * from './PaymentsApi';
 export * from './PeersApi';
 export * from './QuotesApi';
+export * from './RatesApi';
 export * from './WalletAddressesApi';

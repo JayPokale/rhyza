@@ -66,7 +66,7 @@ export interface IGrantService {
 export class GrantAggregate {
   private newGrantIds: string[] = [];
   private grantIdsWithRotatedTokens = new Map<string, IRotatedGrantUpdate>();
-  private continueCmdsToResolve: {
+  private clientKeysToResolve: {
     grantId: string;
     requestId: string;
     kid: string;
@@ -126,19 +126,41 @@ export class GrantAggregate {
             this.parseJWKJson(payload.client) as JWK
           );
         }
-      } else if (cmd.msgName === ContinueGrantCmd.name) {
-        grantIdSet.add((cmd as ContinueGrantCmd).payload.id);
-        this.continueCmdsToResolve.push({
+      } else if (
+        cmd.msgName === ContinueGrantCmd.name ||
+        cmd.msgName === RevokeGrantCmd.name ||
+        cmd.msgName === RotateTokenCmd.name ||
+        cmd.msgName === RevokeTokenCmd.name
+      ) {
+        grantIdSet.add(
+          (
+            cmd as
+              | ContinueGrantCmd
+              | RevokeGrantCmd
+              | RotateTokenCmd
+              | RevokeTokenCmd
+          ).payload.id
+        );
+        this.clientKeysToResolve.push({
           grantId: cmd.payload.id,
-          requestId: (cmd as ContinueGrantCmd).requestId,
-          kid: (cmd as ContinueGrantCmd).payload.signatureData.kid
+          requestId: (
+            cmd as
+              | ContinueGrantCmd
+              | RevokeGrantCmd
+              | RotateTokenCmd
+              | RevokeTokenCmd
+          ).requestId,
+          kid: (
+            cmd as
+              | ContinueGrantCmd
+              | RevokeGrantCmd
+              | RotateTokenCmd
+              | RevokeTokenCmd
+          ).payload.signatureData.kid
         });
       } else if (
-        cmd.msgName === RevokeGrantCmd.name ||
         cmd.msgName === AdminRevokeGrantCmd.name ||
         cmd.msgName === IntrospectTokenCmd.name ||
-        cmd.msgName === RotateTokenCmd.name ||
-        cmd.msgName === RevokeTokenCmd.name ||
         cmd.msgName === StartInteractionCmd.name ||
         cmd.msgName === AcceptInteractionCmd.name ||
         cmd.msgName === RejectInteractionCmd.name ||
@@ -167,11 +189,11 @@ export class GrantAggregate {
       this.grantMap.set(grant.id, GrantEntity.fromObject(grant));
     }
 
-    for (const { grantId, requestId, kid } of this.continueCmdsToResolve) {
+    for (const { grantId, requestId, kid } of this.clientKeysToResolve) {
       const grant = this.grantMap.get(grantId);
       if (!grant) continue; // Grant not found error thrown in command handler.
 
-      this.getWaRequestsFromContinueCmds(
+      this.getWaRequestsFromCmds(
         grant,
         walletAddressKeyRequestSet,
         kid,
@@ -270,7 +292,7 @@ export class GrantAggregate {
     return grant.client;
   }
 
-  private getWaRequestsFromContinueCmds(
+  private getWaRequestsFromCmds(
     grant: GrantEntity,
     walletAddressSet: Set<string>,
     kid: string,
@@ -280,9 +302,11 @@ export class GrantAggregate {
       return;
     }
 
-    if (isJWK(grant.client)) {
-      return;
-    }
+    if (isJWK(grant.client)) return;
+
+    if (this.parseJWKJson(grant.client as string)) return;
+
+    this._logger.info({ client: grant.client }, 'getting WA Requests from cmd');
 
     walletAddressSet.add(grant.client as string);
     const walletAddressToRequest = this.walletAddressRequestMap.get(
@@ -473,7 +497,10 @@ export class GrantAggregate {
         throw new GrantNotFoundError(`Grant ${id} not found`);
       }
 
-      const clientKey = this.resolveClientKeyForDirectedIdentityGrant(grant);
+      const clientKey =
+        this.requestIdToClientKeyMap.get(cmd.requestId) ??
+        this.resolveClientKeyForDirectedIdentityGrant(grant);
+
       if (!clientKey) {
         throw new UnauthorizedRequestError();
       }
@@ -623,7 +650,9 @@ export class GrantAggregate {
         throw new GrantNotFoundError(`Grant ${id} not found`);
       }
 
-      const clientKey = this.resolveClientKeyForDirectedIdentityGrant(grant);
+      const clientKey =
+        this.requestIdToClientKeyMap.get(cmd.requestId) ??
+        this.resolveClientKeyForDirectedIdentityGrant(grant);
       if (!clientKey) {
         throw new UnauthorizedRequestError();
       }
@@ -685,7 +714,9 @@ export class GrantAggregate {
         throw new GrantNotFoundError(`Grant ${id} not found`);
       }
 
-      const clientKey = this.resolveClientKeyForDirectedIdentityGrant(grant);
+      const clientKey =
+        this.requestIdToClientKeyMap.get(cmd.requestId) ??
+        this.resolveClientKeyForDirectedIdentityGrant(grant);
       if (!clientKey) {
         throw new UnauthorizedRequestError();
       }
@@ -985,7 +1016,7 @@ export class GrantAggregate {
       this.newGrantInteractions.clear();
       this.updatedGrantInteractions.clear();
       this.finishedInteractiveGrantIds.clear();
-      this.continueCmdsToResolve = [];
+      this.clientKeysToResolve = [];
       this.requestIdToClientKeyMap.clear();
       this.requestIdToClientNameMap.clear();
     }

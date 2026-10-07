@@ -7,6 +7,7 @@ import {
   httpStatusFromGrpcError,
   toClientApiErrorResponse
 } from 'auth-client-lib';
+import { GetGrantRequest } from 'admin-client-lib';
 
 interface GrantRouteOptions extends FastifyPluginOptions {
   authClient: AuthClient;
@@ -41,9 +42,7 @@ export async function grantRoutes(
   const { authClient } = opts;
 
   server.get<{
-    Params: {
-      id: string;
-    };
+    Params: GetGrantRequest;
   }>('/grants/:id', async (request, reply) => {
     const { id } = request.params;
 
