@@ -63,7 +63,7 @@ export class RatesApi extends runtime.BaseAPI {
     }
 
     /**
-     * Store an exchange rate. A null peerId stores an intra-ASE rate. A peerId stores that peer\'s rate.
+     * Store an exchange rate for payments between wallet addresses on this Rhyza instance,  or a peer\'s rate used for payments sent to or received from that peer.
      * Set Exchange Rate
      */
     async setFxRateRaw(requestParameters: SetFxRateRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<void>> {
@@ -74,7 +74,7 @@ export class RatesApi extends runtime.BaseAPI {
     }
 
     /**
-     * Store an exchange rate. A null peerId stores an intra-ASE rate. A peerId stores that peer\'s rate.
+     * Store an exchange rate for payments between wallet addresses on this Rhyza instance,  or a peer\'s rate used for payments sent to or received from that peer.
      * Set Exchange Rate
      */
     async setFxRate(fxRateSet: FxRateSet, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<void> {
