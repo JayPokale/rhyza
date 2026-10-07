@@ -4,6 +4,12 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+catalogs:
+  default:
+    google-protobuf:
+      specifier: 4.0.2
+      version: 4.0.2
+
 importers:
 
   .:
@@ -195,8 +201,8 @@ importers:
         specifier: workspace:*
         version: link:../common-types-lib
       google-protobuf:
-        specifier: ~4.0.1
-        version: 4.0.1
+        specifier: 'catalog:'
+        version: 4.0.2
       implementations-lib:
         specifier: workspace:*
         version: link:../implementations-lib
@@ -302,8 +308,8 @@ importers:
         specifier: ~0.8.0
         version: 0.8.0
       google-protobuf:
-        specifier: ~4.0.1
-        version: 4.0.1
+        specifier: 'catalog:'
+        version: 4.0.2
     devDependencies:
       '@types/google-protobuf':
         specifier: ~3.15.12
@@ -368,8 +374,8 @@ importers:
         specifier: workspace:*
         version: link:../common-types-lib
       google-protobuf:
-        specifier: ~4.0.1
-        version: 4.0.1
+        specifier: 'catalog:'
+        version: 4.0.2
       ilp-domain-lib:
         specifier: workspace:*
         version: link:../ilp-domain-lib
@@ -531,8 +537,8 @@ importers:
         specifier: ~0.8.0
         version: 0.8.0
       google-protobuf:
-        specifier: ~4.0.1
-        version: 4.0.1
+        specifier: 'catalog:'
+        version: 4.0.2
     devDependencies:
       '@types/google-protobuf':
         specifier: ~3.15.12
@@ -604,8 +610,8 @@ importers:
         specifier: workspace:*
         version: link:../common-types-lib
       google-protobuf:
-        specifier: 4.0.1
-        version: 4.0.1
+        specifier: 'catalog:'
+        version: 4.0.2
       ioredis:
         specifier: ~5.10.1
         version: 5.10.1
@@ -782,8 +788,8 @@ importers:
         specifier: 'workspace: *'
         version: link:../common-types-lib
       google-protobuf:
-        specifier: ~4.0.1
-        version: 4.0.1
+        specifier: 'catalog:'
+        version: 4.0.2
       implementations-lib:
         specifier: 'workspace: *'
         version: link:../implementations-lib
@@ -894,8 +900,8 @@ importers:
         specifier: 'workspace: *'
         version: link:../common-types-lib
       google-protobuf:
-        specifier: ~4.0.1
-        version: 4.0.1
+        specifier: 'catalog:'
+        version: 4.0.2
       implementations-lib:
         specifier: 'workspace: *'
         version: link:../implementations-lib
@@ -928,8 +934,8 @@ importers:
         specifier: 'workspace: *'
         version: link:../common-types-lib
       google-protobuf:
-        specifier: ~4.0.2
-        version: 4.0.3
+        specifier: 'catalog:'
+        version: 4.0.2
       implementations-lib:
         specifier: 'workspace: *'
         version: link:../implementations-lib
@@ -980,8 +986,8 @@ importers:
         specifier: 'workspace: *'
         version: link:../common-types-lib
       google-protobuf:
-        specifier: ~4.0.1
-        version: 4.0.1
+        specifier: 'catalog:'
+        version: 4.0.2
       implementations-lib:
         specifier: 'workspace: *'
         version: link:../implementations-lib
@@ -1017,8 +1023,8 @@ importers:
         specifier: 'workspace: *'
         version: link:../common-types-lib
       google-protobuf:
-        specifier: ~4.0.1
-        version: 4.0.1
+        specifier: 'catalog:'
+        version: 4.0.2
     devDependencies:
       '@types/google-protobuf':
         specifier: ~3.15.12
@@ -1051,8 +1057,8 @@ importers:
         specifier: workspace:*
         version: link:../common-types-lib
       google-protobuf:
-        specifier: ~4.0.1
-        version: 4.0.1
+        specifier: 'catalog:'
+        version: 4.0.2
       implementations-lib:
         specifier: workspace:*
         version: link:../implementations-lib
@@ -1192,8 +1198,8 @@ importers:
         specifier: workspace:*
         version: link:../common-types-lib
       google-protobuf:
-        specifier: ~4.0.1
-        version: 4.0.1
+        specifier: 'catalog:'
+        version: 4.0.2
     devDependencies:
       '@types/google-protobuf':
         specifier: ~3.15.12
@@ -5213,11 +5219,8 @@ packages:
   google-protobuf@3.15.8:
     resolution: {integrity: sha512-2jtfdqTaSxk0cuBJBtTTWsot4WtR9RVr2rXg7x7OoqiuOKopPrwXpM1G4dXIkLcUNRh3RKzz76C8IOkksZSeOw==}
 
-  google-protobuf@4.0.1:
-    resolution: {integrity: sha512-0I4mx3UtAwpcc8l9Ds5gHcwV2FyPdwvxxBcor8LusE4b6PjoFxEngZRBepjvuQ4B0eZ2iu/Vezh8oRsnpJ9UGA==}
-
-  google-protobuf@4.0.3:
-    resolution: {integrity: sha512-DI6iiRmF8fE/EzvGK5F9b8RxZeumHC2AAhi3xwOEh+GT5eRhJeW1aOtkDxn0W7cVCFQAtwK+ZDwIO1BYz+9WMA==}
+  google-protobuf@4.0.2:
+    resolution: {integrity: sha512-yD2fqbNgvJPuQwdKJiPdbUcXveNRxgqy070gzsBsCyFJA8Qdj9oxa9xtkddb/JEhcDk0RD5SfGUWg+nhINfMxA==}
 
   gopd@1.2.0:
     resolution: {integrity: sha512-ZUKRh6/kUFoAiTAtTYPZJ3hw9wNxx+BIBOijnlG9PnrJsCcSjs1wyyD6vJpaYtgnzDrKYRSqf3OO6Rfa93xsRg==}
@@ -12943,9 +12946,7 @@ snapshots:
 
   google-protobuf@3.15.8: {}
 
-  google-protobuf@4.0.1: {}
-
-  google-protobuf@4.0.3: {}
+  google-protobuf@4.0.2: {}
 
   gopd@1.2.0: {}
 
