@@ -169,10 +169,20 @@ describe('GrantAggregate.handleBatch', () => {
   });
 
   describe('handleBatch', async () => {
-    async function createIssuedGrant() {
+    async function createIssuedGrant({
+      useWalletAddress = false
+    }: {
+      useWalletAddress?: boolean;
+    } = {}) {
       const keys = generateTestKeys();
+      let client = JSON.stringify(keys.publicKey);
+      if (useWalletAddress) {
+        client = `https://wallet.example/${randomUUID()}`;
+        walletAddressService.setKeys(client, [keys.publicKey]);
+      }
+
       const createCmd = await makeCreateGrantCmd({
-        client: JSON.stringify(keys.publicKey),
+        client,
         signatureData: await signedSignatureData(
           keys.privateKey,
           keys.publicKey.kid
@@ -729,34 +739,6 @@ describe('GrantAggregate.handleBatch', () => {
     });
 
     describe('handleRotateTokenCommand', async () => {
-      async function createIssuedGrant(
-        keys: ReturnType<typeof generateTestKeys>,
-        { useWalletAddress = false }: { useWalletAddress?: boolean } = {}
-      ) {
-        let client = JSON.stringify(keys.publicKey);
-        if (useWalletAddress) {
-          client = `https://wallet.example/${randomUUID()}`;
-          walletAddressService.setKeys(client, [keys.publicKey]);
-        }
-
-        const createCmd = await makeCreateGrantCmd({
-          client,
-          signatureData: await signedSignatureData(
-            keys.privateKey,
-            keys.publicKey.kid
-          )
-        });
-        const { events } = await aggregate.handleBatch([createCmd]);
-        await aggregate.flush();
-        assert.equal(events[0].msgName, GrantCreatedEvent.name);
-        const payload = (events[0] as GrantCreatedEvent).payload;
-        return {
-          grantId: payload.id,
-          tokenValue: payload.accessTokenValue!,
-          managementId: payload.accessTokenManagementId!
-        };
-      }
-
       it('rotates the token and emits TokenRotatedEvent with a new value and managementId', async () => {
         const { keys, grantId, tokenValue, managementId } =
           await createIssuedGrant();
@@ -788,11 +770,8 @@ describe('GrantAggregate.handleBatch', () => {
       });
 
       it('rotates the token when the client key is hosted at a wallet address', async () => {
-        const keys = generateTestKeys();
-        const { grantId, tokenValue, managementId } = await createIssuedGrant(
-          keys,
-          { useWalletAddress: true }
-        );
+        const { keys, grantId, tokenValue, managementId } =
+          await createIssuedGrant({ useWalletAddress: true });
 
         const cmd = new RotateTokenCmd(
           {
@@ -939,38 +918,6 @@ describe('GrantAggregate.handleBatch', () => {
     });
 
     describe('handleRevokeTokenCommand', () => {
-      async function createIssuedGrant({
-        useWalletAddress = false
-      }: { useWalletAddress?: boolean } = {}) {
-        const keys = generateTestKeys();
-        let client = JSON.stringify(keys.publicKey);
-        if (useWalletAddress) {
-          client = `https://wallet.example/${randomUUID()}`;
-          walletAddressService.setKeys(client, [keys.publicKey]);
-        }
-
-        const createCmd = await makeCreateGrantCmd({
-          client,
-          signatureData: await signedSignatureData(
-            keys.privateKey,
-            keys.publicKey.kid
-          )
-        });
-        const { events } = await aggregate.handleBatch([createCmd]);
-        await aggregate.flush();
-
-        const created = events[0] as GrantCreatedEvent;
-        assert.ok(created.payload.accessTokenValue);
-        assert.ok(created.payload.accessTokenManagementId);
-
-        return {
-          keys,
-          grantId: created.payload.id,
-          tokenValue: created.payload.accessTokenValue!,
-          managementId: created.payload.accessTokenManagementId!
-        };
-      }
-
       it('revokes a valid token and persists the revocation', async () => {
         const { keys, grantId, tokenValue, managementId } =
           await createIssuedGrant();
