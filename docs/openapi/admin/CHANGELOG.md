@@ -3,14 +3,16 @@
 ## API Changes
 
 ### POST /wallet-addresses/{id}/activate
--  endpoint added
+
+- endpoint added
 
 # API Changelog 0.0.5 vs. 0.0.6
 
 ## API Changes
 
 ### POST /wallet-addresses/{id}/deactivate
--  endpoint added
+
+- endpoint added
 
 # API Changelog 0.0.4 vs. 0.0.5
 
