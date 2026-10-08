@@ -109,7 +109,6 @@ pnpm docker down --volumes --rmi all
 
 ---
 
-
 ## Project Architecture
 
 The project follows a modular architecture based on **Domain-Driven Design (DDD)**, where each **Bounded Context (BC)** is split into several packages to ensure a separation of concerns.
