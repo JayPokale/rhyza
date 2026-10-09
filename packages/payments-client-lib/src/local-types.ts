@@ -52,6 +52,15 @@ export type IncomingPaymentInput =
 
 export interface CreatePaymentIntentResult {
   id: string;
+  receiverWalletAddress: string;
+  state: string;
+  destination: string;
+  receivedAmount: bigint;
+  assetCode: string;
+  assetScale: number;
+  incomingAmount?: bigint;
+  expiresAt?: string;
+  createdAt: string;
 }
 
 export interface CompletePaymentIntentResult {
@@ -111,6 +120,7 @@ export interface GetPaymentIntentResult {
   destinationIlpAddress?: string;
   createdAt: string;
   remoteUrl?: string;
+  metadata?: Record<string, unknown>;
 }
 
 export interface GetQuoteResult {
@@ -151,4 +161,5 @@ export interface GetPaymentResult {
   /** Parent intent's remoteUrl, set for REMOTE intents. */
   remoteUrl?: string;
   failReason?: string;
+  metadata?: Record<string, unknown>;
 }

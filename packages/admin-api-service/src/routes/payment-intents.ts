@@ -39,6 +39,7 @@ interface PaymentIntentBody {
   expiresAt?: string;
   destinationIlpAddress?: string;
   createdAt: string;
+  metadata?: Record<string, unknown>;
 }
 
 function toPaymentIntentBody(
@@ -73,6 +74,10 @@ function toPaymentIntentBody(
     body.destinationIlpAddress = paymentIntent.destinationIlpAddress;
   }
 
+  if (paymentIntent.metadata) {
+    body.metadata = paymentIntent.metadata;
+  }
+
   return body;
 }
 
@@ -91,7 +96,7 @@ export async function paymentIntentRoutes(
 
     const { domain, pathName } = parseAddressToDomainAndPathName(walletAddress);
 
-    const alias = await palClient.ResolveWalletAddressAlias(domain, pathName);
+    const alias = await palClient.resolveWalletAddressAlias(domain, pathName);
 
     if (!alias) {
       return reply

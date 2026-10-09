@@ -84,7 +84,7 @@ describe('Payments Client', () => {
       // already exists — fine for reruns
     }
 
-    const receiverAlias = await palClient.ResolveWalletAddressAlias(
+    const receiverAlias = await palClient.resolveWalletAddressAlias(
       receiverDomain,
       receiverPathName
     );
@@ -93,7 +93,7 @@ describe('Payments Client', () => {
 
     receiverWalletAddressId = receiverAlias.walletAddressId;
 
-    const senderAlias = await palClient.ResolveWalletAddressAlias(
+    const senderAlias = await palClient.resolveWalletAddressAlias(
       senderDomain,
       senderPathName
     );
@@ -119,23 +119,50 @@ describe('Payments Client', () => {
       RECEIVER_WALLET_ADDRESS
     );
 
-    assert.ok(result);
     assert.equal(result.id, id);
+    assert.equal(result.receiverWalletAddress, RECEIVER_WALLET_ADDRESS);
+    assert.equal(result.state, 'CREATED');
+    assert.equal(result.destination, 'LOCAL');
+    assert.equal(result.receivedAmount, 0n);
+    assert.equal(result.assetCode, ASSET_CODE);
+    assert.equal(result.assetScale, ASSET_SCALE);
+    assert.equal(result.incomingAmount, undefined);
+    assert.ok(result.expiresAt);
+    assert.ok(!Number.isNaN(Date.parse(result.expiresAt!)));
+    assert.ok(result.createdAt);
+    assert.ok(!Number.isNaN(Date.parse(result.createdAt)));
   });
 
   test('create payment intent (all fields)', async () => {
     const id = randomUUID();
     const expiresAt = new Date(Date.now() + 1000 * 60 * 5).toISOString(); // 5 minutes
+    const metadata = JSON.stringify({
+      description: 'test'
+    });
     const result = await paymentsClient.createPaymentIntent(
       id,
       receiverWalletAddressId,
       RECEIVER_WALLET_ADDRESS,
       100,
-      expiresAt
+      expiresAt,
+      metadata
     );
 
-    assert.ok(result);
     assert.equal(result.id, id);
+    assert.equal(result.receiverWalletAddress, RECEIVER_WALLET_ADDRESS);
+    assert.equal(result.state, 'CREATED');
+    assert.equal(result.destination, 'LOCAL');
+    assert.equal(result.receivedAmount, 0n);
+    assert.equal(result.assetCode, ASSET_CODE);
+    assert.equal(result.assetScale, ASSET_SCALE);
+    assert.equal(result.incomingAmount, 100n);
+    assert.ok(result.expiresAt);
+    assert.equal(
+      new Date(result.expiresAt!).getTime(),
+      new Date(expiresAt).getTime()
+    );
+    assert.ok(result.createdAt);
+    assert.ok(!Number.isNaN(Date.parse(result.createdAt)));
   });
 
   test('duplicate id is rejected', async () => {
@@ -509,6 +536,22 @@ describe('Payments Client', () => {
       assert.equal(result.paymentIntentId, paymentIntentId);
     });
 
+    test('create payment with grantId', async () => {
+      const paymentIntentId = await createPaymentIntent(100);
+      const paymentId = randomUUID();
+      const result = await paymentsClient.createPayment(
+        paymentId,
+        senderWalletAddressId,
+        SENDER_WALLET_ADDRESS,
+        paymentIntentId,
+        undefined,
+        100,
+        'grant-1'
+      );
+
+      assert.equal(result.id, paymentId);
+    });
+
     test('duplicate id is rejected', async () => {
       const paymentIntentId = await createPaymentIntent(100);
       const paymentId = randomUUID();
@@ -679,7 +722,7 @@ describe('Payments Client', () => {
         'Page Receiver',
         ASSET_CODE
       );
-      const alias = await palClient.ResolveWalletAddressAlias(domain, pathName);
+      const alias = await palClient.resolveWalletAddressAlias(domain, pathName);
       assert.ok(alias, 'page receiver wallet address alias must resolve');
       pageReceiverWalletAddressId = alias.walletAddressId;
 
@@ -822,7 +865,7 @@ describe('Payments Client', () => {
         'Page Sender',
         ASSET_CODE
       );
-      const alias = await palClient.ResolveWalletAddressAlias(domain, pathName);
+      const alias = await palClient.resolveWalletAddressAlias(domain, pathName);
       assert.ok(alias, 'page sender wallet address alias must resolve');
       pageSenderWalletAddressId = alias.walletAddressId;
 

@@ -6,6 +6,11 @@ import {
   IGetPeerFxRateFromSourceAsset,
   IGetPeerFxRateToDestinationAsset,
   PalClient,
+  PalClientLedgerInsufficientFundsForWithdrawalError,
+  PalClientDuplicateWalletAddressKeyError,
+  PalClientWalletAddressKeyAlreadyRevokedError,
+  PalClientWalletAddressKeyNotFoundError,
+  PalClientWalletAddressNotFoundError,
   parseAddressToDomainAndPathName
 } from '../src';
 import { IPalPeerDto } from 'pal-public-types-lib';
@@ -17,6 +22,8 @@ const testPrefix = `TEST-${randomBytes(3).toString('hex')}`;
 const FIXED_ASSET_CODE = 'EUR';
 const ASSET_CODE = `${testPrefix}_${FIXED_ASSET_CODE}`;
 const ASSET_SCALE = 2;
+const DEPOSIT_AMOUNT = 5000n;
+const MIN_AMOUNT = (1 * 10 ** ASSET_SCALE).toString();
 
 const PEER_ONE_ID = `${testPrefix}_peer1`;
 const PEER_ONE_NAME = `${testPrefix} Peer One`;
@@ -81,10 +88,9 @@ test('pal client - created asset must exist and have an new ledger in the liquid
   assert.ok(assetAccount.id, createdAssetLedgerAccountId);
   assert.equal(assetAccount.assetCode, ASSET_CODE);
   // asset id is the code (and that's the ext id for the ledger account
-  assert.ok(assetAccount.externalId);
-  assert.equal(assetAccount.externalId, ASSET_CODE);
   assert.equal(assetAccount.creditedAmount, '0');
   assert.equal(assetAccount.debitedAmount, '0');
+  assert.equal(assetAccount.type, 'ASSET_LIQUIDITY_ACCOUNT');
 });
 
 test('pal client - created duplicate asset should fail', async () => {
@@ -228,7 +234,7 @@ test('pal client - re-activating peer', async () => {
 
 test('pal client - created peer must have an new set of ledger accounts', async () => {
   // we have to wait for the ledger acount to be created in the read side of the ledger
-  await new Promise((resolve) => setTimeout(resolve, 1000));
+  await new Promise((resolve) => setTimeout(resolve, 10000));
   const accountIds: string[] = Object.values(peerOneDto.ledgerAccounts);
 
   const accounts = await client.getLedgerAccounts(accountIds);
@@ -242,7 +248,7 @@ test('pal client - created peer must have an new set of ledger accounts', async 
   assert.ok(peerLiqAcc);
   assert.equal(peerLiqAcc.id, peerOneDto.ledgerAccounts.peerLiquidityAccId);
   assert.equal(peerLiqAcc.assetCode, ASSET_CODE);
-  assert.equal(peerLiqAcc.externalId, PEER_ONE_ID);
+  assert.equal(peerLiqAcc.peerId, PEER_ONE_ID);
   assert.equal(peerLiqAcc.creditedAmount, '0');
   assert.equal(peerLiqAcc.debitedAmount, '0');
 
@@ -252,7 +258,7 @@ test('pal client - created peer must have an new set of ledger accounts', async 
   assert.ok(peerCleAcc);
   assert.equal(peerCleAcc.id, peerOneDto.ledgerAccounts.peerClearingAccId);
   assert.equal(peerCleAcc.assetCode, ASSET_CODE);
-  assert.equal(peerCleAcc.externalId, PEER_ONE_ID);
+  assert.equal(peerCleAcc.peerId, PEER_ONE_ID);
   assert.equal(peerCleAcc.creditedAmount, '0');
   assert.equal(peerCleAcc.debitedAmount, '0');
 
@@ -262,7 +268,7 @@ test('pal client - created peer must have an new set of ledger accounts', async 
   assert.ok(aseLiqAcc);
   assert.equal(aseLiqAcc.id, peerOneDto.ledgerAccounts.aseLiquidityAccId);
   assert.equal(aseLiqAcc.assetCode, ASSET_CODE);
-  assert.equal(aseLiqAcc.externalId, PEER_ONE_ID);
+  assert.equal(aseLiqAcc.peerId, PEER_ONE_ID);
   assert.equal(aseLiqAcc.creditedAmount, '0');
   assert.equal(aseLiqAcc.debitedAmount, '0');
 
@@ -272,7 +278,7 @@ test('pal client - created peer must have an new set of ledger accounts', async 
   assert.ok(aseCleAcc);
   assert.equal(aseCleAcc.id, peerOneDto.ledgerAccounts.aseClearingAccId);
   assert.equal(aseCleAcc.assetCode, ASSET_CODE);
-  assert.equal(aseCleAcc.externalId, PEER_ONE_ID);
+  assert.equal(aseCleAcc.peerId, PEER_ONE_ID);
   assert.equal(aseCleAcc.creditedAmount, '0');
   assert.equal(aseCleAcc.debitedAmount, '0');
 
@@ -282,9 +288,225 @@ test('pal client - created peer must have an new set of ledger accounts', async 
   assert.ok(suspenseAcc);
   assert.equal(suspenseAcc.id, peerOneDto.ledgerAccounts.suspenseAccId);
   assert.equal(suspenseAcc.assetCode, ASSET_CODE);
-  assert.equal(suspenseAcc.externalId, PEER_ONE_ID);
+  assert.equal(suspenseAcc.peerId, PEER_ONE_ID);
   assert.equal(suspenseAcc.creditedAmount, '0');
   assert.equal(suspenseAcc.debitedAmount, '0');
+});
+
+/*
+ * Liquidity Management Tests
+ * */
+
+test('pal client - LiquidityManagement - Deposit to ASE', async () => {
+  const reqId = 'req1';
+  const resp = await client.ledgerDepositToAse({
+    peerId: PEER_ONE_ID,
+    assetCode: ASSET_CODE,
+    amount: DEPOSIT_AMOUNT.toString(),
+    amountScale: ASSET_SCALE,
+    requestId: reqId
+  });
+
+  assert.ok(resp);
+  assert.equal(resp.requestId, reqId);
+  assert.equal(resp.peerId, PEER_ONE_ID);
+  assert.equal(resp.isError, false);
+  assert.equal(resp.externalId, undefined);
+  assert.equal(resp.errorMessage, undefined);
+});
+
+test('pal client - LiquidityManagement - Withdraw from ASE', async () => {
+  const reqId = 'req3';
+  const resp = await client.ledgerWithdrawFromAse({
+    peerId: PEER_ONE_ID,
+    assetCode: ASSET_CODE,
+    amount: DEPOSIT_AMOUNT.toString(),
+    amountScale: ASSET_SCALE,
+    requestId: reqId
+  });
+
+  assert.ok(resp);
+  assert.equal(resp.requestId, reqId);
+  assert.equal(resp.peerId, PEER_ONE_ID);
+  assert.equal(resp.isError, false);
+  assert.equal(resp.externalId, undefined);
+  assert.equal(resp.errorMessage, undefined);
+});
+
+test('pal client - LiquidityManagement - Withdraw excess liquidity from ASE should fail', async () => {
+  try {
+    const reqId = 'req4';
+    await client.ledgerWithdrawFromAse({
+      peerId: PEER_ONE_ID,
+      assetCode: ASSET_CODE,
+      amount: MIN_AMOUNT,
+      amountScale: ASSET_SCALE,
+      requestId: reqId
+    });
+    assert.fail();
+  } catch (e) {
+    assert.ok(e instanceof PalClientLedgerInsufficientFundsForWithdrawalError);
+  }
+});
+
+test('pal client - LiquidityManagement - Deposit to Peer', async () => {
+  const reqId = 'req2';
+  const resp = await client.ledgerDepositToPeer({
+    peerId: PEER_ONE_ID,
+    assetCode: ASSET_CODE,
+    amount: DEPOSIT_AMOUNT.toString(),
+    amountScale: ASSET_SCALE,
+    requestId: reqId
+  });
+
+  assert.ok(resp);
+  assert.equal(resp.requestId, reqId);
+  assert.equal(resp.peerId, PEER_ONE_ID);
+  assert.equal(resp.isError, false);
+  assert.equal(resp.externalId, undefined);
+  assert.equal(resp.errorMessage, undefined);
+});
+
+test('pal client - LiquidityManagement - Withdraw from Peer', async () => {
+  const reqId = 'req4';
+  const resp = await client.ledgerWithdrawFromPeer({
+    peerId: PEER_ONE_ID,
+    assetCode: ASSET_CODE,
+    amount: DEPOSIT_AMOUNT.toString(),
+    amountScale: ASSET_SCALE,
+    requestId: reqId
+  });
+
+  assert.ok(resp);
+  assert.equal(resp.requestId, reqId);
+  assert.equal(resp.peerId, PEER_ONE_ID);
+  assert.equal(resp.isError, false);
+  assert.equal(resp.externalId, undefined);
+  assert.equal(resp.errorMessage, undefined);
+});
+
+test('pal client - LiquidityManagement - Withdraw excess liquidity from Peer should fail', async () => {
+  try {
+    const reqId = 'req4';
+    await client.ledgerWithdrawFromPeer({
+      peerId: PEER_ONE_ID,
+      assetCode: ASSET_CODE,
+      amount: MIN_AMOUNT,
+      amountScale: ASSET_SCALE,
+      requestId: reqId
+    });
+    assert.fail();
+  } catch (e) {
+    assert.ok(e instanceof PalClientLedgerInsufficientFundsForWithdrawalError);
+  }
+});
+
+/*
+ * Liquidity Management Tests
+ * */
+
+test('pal client - LiquidityManagement - Deposit to ASE', async () => {
+  const reqId = 'req1';
+  const resp = await client.ledgerDepositToAse({
+    peerId: PEER_ONE_ID,
+    assetCode: ASSET_CODE,
+    amount: DEPOSIT_AMOUNT.toString(),
+    amountScale: ASSET_SCALE,
+    requestId: reqId
+  });
+
+  assert.ok(resp);
+  assert.equal(resp.requestId, reqId);
+  assert.equal(resp.peerId, PEER_ONE_ID);
+  assert.equal(resp.isError, false);
+  assert.equal(resp.externalId, undefined);
+  assert.equal(resp.errorMessage, undefined);
+});
+
+test('pal client - LiquidityManagement - Withdraw from ASE', async () => {
+  const reqId = 'req3';
+  const resp = await client.ledgerWithdrawFromAse({
+    peerId: PEER_ONE_ID,
+    assetCode: ASSET_CODE,
+    amount: DEPOSIT_AMOUNT.toString(),
+    amountScale: ASSET_SCALE,
+    requestId: reqId
+  });
+
+  assert.ok(resp);
+  assert.equal(resp.requestId, reqId);
+  assert.equal(resp.peerId, PEER_ONE_ID);
+  assert.equal(resp.isError, false);
+  assert.equal(resp.externalId, undefined);
+  assert.equal(resp.errorMessage, undefined);
+});
+
+test('pal client - LiquidityManagement - Withdraw excess liquidity from ASE should fail', async () => {
+  try {
+    const reqId = 'req4';
+    await client.ledgerWithdrawFromAse({
+      peerId: PEER_ONE_ID,
+      assetCode: ASSET_CODE,
+      amount: MIN_AMOUNT,
+      amountScale: ASSET_SCALE,
+      requestId: reqId
+    });
+    assert.fail();
+  } catch (e) {
+    assert.ok(e instanceof PalClientLedgerInsufficientFundsForWithdrawalError);
+  }
+});
+
+test('pal client - LiquidityManagement - Deposit to Peer', async () => {
+  const reqId = 'req2';
+  const resp = await client.ledgerDepositToPeer({
+    peerId: PEER_ONE_ID,
+    assetCode: ASSET_CODE,
+    amount: DEPOSIT_AMOUNT.toString(),
+    amountScale: ASSET_SCALE,
+    requestId: reqId
+  });
+
+  assert.ok(resp);
+  assert.equal(resp.requestId, reqId);
+  assert.equal(resp.peerId, PEER_ONE_ID);
+  assert.equal(resp.isError, false);
+  assert.equal(resp.externalId, undefined);
+  assert.equal(resp.errorMessage, undefined);
+});
+
+test('pal client - LiquidityManagement - Withdraw from Peer', async () => {
+  const reqId = 'req4';
+  const resp = await client.ledgerWithdrawFromPeer({
+    peerId: PEER_ONE_ID,
+    assetCode: ASSET_CODE,
+    amount: DEPOSIT_AMOUNT.toString(),
+    amountScale: ASSET_SCALE,
+    requestId: reqId
+  });
+
+  assert.ok(resp);
+  assert.equal(resp.requestId, reqId);
+  assert.equal(resp.peerId, PEER_ONE_ID);
+  assert.equal(resp.isError, false);
+  assert.equal(resp.externalId, undefined);
+  assert.equal(resp.errorMessage, undefined);
+});
+
+test('pal client - LiquidityManagement - Withdraw excess liquidity from Peer should fail', async () => {
+  try {
+    const reqId = 'req4';
+    await client.ledgerWithdrawFromPeer({
+      peerId: PEER_ONE_ID,
+      assetCode: ASSET_CODE,
+      amount: MIN_AMOUNT,
+      amountScale: ASSET_SCALE,
+      requestId: reqId
+    });
+    assert.fail();
+  } catch (e) {
+    assert.ok(e instanceof PalClientLedgerInsufficientFundsForWithdrawalError);
+  }
 });
 
 /*
@@ -412,17 +634,20 @@ test('pal client - create wallet address', async () => {
   );
 
   assert.ok(createdWallet);
+  assert.ok(createdWallet.id);
   assert.equal(createdWallet.domain, ALIAS_DOMAIN);
   assert.equal(createdWallet.pathName, ALIAS_PATHNAME);
   assert.equal(createdWallet.publicName, PUBLIC_NAME);
   assert.equal(createdWallet.assetCode, ASSET_CODE);
   assert.equal(createdWallet.assetScale, ASSET_SCALE);
   assert.equal(createdWallet.isActive, true);
+
+  createdWalletAddressId = createdWallet.id;
 });
 
 // must run this here to resolve / get the internal wallet address id
 test('pal client - resolve created wallet address', async () => {
-  const alias = await client.ResolveWalletAddressAlias(
+  const alias = await client.resolveWalletAddressAlias(
     ALIAS_DOMAIN,
     ALIAS_PATHNAME
   );
@@ -490,7 +715,7 @@ test('pal client - create wallet address alias with domain', async () => {
 });
 
 test('pal client - resolve wallet address alias without domain', async () => {
-  const alias = await client.ResolveWalletAddressAlias(null, ALIAS_PATHNAME);
+  const alias = await client.resolveWalletAddressAlias(null, ALIAS_PATHNAME);
 
   assert.ok(alias);
   assert.ok(alias.walletAddressId);
@@ -499,7 +724,7 @@ test('pal client - resolve wallet address alias without domain', async () => {
 });
 
 test('pal client - resolve wallet address alias with domain', async () => {
-  const address = await client.ResolveWalletAddressAlias(
+  const address = await client.resolveWalletAddressAlias(
     ALIAS_DOMAIN,
     ALIAS_PATHNAME
   );
@@ -511,7 +736,7 @@ test('pal client - resolve wallet address alias with domain', async () => {
 });
 
 test('pal client - resolve non existing wallet address alias with domain should fail', async () => {
-  const address = await client.ResolveWalletAddressAlias(
+  const address = await client.resolveWalletAddressAlias(
     ALIAS_DOMAIN,
     'NON_EXISTING'
   );
@@ -520,9 +745,93 @@ test('pal client - resolve non existing wallet address alias with domain should 
 });
 
 test('pal client - resolve non existing wallet address alias without domain should fail', async () => {
-  const address = await client.ResolveWalletAddressAlias(null, 'NON_EXISTING');
+  const address = await client.resolveWalletAddressAlias(null, 'NON_EXISTING');
 
   assert.equal(address === null, true);
+});
+
+test('pal client - add wallet address key', async () => {
+  const keyId = await client.addWalletAddressKey(createdWalletAddressId, {
+    kid: `${testPrefix}_key-1`,
+    alg: 'EdDSA',
+    kty: 'OKP',
+    crv: 'Ed25519',
+    x: '11qYAYKxCrfVS_7TyWQHOg7hcvPapiMlrwIaaPcHURo'
+  });
+
+  assert.ok(keyId);
+  const keys = await client.getWalletAddressKeys(createdWalletAddressId);
+  assert.equal(keys.length, 1);
+  assert.equal(keys[0].id, keyId);
+  assert.equal(keys[0].walletAddressId, createdWalletAddressId);
+  assert.equal(keys[0].jwk.kid, `${testPrefix}_key-1`);
+  assert.equal(keys[0].revoked, false);
+});
+
+test('pal client - add duplicate wallet address key kid should fail', async () => {
+  try {
+    await client.addWalletAddressKey(createdWalletAddressId, {
+      kid: `${testPrefix}_key-1`,
+      alg: 'EdDSA',
+      kty: 'OKP',
+      crv: 'Ed25519',
+      x: '11qYAYKxCrfVS_7TyWQHOg7hcvPapiMlrwIaaPcHURo'
+    });
+    assert.fail();
+  } catch (e) {
+    assert.ok(e instanceof PalClientDuplicateWalletAddressKeyError);
+  }
+});
+
+test('pal client - revoke wallet address key', async () => {
+  const keys = await client.getWalletAddressKeys(createdWalletAddressId);
+  const key = keys.find((item) => item.jwk.kid === `${testPrefix}_key-1`);
+  assert.ok(key);
+  assert.equal(key.revoked, false);
+
+  await client.revokeWalletAddressKey(createdWalletAddressId, key.id);
+
+  const revoked = (
+    await client.getWalletAddressKeys(createdWalletAddressId)
+  ).find((item) => item.id === key.id);
+  assert.equal(revoked?.revoked, true);
+  assert.ok(revoked?.revokedAt instanceof Date);
+
+  try {
+    await client.revokeWalletAddressKey(createdWalletAddressId, key.id);
+    assert.fail();
+  } catch (e) {
+    assert.ok(e instanceof PalClientWalletAddressKeyAlreadyRevokedError);
+  }
+
+  const again = (
+    await client.getWalletAddressKeys(createdWalletAddressId)
+  ).find((item) => item.id === key.id);
+  assert.equal(again?.revokedAt?.getTime(), revoked?.revokedAt?.getTime());
+});
+
+test('pal client - revoke missing wallet address key should fail', async () => {
+  try {
+    await client.revokeWalletAddressKey(createdWalletAddressId, 'missing-key');
+    assert.fail();
+  } catch (e) {
+    assert.ok(e instanceof PalClientWalletAddressKeyNotFoundError);
+  }
+});
+
+test('pal client - add wallet address key for missing wallet should fail', async () => {
+  try {
+    await client.addWalletAddressKey('missing-wallet', {
+      kid: `${testPrefix}_missing`,
+      alg: 'EdDSA',
+      kty: 'OKP',
+      crv: 'Ed25519',
+      x: '11qYAYKxCrfVS_7TyWQHOg7hcvPapiMlrwIaaPcHURo'
+    });
+    assert.fail();
+  } catch (e) {
+    assert.ok(e instanceof PalClientWalletAddressNotFoundError);
+  }
 });
 
 /*

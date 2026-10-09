@@ -43,6 +43,7 @@ interface PaymentBody {
   sentAmount: AmountBody;
   createdAt: string;
   failReason?: string;
+  metadata?: Record<string, unknown>;
 }
 
 function toAmountBody(amount: IAmount): AmountBody {
@@ -76,6 +77,10 @@ function toPaymentBody(payment: GetPaymentResult): PaymentBody {
     body.failReason = payment.failReason;
   }
 
+  if (payment.metadata) {
+    body.metadata = payment.metadata;
+  }
+
   return body;
 }
 
@@ -88,7 +93,7 @@ export async function paymentRoutes(
   server.post<{
     Body: CreatePaymentRequest;
   }>('/payments', async (request, reply) => {
-    const { walletAddress, quoteId, debitAmount } = request.body;
+    const { walletAddress, quoteId, debitAmount, metadata } = request.body;
     const incomingPayment =
       'paymentIntentUrl' in request.body
         ? { incomingPaymentUrl: request.body.paymentIntentUrl }
@@ -97,7 +102,7 @@ export async function paymentRoutes(
     const id = request.body.id ?? randomUUID();
 
     const { domain, pathName } = parseAddressToDomainAndPathName(walletAddress);
-    const alias = await palClient.ResolveWalletAddressAlias(domain, pathName);
+    const alias = await palClient.resolveWalletAddressAlias(domain, pathName);
     if (!alias) {
       return reply
         .status(404)
@@ -111,7 +116,10 @@ export async function paymentRoutes(
         alias.walletAddressId,
         walletAddress,
         quoteId,
-        debitAmount ? Number(debitAmount) : undefined
+        debitAmount ? Number(debitAmount) : undefined,
+        undefined, // createdAt
+        undefined, // grantId
+        metadata
       );
 
       return reply

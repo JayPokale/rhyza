@@ -98,7 +98,7 @@ export class PaymentsClient {
     receiverWalletAddress: string,
     incomingAmount?: number,
     expiresAt?: string,
-    metadata?: string
+    metadata?: Record<string, unknown>
   ): Promise<CreatePaymentIntentResult> {
     const request = new PbCreatePaymentIntentRequest();
     request.setId(id);
@@ -112,7 +112,7 @@ export class PaymentsClient {
       request.setExpiresAt(expiresAt);
     }
     if (metadata !== undefined) {
-      request.setMetadata(metadata);
+      request.setMetadata(JSON.stringify(metadata));
     }
 
     return new Promise((resolve, reject) => {
@@ -127,8 +127,20 @@ export class PaymentsClient {
             return reject(error);
           }
 
+          const incomingAmount = response.getIncomingAmount();
+          const expiresAt = response.getExpiresAt();
+
           return resolve({
-            id: response.getId()
+            id: response.getId(),
+            receiverWalletAddress: response.getReceiverWalletAddress(),
+            state: response.getState(),
+            destination: response.getDestination(),
+            receivedAmount: BigInt(response.getReceivedAmount()),
+            assetCode: response.getAssetCode(),
+            assetScale: response.getAssetScale(),
+            incomingAmount: incomingAmount ? BigInt(incomingAmount) : undefined,
+            expiresAt: expiresAt || undefined,
+            createdAt: response.getCreatedAt()
           });
         }
       );
@@ -264,7 +276,9 @@ export class PaymentsClient {
     walletAddress: string,
     quoteId?: string,
     debitAmount?: number,
-    createdAt?: string
+    createdAt?: string,
+    grantId?: string,
+    metadata?: Record<string, unknown>
   ): Promise<CreatePaymentResult> {
     let paymentIntentId: string;
     let remoteUrl: string | undefined;
@@ -310,6 +324,14 @@ export class PaymentsClient {
 
     if (createdAt) {
       request.setCreatedAt(createdAt);
+    }
+
+    if (grantId) {
+      request.setGrantId(grantId);
+    }
+
+    if (metadata) {
+      request.setMetadata(JSON.stringify(metadata));
     }
 
     return new Promise((resolve, reject) => {
@@ -644,7 +666,8 @@ export class PaymentsClient {
       expiresAt: expiresAt || undefined,
       destinationIlpAddress: destinationIlpAddress || undefined,
       createdAt: response.getCreatedAt(),
-      remoteUrl: response.getRemoteUrl() || undefined
+      remoteUrl: response.getRemoteUrl() || undefined,
+      metadata: PaymentsClient._metadataFromPb(response.getMetadata())
     };
   }
 
@@ -678,8 +701,18 @@ export class PaymentsClient {
       ),
       createdAt: response.getCreatedAt(),
       remoteUrl: remoteUrl || undefined,
-      failReason: failReason || undefined
+      failReason: failReason || undefined,
+      metadata: PaymentsClient._metadataFromPb(response.getMetadata())
     };
+  }
+
+  private static _metadataFromPb(
+    metadata?: string
+  ): Record<string, unknown> | undefined {
+    if (!metadata) return undefined;
+    const parsed = JSON.parse(metadata);
+    if (Object.keys(parsed).length === 0) return undefined;
+    return parsed as Record<string, unknown>;
   }
 
   private static _amountFromPb(

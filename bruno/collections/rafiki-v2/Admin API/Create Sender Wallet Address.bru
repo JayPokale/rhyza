@@ -24,6 +24,9 @@ script:post-response {
   if (body?.address) {
     bru.setVar("senderWalletAddress", body.address);
   }
+  if (body?.id) {
+    bru.setVar("senderWalletAddressId", body.id);
+  }
 }
 
 settings {

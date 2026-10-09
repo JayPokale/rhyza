@@ -4,10 +4,11 @@ import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { PalClient, parseAddressToDomainAndPathName } from 'pal-client-lib';
 import {
   httpStatusFromGrpcError,
-  isGrpcServiceError,
   toClientApiErrorResponse,
   PaymentsClient,
-  GetPaymentIntentResult
+  GetPaymentIntentResult,
+  CompletePaymentIntentResult,
+  CreatePaymentIntentResult
 } from 'payments-client-lib';
 import { OpenPaymentsResourceServerRouteError } from '../errors.js';
 import { components } from '../types/generated/resource-server-types.js';
@@ -20,18 +21,21 @@ interface IncomingPaymentRouteOptions extends FastifyPluginOptions {
   palClient: PalClient;
   paymentsClient: PaymentsClient;
   streamServer: StreamServer;
-  /** Base URL of this node's Open Payments resource server, used to construct resource ids. */
   openPaymentsUrl: string;
 }
 
 export function toIncomingPaymentBody(
-  paymentIntent: GetPaymentIntentResult,
+  paymentIntent: GetPaymentIntentResult | CompletePaymentIntentResult,
   openPaymentsUrl: string
 ): components['schemas']['incoming-payment'] {
+  const { pathName } = parseAddressToDomainAndPathName(
+    paymentIntent.receiverWalletAddress
+  );
+
   const body: components['schemas']['incoming-payment'] = {
     id: `${openPaymentsUrl}/incoming-payments/${paymentIntent.id}`,
     completed: paymentIntent.state === 'COMPLETED',
-    walletAddress: paymentIntent.receiverWalletAddress,
+    walletAddress: `${openPaymentsUrl}/${pathName}`,
     createdAt: paymentIntent.createdAt,
     receivedAmount: {
       value: String(paymentIntent.receivedAmount),
@@ -52,30 +56,11 @@ export function toIncomingPaymentBody(
     body.expiresAt = paymentIntent.expiresAt;
   }
 
+  if ('metadata' in paymentIntent && paymentIntent.metadata) {
+    body.metadata = paymentIntent.metadata;
+  }
+
   return body;
-}
-
-function toIncomingPaymentWithMethods(
-  paymentIntent: GetPaymentIntentResult,
-  streamServer: StreamServer,
-  openPaymentsUrl: string
-): components['schemas']['incoming-payment-with-methods'] {
-  const streamCredentials = generateStreamCredentials(streamServer, {
-    paymentIntentId: paymentIntent.id,
-    assetCode: paymentIntent.assetCode,
-    assetScale: paymentIntent.assetScale
-  });
-
-  return {
-    ...toIncomingPaymentBody(paymentIntent, openPaymentsUrl),
-    methods: [
-      {
-        type: 'ilp',
-        ilpAddress: streamCredentials.ilpAddress,
-        sharedSecret: streamCredentials.sharedSecret
-      }
-    ]
-  };
 }
 
 export async function incomingPaymentRoutes(
@@ -86,6 +71,9 @@ export async function incomingPaymentRoutes(
 
   server.post<{
     Body: components['schemas']['create-incoming-payment-request'];
+    Reply:
+      | components['schemas']['incoming-payment-with-methods']
+      | components['schemas']['error-response'];
   }>(
     '/incoming-payments',
     {
@@ -106,7 +94,7 @@ export async function incomingPaymentRoutes(
       const { domain, pathName } =
         parseAddressToDomainAndPathName(walletAddressUrl);
 
-      const alias = await palClient.ResolveWalletAddressAlias(domain, pathName);
+      const alias = await palClient.resolveWalletAddressAlias(domain, pathName);
 
       if (!alias) {
         throw new OpenPaymentsResourceServerRouteError(
@@ -136,40 +124,45 @@ export async function incomingPaymentRoutes(
           incomingAmount.assetScale !== walletAddress.assetScale)
       ) {
         throw new OpenPaymentsResourceServerRouteError(
-          400,
+          404,
           'incomingAmount asset does not match wallet address asset',
           'invalid_request'
         );
       }
 
+      let paymentIntent: CreatePaymentIntentResult;
       try {
-        const result = await paymentsClient.createPaymentIntent(
+        paymentIntent = await paymentsClient.createPaymentIntent(
           id,
           walletAddress.id,
-          `${domain}/${pathName}`,
+          domain ? `${domain}/${pathName}` : pathName,
           incomingAmount ? Number(incomingAmount.value) : undefined,
           expiresAt,
-          JSON.stringify(metadata)
+          metadata
         );
-
-        const paymentIntent = await paymentsClient.getPaymentIntent(result.id);
-
-        return reply
-          .status(201)
-          .send(
-            toIncomingPaymentWithMethods(
-              paymentIntent,
-              streamServer,
-              openPaymentsUrl
-            )
-          );
       } catch (err) {
         const httpStatus = httpStatusFromGrpcError(err);
-        const message = isGrpcServiceError(err)
-          ? err.details || err.message
-          : (err as Error).message;
-        return reply.status(httpStatus).send({ error: message });
+        return reply.status(httpStatus).send(toClientApiErrorResponse(err));
       }
+
+      const streamCredentials = generateStreamCredentials(streamServer, {
+        paymentIntentId: paymentIntent.id,
+        assetCode: paymentIntent.assetCode,
+        assetScale: paymentIntent.assetScale
+      });
+
+      const response: components['schemas']['incoming-payment-with-methods'] = {
+        ...toIncomingPaymentBody(paymentIntent, openPaymentsUrl),
+        methods: [
+          {
+            type: 'ilp',
+            ilpAddress: streamCredentials.ilpAddress,
+            sharedSecret: streamCredentials.sharedSecret
+          }
+        ]
+      };
+
+      return reply.status(201).send(response);
     }
   );
 
@@ -181,7 +174,7 @@ export async function incomingPaymentRoutes(
   }>('/incoming-payments/:id', async (request, reply) => {
     const { id } = request.params;
 
-    let paymentIntent;
+    let paymentIntent: GetPaymentIntentResult;
     try {
       paymentIntent = await paymentsClient.getPaymentIntent(id);
     } catch (err) {
@@ -189,15 +182,24 @@ export async function incomingPaymentRoutes(
       return reply.status(httpStatus).send(toClientApiErrorResponse(err));
     }
 
-    return reply
-      .status(200)
-      .send(
-        toIncomingPaymentWithMethods(
-          paymentIntent,
-          streamServer,
-          openPaymentsUrl
-        )
-      );
+    const streamCredentials = generateStreamCredentials(streamServer, {
+      paymentIntentId: paymentIntent.id,
+      assetCode: paymentIntent.assetCode,
+      assetScale: paymentIntent.assetScale
+    });
+
+    const response: components['schemas']['incoming-payment-with-methods'] = {
+      ...toIncomingPaymentBody(paymentIntent, openPaymentsUrl),
+      methods: [
+        {
+          type: 'ilp',
+          ilpAddress: streamCredentials.ilpAddress,
+          sharedSecret: streamCredentials.sharedSecret
+        }
+      ]
+    };
+
+    return reply.status(200).send(response);
   });
 
   server.get<{
@@ -220,7 +222,7 @@ export async function incomingPaymentRoutes(
 
     const { domain, pathName } =
       parseAddressToDomainAndPathName(walletAddressUrl);
-    const alias = await palClient.ResolveWalletAddressAlias(domain, pathName);
+    const alias = await palClient.resolveWalletAddressAlias(domain, pathName);
 
     if (!alias) {
       return reply.status(200).send({
@@ -245,8 +247,8 @@ export async function incomingPaymentRoutes(
 
       return reply.status(200).send({
         pagination: page.pagination,
-        result: page.items.map((paymentIntent) =>
-          toIncomingPaymentBody(paymentIntent, openPaymentsUrl)
+        result: page.items.map((item) =>
+          toIncomingPaymentBody(item, openPaymentsUrl)
         )
       });
     } catch (err) {
@@ -263,7 +265,7 @@ export async function incomingPaymentRoutes(
   }>('/incoming-payments/:id/complete', async (request, reply) => {
     const { id } = request.params;
 
-    let paymentIntent;
+    let paymentIntent: CompletePaymentIntentResult;
     try {
       paymentIntent = await paymentsClient.completePaymentIntent(id);
     } catch (err) {

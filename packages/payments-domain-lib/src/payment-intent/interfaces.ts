@@ -56,6 +56,7 @@ export type IQuote = IPendingQuote | ICompletedQuote | IFailedQuote;
 
 export interface ISentPayment {
   id: string;
+  grantId?: string;
   state: SentPaymentState;
   senderWalletAddress: string;
   senderWalletAddressId: string;
@@ -71,6 +72,7 @@ export interface ISentPayment {
   sentAmount: bigint;
   ledgerTransferId?: string;
   failReason?: string;
+  metadata?: Record<string, unknown>;
 }
 
 export interface IInboundPayment {
@@ -107,6 +109,7 @@ export interface IPaymentIntent {
   destinationIlpAddress?: string;
   remoteUrl?: string;
   peerId?: string;
+  metadata?: Record<string, unknown>;
 }
 
 export interface IWalletAddress {

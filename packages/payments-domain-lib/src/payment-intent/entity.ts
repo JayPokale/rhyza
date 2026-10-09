@@ -349,6 +349,8 @@ class SentPayment {
   private _cancelReason?: string;
   private _ledgerTransferId?: string;
   private _failReason?: string;
+  private _grantId?: string;
+  private _metadata?: Record<string, unknown>;
 
   private constructor(args: {
     id: string;
@@ -367,6 +369,8 @@ class SentPayment {
     cancelReason?: string;
     ledgerTransferId?: string;
     failReason?: string;
+    grantId?: string;
+    metadata?: Record<string, unknown>;
   }) {
     this._id = args.id;
     this._state = args.state;
@@ -384,6 +388,8 @@ class SentPayment {
     this._cancelReason = args.cancelReason;
     this._ledgerTransferId = args.ledgerTransferId;
     this._failReason = args.failReason;
+    this._grantId = args.grantId;
+    this._metadata = args.metadata;
   }
 
   static create(args: {
@@ -397,6 +403,8 @@ class SentPayment {
     receiveAmount: bigint | null;
     quoteId?: string;
     createdAt?: Date;
+    grantId?: string;
+    metadata?: Record<string, unknown>;
   }): SentPayment {
     return new SentPayment({
       ...args,
@@ -423,7 +431,9 @@ class SentPayment {
       cancelledAt: obj.cancelledAt,
       cancelReason: obj.cancelReason,
       ledgerTransferId: obj.ledgerTransferId,
-      failReason: obj.failReason
+      failReason: obj.failReason,
+      grantId: obj.grantId,
+      metadata: obj.metadata
     });
   }
 
@@ -444,7 +454,9 @@ class SentPayment {
       cancelledAt: this._cancelledAt,
       cancelReason: this._cancelReason,
       ledgerTransferId: this._ledgerTransferId,
-      failReason: this._failReason
+      failReason: this._failReason,
+      grantId: this._grantId,
+      metadata: this._metadata
     };
   }
 
@@ -568,6 +580,10 @@ class SentPayment {
     return this._quoteId;
   }
 
+  get grantId(): string | undefined {
+    return this._grantId;
+  }
+
   get senderWalletAddressId(): string {
     return this._senderWalletAddressId;
   }
@@ -606,6 +622,10 @@ class SentPayment {
 
   get failReason(): string | undefined {
     return this._failReason;
+  }
+
+  get metadata(): Record<string, unknown> | undefined {
+    return this._metadata;
   }
 }
 
@@ -752,6 +772,7 @@ export class PaymentIntent implements IPaymentIntent {
   private _destinationIlpAddress: string | undefined;
   private _remoteUrl: string | undefined;
   private _peerId: string | undefined;
+  private _metadata: Record<string, unknown> | undefined;
 
   private constructor(
     id: string,
@@ -770,7 +791,8 @@ export class PaymentIntent implements IPaymentIntent {
     inboundPayments: InboundPayment[] = [],
     destinationIlpAddress?: string,
     remoteUrl?: string,
-    peerId?: string
+    peerId?: string,
+    metadata?: Record<string, unknown>
   ) {
     this._id = id;
     this._receiverWalletAddressId = receiverWalletAddressId;
@@ -791,6 +813,7 @@ export class PaymentIntent implements IPaymentIntent {
     this._destinationIlpAddress = destinationIlpAddress;
     this._remoteUrl = remoteUrl;
     this._peerId = peerId;
+    this._metadata = metadata;
   }
 
   static create(
@@ -804,7 +827,8 @@ export class PaymentIntent implements IPaymentIntent {
     incomingAmount: bigint | null = null,
     receivedAmount: bigint = 0n,
     destinationIlpAddress?: string,
-    remoteUrl?: string
+    remoteUrl?: string,
+    metadata?: Record<string, unknown>
   ): PaymentIntent {
     if (destination === 'LOCAL' && !receiverWalletAddressId) {
       throw new InvalidPaymentIntentError(
@@ -848,7 +872,9 @@ export class PaymentIntent implements IPaymentIntent {
       undefined,
       undefined,
       destinationIlpAddress,
-      remoteUrl
+      remoteUrl,
+      undefined,
+      metadata
     );
   }
 
@@ -870,7 +896,8 @@ export class PaymentIntent implements IPaymentIntent {
       obj.inboundPayments.map((rp) => InboundPayment.fromObject(rp)),
       obj.destinationIlpAddress,
       obj.remoteUrl,
-      obj.peerId
+      obj.peerId,
+      obj.metadata
     );
   }
 
@@ -892,7 +919,8 @@ export class PaymentIntent implements IPaymentIntent {
       inboundPayments: this._inboundPayments.map((rp) => rp.toObject()),
       destinationIlpAddress: this._destinationIlpAddress,
       remoteUrl: this._remoteUrl,
-      peerId: this._peerId
+      peerId: this._peerId,
+      metadata: this._metadata
     };
   }
 
@@ -1128,6 +1156,7 @@ export class PaymentIntent implements IPaymentIntent {
   addLocalPayment(args: {
     id: string;
     quoteId?: string;
+    grantId?: string;
     senderWalletAddress: {
       id: string;
       address: string;
@@ -1137,14 +1166,17 @@ export class PaymentIntent implements IPaymentIntent {
     exchangeRate: number;
     debitAmount?: bigint;
     createdAt?: Date;
+    metadata?: Record<string, unknown>;
   }): ISentPayment {
     const {
       id,
       senderWalletAddress,
       quoteId,
+      grantId,
       debitAmount,
       exchangeRate: unscaledExchangeRate,
-      createdAt
+      createdAt,
+      metadata
     } = args;
 
     if (this.state !== 'CREATED') {
@@ -1238,7 +1270,9 @@ export class PaymentIntent implements IPaymentIntent {
       debitAmount: paymentDebitAmount,
       receiveAmount: paymentReceiveAmount,
       quoteId,
-      createdAt
+      createdAt,
+      grantId,
+      metadata
     });
 
     this._sentPayments.push(payment);
@@ -1290,8 +1324,18 @@ export class PaymentIntent implements IPaymentIntent {
     debitAmount: bigint;
     peerId: string;
     createdAt?: Date;
+    grantId?: string;
+    metadata?: Record<string, unknown>;
   }): ISentPayment {
-    const { id, senderWalletAddress, debitAmount, peerId, createdAt } = args;
+    const {
+      id,
+      senderWalletAddress,
+      debitAmount,
+      peerId,
+      createdAt,
+      grantId,
+      metadata
+    } = args;
 
     this._assertCanAddRemotePayment(id);
 
@@ -1306,7 +1350,9 @@ export class PaymentIntent implements IPaymentIntent {
       assetScale: senderWalletAddress.assetScale,
       debitAmount,
       receiveAmount: null,
-      createdAt
+      createdAt,
+      grantId,
+      metadata
     });
 
     this._sentPayments.push(payment);
@@ -1324,8 +1370,11 @@ export class PaymentIntent implements IPaymentIntent {
       assetScale: number;
     };
     createdAt?: Date;
+    grantId?: string;
+    metadata?: Record<string, unknown>;
   }): ISentPayment {
-    const { id, quoteId, senderWalletAddress, createdAt } = args;
+    const { id, quoteId, senderWalletAddress, createdAt, grantId, metadata } =
+      args;
 
     this._assertCanAddRemotePayment(id);
 
@@ -1375,7 +1424,9 @@ export class PaymentIntent implements IPaymentIntent {
       debitAmount: quote.debitAmount,
       receiveAmount: quote.receiveAmount,
       quoteId,
-      createdAt
+      createdAt,
+      grantId,
+      metadata
     });
 
     this._sentPayments.push(payment);
@@ -1768,5 +1819,9 @@ export class PaymentIntent implements IPaymentIntent {
 
   get peerId(): string | undefined {
     return this._peerId;
+  }
+
+  get metadata(): Record<string, unknown> | undefined {
+    return this._metadata;
   }
 }

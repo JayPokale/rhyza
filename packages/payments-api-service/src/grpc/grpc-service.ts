@@ -308,7 +308,8 @@ export class PaymentsServiceServer {
           quoteId: call.request.getQuoteId(),
           debitAmount: call.request.getDebitAmount() || undefined,
           remoteUrl: call.request.getRemoteUrl() || undefined,
-          createdAt: call.request.getCreatedAt() || undefined
+          createdAt: call.request.getCreatedAt() || undefined,
+          grantId: call.request.getGrantId() || undefined
         },
         commandId
       );
@@ -626,6 +627,9 @@ export class PaymentsServiceServer {
     if (paymentIntent.remoteUrl) {
       pbPaymentIntent.setRemoteUrl(paymentIntent.remoteUrl);
     }
+    if (paymentIntent.metadata) {
+      pbPaymentIntent.setMetadata(JSON.stringify(paymentIntent.metadata));
+    }
     return pbPaymentIntent;
   }
 
@@ -648,6 +652,9 @@ export class PaymentsServiceServer {
     }
     if (parentIntent.remoteUrl) {
       pbPayment.setRemoteUrl(parentIntent.remoteUrl);
+    }
+    if (payment.metadata) {
+      pbPayment.setMetadata(JSON.stringify(payment.metadata));
     }
 
     // debitAmount and sentAmount are denominated in the payment's own
@@ -729,7 +736,21 @@ export class PaymentsServiceServer {
     const evt = message as PaymentIntentDomainEvent;
 
     if (PaymentIntentDomainEvent.isPaymentIntentCreatedEvent(evt)) {
-      const response = new CreatePaymentIntentResponse().setId(evt.payload.id);
+      const response = new CreatePaymentIntentResponse();
+      response.setId(evt.payload.id);
+      response.setReceiverWalletAddress(evt.payload.receiverWalletAddress);
+      response.setState(evt.payload.state);
+      response.setDestination(evt.payload.destination);
+      response.setReceivedAmount(Number(evt.payload.receivedAmount));
+      response.setAssetCode(evt.payload.assetCode);
+      response.setAssetScale(evt.payload.assetScale);
+      response.setCreatedAt(new Date(evt.payload.createdAt).toISOString());
+      if (evt.payload.incomingAmount != null) {
+        response.setIncomingAmount(Number(evt.payload.incomingAmount));
+      }
+      if (evt.payload.expiresAt) {
+        response.setExpiresAt(new Date(evt.payload.expiresAt).toISOString());
+      }
       this._resolvePendingResponse(pending, requestId, null, response);
     } else if (PaymentIntentDomainEvent.isPaymentIntentCreateFailedEvent(evt)) {
       this._resolvePendingResponse(

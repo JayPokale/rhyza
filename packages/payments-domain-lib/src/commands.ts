@@ -166,6 +166,8 @@ export type CreatePaymentCmdPayload = {
   remoteUrl?: string;
   /** ISO timestamp. */
   createdAt?: string;
+  grantId?: string;
+  metadata?: string;
 };
 
 export class CreatePaymentCmd extends PaymentIntentCommand {

@@ -1,13 +1,13 @@
 openapi: 3.1.0
 info:
-  title: Rafiki Admin API
-  version: 0.0.2
+  title: Rhyza Admin API
+  version: 0.0.9
   license:
     name: ISC
     identifier: ISC
 servers:
   - url: /
-    description: Base URL is determined by the Rafiki deployment.
+    description: Base URL is determined by the Rhyza deployment.
 security: []
 tags:
   - name: assets
@@ -24,6 +24,8 @@ tags:
     x-displayName: Peers
   - name: liquidity
     x-displayName: Liquidity
+  - name: rates
+    x-displayName: Rates
 paths:
   /peers:
     post:
@@ -121,6 +123,156 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/WalletAddressCreate'
+  /wallet-addresses/{id}/activate:
+    post:
+      summary: Activate Wallet Address
+      description: >-
+        Activate a wallet address that was previously deactivated. Once
+        active, the Open Payments wallet address document becomes reachable again.
+      tags:
+        - wallet-addresses
+      operationId: activateWalletAddress
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The internal Rhyza id of the wallet address.
+          schema:
+            type: string
+      responses:
+        '204':
+          description: The wallet address is activated.
+        '404':
+          description: Wallet address not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: The wallet address is already active.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /wallet-addresses/{id}/deactivate:
+    post:
+      summary: Deactivate Wallet Address
+      description: >-
+        Deactivate a wallet address. While inactive, the Open Payments wallet
+        address document is not found, and no resources can be created against
+        it. Deactivating a wallet address that is already inactive returns 409.
+      tags:
+        - wallet-addresses
+      operationId: deactivateWalletAddress
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The internal Rhyza id of the wallet address.
+          schema:
+            type: string
+      responses:
+        '204':
+          description: The wallet address is deactivated.
+        '404':
+          description: Wallet address not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: The wallet address is already inactive.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /wallet-addresses/{id}/keys:
+    post:
+      summary: Register Wallet Address Key
+      description: >-
+        Register a JWK for a wallet address. A wallet address can have multiple
+        active keys. Use the internal Rhyza id returned from
+        `POST /wallet-addresses`.
+      tags:
+        - wallet-addresses
+      operationId: createWalletAddressKey
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The internal Rhyza id of the wallet address.
+          schema:
+            type: string
+      requestBody:
+        description: Ed25519 public JWK to register for the wallet address.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JsonWebKey'
+      responses:
+        '201':
+          description: The request has succeeded and a wallet address key has been created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletAddressKeyCreateResponse'
+        '400':
+          description: The JWK is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Wallet address not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: A key with this kid already exists for the wallet address.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /wallet-addresses/{id}/keys/{keyId}/revoke:
+    post:
+      summary: Revoke Wallet Address Key
+      description: >-
+        Soft-revoke a wallet address key. The key record is kept and is no
+        longer served from `GET /jwks.json`. Revoking a key that is already
+        revoked returns 409 and does not change `revokedAt`.
+      tags:
+        - wallet-addresses
+      operationId: revokeWalletAddressKey
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The PAL identifier of the wallet address.
+          schema:
+            type: string
+        - name: keyId
+          in: path
+          required: true
+          description: The identifier of the wallet address key to revoke.
+          schema:
+            type: string
+      responses:
+        '204':
+          description: The key is revoked.
+        '404':
+          description: Wallet address key not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: The wallet address key is already revoked.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /payment-intents:
     get:
       summary: List Payment Intents
@@ -521,8 +673,7 @@ paths:
       description: >-
         Deposit liquidity so the node can send payments. Debits the asset system
         account and credits the peer's ASE liquidity account by producing a
-        ledger PostTransaction command. Fire-and-forget: returns 202 before the
-        ledger posts the transaction (see the sync TODO in the route).
+        ledger DepositToAse command. This is request-response style, returns 200 when complete.
       tags:
         - liquidity
       operationId: Liquidity_deposit
@@ -538,6 +689,7 @@ paths:
                 - assetCode
                 - peerId
                 - amount
+                - amountScale
               properties:
                 assetCode:
                   type: string
@@ -552,8 +704,11 @@ paths:
                     Amount in raw ledger units at the asset scale
                     (100000 = 1000.00 at scale 2).
                   example: 100000
+                amountScale:
+                  type: number
+                  description: The number of decimal places for the amount asset (e.g., 2 for "USD").
       responses:
-        '202':
+        '200':
           description: >-
             Deposit accepted and produced to the ledger (not yet confirmed).
           content:
@@ -576,8 +731,74 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /rates:
+    post:
+      summary: Set Exchange Rate
+      description: >-
+        Store an exchange rate for payments between wallet addresses on this Rhyza instance, 
+        or a peer's rate used for payments sent to or received from that peer.
+      tags:
+        - rates
+      operationId: setFxRate
+      parameters: []
+      requestBody:
+        description: Exchange rate to store
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FxRateSet'
+      responses:
+        '204':
+          description: The exchange rate has been stored.
+        '400':
+          description: >-
+            sourceAssetCode, destinationAssetCode, rate, or rateTtlSecs is missing,
+            or rate or rateTtlSecs is not greater than 0.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Failed to set the exchange rate.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 components:
   schemas:
+    FxRateSet:
+      type: object
+      description: Exchange rate to store.
+      required:
+        - sourceAssetCode
+        - destinationAssetCode
+        - rate
+        - peerId
+        - rateTtlSecs
+      properties:
+        sourceAssetCode:
+          type: string
+          description: Asset code the rate converts from.
+          example: USD
+        destinationAssetCode:
+          type: string
+          description: Asset code the rate converts to.
+          example: EUR
+        rate:
+          type: number
+          exclusiveMinimum: 0
+          description: Units of destination asset per one unit of source asset.
+          example: 0.92
+        peerId:
+          type: ['string', 'null']
+          description: >-
+            Peer whose rate this is. Null stores an intra-ASE rate.
+        rateTtlSecs:
+          type: number
+          exclusiveMinimum: 0
+          description: Seconds until the stored rate expires.
+          example: 60
     ErrorResponse:
       type: object
       description: Response schema for API errors.
@@ -596,10 +817,10 @@ components:
       properties:
         code:
           type: string
-          description: The asset code (e.g., "USD", "EUR", "BTC").
+          description: The asset code (e.g., "USD", "EUR", "BTC"). Must be unique per asset. An ISO4217 currency code should be used whenever possible.
         scale:
           type: number
-          description: The number of decimal places for the asset (e.g., 2 for "USD").
+          description: The number of decimal places to display for the asset. For example, a USD amount of 1000 with a scale of 2 will display as $10.00. The internal Rhyza ledger operates at a fixed high precision scale of 20.
     AssetCreateResponse:
       type: object
       description: Response schema after creating an asset.
@@ -706,11 +927,63 @@ components:
       type: object
       description: Response schema after creating a wallet address.
       required:
+        - id
         - address
       properties:
+        id:
+          type: string
+          description: >-
+            The internal Rhyza id of the created wallet address. Use this for
+            wallet-entity Admin operations such as key registration.
         address:
           type: string
           description: The unique identifier (URL) of the created wallet address.
+    JsonWebKey:
+      type: object
+      description: A JWK representation of an Ed25519 public key.
+      required:
+        - kid
+        - alg
+        - kty
+        - crv
+        - x
+      properties:
+        kid:
+          type: string
+          description: Unique identifier for the key.
+        alg:
+          type: string
+          description: The cryptographic algorithm family used with the key.
+          enum:
+            - EdDSA
+        use:
+          type: string
+          description: The intended use of the key.
+          enum:
+            - sig
+        kty:
+          type: string
+          description: The key type.
+          enum:
+            - OKP
+        crv:
+          type: string
+          description: The cryptographic curve used with the key.
+          enum:
+            - Ed25519
+        x:
+          type: string
+          description: The base64url-encoded public key.
+          pattern: '^[A-Za-z0-9_-]+$'
+    WalletAddressKeyCreateResponse:
+      type: object
+      description: Response schema after registering a wallet address key.
+      required:
+        - id
+      properties:
+        id:
+          type: string
+          description: The unique identifier of the created wallet address key.
     PaymentIntentCreate:
       type: object
       description: Schema for creating a new payment intent.
@@ -731,8 +1004,9 @@ components:
           format: date-time
           description: The date and time when the payment intent expires.
         metadata:
-          type: string
+          type: object
           description: Additional arbitrary data associated with the payment intent.
+          additionalProperties: true
     PaymentIntentCreateResponse:
       type: object
       description: Response schema after creating a payment intent.
@@ -898,6 +1172,10 @@ components:
         debitAmount:
           type: number
           description: The amount to debit from the sender.
+        metadata:
+          type: object
+          description: Additional arbitrary data associated with the payment.
+          additionalProperties: true
     PaymentCreateFromIntentId:
       description: >-
         Creates a payment against a payment intent this node already holds,
