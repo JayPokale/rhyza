@@ -43,11 +43,11 @@ export interface IPage<T> {
 }
 
 /**
- * Names the payment intent being paid: by its local id, or by the incoming
- * payment URL it was imported from.
+ * Names the payment intent being paid: by its local id, or by the Open
+ * Payments incoming payment URL it is imported from.
  */
-export type IncomingPaymentInput =
-  | { incomingPaymentId: string }
+export type PaymentIntentInput =
+  | { paymentIntentId: string }
   | { incomingPaymentUrl: string };
 
 export interface CreatePaymentIntentResult {

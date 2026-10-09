@@ -25,19 +25,19 @@ export async function quoteRoutes(
       debitAmount,
       receiveAmount,
       paymentIntentId,
-      paymentIntentUrl
+      incomingPaymentUrl
     } = request.body;
 
-    let incomingPayment:
+    let paymentIntent:
       | { incomingPaymentUrl: string }
-      | { incomingPaymentId: string };
-    if (paymentIntentUrl) {
-      incomingPayment = { incomingPaymentUrl: paymentIntentUrl };
+      | { paymentIntentId: string };
+    if (incomingPaymentUrl) {
+      paymentIntent = { incomingPaymentUrl };
     } else if (paymentIntentId) {
-      incomingPayment = { incomingPaymentId: paymentIntentId };
+      paymentIntent = { paymentIntentId };
     } else {
       return reply.status(400).send({
-        error: 'Either paymentIntentId or paymentIntentUrl is required'
+        error: 'Either paymentIntentId or incomingPaymentUrl is required'
       });
     }
 
@@ -53,7 +53,7 @@ export async function quoteRoutes(
 
     const result = await paymentsClient.createQuote(
       id,
-      incomingPayment,
+      paymentIntent,
       alias.walletAddressId,
       walletAddress,
       debitAmount ? Number(debitAmount) : undefined,

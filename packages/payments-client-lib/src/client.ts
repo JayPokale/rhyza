@@ -42,7 +42,7 @@ import {
   IAmount,
   IPage,
   IPageQuery,
-  IncomingPaymentInput
+  PaymentIntentInput
 } from './local-types';
 
 export class PaymentsClient {
@@ -187,7 +187,7 @@ export class PaymentsClient {
 
   async createQuote(
     id: string,
-    incomingPayment: IncomingPaymentInput,
+    paymentIntent: PaymentIntentInput,
     senderWalletAddressId: string,
     senderWalletAddress: string,
     debitAmount?: number,
@@ -197,7 +197,7 @@ export class PaymentsClient {
     let paymentIntentId: string;
     let remoteUrl: string | undefined;
 
-    if ('incomingPaymentUrl' in incomingPayment) {
+    if ('incomingPaymentUrl' in paymentIntent) {
       if (!this._openPaymentsUrl) {
         throw createServiceError(
           status.FAILED_PRECONDITION,
@@ -206,15 +206,15 @@ export class PaymentsClient {
         );
       }
       if (
-        incomingPayment.incomingPaymentUrl.startsWith(this._openPaymentsUrl)
+        paymentIntent.incomingPaymentUrl.startsWith(this._openPaymentsUrl)
       ) {
-        paymentIntentId = incomingPayment.incomingPaymentUrl.split('/').at(-1)!;
+        paymentIntentId = paymentIntent.incomingPaymentUrl.split('/').at(-1)!;
       } else {
         paymentIntentId = randomUUID();
-        remoteUrl = incomingPayment.incomingPaymentUrl;
+        remoteUrl = paymentIntent.incomingPaymentUrl;
       }
     } else {
-      paymentIntentId = incomingPayment.incomingPaymentId;
+      paymentIntentId = paymentIntent.paymentIntentId;
     }
 
     const request = new PbCreateQuoteRequest();
@@ -271,7 +271,7 @@ export class PaymentsClient {
    */
   async createPayment(
     id: string,
-    incomingPayment: IncomingPaymentInput,
+    paymentIntent: PaymentIntentInput,
     walletAddressId: string,
     walletAddress: string,
     quoteId?: string,
@@ -283,7 +283,7 @@ export class PaymentsClient {
     let paymentIntentId: string;
     let remoteUrl: string | undefined;
 
-    if ('incomingPaymentUrl' in incomingPayment) {
+    if ('incomingPaymentUrl' in paymentIntent) {
       if (!this._openPaymentsUrl) {
         throw createServiceError(
           status.FAILED_PRECONDITION,
@@ -292,16 +292,16 @@ export class PaymentsClient {
         );
       }
       if (
-        incomingPayment.incomingPaymentUrl.startsWith(this._openPaymentsUrl)
+        paymentIntent.incomingPaymentUrl.startsWith(this._openPaymentsUrl)
       ) {
-        paymentIntentId = incomingPayment.incomingPaymentUrl.split('/').at(-1)!;
+        paymentIntentId = paymentIntent.incomingPaymentUrl.split('/').at(-1)!;
       } else {
         // mint a new id, although the response will contain different id if the remote payment intent already exists.
         paymentIntentId = randomUUID();
-        remoteUrl = incomingPayment.incomingPaymentUrl;
+        remoteUrl = paymentIntent.incomingPaymentUrl;
       }
     } else {
-      paymentIntentId = incomingPayment.incomingPaymentId;
+      paymentIntentId = paymentIntent.paymentIntentId;
     }
 
     const request = new PbCreatePaymentRequest();

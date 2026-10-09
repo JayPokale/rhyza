@@ -16,61 +16,61 @@ import { mapValues } from '../runtime';
 /**
  * Creates a payment against a payment intent this node already holds, named by its local id.
  * @export
- * @interface PaymentCreateFromIntentId
+ * @interface PaymentCreateFromPaymentIntentId
  */
-export interface PaymentCreateFromIntentId {
+export interface PaymentCreateFromPaymentIntentId {
     /**
      * Unique identifier for the payment.
      * @type {string}
-     * @memberof PaymentCreateFromIntentId
+     * @memberof PaymentCreateFromPaymentIntentId
      */
     id?: string;
     /**
      * The sender's wallet address.
      * @type {string}
-     * @memberof PaymentCreateFromIntentId
+     * @memberof PaymentCreateFromPaymentIntentId
      */
     walletAddress: string;
     /**
      * The ID of the quote used for this payment.
      * @type {string}
-     * @memberof PaymentCreateFromIntentId
+     * @memberof PaymentCreateFromPaymentIntentId
      */
     quoteId?: string;
     /**
      * The amount to debit from the sender.
      * @type {number}
-     * @memberof PaymentCreateFromIntentId
+     * @memberof PaymentCreateFromPaymentIntentId
      */
     debitAmount?: number;
     /**
      * Additional arbitrary data associated with the payment.
      * @type {{ [key: string]: any; }}
-     * @memberof PaymentCreateFromIntentId
+     * @memberof PaymentCreateFromPaymentIntentId
      */
     metadata?: { [key: string]: any; };
     /**
      * The ID of the payment intent being paid.
      * @type {string}
-     * @memberof PaymentCreateFromIntentId
+     * @memberof PaymentCreateFromPaymentIntentId
      */
     paymentIntentId: string;
 }
 
 /**
- * Check if a given object implements the PaymentCreateFromIntentId interface.
+ * Check if a given object implements the PaymentCreateFromPaymentIntentId interface.
  */
-export function instanceOfPaymentCreateFromIntentId(value: object): value is PaymentCreateFromIntentId {
+export function instanceOfPaymentCreateFromPaymentIntentId(value: object): value is PaymentCreateFromPaymentIntentId {
     if (!('walletAddress' in value) || value['walletAddress'] === undefined) return false;
     if (!('paymentIntentId' in value) || value['paymentIntentId'] === undefined) return false;
     return true;
 }
 
-export function PaymentCreateFromIntentIdFromJSON(json: any): PaymentCreateFromIntentId {
-    return PaymentCreateFromIntentIdFromJSONTyped(json, false);
+export function PaymentCreateFromPaymentIntentIdFromJSON(json: any): PaymentCreateFromPaymentIntentId {
+    return PaymentCreateFromPaymentIntentIdFromJSONTyped(json, false);
 }
 
-export function PaymentCreateFromIntentIdFromJSONTyped(json: any, ignoreDiscriminator: boolean): PaymentCreateFromIntentId {
+export function PaymentCreateFromPaymentIntentIdFromJSONTyped(json: any, ignoreDiscriminator: boolean): PaymentCreateFromPaymentIntentId {
     if (json == null) {
         return json;
     }
@@ -85,11 +85,11 @@ export function PaymentCreateFromIntentIdFromJSONTyped(json: any, ignoreDiscrimi
     };
 }
 
-export function PaymentCreateFromIntentIdToJSON(json: any): PaymentCreateFromIntentId {
-    return PaymentCreateFromIntentIdToJSONTyped(json, false);
+export function PaymentCreateFromPaymentIntentIdToJSON(json: any): PaymentCreateFromPaymentIntentId {
+    return PaymentCreateFromPaymentIntentIdToJSONTyped(json, false);
 }
 
-export function PaymentCreateFromIntentIdToJSONTyped(value?: PaymentCreateFromIntentId | null, ignoreDiscriminator: boolean = false): any {
+export function PaymentCreateFromPaymentIntentIdToJSONTyped(value?: PaymentCreateFromPaymentIntentId | null, ignoreDiscriminator: boolean = false): any {
     if (value == null) {
         return value;
     }

@@ -38,11 +38,11 @@ export interface QuoteCreate {
      */
     paymentIntentId?: string;
     /**
-     * The URL of the payment intent this quote is for.
+     * The URL of the incoming payment this quote is for, when the payment intent is held by another node.
      * @type {string}
      * @memberof QuoteCreate
      */
-    paymentIntentUrl?: string;
+    incomingPaymentUrl?: string;
     /**
      * The amount to be debited from the sender's account.
      * @type {string}
@@ -78,7 +78,7 @@ export function QuoteCreateFromJSONTyped(json: any, ignoreDiscriminator: boolean
         'id': json['id'] == null ? undefined : json['id'],
         'walletAddress': json['walletAddress'],
         'paymentIntentId': json['paymentIntentId'] == null ? undefined : json['paymentIntentId'],
-        'paymentIntentUrl': json['paymentIntentUrl'] == null ? undefined : json['paymentIntentUrl'],
+        'incomingPaymentUrl': json['incomingPaymentUrl'] == null ? undefined : json['incomingPaymentUrl'],
         'debitAmount': json['debitAmount'] == null ? undefined : json['debitAmount'],
         'receiveAmount': json['receiveAmount'] == null ? undefined : json['receiveAmount'],
     };
@@ -98,7 +98,7 @@ export function QuoteCreateToJSONTyped(value?: QuoteCreate | null, ignoreDiscrim
         'id': value['id'],
         'walletAddress': value['walletAddress'],
         'paymentIntentId': value['paymentIntentId'],
-        'paymentIntentUrl': value['paymentIntentUrl'],
+        'incomingPaymentUrl': value['incomingPaymentUrl'],
         'debitAmount': value['debitAmount'],
         'receiveAmount': value['receiveAmount'],
     };

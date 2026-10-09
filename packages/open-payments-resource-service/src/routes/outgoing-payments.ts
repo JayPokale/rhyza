@@ -159,7 +159,7 @@ export async function outgoingPaymentRoutes(
 
         const { id: paymentId } = await paymentsClient.createPayment(
           randomUUID(),
-          { incomingPaymentId: quote.paymentIntentId },
+          { paymentIntentId: quote.paymentIntentId },
           alias.walletAddressId,
           walletAddressUrl,
           quote.id

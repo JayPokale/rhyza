@@ -12,27 +12,27 @@
  * Do not edit the class manually.
  */
 
-import type { PaymentCreateFromIntentId } from './PaymentCreateFromIntentId';
+import type { PaymentCreateFromIncomingPaymentUrl } from './PaymentCreateFromIncomingPaymentUrl';
 import {
-    instanceOfPaymentCreateFromIntentId,
-    PaymentCreateFromIntentIdFromJSON,
-    PaymentCreateFromIntentIdFromJSONTyped,
-    PaymentCreateFromIntentIdToJSON,
-} from './PaymentCreateFromIntentId';
-import type { PaymentCreateFromIntentUrl } from './PaymentCreateFromIntentUrl';
+    instanceOfPaymentCreateFromIncomingPaymentUrl,
+    PaymentCreateFromIncomingPaymentUrlFromJSON,
+    PaymentCreateFromIncomingPaymentUrlFromJSONTyped,
+    PaymentCreateFromIncomingPaymentUrlToJSON,
+} from './PaymentCreateFromIncomingPaymentUrl';
+import type { PaymentCreateFromPaymentIntentId } from './PaymentCreateFromPaymentIntentId';
 import {
-    instanceOfPaymentCreateFromIntentUrl,
-    PaymentCreateFromIntentUrlFromJSON,
-    PaymentCreateFromIntentUrlFromJSONTyped,
-    PaymentCreateFromIntentUrlToJSON,
-} from './PaymentCreateFromIntentUrl';
+    instanceOfPaymentCreateFromPaymentIntentId,
+    PaymentCreateFromPaymentIntentIdFromJSON,
+    PaymentCreateFromPaymentIntentIdFromJSONTyped,
+    PaymentCreateFromPaymentIntentIdToJSON,
+} from './PaymentCreateFromPaymentIntentId';
 
 /**
  * @type CreatePaymentRequest
  * 
  * @export
  */
-export type CreatePaymentRequest = PaymentCreateFromIntentId | PaymentCreateFromIntentUrl;
+export type CreatePaymentRequest = PaymentCreateFromIncomingPaymentUrl | PaymentCreateFromPaymentIntentId;
 
 export function CreatePaymentRequestFromJSON(json: any): CreatePaymentRequest {
     return CreatePaymentRequestFromJSONTyped(json, false);
@@ -45,11 +45,11 @@ export function CreatePaymentRequestFromJSONTyped(json: any, ignoreDiscriminator
     if (typeof json !== 'object') {
         return json;
     }
-    if (instanceOfPaymentCreateFromIntentId(json)) {
-        return PaymentCreateFromIntentIdFromJSONTyped(json, true);
+    if (instanceOfPaymentCreateFromIncomingPaymentUrl(json)) {
+        return PaymentCreateFromIncomingPaymentUrlFromJSONTyped(json, true);
     }
-    if (instanceOfPaymentCreateFromIntentUrl(json)) {
-        return PaymentCreateFromIntentUrlFromJSONTyped(json, true);
+    if (instanceOfPaymentCreateFromPaymentIntentId(json)) {
+        return PaymentCreateFromPaymentIntentIdFromJSONTyped(json, true);
     }
     return {} as any;
 }
@@ -65,11 +65,11 @@ export function CreatePaymentRequestToJSONTyped(value?: CreatePaymentRequest | n
     if (typeof value !== 'object') {
         return value;
     }
-    if (instanceOfPaymentCreateFromIntentId(value)) {
-        return PaymentCreateFromIntentIdToJSON(value as PaymentCreateFromIntentId);
+    if (instanceOfPaymentCreateFromIncomingPaymentUrl(value)) {
+        return PaymentCreateFromIncomingPaymentUrlToJSON(value as PaymentCreateFromIncomingPaymentUrl);
     }
-    if (instanceOfPaymentCreateFromIntentUrl(value)) {
-        return PaymentCreateFromIntentUrlToJSON(value as PaymentCreateFromIntentUrl);
+    if (instanceOfPaymentCreateFromPaymentIntentId(value)) {
+        return PaymentCreateFromPaymentIntentIdToJSON(value as PaymentCreateFromPaymentIntentId);
     }
     return {};
 }

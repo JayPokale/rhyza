@@ -440,7 +440,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Quote'
         '400':
-          description: Either paymentIntentId or paymentIntentUrl is required.
+          description: Either paymentIntentId or incomingPaymentUrl is required.
           content:
             application/json:
               schema:
@@ -556,8 +556,8 @@ paths:
           application/json:
             schema:
               oneOf:
-                - $ref: '#/components/schemas/PaymentCreateFromIntentId'
-                - $ref: '#/components/schemas/PaymentCreateFromIntentUrl'
+                - $ref: '#/components/schemas/PaymentCreateFromPaymentIntentId'
+                - $ref: '#/components/schemas/PaymentCreateFromIncomingPaymentUrl'
   /payment-intents/{intentId}/payments/{id}/approve:
     post:
       summary: Approve Payment
@@ -1104,9 +1104,12 @@ components:
         paymentIntentId:
           type: string
           description: The ID of the payment intent this quote is for.
-        paymentIntentUrl:
+        incomingPaymentUrl:
           type: string
-          description: The URL of the payment intent this quote is for.
+          format: uri
+          description: >-
+            The URL of the incoming payment this quote is for, when the
+            payment intent is held by another node.
         debitAmount:
           type: string
           description: The amount to be debited from the sender's account.
@@ -1176,7 +1179,7 @@ components:
           type: object
           description: Additional arbitrary data associated with the payment.
           additionalProperties: true
-    PaymentCreateFromIntentId:
+    PaymentCreateFromPaymentIntentId:
       description: >-
         Creates a payment against a payment intent this node already holds,
         named by its local id.
@@ -1189,7 +1192,7 @@ components:
             paymentIntentId:
               type: string
               description: The ID of the payment intent being paid.
-    PaymentCreateFromIntentUrl:
+    PaymentCreateFromIncomingPaymentUrl:
       description: >-
         Creates a payment against an incoming payment held by another node,
         named by its URL. The intent is imported on first use and the canonical
@@ -1198,9 +1201,9 @@ components:
         - $ref: '#/components/schemas/PaymentCreateBase'
         - type: object
           required:
-            - paymentIntentUrl
+            - incomingPaymentUrl
           properties:
-            paymentIntentUrl:
+            incomingPaymentUrl:
               type: string
               format: uri
               description: >-

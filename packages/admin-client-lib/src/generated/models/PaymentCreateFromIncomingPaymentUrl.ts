@@ -16,61 +16,61 @@ import { mapValues } from '../runtime';
 /**
  * Creates a payment against an incoming payment held by another node, named by its URL. The intent is imported on first use and the canonical local id is returned as paymentIntentId.
  * @export
- * @interface PaymentCreateFromIntentUrl
+ * @interface PaymentCreateFromIncomingPaymentUrl
  */
-export interface PaymentCreateFromIntentUrl {
+export interface PaymentCreateFromIncomingPaymentUrl {
     /**
      * Unique identifier for the payment.
      * @type {string}
-     * @memberof PaymentCreateFromIntentUrl
+     * @memberof PaymentCreateFromIncomingPaymentUrl
      */
     id?: string;
     /**
      * The sender's wallet address.
      * @type {string}
-     * @memberof PaymentCreateFromIntentUrl
+     * @memberof PaymentCreateFromIncomingPaymentUrl
      */
     walletAddress: string;
     /**
      * The ID of the quote used for this payment.
      * @type {string}
-     * @memberof PaymentCreateFromIntentUrl
+     * @memberof PaymentCreateFromIncomingPaymentUrl
      */
     quoteId?: string;
     /**
      * The amount to debit from the sender.
      * @type {number}
-     * @memberof PaymentCreateFromIntentUrl
+     * @memberof PaymentCreateFromIncomingPaymentUrl
      */
     debitAmount?: number;
     /**
      * Additional arbitrary data associated with the payment.
      * @type {{ [key: string]: any; }}
-     * @memberof PaymentCreateFromIntentUrl
+     * @memberof PaymentCreateFromIncomingPaymentUrl
      */
     metadata?: { [key: string]: any; };
     /**
      * The URL of the incoming payment being paid.
      * @type {string}
-     * @memberof PaymentCreateFromIntentUrl
+     * @memberof PaymentCreateFromIncomingPaymentUrl
      */
-    paymentIntentUrl: string;
+    incomingPaymentUrl: string;
 }
 
 /**
- * Check if a given object implements the PaymentCreateFromIntentUrl interface.
+ * Check if a given object implements the PaymentCreateFromIncomingPaymentUrl interface.
  */
-export function instanceOfPaymentCreateFromIntentUrl(value: object): value is PaymentCreateFromIntentUrl {
+export function instanceOfPaymentCreateFromIncomingPaymentUrl(value: object): value is PaymentCreateFromIncomingPaymentUrl {
     if (!('walletAddress' in value) || value['walletAddress'] === undefined) return false;
-    if (!('paymentIntentUrl' in value) || value['paymentIntentUrl'] === undefined) return false;
+    if (!('incomingPaymentUrl' in value) || value['incomingPaymentUrl'] === undefined) return false;
     return true;
 }
 
-export function PaymentCreateFromIntentUrlFromJSON(json: any): PaymentCreateFromIntentUrl {
-    return PaymentCreateFromIntentUrlFromJSONTyped(json, false);
+export function PaymentCreateFromIncomingPaymentUrlFromJSON(json: any): PaymentCreateFromIncomingPaymentUrl {
+    return PaymentCreateFromIncomingPaymentUrlFromJSONTyped(json, false);
 }
 
-export function PaymentCreateFromIntentUrlFromJSONTyped(json: any, ignoreDiscriminator: boolean): PaymentCreateFromIntentUrl {
+export function PaymentCreateFromIncomingPaymentUrlFromJSONTyped(json: any, ignoreDiscriminator: boolean): PaymentCreateFromIncomingPaymentUrl {
     if (json == null) {
         return json;
     }
@@ -81,15 +81,15 @@ export function PaymentCreateFromIntentUrlFromJSONTyped(json: any, ignoreDiscrim
         'quoteId': json['quoteId'] == null ? undefined : json['quoteId'],
         'debitAmount': json['debitAmount'] == null ? undefined : json['debitAmount'],
         'metadata': json['metadata'] == null ? undefined : json['metadata'],
-        'paymentIntentUrl': json['paymentIntentUrl'],
+        'incomingPaymentUrl': json['incomingPaymentUrl'],
     };
 }
 
-export function PaymentCreateFromIntentUrlToJSON(json: any): PaymentCreateFromIntentUrl {
-    return PaymentCreateFromIntentUrlToJSONTyped(json, false);
+export function PaymentCreateFromIncomingPaymentUrlToJSON(json: any): PaymentCreateFromIncomingPaymentUrl {
+    return PaymentCreateFromIncomingPaymentUrlToJSONTyped(json, false);
 }
 
-export function PaymentCreateFromIntentUrlToJSONTyped(value?: PaymentCreateFromIntentUrl | null, ignoreDiscriminator: boolean = false): any {
+export function PaymentCreateFromIncomingPaymentUrlToJSONTyped(value?: PaymentCreateFromIncomingPaymentUrl | null, ignoreDiscriminator: boolean = false): any {
     if (value == null) {
         return value;
     }
@@ -101,7 +101,7 @@ export function PaymentCreateFromIntentUrlToJSONTyped(value?: PaymentCreateFromI
         'quoteId': value['quoteId'],
         'debitAmount': value['debitAmount'],
         'metadata': value['metadata'],
-        'paymentIntentUrl': value['paymentIntentUrl'],
+        'incomingPaymentUrl': value['incomingPaymentUrl'],
     };
 }
 
