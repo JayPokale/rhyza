@@ -21,13 +21,6 @@ interface OutgoingPaymentRouteOptions extends FastifyPluginOptions {
   openPaymentsUrl: string;
 }
 
-/**
- * gets the internal compound from a url id
- */
-function toCompoundId(value: string): string {
-  return value.split('/').filter(Boolean).at(-1) ?? '';
-}
-
 function toAmountBody(amount: IAmount): components['schemas']['amount'] {
   return {
     value: String(amount.value),
@@ -137,7 +130,7 @@ export async function outgoingPaymentRoutes(
         'quoteId' in request.body
           ? ({
               kind: 'existing',
-              ...decodeCompoundId(toCompoundId(request.body.quoteId))
+              ...decodeCompoundId(request.body.quoteId)
             } as const)
           : ({
               kind: 'create',
@@ -153,7 +146,7 @@ export async function outgoingPaymentRoutes(
           quoteSource.kind === 'existing'
             ? {
                 paymentIntentId: quoteSource.paymentIntentId,
-                id: quoteSource.quoteId
+                id: quoteSource.resourceId
               }
             : await paymentsClient.createQuote(
                 randomUUID(),
@@ -189,8 +182,8 @@ export async function outgoingPaymentRoutes(
   server.get<{ Params: { id: string } }>(
     '/outgoing-payments/:id',
     async (request, reply) => {
-      const { paymentIntentId, quoteId: paymentId } = decodeCompoundId(
-        toCompoundId(request.params.id)
+      const { paymentIntentId, resourceId: paymentId } = decodeCompoundId(
+        request.params.id
       );
 
       try {

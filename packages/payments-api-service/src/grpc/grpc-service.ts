@@ -283,7 +283,8 @@ export class PaymentsServiceServer {
           senderWalletAddress: call.request.getWalletAddress(),
           receiveAmount: receiveAmount ? receiveAmount : undefined,
           debitAmount: debitAmount ? debitAmount : undefined,
-          remoteUrl: remoteUrl ? remoteUrl : undefined
+          remoteUrl: remoteUrl ? remoteUrl : undefined,
+          createdAt: call.request.getCreatedAt() || undefined
         },
         commandId
       );
@@ -306,7 +307,8 @@ export class PaymentsServiceServer {
           paymentIntentId: call.request.getPaymentIntentId(),
           quoteId: call.request.getQuoteId(),
           debitAmount: call.request.getDebitAmount() || undefined,
-          remoteUrl: call.request.getRemoteUrl() || undefined
+          remoteUrl: call.request.getRemoteUrl() || undefined,
+          createdAt: call.request.getCreatedAt() || undefined
         },
         commandId
       );

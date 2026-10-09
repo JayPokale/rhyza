@@ -8,7 +8,7 @@ import {
   CancelPaymentRequest,
   GetPaymentRequest,
   PaymentCancel,
-  PaymentCreate,
+  CreatePaymentRequest,
   PaymentsListPaymentsRequest
 } from 'admin-client-lib';
 import {
@@ -86,30 +86,13 @@ export async function paymentRoutes(
   const { palClient, paymentsClient } = opts;
 
   server.post<{
-    // TODO: drop the intersection once admin-client-lib is regenerated from
-    // the spec — PaymentCreate will carry paymentIntentUrl itself.
-    Body: PaymentCreate & { paymentIntentUrl?: string };
+    Body: CreatePaymentRequest;
   }>('/payments', async (request, reply) => {
-    const {
-      walletAddress,
-      paymentIntentId,
-      paymentIntentUrl,
-      quoteId,
-      debitAmount
-    } = request.body;
-
-    let incomingPayment:
-      | { incomingPaymentUrl: string }
-      | { incomingPaymentId: string };
-    if (paymentIntentUrl) {
-      incomingPayment = { incomingPaymentUrl: paymentIntentUrl };
-    } else if (paymentIntentId) {
-      incomingPayment = { incomingPaymentId: paymentIntentId };
-    } else {
-      return reply.status(400).send({
-        error: 'Either paymentIntentId or paymentIntentUrl is required'
-      });
-    }
+    const { walletAddress, quoteId, debitAmount } = request.body;
+    const incomingPayment =
+      'paymentIntentUrl' in request.body
+        ? { incomingPaymentUrl: request.body.paymentIntentUrl }
+        : { incomingPaymentId: request.body.paymentIntentId };
 
     const id = request.body.id ?? randomUUID();
 

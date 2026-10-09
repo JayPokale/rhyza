@@ -42,6 +42,10 @@ export interface IPage<T> {
   pagination: IPageInfo;
 }
 
+/**
+ * Names the payment intent being paid: by its local id, or by the incoming
+ * payment URL it was imported from.
+ */
 export type IncomingPaymentInput =
   | { incomingPaymentId: string }
   | { incomingPaymentUrl: string };

@@ -71,11 +71,11 @@ export interface Payment {
      */
     debitAmount: Amount;
     /**
-     * The amount received by the destination, in the receive-side asset.
+     * The amount received by the destination, in the receive-side asset. Null for a payment created without a quote, which fixes only the debit side.
      * @type {Amount}
      * @memberof Payment
      */
-    receiveAmount: Amount;
+    receiveAmount: Amount | null;
     /**
      * The total amount sent so far, in the sender-side asset.
      * @type {Amount}

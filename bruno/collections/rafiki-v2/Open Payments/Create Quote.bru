@@ -28,5 +28,6 @@ script:post-response {
   
   if (body?.id) {
     bru.setVar("quoteId", body.id);
+    bru.setVar("quoteIdSegment", body.id.split("/").pop());
   }
 }

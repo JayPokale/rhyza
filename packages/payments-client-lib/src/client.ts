@@ -179,7 +179,8 @@ export class PaymentsClient {
     senderWalletAddressId: string,
     senderWalletAddress: string,
     debitAmount?: number,
-    receiveAmount?: number
+    receiveAmount?: number,
+    createdAt?: string
   ): Promise<CreateQuoteResult> {
     let paymentIntentId: string;
     let remoteUrl: string | undefined;
@@ -219,6 +220,9 @@ export class PaymentsClient {
     if (remoteUrl) {
       request.setRemoteUrl(remoteUrl);
     }
+    if (createdAt) {
+      request.setCreatedAt(createdAt);
+    }
 
     return new Promise((resolve, reject) => {
       this._grpcClient.createQuote(
@@ -247,14 +251,11 @@ export class PaymentsClient {
 
   /**
    * Creates a payment against a payment intent, identified by its local id
-   * or its incoming payment URL (as with `createQuote`).
+   * or its incoming payment URL.
    *
-   * `quoteId` is optional. Without one, a payment against a remote intent
-   * requires `debitAmount`, and `getPayment` reports `receiveAmount: null`
-   * for it. A payment against a local intent needs `debitAmount` only if the
-   * intent has no `incomingAmount`. The response's `paymentIntentId` is the
-   * canonical local id — use it for subsequent calls when the intent was
-   * identified by URL.
+   * Read `paymentIntentId` off the response rather than re-using based on
+   * what is passed in here. When a remote URL is passed in we generate an
+   * id internally instead of using id in the segment.
    */
   async createPayment(
     id: string,
@@ -262,7 +263,8 @@ export class PaymentsClient {
     walletAddressId: string,
     walletAddress: string,
     quoteId?: string,
-    debitAmount?: number
+    debitAmount?: number,
+    createdAt?: string
   ): Promise<CreatePaymentResult> {
     let paymentIntentId: string;
     let remoteUrl: string | undefined;
@@ -280,6 +282,7 @@ export class PaymentsClient {
       ) {
         paymentIntentId = incomingPayment.incomingPaymentUrl.split('/').at(-1)!;
       } else {
+        // mint a new id, although the response will contain different id if the remote payment intent already exists.
         paymentIntentId = randomUUID();
         remoteUrl = incomingPayment.incomingPaymentUrl;
       }
@@ -303,6 +306,10 @@ export class PaymentsClient {
 
     if (remoteUrl) {
       request.setRemoteUrl(remoteUrl);
+    }
+
+    if (createdAt) {
+      request.setCreatedAt(createdAt);
     }
 
     return new Promise((resolve, reject) => {

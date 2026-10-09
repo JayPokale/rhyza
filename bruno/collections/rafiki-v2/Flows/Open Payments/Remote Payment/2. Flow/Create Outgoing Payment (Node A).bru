@@ -13,7 +13,7 @@ post {
 body:json {
   {
     "walletAddress": "https://test.com/sender",
-    "quoteId": "http://{{opAHost}}/quotes/{{quoteId}}"
+    "quoteId": "{{quoteId}}"
   }
 }
 
@@ -26,9 +26,6 @@ script:post-response {
 }
 
 docs {
-  The from-quote form. `quoteId` is wrapped in a URL by hand: the spec types
-  this input as `format: uri`, but POST /quotes currently returns a bare
-  compound id, so sending the id as-is is rejected by request validation
-  before it reaches the handler. Once quote ids are emitted as URLs this
-  becomes `{{quoteId}}` on its own.
+  The from-quote form. `quoteId` is the quote's own id, used verbatim — it is
+  a resource URL, which is what this input's `format: uri` requires.
 }

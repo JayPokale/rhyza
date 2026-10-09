@@ -530,7 +530,8 @@ export class PaymentIntentAggregate {
         receiveAmount,
         debitAmount,
         paymentIntentId,
-        remoteUrl
+        remoteUrl,
+        createdAt
       } = cmd.payload;
 
       const walletAddress = this.walletAddressMap.get(senderWalletAddressId);
@@ -586,7 +587,8 @@ export class PaymentIntentAggregate {
           },
           debitAmount: debitAmount ? BigInt(debitAmount) : undefined,
           receiveAmount: receiveAmount ? BigInt(receiveAmount) : undefined,
-          exchangeRate
+          exchangeRate,
+          createdAt: createdAt ? new Date(createdAt) : undefined
         });
 
         this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
@@ -649,7 +651,8 @@ export class PaymentIntentAggregate {
         peerAssetScale: peer.assetScale,
         sourceAmount,
         debitAmount: debitAmount ? BigInt(debitAmount) : undefined,
-        receiveAmount: receiveAmount ? BigInt(receiveAmount) : undefined
+        receiveAmount: receiveAmount ? BigInt(receiveAmount) : undefined,
+        createdAt: createdAt ? new Date(createdAt) : undefined
       });
 
       this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
@@ -714,6 +717,7 @@ export class PaymentIntentAggregate {
       paymentIntentId,
       quoteId,
       debitAmount,
+      createdAt,
       remoteUrl
     } = cmd.payload;
 
@@ -762,7 +766,8 @@ export class PaymentIntentAggregate {
           },
           exchangeRate,
           quoteId,
-          debitAmount: debitAmount ? BigInt(debitAmount) : undefined
+          debitAmount: debitAmount ? BigInt(debitAmount) : undefined,
+          createdAt: createdAt ? new Date(createdAt) : undefined
         });
       } else if (quoteId) {
         payment = paymentIntent.addRemotePaymentFromQuote({
@@ -773,7 +778,8 @@ export class PaymentIntentAggregate {
             address: senderWalletAddress,
             assetScale: walletAddress.assetScale,
             assetCode: walletAddress.assetCode
-          }
+          },
+          createdAt: createdAt ? new Date(createdAt) : undefined
         });
       } else {
         // Quoteless remote payment is fixed-send only. The intent was imported
@@ -811,7 +817,8 @@ export class PaymentIntentAggregate {
             assetCode: walletAddress.assetCode
           },
           debitAmount: BigInt(debitAmount),
-          peerId: peer.peerId
+          peerId: peer.peerId,
+          createdAt: createdAt ? new Date(createdAt) : undefined
         });
       }
 

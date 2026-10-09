@@ -403,7 +403,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PaymentCreate'
+              oneOf:
+                - $ref: '#/components/schemas/PaymentCreateFromIntentId'
+                - $ref: '#/components/schemas/PaymentCreateFromIntentUrl'
   /payment-intents/{intentId}/payments/{id}/approve:
     post:
       summary: Approve Payment
@@ -875,16 +877,14 @@ components:
         exchangeRate:
           type: number
           description: The exchange rate of quote.
-    PaymentCreate:
+    PaymentCreateBase:
       type: object
       description: >-
-        Schema for creating a new payment. Exactly one of paymentIntentId or
-        paymentIntentUrl must be supplied.
+        Fields common to both ways of creating a payment. Not used directly as
+        a request body — see PaymentCreateFromIntentId and
+        PaymentCreateFromIntentUrl.
       required:
         - walletAddress
-      oneOf:
-        - required: [paymentIntentId]
-        - required: [paymentIntentUrl]
       properties:
         id:
           type: string
@@ -892,22 +892,41 @@ components:
         walletAddress:
           type: string
           description: The sender's wallet address.
-        paymentIntentId:
-          type: string
-          description: The ID of the payment intent being paid.
-        paymentIntentUrl:
-          type: string
-          format: uri
-          description: >-
-            The URL of the incoming payment being paid, for an intent held by
-            another node. It is imported on first use; the canonical local id
-            is returned as paymentIntentId.
         quoteId:
           type: string
           description: The ID of the quote used for this payment.
         debitAmount:
           type: number
           description: The amount to debit from the sender.
+    PaymentCreateFromIntentId:
+      description: >-
+        Creates a payment against a payment intent this node already holds,
+        named by its local id.
+      allOf:
+        - $ref: '#/components/schemas/PaymentCreateBase'
+        - type: object
+          required:
+            - paymentIntentId
+          properties:
+            paymentIntentId:
+              type: string
+              description: The ID of the payment intent being paid.
+    PaymentCreateFromIntentUrl:
+      description: >-
+        Creates a payment against an incoming payment held by another node,
+        named by its URL. The intent is imported on first use and the canonical
+        local id is returned as paymentIntentId.
+      allOf:
+        - $ref: '#/components/schemas/PaymentCreateBase'
+        - type: object
+          required:
+            - paymentIntentUrl
+          properties:
+            paymentIntentUrl:
+              type: string
+              format: uri
+              description: >-
+                The URL of the incoming payment being paid.
     PaymentCreateResponse:
       type: object
       description: Response schema after initiating a payment.

@@ -12,13 +12,16 @@ models/ApprovePayment200Response.ts
 models/AssetCreate.ts
 models/AssetCreateResponse.ts
 models/CancelPayment200Response.ts
+models/CreatePaymentRequest.ts
 models/ErrorResponse.ts
 models/LiquidityDeposit202Response.ts
 models/LiquidityDepositRequest.ts
 models/PageInfo.ts
 models/Payment.ts
 models/PaymentCancel.ts
-models/PaymentCreate.ts
+models/PaymentCreateBase.ts
+models/PaymentCreateFromIntentId.ts
+models/PaymentCreateFromIntentUrl.ts
 models/PaymentCreateResponse.ts
 models/PaymentIntent.ts
 models/PaymentIntentCompleteResponse.ts

@@ -76,6 +76,7 @@ class Quote implements IBaseQuote {
     id: string,
     senderWalletAddress: string,
     senderWalletAddressId: string,
+    createdAt: Date,
     peerId?: string,
     peerAssetCode?: string,
     peerAssetScale?: number,
@@ -88,7 +89,7 @@ class Quote implements IBaseQuote {
       id,
       senderWalletAddress,
       senderWalletAddressId,
-      new Date(),
+      createdAt,
       {
         state: 'PENDING',
         peerId,
@@ -395,11 +396,12 @@ class SentPayment {
     debitAmount: bigint;
     receiveAmount: bigint | null;
     quoteId?: string;
+    createdAt?: Date;
   }): SentPayment {
     return new SentPayment({
       ...args,
       state: 'CREATED',
-      createdAt: new Date(),
+      createdAt: args.createdAt ?? new Date(),
       sentAmount: 0n
     });
   }
@@ -905,13 +907,15 @@ export class PaymentIntent implements IPaymentIntent {
       assetCode: string;
       assetScale: number;
     };
+    createdAt?: Date;
   }): ICompletedQuote {
     const {
       id,
       debitAmount,
       receiveAmount,
       senderWalletAddress,
-      exchangeRate: unscaledExchangeRate
+      exchangeRate: unscaledExchangeRate,
+      createdAt
     } = args;
 
     if (this.state !== 'CREATED') {
@@ -962,7 +966,8 @@ export class PaymentIntent implements IPaymentIntent {
     const quote = Quote.createPending(
       id,
       senderWalletAddress.address,
-      senderWalletAddress.id
+      senderWalletAddress.id,
+      createdAt ?? new Date()
     );
     quote.complete({
       debitAmount: quoteDebitAmount,
@@ -988,6 +993,7 @@ export class PaymentIntent implements IPaymentIntent {
     sourceAmount: bigint;
     debitAmount?: bigint;
     receiveAmount?: bigint;
+    createdAt?: Date;
   }): IPendingQuote {
     const {
       id,
@@ -996,7 +1002,8 @@ export class PaymentIntent implements IPaymentIntent {
       peerAssetCode,
       peerAssetScale,
       sourceAmount,
-      debitAmount
+      debitAmount,
+      createdAt
     } = args;
     const senderAssetCode = senderWalletAddress.assetCode;
     const receiveAmount =
@@ -1032,6 +1039,7 @@ export class PaymentIntent implements IPaymentIntent {
       id,
       senderWalletAddress.address,
       senderWalletAddress.id,
+      createdAt ?? new Date(),
       peerId,
       peerAssetCode,
       peerAssetScale,
@@ -1111,6 +1119,12 @@ export class PaymentIntent implements IPaymentIntent {
     return BigInt(Math.floor(Number(sourceAmount) * fxRate * 10 ** scaleDiff));
   }
 
+  /**
+   * Adds a payment against a local intent. The amounts come from a completed
+   * quote when `quoteId` is given; otherwise from `debitAmount`, converted at
+   * the intra-ASE rate; otherwise from the intent's own `incomingAmount`. One
+   * of the three must be available.
+   */
   addLocalPayment(args: {
     id: string;
     quoteId?: string;
@@ -1122,13 +1136,15 @@ export class PaymentIntent implements IPaymentIntent {
     };
     exchangeRate: number;
     debitAmount?: bigint;
+    createdAt?: Date;
   }): ISentPayment {
     const {
       id,
       senderWalletAddress,
       quoteId,
       debitAmount,
-      exchangeRate: unscaledExchangeRate
+      exchangeRate: unscaledExchangeRate,
+      createdAt
     } = args;
 
     if (this.state !== 'CREATED') {
@@ -1221,7 +1237,8 @@ export class PaymentIntent implements IPaymentIntent {
       assetScale: senderWalletAddress.assetScale,
       debitAmount: paymentDebitAmount,
       receiveAmount: paymentReceiveAmount,
-      quoteId
+      quoteId,
+      createdAt
     });
 
     this._sentPayments.push(payment);
@@ -1272,8 +1289,9 @@ export class PaymentIntent implements IPaymentIntent {
     };
     debitAmount: bigint;
     peerId: string;
+    createdAt?: Date;
   }): ISentPayment {
-    const { id, senderWalletAddress, debitAmount, peerId } = args;
+    const { id, senderWalletAddress, debitAmount, peerId, createdAt } = args;
 
     this._assertCanAddRemotePayment(id);
 
@@ -1287,7 +1305,8 @@ export class PaymentIntent implements IPaymentIntent {
       assetCode: senderWalletAddress.assetCode,
       assetScale: senderWalletAddress.assetScale,
       debitAmount,
-      receiveAmount: null
+      receiveAmount: null,
+      createdAt
     });
 
     this._sentPayments.push(payment);
@@ -1304,8 +1323,9 @@ export class PaymentIntent implements IPaymentIntent {
       assetCode: string;
       assetScale: number;
     };
+    createdAt?: Date;
   }): ISentPayment {
-    const { id, quoteId, senderWalletAddress } = args;
+    const { id, quoteId, senderWalletAddress, createdAt } = args;
 
     this._assertCanAddRemotePayment(id);
 
@@ -1354,7 +1374,8 @@ export class PaymentIntent implements IPaymentIntent {
       assetScale: senderWalletAddress.assetScale,
       debitAmount: quote.debitAmount,
       receiveAmount: quote.receiveAmount,
-      quoteId
+      quoteId,
+      createdAt
     });
 
     this._sentPayments.push(payment);
