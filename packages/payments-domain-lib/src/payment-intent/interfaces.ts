@@ -149,7 +149,7 @@ export interface IRemotePaymentIntentDetails {
 }
 
 export interface IRemotePaymentIntentService {
-  fetchIncomingPayment(url: string): Promise<IRemotePaymentIntentDetails>;
+  fetchPaymentIntent(url: string): Promise<IRemotePaymentIntentDetails>;
 }
 
 export type FinalizedRemoteQuoteUpdate =

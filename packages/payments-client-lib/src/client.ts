@@ -195,9 +195,9 @@ export class PaymentsClient {
     createdAt?: string
   ): Promise<CreateQuoteResult> {
     let paymentIntentId: string;
-    let remoteUrl: string | undefined;
+    let remotePaymentIntentUrl: string | undefined;
 
-    if ('incomingPaymentUrl' in paymentIntent) {
+    if ('paymentIntentUrl' in paymentIntent) {
       if (!this._openPaymentsUrl) {
         throw createServiceError(
           status.FAILED_PRECONDITION,
@@ -205,13 +205,11 @@ export class PaymentsClient {
           'RemoteQuotingNotConfigured'
         );
       }
-      if (
-        paymentIntent.incomingPaymentUrl.startsWith(this._openPaymentsUrl)
-      ) {
-        paymentIntentId = paymentIntent.incomingPaymentUrl.split('/').at(-1)!;
+      if (paymentIntent.paymentIntentUrl.startsWith(this._openPaymentsUrl)) {
+        paymentIntentId = paymentIntent.paymentIntentUrl.split('/').at(-1)!;
       } else {
         paymentIntentId = randomUUID();
-        remoteUrl = paymentIntent.incomingPaymentUrl;
+        remotePaymentIntentUrl = paymentIntent.paymentIntentUrl;
       }
     } else {
       paymentIntentId = paymentIntent.paymentIntentId;
@@ -229,8 +227,8 @@ export class PaymentsClient {
     if (receiveAmount) {
       request.setReceiveAmount(receiveAmount);
     }
-    if (remoteUrl) {
-      request.setRemoteUrl(remoteUrl);
+    if (remotePaymentIntentUrl) {
+      request.setRemotePaymentIntentUrl(remotePaymentIntentUrl);
     }
     if (createdAt) {
       request.setCreatedAt(createdAt);
@@ -281,9 +279,9 @@ export class PaymentsClient {
     metadata?: Record<string, unknown>
   ): Promise<CreatePaymentResult> {
     let paymentIntentId: string;
-    let remoteUrl: string | undefined;
+    let remotePaymentIntentUrl: string | undefined;
 
-    if ('incomingPaymentUrl' in paymentIntent) {
+    if ('paymentIntentUrl' in paymentIntent) {
       if (!this._openPaymentsUrl) {
         throw createServiceError(
           status.FAILED_PRECONDITION,
@@ -291,14 +289,12 @@ export class PaymentsClient {
           'RemotePaymentsNotConfigured'
         );
       }
-      if (
-        paymentIntent.incomingPaymentUrl.startsWith(this._openPaymentsUrl)
-      ) {
-        paymentIntentId = paymentIntent.incomingPaymentUrl.split('/').at(-1)!;
+      if (paymentIntent.paymentIntentUrl.startsWith(this._openPaymentsUrl)) {
+        paymentIntentId = paymentIntent.paymentIntentUrl.split('/').at(-1)!;
       } else {
         // mint a new id, although the response will contain different id if the remote payment intent already exists.
         paymentIntentId = randomUUID();
-        remoteUrl = paymentIntent.incomingPaymentUrl;
+        remotePaymentIntentUrl = paymentIntent.paymentIntentUrl;
       }
     } else {
       paymentIntentId = paymentIntent.paymentIntentId;
@@ -318,8 +314,8 @@ export class PaymentsClient {
       request.setDebitAmount(debitAmount);
     }
 
-    if (remoteUrl) {
-      request.setRemoteUrl(remoteUrl);
+    if (remotePaymentIntentUrl) {
+      request.setRemotePaymentIntentUrl(remotePaymentIntentUrl);
     }
 
     if (createdAt) {
@@ -673,7 +669,7 @@ export class PaymentsClient {
 
   private static _paymentFromPb(response: PbPayment): GetPaymentResult {
     const quoteId = response.getQuoteId();
-    const remoteUrl = response.getRemoteUrl();
+    const remotePaymentIntentUrl = response.getRemotePaymentIntentUrl();
     const failReason = response.getFailReason();
 
     return {
@@ -700,7 +696,7 @@ export class PaymentsClient {
         'sentAmount'
       ),
       createdAt: response.getCreatedAt(),
-      remoteUrl: remoteUrl || undefined,
+      remotePaymentIntentUrl: remotePaymentIntentUrl || undefined,
       failReason: failReason || undefined,
       metadata: PaymentsClient._metadataFromPb(response.getMetadata())
     };

@@ -44,7 +44,7 @@ function toOutgoingPaymentBody(
   // REMOTE parents carry the peer's incoming payment URL; for LOCAL
   // parents the receiver is this node's own incoming payment resource.
   const receiver =
-    payment.remoteUrl ??
+    payment.remotePaymentIntentUrl ??
     `${openPaymentsUrl}/incoming-payments/${payment.paymentIntentId}`;
 
   return {
@@ -151,7 +151,7 @@ export async function outgoingPaymentRoutes(
               }
             : await paymentsClient.createQuote(
                 randomUUID(),
-                { incomingPaymentUrl: quoteSource.incomingPaymentUrl },
+                { paymentIntentUrl: quoteSource.incomingPaymentUrl },
                 alias.walletAddressId,
                 walletAddressUrl,
                 quoteSource.debitAmountValue

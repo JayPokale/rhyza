@@ -13,7 +13,7 @@ post {
 body:json {
   {
     "walletAddress": "test.com/sender",
-    "incomingPaymentUrl": "{{receiverIntentUrl}}",
+    "paymentIntentUrl": "{{receiverIntentUrl}}",
     "debitAmount": 1000
   }
 }
@@ -29,7 +29,7 @@ script:post-response {
 }
 
 docs {
-  No quoteId: the intent is identified by `incomingPaymentUrl` (Node A imports
+  No quoteId: the intent is identified by `paymentIntentUrl` (Node A imports
   it) and `debitAmount` fixes the send amount. The response's
   `paymentIntentId` is Node A's canonical local id for the imported intent —
   saved for Verify.

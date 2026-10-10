@@ -440,7 +440,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Quote'
         '400':
-          description: Either paymentIntentId or incomingPaymentUrl is required.
+          description: Either paymentIntentId or paymentIntentUrl is required.
           content:
             application/json:
               schema:
@@ -557,7 +557,7 @@ paths:
             schema:
               oneOf:
                 - $ref: '#/components/schemas/PaymentCreateFromPaymentIntentId'
-                - $ref: '#/components/schemas/PaymentCreateFromIncomingPaymentUrl'
+                - $ref: '#/components/schemas/PaymentCreateFromPaymentIntentUrl'
   /payment-intents/{intentId}/payments/{id}/approve:
     post:
       summary: Approve Payment
@@ -1104,12 +1104,12 @@ components:
         paymentIntentId:
           type: string
           description: The ID of the payment intent this quote is for.
-        incomingPaymentUrl:
+        paymentIntentUrl:
           type: string
           format: uri
           description: >-
-            The URL of the incoming payment this quote is for, when the
-            payment intent is held by another node.
+            The URL of the payment intent this quote is for. May address an
+            intent on this node or on another, which is imported on first use.
         debitAmount:
           type: string
           description: The amount to be debited from the sender's account.
@@ -1192,18 +1192,18 @@ components:
             paymentIntentId:
               type: string
               description: The ID of the payment intent being paid.
-    PaymentCreateFromIncomingPaymentUrl:
+    PaymentCreateFromPaymentIntentUrl:
       description: >-
-        Creates a payment against an incoming payment held by another node,
-        named by its URL. The intent is imported on first use and the canonical
-        local id is returned as paymentIntentId.
+        Creates a payment against a payment intent named by its URL. The
+        intent may be held by another node, in which case it is imported on
+        first use; the canonical local id is returned as paymentIntentId.
       allOf:
         - $ref: '#/components/schemas/PaymentCreateBase'
         - type: object
           required:
-            - incomingPaymentUrl
+            - paymentIntentUrl
           properties:
-            incomingPaymentUrl:
+            paymentIntentUrl:
               type: string
               format: uri
               description: >-

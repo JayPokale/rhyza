@@ -23,8 +23,8 @@ models/PageInfo.ts
 models/Payment.ts
 models/PaymentCancel.ts
 models/PaymentCreateBase.ts
-models/PaymentCreateFromIncomingPaymentUrl.ts
 models/PaymentCreateFromPaymentIntentId.ts
+models/PaymentCreateFromPaymentIntentUrl.ts
 models/PaymentCreateResponse.ts
 models/PaymentIntent.ts
 models/PaymentIntentCompleteResponse.ts

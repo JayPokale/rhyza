@@ -142,7 +142,7 @@ function makeCreateQuoteCmd(
     senderWalletAddress: string;
     debitAmount: number;
     receiveAmount: number;
-    remoteUrl: string;
+    remotePaymentIntentUrl: string;
   }> = {}
 ): CreateQuoteCmd {
   return new CreateQuoteCmd(
@@ -166,7 +166,7 @@ function makeCreatePaymentCmd(
     senderWalletAddress: string;
     debitAmount: number | undefined;
     quoteId: string;
-    remoteUrl: string;
+    remotePaymentIntentUrl: string;
     grantId: string;
   }> = {}
 ): CreatePaymentCmd {
@@ -1868,7 +1868,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
 
       it('fetches remote intent (OP methods shape) and emits RemoteQuoteRequestedEvent', async () => {
         const cmd = makeCreateQuoteCmd({
-          remoteUrl: REMOTE_URL,
+          remotePaymentIntentUrl: REMOTE_URL,
           debitAmount: 500
         });
         const { events } = await aggregate.handleBatch([cmd]);
@@ -1891,20 +1891,20 @@ describe('PaymentIntentAggregate.handleBatch', () => {
       it('deduplicates intra-batch: second cmd with same url uses first intent id', async () => {
         let fetchCount = 0;
         const originalFetch =
-          mockRemotePaymentIntentService.fetchIncomingPayment.bind(
+          mockRemotePaymentIntentService.fetchPaymentIntent.bind(
             mockRemotePaymentIntentService
           );
-        mockRemotePaymentIntentService.fetchIncomingPayment = async (url) => {
+        mockRemotePaymentIntentService.fetchPaymentIntent = async (url) => {
           fetchCount++;
           return originalFetch(url);
         };
 
         const cmd1 = makeCreateQuoteCmd({
-          remoteUrl: REMOTE_URL,
+          remotePaymentIntentUrl: REMOTE_URL,
           debitAmount: 100
         });
         const cmd2 = makeCreateQuoteCmd({
-          remoteUrl: REMOTE_URL,
+          remotePaymentIntentUrl: REMOTE_URL,
           debitAmount: 200
         });
         const { events } = await aggregate.handleBatch([cmd1, cmd2]);
@@ -1940,7 +1940,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         await repo.storeMany([existingPaymentIntent]);
 
         const cmd = makeCreateQuoteCmd({
-          remoteUrl: REMOTE_URL,
+          remotePaymentIntentUrl: REMOTE_URL,
           debitAmount: 300
         });
         const { events } = await aggregate.handleBatch([cmd]);
@@ -1952,11 +1952,11 @@ describe('PaymentIntentAggregate.handleBatch', () => {
       });
 
       it('emits QuoteCreateFailedEvent when remote fetch throws', async () => {
-        mockRemotePaymentIntentService.fetchIncomingPayment = async () => {
+        mockRemotePaymentIntentService.fetchPaymentIntent = async () => {
           throw new Error('Connection refused');
         };
 
-        const cmd = makeCreateQuoteCmd({ remoteUrl: REMOTE_URL });
+        const cmd = makeCreateQuoteCmd({ remotePaymentIntentUrl: REMOTE_URL });
         const { events } = await aggregate.handleBatch([cmd]);
 
         assert.equal(events.length, 1);
@@ -1980,7 +1980,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           methods: []
         });
 
-        const cmd = makeCreateQuoteCmd({ remoteUrl: REMOTE_URL });
+        const cmd = makeCreateQuoteCmd({ remotePaymentIntentUrl: REMOTE_URL });
         const { events } = await aggregate.handleBatch([cmd]);
 
         assert.equal(events.length, 1);
@@ -2187,7 +2187,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         }
 
         beforeEach(() => {
-          mockRemotePaymentIntentService.fetchIncomingPayment = async () => ({
+          mockRemotePaymentIntentService.fetchPaymentIntent = async () => ({
             walletAddress: 'remote.domain.com/alice',
             assetCode: 'USD',
             assetScale: 2,
@@ -2245,7 +2245,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
 
         it('imports the remote intent when remoteUrl is provided', async () => {
           const cmd = makeCreatePaymentCmd({
-            remoteUrl: REMOTE_URL,
+            remotePaymentIntentUrl: REMOTE_URL,
             debitAmount: 500
           });
           const { events } = await aggregate.handleBatch([cmd]);
@@ -2262,7 +2262,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           await repo.storeMany([existing]);
 
           const cmd = makeCreatePaymentCmd({
-            remoteUrl: REMOTE_URL,
+            remotePaymentIntentUrl: REMOTE_URL,
             debitAmount: 500
           });
           const { events } = await aggregate.handleBatch([cmd]);
@@ -2274,12 +2274,12 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         });
 
         it('fails when the remote intent fetch throws', async () => {
-          mockRemotePaymentIntentService.fetchIncomingPayment = async () => {
+          mockRemotePaymentIntentService.fetchPaymentIntent = async () => {
             throw new Error('Connection refused');
           };
 
           const cmd = makeCreatePaymentCmd({
-            remoteUrl: REMOTE_URL,
+            remotePaymentIntentUrl: REMOTE_URL,
             debitAmount: 500
           });
           const { events } = await aggregate.handleBatch([cmd]);
@@ -3633,7 +3633,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         })
       );
 
-      const cmd = makeCreateQuoteCmd({ remoteUrl: REMOTE_URL });
+      const cmd = makeCreateQuoteCmd({ remotePaymentIntentUrl: REMOTE_URL });
       await aggregate.handleBatch([cmd]);
       await aggregate.flush();
 

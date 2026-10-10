@@ -25,19 +25,19 @@ export async function quoteRoutes(
       debitAmount,
       receiveAmount,
       paymentIntentId,
-      incomingPaymentUrl
+      paymentIntentUrl
     } = request.body;
 
     let paymentIntent:
-      | { incomingPaymentUrl: string }
+      | { paymentIntentUrl: string }
       | { paymentIntentId: string };
-    if (incomingPaymentUrl) {
-      paymentIntent = { incomingPaymentUrl };
+    if (paymentIntentUrl) {
+      paymentIntent = { paymentIntentUrl };
     } else if (paymentIntentId) {
       paymentIntent = { paymentIntentId };
     } else {
       return reply.status(400).send({
-        error: 'Either paymentIntentId or incomingPaymentUrl is required'
+        error: 'Either paymentIntentId or paymentIntentUrl is required'
       });
     }
 

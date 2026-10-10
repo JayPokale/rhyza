@@ -43,12 +43,13 @@ export interface IPage<T> {
 }
 
 /**
- * Names the payment intent being paid: by its local id, or by the Open
- * Payments incoming payment URL it is imported from.
+ * Names the payment intent being paid: by its local id, or by its URL. The
+ * URL may address an intent on this node — in which case the id is read out
+ * of it — or on another, which is imported on first use.
  */
 export type PaymentIntentInput =
   | { paymentIntentId: string }
-  | { incomingPaymentUrl: string };
+  | { paymentIntentUrl: string };
 
 export interface CreatePaymentIntentResult {
   id: string;
@@ -158,8 +159,8 @@ export interface GetPaymentResult {
   /** Denominated in the sender-side asset. */
   sentAmount: IAmount;
   createdAt: string;
-  /** Parent intent's remoteUrl, set for REMOTE intents. */
-  remoteUrl?: string;
+  /** Parent intent's remote URL, set for REMOTE intents. */
+  remotePaymentIntentUrl?: string;
   failReason?: string;
   metadata?: Record<string, unknown>;
 }

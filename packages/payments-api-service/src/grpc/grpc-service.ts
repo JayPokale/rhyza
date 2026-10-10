@@ -274,7 +274,7 @@ export class PaymentsServiceServer {
       this._storePendingResponse(commandId, call, callback);
       const receiveAmount = call.request.getReceiveAmount();
       const debitAmount = call.request.getDebitAmount();
-      const remoteUrl = call.request.getRemoteUrl();
+      const remotePaymentIntentUrl = call.request.getRemotePaymentIntentUrl();
       const cmd = new CreateQuoteCmd(
         {
           id: commandId,
@@ -283,7 +283,7 @@ export class PaymentsServiceServer {
           senderWalletAddress: call.request.getWalletAddress(),
           receiveAmount: receiveAmount ? receiveAmount : undefined,
           debitAmount: debitAmount ? debitAmount : undefined,
-          remoteUrl: remoteUrl ? remoteUrl : undefined,
+          remotePaymentIntentUrl: remotePaymentIntentUrl || undefined,
           createdAt: call.request.getCreatedAt() || undefined
         },
         commandId
@@ -307,7 +307,8 @@ export class PaymentsServiceServer {
           paymentIntentId: call.request.getPaymentIntentId(),
           quoteId: call.request.getQuoteId(),
           debitAmount: call.request.getDebitAmount() || undefined,
-          remoteUrl: call.request.getRemoteUrl() || undefined,
+          remotePaymentIntentUrl:
+            call.request.getRemotePaymentIntentUrl() || undefined,
           createdAt: call.request.getCreatedAt() || undefined,
           grantId: call.request.getGrantId() || undefined
         },
@@ -651,7 +652,7 @@ export class PaymentsServiceServer {
       pbPayment.setFailReason(payment.failReason);
     }
     if (parentIntent.remoteUrl) {
-      pbPayment.setRemoteUrl(parentIntent.remoteUrl);
+      pbPayment.setRemotePaymentIntentUrl(parentIntent.remoteUrl);
     }
     if (payment.metadata) {
       pbPayment.setMetadata(JSON.stringify(payment.metadata));

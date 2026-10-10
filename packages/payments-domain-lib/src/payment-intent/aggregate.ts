@@ -145,16 +145,22 @@ export class PaymentIntentAggregate {
       } else if (cmd.msgName === CreateQuoteCmd.name) {
         const payload = (cmd as CreateQuoteCmd).payload;
         walletAddressIdSet.add(payload.senderWalletAddressId);
-        if (payload.remoteUrl) {
-          remoteUrlByProposedId.set(payload.paymentIntentId, payload.remoteUrl);
+        if (payload.remotePaymentIntentUrl) {
+          remoteUrlByProposedId.set(
+            payload.paymentIntentId,
+            payload.remotePaymentIntentUrl
+          );
         } else {
           paymentIntentIdsSet.add(payload.paymentIntentId);
         }
       } else if (cmd.msgName === CreatePaymentCmd.name) {
         const payload = (cmd as CreatePaymentCmd).payload;
         walletAddressIdSet.add(payload.senderWalletAddressId);
-        if (payload.remoteUrl) {
-          remoteUrlByProposedId.set(payload.paymentIntentId, payload.remoteUrl);
+        if (payload.remotePaymentIntentUrl) {
+          remoteUrlByProposedId.set(
+            payload.paymentIntentId,
+            payload.remotePaymentIntentUrl
+          );
         } else {
           paymentIntentIdsSet.add(payload.paymentIntentId);
         }
@@ -542,7 +548,7 @@ export class PaymentIntentAggregate {
         receiveAmount,
         debitAmount,
         paymentIntentId,
-        remoteUrl,
+        remotePaymentIntentUrl: remoteUrl,
         createdAt
       } = cmd.payload;
 
@@ -730,7 +736,7 @@ export class PaymentIntentAggregate {
       quoteId,
       debitAmount,
       createdAt,
-      remoteUrl,
+      remotePaymentIntentUrl: remoteUrl,
       grantId,
       metadata
     } = cmd.payload;
@@ -1257,7 +1263,7 @@ export class PaymentIntentAggregate {
       // fetch, and we deliberately don't persist it on the intent nor prefetch
       // to ensure its not stale.
       const remoteDetails =
-        await this._remotePaymentIntentService.fetchIncomingPayment(
+        await this._remotePaymentIntentService.fetchPaymentIntent(
           paymentIntent.remoteUrl
         );
 
@@ -2058,7 +2064,7 @@ export class PaymentIntentAggregate {
         );
         try {
           const remotePaymentIntent =
-            await this._remotePaymentIntentService.fetchIncomingPayment(url);
+            await this._remotePaymentIntentService.fetchPaymentIntent(url);
           this._logger.debug(
             `_importRemotePaymentIntents — fetched url: ${url} assetCode: ${remotePaymentIntent.assetCode}`
           );

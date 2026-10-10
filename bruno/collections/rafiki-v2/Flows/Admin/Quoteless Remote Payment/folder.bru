@@ -14,7 +14,7 @@ docs {
 
   The receiver's intent is identified by its URL — no quote step means there
   is no quote response to translate the URL into a local intent id, so Create
-  Payment takes `incomingPaymentUrl` directly and returns the canonical
+  Payment takes `paymentIntentUrl` directly and returns the canonical
   `paymentIntentId`. `debitAmount` is required (nothing else can fix an
   amount) and the payment has no receive amount (`receiveAmount: null`) since
   the receiver's conversion rate is unknown without a quote probe.

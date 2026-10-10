@@ -175,7 +175,7 @@ export async function quoteRoutes(
 
         const result = await paymentsClient.createQuote(
           id,
-          { incomingPaymentUrl },
+          { paymentIntentUrl: incomingPaymentUrl },
           alias.walletAddressId,
           walletAddressUrl,
           debitAmountValue,

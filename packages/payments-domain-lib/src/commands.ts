@@ -141,7 +141,7 @@ export type CreateQuoteCmdPayload = {
   senderWalletAddressId: string;
   debitAmount?: number;
   receiveAmount?: number;
-  remoteUrl?: string;
+  remotePaymentIntentUrl?: string;
   /** ISO timestamp. */
   createdAt?: string;
 };
@@ -163,7 +163,7 @@ export type CreatePaymentCmdPayload = {
   paymentIntentId: string;
   quoteId?: string;
   debitAmount?: number;
-  remoteUrl?: string;
+  remotePaymentIntentUrl?: string;
   /** ISO timestamp. */
   createdAt?: string;
   grantId?: string;

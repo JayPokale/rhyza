@@ -95,8 +95,8 @@ export async function paymentRoutes(
   }>('/payments', async (request, reply) => {
     const { walletAddress, quoteId, debitAmount, metadata } = request.body;
     const paymentIntent =
-      'incomingPaymentUrl' in request.body
-        ? { incomingPaymentUrl: request.body.incomingPaymentUrl }
+      'paymentIntentUrl' in request.body
+        ? { paymentIntentUrl: request.body.paymentIntentUrl }
         : { paymentIntentId: request.body.paymentIntentId };
 
     const id = request.body.id ?? randomUUID();
