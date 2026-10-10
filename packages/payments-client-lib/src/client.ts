@@ -198,11 +198,14 @@ export class PaymentsClient {
     let remotePaymentIntentUrl: string | undefined;
 
     if ('paymentIntentUrl' in paymentIntent) {
+      // openPaymentsUrl is the only thing telling us which URLs are ours.
+      // Without it we could fetch our own intents from ourselves and store
+      // each as a duplicate REMOTE one.
       if (!this._openPaymentsUrl) {
         throw createServiceError(
           status.FAILED_PRECONDITION,
-          'Remote quoting is currently not configured',
-          'RemoteQuotingNotConfigured'
+          'openPaymentsUrl is not configured, so a payment intent URL cannot be resolved',
+          'OpenPaymentsUrlNotConfigured'
         );
       }
       if (paymentIntent.paymentIntentUrl.startsWith(this._openPaymentsUrl)) {
@@ -282,11 +285,14 @@ export class PaymentsClient {
     let remotePaymentIntentUrl: string | undefined;
 
     if ('paymentIntentUrl' in paymentIntent) {
+      // openPaymentsUrl is the only thing telling us which URLs are ours.
+      // Without it we could fetch our own intents from ourselves and store
+      // each as a duplicate REMOTE one.
       if (!this._openPaymentsUrl) {
         throw createServiceError(
           status.FAILED_PRECONDITION,
-          'Remote payments are currently not configured',
-          'RemotePaymentsNotConfigured'
+          'openPaymentsUrl is not configured, so a payment intent URL cannot be resolved',
+          'OpenPaymentsUrlNotConfigured'
         );
       }
       if (paymentIntent.paymentIntentUrl.startsWith(this._openPaymentsUrl)) {
