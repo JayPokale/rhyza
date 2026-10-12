@@ -57,7 +57,7 @@ export class MockWebhookIntegrationService {
       }
     });
 
-    // ASE Rates mock handler
+    // FSP Rates mock handler
     this.server.get('/rates', this.handleGetRates.bind(this));
 
     await this.server.listen({ host: HOST, port: PORT });

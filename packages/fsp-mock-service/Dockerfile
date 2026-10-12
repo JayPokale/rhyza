@@ -15,12 +15,12 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm fetch
 
 COPY . .
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --prefer-offline --frozen-lockfile
-RUN pnpm --filter ase-mock-service... build
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm deploy --legacy --prod --filter ase-mock-service /out
+RUN pnpm --filter fsp-mock-service... build
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm deploy --legacy --prod --filter fsp-mock-service /out
 
 FROM node:24-alpine AS runner
 WORKDIR /workspace
-COPY --from=build /out ./packages/ase-mock-service
+COPY --from=build /out ./packages/fsp-mock-service
 USER node
 
-CMD ["node", "packages/ase-mock-service/dist/index.js"]
+CMD ["node", "packages/fsp-mock-service/dist/index.js"]
