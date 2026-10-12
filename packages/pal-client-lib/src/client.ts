@@ -1,7 +1,7 @@
 import * as grpc from '@grpc/grpc-js';
 import { ServiceError } from '@grpc/grpc-js';
 import {
-  IGetIntraAseFxRate,
+  IGetIntraFspFxRate,
   IGetPeerFxRateFromSourceAsset,
   IGetPeerFxRateToDestinationAsset,
   IGetWalletAddressResponse,
@@ -63,7 +63,7 @@ import {
   PbSetFxRateRequest,
   PbGetPeerFxRateFromSourceAssetRequest,
   PbGetPeerFxRateToDestinationAssetRequest,
-  PbGetIntraAseFxRateRequest,
+  PbGetIntraFspFxRateRequest,
   PbLedgerLiquidityManagementRequest,
   PbLedgerLiquidityManagementResponse
 } from 'pal-public-types-lib';
@@ -493,8 +493,8 @@ export class PalClient {
                 | 'ASSET_LIQUIDITY_ACCOUNT'
                 | 'PEER_LIQUIDITY_ACCOUNT'
                 | 'PEER_CLEARING_ACCOUNT'
-                | 'ASE_LIQUIDITY_ACCOUNT'
-                | 'ASE_CLEARING_ACCOUNT'
+                | 'FSP_LIQUIDITY_ACCOUNT'
+                | 'FSP_CLEARING_ACCOUNT'
                 | 'SUSPENSE_ACCOUNT',
               name: item.getName(),
               assetCode: item.getAssetCode(),
@@ -570,11 +570,11 @@ export class PalClient {
     });
   }
 
-  async ledgerDepositToAse(
+  async ledgerDepositToFsp(
     request: IPalClientLiquidityRequest
   ): Promise<IPalClientLiquidityResponse> {
     const pbReq = this._createPbLedgerLiquidityManagementRequest(request);
-    pbReq.setType(PbLedgerLiquidityManagementRequest.Type.DEPOSIT_TO_ASE);
+    pbReq.setType(PbLedgerLiquidityManagementRequest.Type.DEPOSIT_TO_FSP);
     return this._executeLedgerLiquidityManagementResp(pbReq);
   }
 
@@ -586,11 +586,11 @@ export class PalClient {
     return this._executeLedgerLiquidityManagementResp(pbReq);
   }
 
-  ledgerWithdrawFromAse(
+  ledgerWithdrawFromFsp(
     request: IPalClientLiquidityRequest
   ): Promise<IPalClientLiquidityResponse> {
     const pbReq = this._createPbLedgerLiquidityManagementRequest(request);
-    pbReq.setType(PbLedgerLiquidityManagementRequest.Type.WITHDRAW_FROM_ASE);
+    pbReq.setType(PbLedgerLiquidityManagementRequest.Type.WITHDRAW_FROM_FSP);
     return this._executeLedgerLiquidityManagementResp(pbReq);
   }
   ledgerWithdrawFromPeer(
@@ -677,8 +677,8 @@ export class PalClient {
       retPeerDto.ledgerAccounts = {
         peerLiquidityAccId: pbAccounts.getPeerLiquidityAccountId(),
         peerClearingAccId: pbAccounts.getPeerClearingAccountId(),
-        aseLiquidityAccId: pbAccounts.getAseLiquidityAccountId(),
-        aseClearingAccId: pbAccounts.getAseClearingAccountId(),
+        fspLiquidityAccId: pbAccounts.getFspLiquidityAccountId(),
+        fspClearingAccId: pbAccounts.getFspClearingAccountId(),
         suspenseAccId: pbAccounts.getSuspenseAccountId()
       };
     }
@@ -813,7 +813,7 @@ export class PalClient {
     request:
       | IGetPeerFxRateFromSourceAsset
       | IGetPeerFxRateToDestinationAsset
-      | IGetIntraAseFxRate
+      | IGetIntraFspFxRate
   ): Promise<number | null> {
     const pbReq = new PbGetFxRateRequest();
 
@@ -821,11 +821,11 @@ export class PalClient {
       Object.hasOwn(request, 'sourceAssetCode') &&
       Object.hasOwn(request, 'destinationAssetCode')
     ) {
-      const typedRequest = request as IGetIntraAseFxRate;
-      const subReq = new PbGetIntraAseFxRateRequest();
+      const typedRequest = request as IGetIntraFspFxRate;
+      const subReq = new PbGetIntraFspFxRateRequest();
       subReq.setSourceAssetCode(typedRequest.sourceAssetCode);
       subReq.setDestinationAssetCode(typedRequest.destinationAssetCode);
-      pbReq.setIntraAseRequest(subReq);
+      pbReq.setIntraFspRequest(subReq);
     } else if (
       Object.hasOwn(request, 'peerId') &&
       Object.hasOwn(request, 'sourceAssetCode')

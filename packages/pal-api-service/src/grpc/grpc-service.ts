@@ -31,13 +31,13 @@ import {
   HealthCheckRequest,
   HealthCheckResponse,
   HealthService,
-  LedgerDepositToAseFailedEvent,
-  LedgerDepositToAseSucceededEvent,
+  LedgerDepositToFspFailedEvent,
+  LedgerDepositToFspSucceededEvent,
   LedgerDepositToPeerFailedEvent,
   LedgerDepositToPeerSucceededEvent,
-  LedgerWithdrawFromAseFailedEvent,
-  LedgerWithdrawFromAseFailedWithInsufficientFundsEvent,
-  LedgerWithdrawFromAseSucceededEvent,
+  LedgerWithdrawFromFspFailedEvent,
+  LedgerWithdrawFromFspFailedWithInsufficientFundsEvent,
+  LedgerWithdrawFromFspSucceededEvent,
   LedgerWithdrawFromPeerFailedEvent,
   LedgerWithdrawFromPeerFailedWithInsufficientFundsEvent,
   LedgerWithdrawFromPeerSucceededEvent,
@@ -468,15 +468,15 @@ export class PalGrpcServer {
     this._eventHandlerRegistry.register(
       [
         LedgerDepositToPeerSucceededEvent.name,
-        LedgerDepositToAseSucceededEvent.name,
+        LedgerDepositToFspSucceededEvent.name,
         LedgerWithdrawFromPeerSucceededEvent.name,
-        LedgerWithdrawFromAseSucceededEvent.name,
+        LedgerWithdrawFromFspSucceededEvent.name,
         LedgerDepositToPeerFailedEvent.name,
-        LedgerDepositToAseFailedEvent.name,
+        LedgerDepositToFspFailedEvent.name,
         LedgerWithdrawFromPeerFailedEvent.name,
-        LedgerWithdrawFromAseFailedEvent.name,
+        LedgerWithdrawFromFspFailedEvent.name,
         LedgerWithdrawFromPeerFailedWithInsufficientFundsEvent.name,
-        LedgerWithdrawFromAseFailedWithInsufficientFundsEvent.name
+        LedgerWithdrawFromFspFailedWithInsufficientFundsEvent.name
       ],
       this._ledgerGrpcHandler.handleLiquidityRequestEvents.bind(
         this._ledgerGrpcHandler

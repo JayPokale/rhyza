@@ -31,7 +31,7 @@ export type IGetPeerFxRateToDestinationAsset = {
   destinationAssetCode: string;
 };
 
-export type IGetIntraAseFxRate = {
+export type IGetIntraFspFxRate = {
   sourceAssetCode: string;
   destinationAssetCode: string;
 };

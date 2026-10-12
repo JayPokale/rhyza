@@ -2,22 +2,22 @@ import { IPalFxRateDto } from 'pal-public-types-lib';
 
 export class FxRate {
   private _id: string; // asset pair: source/destination asset codes and type
-  private _rateType: 'IntraAseRate' | 'PeerRate';
+  private _rateType: 'IntraFspRate' | 'PeerRate';
   private _peerId: string | null; // null for local rates
   private _sourceAssetCode: string;
   private _destinationAssetCode: string;
   private _rate: number;
 
-  private _acquisitionMethod: 'PulledFromAse' | 'PushedByAse';
+  private _acquisitionMethod: 'PulledFromFsp' | 'PushedByFsp';
 
-  private _fetchedAt: number | null; // null for set directly from ASe
+  private _fetchedAt: number | null; // null for set directly from FSP
   private _expiresAt: number | null;
 
   constructor(
     sourceAssetCode: string,
     destinationAssetCode: string,
-    rateType: 'IntraAseRate' | 'PeerRate',
-    acquisitionMethod: 'PulledFromAse' | 'PushedByAse',
+    rateType: 'IntraFspRate' | 'PeerRate',
+    acquisitionMethod: 'PulledFromFsp' | 'PushedByFsp',
     peerId: string | null,
     rate: number,
     fetchedAt?: number | null,
@@ -52,13 +52,13 @@ export class FxRate {
   get destinationAssetCode(): string {
     return this._destinationAssetCode;
   }
-  get rateType(): 'IntraAseRate' | 'PeerRate' {
+  get rateType(): 'IntraFspRate' | 'PeerRate' {
     return this._rateType;
   }
   get peerId(): string | null {
     return this._peerId;
   }
-  get acquisitionMethod(): 'PulledFromAse' | 'PushedByAse' {
+  get acquisitionMethod(): 'PulledFromFsp' | 'PushedByFsp' {
     return this._acquisitionMethod;
   }
   get fetchedAt(): number | null {
@@ -68,7 +68,7 @@ export class FxRate {
   static getRateId(
     sourceAssetCode: string,
     destinationAssetCode: string,
-    rateType: 'IntraAseRate' | 'PeerRate',
+    rateType: 'IntraFspRate' | 'PeerRate',
     peerId: string | null
   ): string {
     let id = `${sourceAssetCode}/${destinationAssetCode}`;

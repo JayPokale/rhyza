@@ -1,12 +1,12 @@
-import { IPalAseFxService } from '../../src';
+import { IPalFspFxService } from '../../src';
 import { IPalFxRateDto } from 'pal-public-types-lib';
 
-export class MockAseFxService implements IPalAseFxService {
+export class MockFspFxService implements IPalFspFxService {
   rates: IPalFxRateDto[];
   defaultExpirationMs: number = 1 * 60 * 60 * 1000; // 1 hour
   defaultRate: number = 1.0;
 
-  getIntraAseFxRate(
+  getIntraFspFxRate(
     sourceAssetCode: string,
     destinationAssetCode: string
   ): Promise<{ rate: number; expiresAt: number }> {
@@ -25,7 +25,7 @@ export class MockAseFxService implements IPalAseFxService {
     });
   }
 
-  getPeerFxFromAse(
+  getPeerFxFromFsp(
     sourceAssetCode: string,
     destinationAssetCode: string,
     peerId: string

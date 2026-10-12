@@ -197,8 +197,8 @@ message PbPeerCommsMethodDefinition{
 message PbPeerLedgerAccounts{
   string peer_liquidity_account_id = 1;
   string peer_clearing_account_id = 2;
-  string ase_liquidity_account_id = 3;
-  string ase_clearing_account_id = 4;
+  string fsp_liquidity_account_id = 3;
+  string fsp_clearing_account_id = 4;
   string suspense_account_id = 5;
 }
 message PbPeerFxRate{
@@ -206,7 +206,7 @@ message PbPeerFxRate{
   string destination_asset_code = 2;
   double rate = 3;
   uint64 expires_at = 4;
-  bool fetched_from_ase = 5;
+  bool fetched_from_fsp = 5;
   optional uint64 fetched_at = 6;
 }
 message PbGetPeerByIlpAddressRequest{
@@ -234,7 +234,7 @@ message PbGetPeerFxRateToDestinationAssetRequest{
   string destination_asset_code = 2;
 }
 
-message PbGetIntraAseFxRateRequest{
+message PbGetIntraFspFxRateRequest{
   string source_asset_code = 1;
   string destination_asset_code = 2;
 }
@@ -243,7 +243,7 @@ message PbGetFxRateRequest{
   oneof request {
     PbGetPeerFxRateFromSourceAssetRequest from_source_request = 1;
     PbGetPeerFxRateToDestinationAssetRequest to_destination_request = 2;
-    PbGetIntraAseFxRateRequest intra_ase_request = 3;
+    PbGetIntraFspFxRateRequest intra_fsp_request = 3;
   };
 }
 
@@ -286,9 +286,9 @@ message PbGetLedgerAccountsResponse{
 // liquidity requests
 message PbLedgerLiquidityManagementRequest{
   enum Type {
-    DEPOSIT_TO_ASE = 0;
+    DEPOSIT_TO_FSP = 0;
     DEPOSIT_TO_PEER = 1;
-    WITHDRAW_FROM_ASE = 2;
+    WITHDRAW_FROM_FSP = 2;
     WITHDRAW_FROM_PEER = 3;
   }
 

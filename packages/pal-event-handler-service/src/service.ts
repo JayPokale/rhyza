@@ -17,19 +17,19 @@ import {
   IPalPeerRepository,
   IPalAssetRepository,
   AssetAggregate,
-  IPalAseFxService,
+  IPalFspFxService,
   FxCacheExpiryService,
   FxAggregate,
   IPalFxRepository
 } from 'pal-domain-lib';
 import {
-  AseFxServiceAdapter,
+  FspFxServiceAdapter,
   CheckBalanceAndReserveCmdSerde,
   CommitTransferCmdSerde,
   CreateLedgerAccountForAssetCmdSerde,
   CreateLedgerAccountsForPeerCmdSerde,
   CreateLedgerCmdSerde,
-  DepositToAseCmdSerde,
+  DepositToFspCmdSerde,
   DepositToPeerCmdSerde,
   KafkaLedgerEventSourcingRepository,
   LedgerAccountsCreatedStateEventSerde,
@@ -42,7 +42,7 @@ import {
   MongoDbPeerRepo,
   RejectTransferCmdSerde,
   ReserveTransferCmdSerde,
-  WithdrawFromAseCmdSerde,
+  WithdrawFromFspCmdSerde,
   WithdrawFromPeerCmdSerde
 } from 'pal-implementations-lib';
 
@@ -167,7 +167,7 @@ export class PalLedgerEventHandlerService {
   private static _assetRepo: IPalAssetRepository;
   private static _peerRepo: IPalPeerRepository;
   private static _fxRepo: IPalFxRepository;
-  private static _aseFxService: IPalAseFxService;
+  private static _fspFxService: IPalFspFxService;
   private static _fxCacheExpiryService: FxCacheExpiryService;
   private static _stateEventHandler: LedgerStateEventHandler;
   private static _integrationEventHandler: IntegrationEventHandler;
@@ -186,7 +186,7 @@ export class PalLedgerEventHandlerService {
     producer?: IMessageProducer,
     peerRepo?: IPalPeerRepository,
     fxRepo?: IPalFxRepository,
-    aseFxService?: IPalAseFxService,
+    fspFxService?: IPalFspFxService,
     assetRepo?: IPalAssetRepository,
     telemetryService?: ITelemetryService
   ): Promise<void> {
@@ -230,8 +230,8 @@ export class PalLedgerEventHandlerService {
         .register(new ReserveTransferCmdSerde())
         .register(new CommitTransferCmdSerde())
         .register(new RejectTransferCmdSerde())
-        .register(new DepositToAseCmdSerde())
-        .register(new WithdrawFromAseCmdSerde())
+        .register(new DepositToFspCmdSerde())
+        .register(new WithdrawFromFspCmdSerde())
         .register(new DepositToPeerCmdSerde())
         .register(new WithdrawFromPeerCmdSerde());
 
@@ -350,15 +350,15 @@ export class PalLedgerEventHandlerService {
 
     const assetAggregate = new AssetAggregate(this._assetRepo, this._logger);
 
-    if (!aseFxService) {
-      aseFxService = new AseFxServiceAdapter(
+    if (!fspFxService) {
+      fspFxService = new FspFxServiceAdapter(
         EXCHANGE_RATES_URL,
         EXCHANGE_RATES_TIMEOUT_SECS * 1000,
         EXCHANGE_RATES_LIFETIME_SECS * 1000,
         logger
       );
     }
-    this._aseFxService = aseFxService;
+    this._fspFxService = fspFxService;
 
     if (!peerRepo) {
       peerRepo = new MongoDbPeerRepo(MONGO_URL, this._logger);
@@ -381,7 +381,7 @@ export class PalLedgerEventHandlerService {
 
     const fxAggregate = new FxAggregate(
       this._fxRepo,
-      this._aseFxService,
+      this._fspFxService,
       this._fxCacheExpiryService,
       this._logger
     );

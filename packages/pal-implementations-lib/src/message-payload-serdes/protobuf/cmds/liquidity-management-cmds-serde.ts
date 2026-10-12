@@ -3,9 +3,9 @@ import { ProtoBufBaseCommandSerializer } from 'implementations-lib';
 import { PbLiquidityManagementCmdPayload } from '../../../proto_generated';
 import { LiquidityManagementCmdPayload } from 'pal-domain-lib';
 
-export class DepositToAseCmdSerde extends ProtoBufBaseCommandSerializer<LiquidityManagementCmdPayload> {
+export class DepositToFspCmdSerde extends ProtoBufBaseCommandSerializer<LiquidityManagementCmdPayload> {
   protected _payloadPbClassName = 'PbLiquidityManagementCmdPayload';
-  msgName = 'DepositToAseCmd';
+  msgName = 'DepositToFspCmd';
 
   protected _serializePayload(
     payload: LiquidityManagementCmdPayload
@@ -50,12 +50,12 @@ export class DepositToAseCmdSerde extends ProtoBufBaseCommandSerializer<Liquidit
   }
 }
 
-export class WithdrawFromAseCmdSerde extends DepositToAseCmdSerde {
-  msgName = 'WithdrawFromAseCmd';
+export class WithdrawFromFspCmdSerde extends DepositToFspCmdSerde {
+  msgName = 'WithdrawFromFspCmd';
 }
-export class DepositToPeerCmdSerde extends DepositToAseCmdSerde {
+export class DepositToPeerCmdSerde extends DepositToFspCmdSerde {
   msgName = 'DepositToPeerCmd';
 }
-export class WithdrawFromPeerCmdSerde extends DepositToAseCmdSerde {
+export class WithdrawFromPeerCmdSerde extends DepositToFspCmdSerde {
   msgName = 'WithdrawFromPeerCmd';
 }

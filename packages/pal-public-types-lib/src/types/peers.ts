@@ -13,8 +13,8 @@ export interface IPalPeerDto {
   ledgerAccounts: null | {
     peerLiquidityAccId: string;
     peerClearingAccId: string;
-    aseLiquidityAccId: string;
-    aseClearingAccId: string;
+    fspLiquidityAccId: string;
+    fspClearingAccId: string;
     suspenseAccId: string;
   };
 }

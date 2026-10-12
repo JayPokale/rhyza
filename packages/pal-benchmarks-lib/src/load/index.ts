@@ -65,8 +65,8 @@ const SLIDING_WINDOW_SECS = 10; // "last X seconds for avg duration"
 const BALANCE_UPDATE_INTERVAL_SECS = 5;
 
 export interface IAccBalances {
-  aseLiq?: string;
-  aseCle?: string;
+  fspLiq?: string;
+  fspCle?: string;
   peerLiq?: string;
   peerCle?: string;
   susp?: string;
@@ -310,9 +310,9 @@ export class LoadTests extends EventEmitter<ILoadTestEvents> {
       this._log('Accounts found, skipping creation.');
     }
     //
-    // this._log('Requesting ASE deposit...');
+    // this._log('Requesting FSP deposit...');
     //
-    // await this._apiClient.ledgerDepositToAse({
+    // await this._apiClient.ledgerDepositToFsp({
     //   requestId: randomUUID(),
     //   assetCode: this._settings.assetCode,
     //   peerId: this._settings.peerId,
@@ -569,8 +569,8 @@ export class LoadTests extends EventEmitter<ILoadTestEvents> {
 
       if (this._peer.ledgerAccounts) {
         accountIds.push(
-          this._peer.ledgerAccounts.aseLiquidityAccId,
-          this._peer.ledgerAccounts.aseClearingAccId,
+          this._peer.ledgerAccounts.fspLiquidityAccId,
+          this._peer.ledgerAccounts.fspClearingAccId,
           this._peer.ledgerAccounts.peerLiquidityAccId,
           this._peer.ledgerAccounts.peerClearingAccId,
           this._peer.ledgerAccounts.suspenseAccId
@@ -602,10 +602,10 @@ export class LoadTests extends EventEmitter<ILoadTestEvents> {
         acc.assetDisplayScale
       );
 
-      if (acc.type === 'ASE_LIQUIDITY_ACCOUNT') {
-        this._balances.aseLiq = balStr;
-      } else if (acc.type === 'ASE_CLEARING_ACCOUNT') {
-        this._balances.aseCle = balStr;
+      if (acc.type === 'FSP_LIQUIDITY_ACCOUNT') {
+        this._balances.fspLiq = balStr;
+      } else if (acc.type === 'FSP_CLEARING_ACCOUNT') {
+        this._balances.fspCle = balStr;
       } else if (acc.type === 'PEER_LIQUIDITY_ACCOUNT') {
         this._balances.peerLiq = balStr;
       } else if (acc.type === 'PEER_CLEARING_ACCOUNT') {
@@ -625,8 +625,8 @@ export class LoadTests extends EventEmitter<ILoadTestEvents> {
 
     if (this._peer && this._peer.ledgerAccounts) {
       accountIds.push(
-        this._peer.ledgerAccounts.aseLiquidityAccId,
-        this._peer.ledgerAccounts.aseClearingAccId,
+        this._peer.ledgerAccounts.fspLiquidityAccId,
+        this._peer.ledgerAccounts.fspClearingAccId,
         this._peer.ledgerAccounts.peerLiquidityAccId,
         this._peer.ledgerAccounts.peerClearingAccId,
         this._peer.ledgerAccounts.suspenseAccId

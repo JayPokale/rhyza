@@ -8,7 +8,7 @@ export class LoadTestsPage extends UiPage {
   private reqsPerSecInputBox!: Textbox;
   private _textAvgRespTime!: Text;
   private _textPending!: Text;
-  private _textAseClearing!: Text;
+  private _textFspClearing!: Text;
   private _textPeerClearing!: Text;
   private _textErrorCount!: Text;
 
@@ -50,9 +50,9 @@ export class LoadTestsPage extends UiPage {
       );
     }
 
-    this._textAseClearing.setContent(this._loadTests.balances.aseCle || 'n/a');
-    this._textAseClearing.style.fg =
-      this._loadTests.balances.aseCle?.startsWith('-') ? 'red' : 'green';
+    this._textFspClearing.setContent(this._loadTests.balances.fspCle || 'n/a');
+    this._textFspClearing.style.fg =
+      this._loadTests.balances.fspCle?.startsWith('-') ? 'red' : 'green';
     this._textPeerClearing.setContent(
       this._loadTests.balances.peerCle || 'n/a'
     );
@@ -121,10 +121,10 @@ export class LoadTestsPage extends UiPage {
       }
     });
 
-    this._textAseClearing = new Box({
+    this._textFspClearing = new Box({
       ...commonText,
       left: 81,
-      label: 'ASE Clearing',
+      label: 'FSP Clearing',
       style: {
         fg: 'red'
       }

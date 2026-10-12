@@ -15,12 +15,12 @@ import {
   CommitTransferCmd,
   CreateLedgerAccountForAssetCmd,
   CreateLedgerAccountsForPeerCmd,
-  DepositToAseCmd,
+  DepositToFspCmd,
   DepositToPeerCmd,
   LedgerCommand,
   RejectTransferCmd,
   ReserveTransferCmd,
-  WithdrawFromAseCmd,
+  WithdrawFromFspCmd,
   WithdrawFromPeerCmd
 } from '../messages/commands';
 import { CommandMsg, ILogger, MessageTypes } from 'common-types-lib';
@@ -56,14 +56,14 @@ import {
   LedgerWithdrawFromPeerFailedEvent,
   LedgerLiquidityManagementSuccessEventPayload,
   LedgerLiquidityManagementFailureEventPayload,
-  LedgerDepositToAseFailedEvent,
+  LedgerDepositToFspFailedEvent,
   LedgerDepositToPeerSucceededEvent,
-  LedgerDepositToAseSucceededEvent,
-  LedgerWithdrawFromAseFailedEvent,
+  LedgerDepositToFspSucceededEvent,
+  LedgerWithdrawFromFspFailedEvent,
   LedgerWithdrawFromPeerSucceededEvent,
-  LedgerWithdrawFromAseSucceededEvent,
+  LedgerWithdrawFromFspSucceededEvent,
   LedgerWithdrawFromPeerFailedWithInsufficientFundsEvent,
-  LedgerWithdrawFromAseFailedWithInsufficientFundsEvent
+  LedgerWithdrawFromFspFailedWithInsufficientFundsEvent
 } from 'pal-public-types-lib';
 import { amountFromBigIntOfSize, amountToBigIntOfSize } from '../utils';
 
@@ -494,8 +494,8 @@ export class Ledger {
       (acc) =>
         acc.id === cmd.payload.peerLiquidityAccId ||
         acc.id === cmd.payload.peerClearingAccId ||
-        acc.id === cmd.payload.aseLiquidityAccId ||
-        acc.id === cmd.payload.aseClearingAccId ||
+        acc.id === cmd.payload.fspLiquidityAccId ||
+        acc.id === cmd.payload.fspClearingAccId ||
         acc.id === cmd.payload.suspenseAccId
     );
 
@@ -558,15 +558,15 @@ export class Ledger {
             ...commonStateEventObj
           },
           {
-            id: cmd.payload.aseLiquidityAccId,
-            type: LedgerAccountTypes.ASE_LIQUIDITY_ACCOUNT,
-            name: `ASE Liquidity Account for peer '${cmd.payload.peerId}' and asset '${cmd.payload.assetCode}'`,
+            id: cmd.payload.fspLiquidityAccId,
+            type: LedgerAccountTypes.FSP_LIQUIDITY_ACCOUNT,
+            name: `FSP Liquidity Account for peer '${cmd.payload.peerId}' and asset '${cmd.payload.assetCode}'`,
             ...commonStateEventObj
           },
           {
-            id: cmd.payload.aseClearingAccId,
-            type: LedgerAccountTypes.ASE_CLEARING_ACCOUNT,
-            name: `ASE Clearing Account for peer '${cmd.payload.peerId}' and asset '${cmd.payload.assetCode}'`,
+            id: cmd.payload.fspClearingAccId,
+            type: LedgerAccountTypes.FSP_CLEARING_ACCOUNT,
+            name: `FSP Clearing Account for peer '${cmd.payload.peerId}' and asset '${cmd.payload.assetCode}'`,
             ...commonStateEventObj
           },
           {
@@ -584,8 +584,8 @@ export class Ledger {
       assetCode: cmd.payload.assetCode,
       peerLiquidityAccId: cmd.payload.peerLiquidityAccId,
       peerClearingAccId: cmd.payload.peerClearingAccId,
-      aseLiquidityAccId: cmd.payload.aseLiquidityAccId,
-      aseClearingAccId: cmd.payload.aseClearingAccId,
+      fspLiquidityAccId: cmd.payload.fspLiquidityAccId,
+      fspClearingAccId: cmd.payload.fspClearingAccId,
       suspenseAccId: cmd.payload.suspenseAccId
     });
 
@@ -597,7 +597,7 @@ export class Ledger {
   ): Promise<void> {
     const payerClearingAccount = this._getAccount(
       cmd.payload.transferDirection === 'OUTGOING'
-        ? LedgerAccountTypes.ASE_CLEARING_ACCOUNT
+        ? LedgerAccountTypes.FSP_CLEARING_ACCOUNT
         : LedgerAccountTypes.PEER_CLEARING_ACCOUNT,
       cmd.payload.peerId
     );
@@ -660,13 +660,13 @@ export class Ledger {
   ): Promise<void> {
     const payerClearingAccount = this._getAccount(
       cmd.payload.transferDirection === 'OUTGOING'
-        ? LedgerAccountTypes.ASE_CLEARING_ACCOUNT
+        ? LedgerAccountTypes.FSP_CLEARING_ACCOUNT
         : LedgerAccountTypes.PEER_CLEARING_ACCOUNT,
       cmd.payload.peerId
     );
     const payerLiquidityAccount = this._getAccount(
       cmd.payload.transferDirection === 'OUTGOING'
-        ? LedgerAccountTypes.ASE_LIQUIDITY_ACCOUNT
+        ? LedgerAccountTypes.FSP_LIQUIDITY_ACCOUNT
         : LedgerAccountTypes.PEER_LIQUIDITY_ACCOUNT,
       cmd.payload.peerId
     );
@@ -782,14 +782,14 @@ export class Ledger {
 
     const payerClearingAccount = this._getAccount(
       cmd.payload.transferDirection === 'OUTGOING'
-        ? LedgerAccountTypes.ASE_CLEARING_ACCOUNT
+        ? LedgerAccountTypes.FSP_CLEARING_ACCOUNT
         : LedgerAccountTypes.PEER_CLEARING_ACCOUNT,
       pendingTransfer.peerId
     );
     const payeeClearingAccount = this._getAccount(
       cmd.payload.transferDirection === 'OUTGOING'
         ? LedgerAccountTypes.PEER_CLEARING_ACCOUNT
-        : LedgerAccountTypes.ASE_CLEARING_ACCOUNT,
+        : LedgerAccountTypes.FSP_CLEARING_ACCOUNT,
       pendingTransfer.peerId
     );
     const suspenseAccount: ILedgerAccount | undefined = this._getAccount(
@@ -872,7 +872,7 @@ export class Ledger {
 
     const payerClearingAccount = this._getAccount(
       cmd.payload.transferDirection === 'OUTGOING'
-        ? LedgerAccountTypes.ASE_CLEARING_ACCOUNT
+        ? LedgerAccountTypes.FSP_CLEARING_ACCOUNT
         : LedgerAccountTypes.PEER_CLEARING_ACCOUNT,
       pendingTransfer.peerId
     );
@@ -926,7 +926,7 @@ export class Ledger {
   }
 
   private async _processDepositCmd(
-    cmd: DepositToPeerCmd | DepositToAseCmd
+    cmd: DepositToPeerCmd | DepositToFspCmd
   ): Promise<void> {
     const assetAccount = this._getAccount(
       LedgerAccountTypes.ASSET_LIQUIDITY_ACCOUNT
@@ -940,7 +940,7 @@ export class Ledger {
       );
     } else {
       liquidityAccount = this._getAccount(
-        LedgerAccountTypes.ASE_LIQUIDITY_ACCOUNT,
+        LedgerAccountTypes.FSP_LIQUIDITY_ACCOUNT,
         cmd.payload.peerId
       );
     }
@@ -958,7 +958,7 @@ export class Ledger {
         );
       } else {
         this._recordDomainEvent(
-          new LedgerDepositToAseFailedEvent(this._id, failPayload),
+          new LedgerDepositToFspFailedEvent(this._id, failPayload),
           cmd
         );
       }
@@ -1003,14 +1003,14 @@ export class Ledger {
       );
     } else {
       this._recordDomainEvent(
-        new LedgerDepositToAseSucceededEvent(this._id, payload),
+        new LedgerDepositToFspSucceededEvent(this._id, payload),
         cmd
       );
     }
   }
 
   private async _processWithdrawCmd(
-    cmd: WithdrawFromPeerCmd | WithdrawFromAseCmd
+    cmd: WithdrawFromPeerCmd | WithdrawFromFspCmd
   ): Promise<void> {
     const assetAccount = this._getAccount(
       LedgerAccountTypes.ASSET_LIQUIDITY_ACCOUNT
@@ -1024,7 +1024,7 @@ export class Ledger {
       );
     } else {
       liquidityAccount = this._getAccount(
-        LedgerAccountTypes.ASE_LIQUIDITY_ACCOUNT,
+        LedgerAccountTypes.FSP_LIQUIDITY_ACCOUNT,
         cmd.payload.peerId
       );
     }
@@ -1042,7 +1042,7 @@ export class Ledger {
         );
       } else {
         this._recordDomainEvent(
-          new LedgerWithdrawFromAseFailedEvent(this._id, failPayload),
+          new LedgerWithdrawFromFspFailedEvent(this._id, failPayload),
           cmd
         );
       }
@@ -1076,7 +1076,7 @@ export class Ledger {
         );
       } else {
         this._recordDomainEvent(
-          new LedgerWithdrawFromAseFailedWithInsufficientFundsEvent(
+          new LedgerWithdrawFromFspFailedWithInsufficientFundsEvent(
             this._id,
             failPayload
           ),
@@ -1121,7 +1121,7 @@ export class Ledger {
       );
     } else {
       this._recordDomainEvent(
-        new LedgerWithdrawFromAseSucceededEvent(this._id, payload),
+        new LedgerWithdrawFromFspSucceededEvent(this._id, payload),
         cmd
       );
     }
@@ -1218,12 +1218,12 @@ export class Ledger {
       await this._processRejectTransferCmd(ledgerCmd);
     } else if (
       LedgerCommand.isDepositToPeerCmd(ledgerCmd) ||
-      LedgerCommand.isDepositToAseCmd(ledgerCmd)
+      LedgerCommand.isDepositToFspCmd(ledgerCmd)
     ) {
       await this._processDepositCmd(ledgerCmd);
     } else if (
       LedgerCommand.isWithdrawFromPeerCmd(ledgerCmd) ||
-      LedgerCommand.isWithdrawFromAseCmd(ledgerCmd)
+      LedgerCommand.isWithdrawFromFspCmd(ledgerCmd)
     ) {
       await this._processWithdrawCmd(ledgerCmd);
     } else {

@@ -133,20 +133,20 @@ export abstract class LedgerDomainEvent extends DomainEvent {
   ): evt is LedgerDepositToPeerSucceededEvent {
     return evt.msgName === LedgerDepositToPeerSucceededEvent.name;
   }
-  static isLedgerDepositToAseSucceededEvent(
+  static isLedgerDepositToFspSucceededEvent(
     evt: DomainEvent
-  ): evt is LedgerDepositToAseSucceededEvent {
-    return evt.msgName === LedgerDepositToAseSucceededEvent.name;
+  ): evt is LedgerDepositToFspSucceededEvent {
+    return evt.msgName === LedgerDepositToFspSucceededEvent.name;
   }
   static isLedgerWithdrawFromPeerSucceededEvent(
     evt: DomainEvent
   ): evt is LedgerWithdrawFromPeerSucceededEvent {
     return evt.msgName === LedgerWithdrawFromPeerSucceededEvent.name;
   }
-  static isLedgerWithdrawFromAseSucceededEvent(
+  static isLedgerWithdrawFromFspSucceededEvent(
     evt: DomainEvent
-  ): evt is LedgerWithdrawFromAseSucceededEvent {
-    return evt.msgName === LedgerWithdrawFromAseSucceededEvent.name;
+  ): evt is LedgerWithdrawFromFspSucceededEvent {
+    return evt.msgName === LedgerWithdrawFromFspSucceededEvent.name;
   }
 
   // Liq management failure events
@@ -155,20 +155,20 @@ export abstract class LedgerDomainEvent extends DomainEvent {
   ): evt is LedgerDepositToPeerFailedEvent {
     return evt.msgName === LedgerDepositToPeerFailedEvent.name;
   }
-  static isLedgerDepositToAseFailedEvent(
+  static isLedgerDepositToFspFailedEvent(
     evt: DomainEvent
-  ): evt is LedgerDepositToAseFailedEvent {
-    return evt.msgName === LedgerDepositToAseFailedEvent.name;
+  ): evt is LedgerDepositToFspFailedEvent {
+    return evt.msgName === LedgerDepositToFspFailedEvent.name;
   }
   static isLedgerWithdrawFromPeerFailedEvent(
     evt: DomainEvent
   ): evt is LedgerWithdrawFromPeerFailedEvent {
     return evt.msgName === LedgerWithdrawFromPeerFailedEvent.name;
   }
-  static isLedgerWithdrawFromAseFailedEvent(
+  static isLedgerWithdrawFromFspFailedEvent(
     evt: DomainEvent
-  ): evt is LedgerWithdrawFromAseFailedEvent {
-    return evt.msgName === LedgerWithdrawFromAseFailedEvent.name;
+  ): evt is LedgerWithdrawFromFspFailedEvent {
+    return evt.msgName === LedgerWithdrawFromFspFailedEvent.name;
   }
   static isLedgerWithdrawFromPeerFailedWithInsufficientFundsEvent(
     evt: DomainEvent
@@ -178,11 +178,11 @@ export abstract class LedgerDomainEvent extends DomainEvent {
       LedgerWithdrawFromPeerFailedWithInsufficientFundsEvent.name
     );
   }
-  static isLedgerWithdrawFromAseFailedWithInsufficientFundsEvent(
+  static isLedgerWithdrawFromFspFailedWithInsufficientFundsEvent(
     evt: DomainEvent
-  ): evt is LedgerWithdrawFromAseFailedWithInsufficientFundsEvent {
+  ): evt is LedgerWithdrawFromFspFailedWithInsufficientFundsEvent {
     return (
-      evt.msgName === LedgerWithdrawFromAseFailedWithInsufficientFundsEvent.name
+      evt.msgName === LedgerWithdrawFromFspFailedWithInsufficientFundsEvent.name
     );
   }
 }
@@ -258,8 +258,8 @@ export type LedgerAccountsCreatedForPeerEventPayload = {
   assetCode: string;
   peerLiquidityAccId: string;
   peerClearingAccId: string;
-  aseLiquidityAccId: string;
-  aseClearingAccId: string;
+  fspLiquidityAccId: string;
+  fspClearingAccId: string;
   suspenseAccId: string;
 };
 export class LedgerAccountsCreatedForPeerEvent extends LedgerDomainEvent {
@@ -361,9 +361,9 @@ export class LedgerLiquidityManagementSuccessEvent extends LedgerDomainEvent {
   }
 }
 export class LedgerDepositToPeerSucceededEvent extends LedgerLiquidityManagementSuccessEvent {}
-export class LedgerDepositToAseSucceededEvent extends LedgerLiquidityManagementSuccessEvent {}
+export class LedgerDepositToFspSucceededEvent extends LedgerLiquidityManagementSuccessEvent {}
 export class LedgerWithdrawFromPeerSucceededEvent extends LedgerLiquidityManagementSuccessEvent {}
-export class LedgerWithdrawFromAseSucceededEvent extends LedgerLiquidityManagementSuccessEvent {}
+export class LedgerWithdrawFromFspSucceededEvent extends LedgerLiquidityManagementSuccessEvent {}
 
 // failure events
 export type LedgerLiquidityManagementFailureEventPayload =
@@ -385,12 +385,12 @@ export class LedgerLiquidityManagementFailureEvent extends LedgerDomainEvent {
 }
 
 export class LedgerDepositToPeerFailedEvent extends LedgerLiquidityManagementFailureEvent {}
-export class LedgerDepositToAseFailedEvent extends LedgerLiquidityManagementFailureEvent {}
+export class LedgerDepositToFspFailedEvent extends LedgerLiquidityManagementFailureEvent {}
 export class LedgerWithdrawFromPeerFailedEvent extends LedgerLiquidityManagementFailureEvent {}
-export class LedgerWithdrawFromAseFailedEvent extends LedgerLiquidityManagementFailureEvent {}
+export class LedgerWithdrawFromFspFailedEvent extends LedgerLiquidityManagementFailureEvent {}
 
 export class LedgerWithdrawFromPeerFailedWithInsufficientFundsEvent extends LedgerLiquidityManagementFailureEvent {}
-export class LedgerWithdrawFromAseFailedWithInsufficientFundsEvent extends LedgerLiquidityManagementFailureEvent {}
+export class LedgerWithdrawFromFspFailedWithInsufficientFundsEvent extends LedgerLiquidityManagementFailureEvent {}
 
 /*
  * High-level success events

@@ -6,12 +6,12 @@ export interface IPalFxRepository {
   store(fxRate: IPalFxRateDto): Promise<void>;
 }
 
-export interface IPalAseFxService {
-  getIntraAseFxRate(
+export interface IPalFspFxService {
+  getIntraFspFxRate(
     sourceAssetCode: string,
     destinationAssetCode: string
   ): Promise<{ rate: number; expiresAt: number }>;
-  getPeerFxFromAse(
+  getPeerFxFromFsp(
     sourceAssetCode: string,
     destinationAssetCode: string,
     peerId: string

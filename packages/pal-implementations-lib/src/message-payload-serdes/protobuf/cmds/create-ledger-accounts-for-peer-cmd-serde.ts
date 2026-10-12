@@ -17,8 +17,8 @@ export class CreateLedgerAccountsForPeerCmdSerde extends ProtoBufBaseCommandSeri
     pbPayload.setAssetCode(typedPayload.assetCode);
     pbPayload.setPeerLiquidityAccountId(typedPayload.peerLiquidityAccId);
     pbPayload.setPeerClearingAccountId(typedPayload.peerClearingAccId);
-    pbPayload.setAseLiquidityAccountId(typedPayload.aseLiquidityAccId);
-    pbPayload.setAseClearingAccountId(typedPayload.aseClearingAccId);
+    pbPayload.setFspLiquidityAccountId(typedPayload.fspLiquidityAccId);
+    pbPayload.setFspClearingAccountId(typedPayload.fspClearingAccId);
     pbPayload.setSuspenseAccountId(typedPayload.suspenseAccId);
     return pbPayload.serializeBinary();
   }
@@ -38,8 +38,8 @@ export class CreateLedgerAccountsForPeerCmdSerde extends ProtoBufBaseCommandSeri
       assetCode: pbPayload.getAssetCode(),
       peerLiquidityAccId: pbPayload.getPeerLiquidityAccountId(),
       peerClearingAccId: pbPayload.getPeerClearingAccountId(),
-      aseLiquidityAccId: pbPayload.getAseLiquidityAccountId(),
-      aseClearingAccId: pbPayload.getAseClearingAccountId(),
+      fspLiquidityAccId: pbPayload.getFspLiquidityAccountId(),
+      fspClearingAccId: pbPayload.getFspClearingAccountId(),
       suspenseAccId: pbPayload.getSuspenseAccountId()
     };
 

@@ -1,31 +1,31 @@
 import {
-  AseExchangeServiceRateNotFoundError,
-  AseExchangeServiceTimeoutError,
-  AseExchangeServiceUnknownError,
-  IPalAseFxService
+  FspExchangeServiceRateNotFoundError,
+  FspExchangeServiceTimeoutError,
+  FspExchangeServiceUnknownError,
+  IPalFspFxService
 } from 'pal-domain-lib';
 import { ILogger } from 'common-types-lib';
 
-export class AseFxServiceAdapter implements IPalAseFxService {
-  private _aseEndpointUrl: string;
+export class FspFxServiceAdapter implements IPalFspFxService {
+  private _fspEndpointUrl: string;
   private _timeoutMs: number;
   private _rateTtlMs: number;
   private _logger: ILogger;
 
   constructor(
-    aseEndpointUrl: string,
+    fspEndpointUrl: string,
     timeoutMs: number,
     rateTtlMs: number,
     logger: ILogger
   ) {
-    this._aseEndpointUrl = aseEndpointUrl;
+    this._fspEndpointUrl = fspEndpointUrl;
     this._timeoutMs = timeoutMs;
     this._rateTtlMs = rateTtlMs;
     this._logger = logger.child(this.constructor.name);
   }
 
   /*
-   * Specs for exchange-rates ASE endpoint:
+   * Specs for exchange-rates FSP endpoint:
    * https://github.com/interledger/rafiki/blob/main/packages/backend/src/openapi/specs/exchange-rates.yaml
    *
    * Request must include the following query parameters:
@@ -41,7 +41,7 @@ export class AseFxServiceAdapter implements IPalAseFxService {
    *
    * */
 
-  private async _getDataFromAse(
+  private async _getDataFromFsp(
     sourceAssetCode: string,
     destinationAssetCode: string,
     peerId?: string
@@ -53,7 +53,7 @@ export class AseFxServiceAdapter implements IPalAseFxService {
     let respData: any;
 
     try {
-      const url = new URL(this._aseEndpointUrl);
+      const url = new URL(this._fspEndpointUrl);
       url.searchParams.append('base', sourceAssetCode);
 
       if (peerId) {
@@ -70,7 +70,7 @@ export class AseFxServiceAdapter implements IPalAseFxService {
       });
 
       if (!response.ok) {
-        throw new AseExchangeServiceUnknownError(
+        throw new FspExchangeServiceUnknownError(
           `HTTP error! status: ${response.status}`
         );
       }
@@ -78,9 +78,9 @@ export class AseFxServiceAdapter implements IPalAseFxService {
       respData = await response.json();
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
-        const msg = `Request to ASE rates endpoint timed out after ${this._timeoutMs}ms`;
+        const msg = `Request to FSP rates endpoint timed out after ${this._timeoutMs}ms`;
         this._logger.error(msg);
-        throw new AseExchangeServiceTimeoutError(msg);
+        throw new FspExchangeServiceTimeoutError(msg);
       }
       throw error;
     } finally {
@@ -94,9 +94,9 @@ export class AseFxServiceAdapter implements IPalAseFxService {
       !respData.rates ||
       Object.keys(respData.rates).length === 0
     ) {
-      const msg = 'Invalid response format from ASE rates endpoint';
+      const msg = 'Invalid response format from FSP rates endpoint';
       this._logger.error(msg);
-      throw new AseExchangeServiceUnknownError(msg);
+      throw new FspExchangeServiceUnknownError(msg);
     }
 
     const key = Object.keys(respData.rates).find(
@@ -104,13 +104,13 @@ export class AseFxServiceAdapter implements IPalAseFxService {
     );
     if (!key) {
       this._logger.warn(
-        `Could not get fx rate from ASE endpoint for ${sourceAssetCode} -> ${destinationAssetCode}.`
+        `Could not get fx rate from FSP endpoint for ${sourceAssetCode} -> ${destinationAssetCode}.`
       );
-      throw new AseExchangeServiceRateNotFoundError('');
+      throw new FspExchangeServiceRateNotFoundError('');
     }
 
     this._logger.debug(
-      `Got fx rate from ASE endpoint for ${sourceAssetCode} -> ${destinationAssetCode}`
+      `Got fx rate from FSP endpoint for ${sourceAssetCode} -> ${destinationAssetCode}`
     );
 
     return {
@@ -119,25 +119,25 @@ export class AseFxServiceAdapter implements IPalAseFxService {
     };
   }
 
-  async getIntraAseFxRate(
+  async getIntraFspFxRate(
     sourceAssetCode: string,
     destinationAssetCode: string
   ): Promise<{ rate: number; expiresAt: number }> {
     this._logger.info(
-      `Getting Intra ASE fx rate from ASE endpoint for ${sourceAssetCode} -> ${destinationAssetCode}...`
+      `Getting Intra FSP fx rate from FSP endpoint for ${sourceAssetCode} -> ${destinationAssetCode}...`
     );
-    return await this._getDataFromAse(sourceAssetCode, destinationAssetCode);
+    return await this._getDataFromFsp(sourceAssetCode, destinationAssetCode);
   }
 
-  async getPeerFxFromAse(
+  async getPeerFxFromFsp(
     sourceAssetCode: string,
     destinationAssetCode: string,
     peerId: string
   ): Promise<{ rate: number; expiresAt: number }> {
     this._logger.info(
-      `Getting Peer fx rate from ASE endpoint for ${sourceAssetCode} -> ${destinationAssetCode}...`
+      `Getting Peer fx rate from FSP endpoint for ${sourceAssetCode} -> ${destinationAssetCode}...`
     );
-    return await this._getDataFromAse(
+    return await this._getDataFromFsp(
       sourceAssetCode,
       destinationAssetCode,
       peerId

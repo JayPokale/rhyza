@@ -96,10 +96,10 @@ export class PeerGrpcHandler {
       pbAccounts.setPeerClearingAccountId(
         peer.ledgerAccounts.peerClearingAccId
       );
-      pbAccounts.setAseLiquidityAccountId(
-        peer.ledgerAccounts.aseLiquidityAccId
+      pbAccounts.setFspLiquidityAccountId(
+        peer.ledgerAccounts.fspLiquidityAccId
       );
-      pbAccounts.setAseClearingAccountId(peer.ledgerAccounts.aseClearingAccId);
+      pbAccounts.setFspClearingAccountId(peer.ledgerAccounts.fspClearingAccId);
       pbAccounts.setSuspenseAccountId(peer.ledgerAccounts.suspenseAccId);
       pbPeer.setLedgerAccounts(pbAccounts);
     }

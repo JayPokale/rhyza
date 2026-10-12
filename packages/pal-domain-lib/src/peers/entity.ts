@@ -13,8 +13,8 @@ export type IPalPeerCommunicationMethodDefinition = {
 export type IPalPeerAccounts = {
   peerLiquidityAccId: string;
   peerClearingAccId: string;
-  aseLiquidityAccId: string;
-  aseClearingAccId: string;
+  fspLiquidityAccId: string;
+  fspClearingAccId: string;
   suspenseAccId: string;
 };
 
@@ -55,15 +55,15 @@ export class PalPeer {
   associateLedgerAccounts(
     peerLiquidityAccId: string,
     peerClearingAccId: string,
-    aseLiquidityAccId: string,
-    aseClearingAccId: string,
+    fspLiquidityAccId: string,
+    fspClearingAccId: string,
     suspenseAccId: string
   ): void {
     this._ledgerAccounts = {
       peerLiquidityAccId: peerLiquidityAccId,
       peerClearingAccId: peerClearingAccId,
-      aseLiquidityAccId: aseLiquidityAccId,
-      aseClearingAccId: aseClearingAccId,
+      fspLiquidityAccId: fspLiquidityAccId,
+      fspClearingAccId: fspClearingAccId,
       suspenseAccId: suspenseAccId
     };
   }

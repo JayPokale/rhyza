@@ -52,11 +52,11 @@ export abstract class LedgerCommand extends CommandMsg {
   static isWithdrawFromPeerCmd(cmd: CommandMsg): cmd is WithdrawFromPeerCmd {
     return cmd.msgName === WithdrawFromPeerCmd.name;
   }
-  static isDepositToAseCmd(cmd: CommandMsg): cmd is DepositToAseCmd {
-    return cmd.msgName === DepositToAseCmd.name;
+  static isDepositToFspCmd(cmd: CommandMsg): cmd is DepositToFspCmd {
+    return cmd.msgName === DepositToFspCmd.name;
   }
-  static isWithdrawFromAseCmd(cmd: CommandMsg): cmd is WithdrawFromAseCmd {
-    return cmd.msgName === WithdrawFromAseCmd.name;
+  static isWithdrawFromFspCmd(cmd: CommandMsg): cmd is WithdrawFromFspCmd {
+    return cmd.msgName === WithdrawFromFspCmd.name;
   }
 }
 
@@ -92,8 +92,8 @@ export type CreateLedgerAccountsForPeerCmdPayload = {
   assetCode: string;
   peerLiquidityAccId: string;
   peerClearingAccId: string;
-  aseLiquidityAccId: string;
-  aseClearingAccId: string;
+  fspLiquidityAccId: string;
+  fspClearingAccId: string;
   suspenseAccId: string;
 };
 export class CreateLedgerAccountsForPeerCmd extends LedgerCommand {
@@ -197,7 +197,7 @@ export class WithdrawFromPeerCmd extends LedgerCommand {
     this.payload = payload;
   }
 }
-export class DepositToAseCmd extends LedgerCommand {
+export class DepositToFspCmd extends LedgerCommand {
   payload: LiquidityManagementCmdPayload;
   constructor(payload: LiquidityManagementCmdPayload) {
     super(payload.assetCode);
@@ -205,7 +205,7 @@ export class DepositToAseCmd extends LedgerCommand {
   }
 }
 
-export class WithdrawFromAseCmd extends LedgerCommand {
+export class WithdrawFromFspCmd extends LedgerCommand {
   payload: LiquidityManagementCmdPayload;
   constructor(payload: LiquidityManagementCmdPayload) {
     super(payload.assetCode);

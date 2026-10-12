@@ -25,10 +25,10 @@ import {
   CommitTransferCmdSerde,
   RejectTransferCmdSerde,
   ReserveTransferCmdSerde,
-  DepositToAseCmdSerde,
+  DepositToFspCmdSerde,
   DepositToPeerCmdSerde,
   WithdrawFromPeerCmdSerde,
-  WithdrawFromAseCmdSerde
+  WithdrawFromFspCmdSerde
 } from 'pal-implementations-lib';
 import { LedgerTransactionRecordedStateEventSerde } from 'pal-implementations-lib';
 import crypto from 'crypto';
@@ -164,8 +164,8 @@ export class PalLedgerCommandHandlerService {
         .register(new ReserveTransferCmdSerde())
         .register(new CommitTransferCmdSerde())
         .register(new RejectTransferCmdSerde())
-        .register(new DepositToAseCmdSerde())
-        .register(new WithdrawFromAseCmdSerde())
+        .register(new DepositToFspCmdSerde())
+        .register(new WithdrawFromFspCmdSerde())
         .register(new DepositToPeerCmdSerde())
         .register(new WithdrawFromPeerCmdSerde());
 

@@ -140,8 +140,8 @@ export class InternalEventHandler {
       assetCode: evt.payload.assetCode,
       peerLiquidityAccId: crypto.randomUUID(),
       peerClearingAccId: crypto.randomUUID(),
-      aseLiquidityAccId: crypto.randomUUID(),
-      aseClearingAccId: crypto.randomUUID(),
+      fspLiquidityAccId: crypto.randomUUID(),
+      fspClearingAccId: crypto.randomUUID(),
       suspenseAccId: crypto.randomUUID()
     });
     if (evt.requestId) {
@@ -161,8 +161,8 @@ export class InternalEventHandler {
       evt.payload.peerId,
       evt.payload.peerLiquidityAccId,
       evt.payload.peerClearingAccId,
-      evt.payload.aseLiquidityAccId,
-      evt.payload.aseClearingAccId,
+      evt.payload.fspLiquidityAccId,
+      evt.payload.fspClearingAccId,
       evt.payload.suspenseAccId
     );
 

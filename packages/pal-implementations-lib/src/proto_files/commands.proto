@@ -22,8 +22,8 @@ message PbCreateLedgerAccountsForPeerCmdPayload{
   string asset_code = 2;
   string peer_liquidity_account_id = 3;
   string peer_clearing_account_id = 4;
-  string ase_liquidity_account_id = 5;
-  string ase_clearing_account_id = 6;
+  string fsp_liquidity_account_id = 5;
+  string fsp_clearing_account_id = 6;
   string suspense_account_id = 7;
 }
 
@@ -56,7 +56,7 @@ message PbCommitOrRejectCmdPayload{
   string payment_id = 5;
 }
 
-// same for all liquidity commands DepositToPeerCmd, WithdrawFromPeerCmd, DepositToAseCmd and WithdrawFromAseCmd
+// same for all liquidity commands DepositToPeerCmd, WithdrawFromPeerCmd, DepositToFspCmd and WithdrawFromFspCmd
 message PbLiquidityManagementCmdPayload{
   string request_id = 1;
   string peer_id = 2;

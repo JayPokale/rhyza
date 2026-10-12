@@ -66,8 +66,8 @@ export class LedgerSnapshotSerde extends ProtoBufBaseSnapshotEventSerializer<Led
           | 'ASSET_LIQUIDITY_ACCOUNT'
           | 'PEER_LIQUIDITY_ACCOUNT'
           | 'PEER_CLEARING_ACCOUNT'
-          | 'ASE_LIQUIDITY_ACCOUNT'
-          | 'ASE_CLEARING_ACCOUNT'
+          | 'FSP_LIQUIDITY_ACCOUNT'
+          | 'FSP_CLEARING_ACCOUNT'
           | 'SUSPENSE_ACCOUNT',
         name: acc.getName(),
         assetCode: acc.getAssetCode(),

@@ -1,25 +1,25 @@
 import { ILogger, IMessageProducer, ITelemetryService } from 'common-types-lib';
 import {
-  DepositToAseCmd,
+  DepositToFspCmd,
   DepositToPeerCmd,
   ILedgerReadSideRepository,
   LiquidityManagementCmdPayload,
-  WithdrawFromAseCmd,
+  WithdrawFromFspCmd,
   WithdrawFromPeerCmd
 } from 'pal-domain-lib';
 import { sendUnaryData, ServerUnaryCall } from '@grpc/grpc-js';
 
 import { PendingResponse, UnaryResponse } from '../types';
 import {
-  LedgerDepositToAseFailedEvent,
-  LedgerDepositToAseSucceededEvent,
+  LedgerDepositToFspFailedEvent,
+  LedgerDepositToFspSucceededEvent,
   LedgerDepositToPeerFailedEvent,
   LedgerDepositToPeerSucceededEvent,
   LedgerDomainEvent,
   LedgerLiquidityManagementFailureEventPayload,
-  LedgerWithdrawFromAseFailedEvent,
-  LedgerWithdrawFromAseFailedWithInsufficientFundsEvent,
-  LedgerWithdrawFromAseSucceededEvent,
+  LedgerWithdrawFromFspFailedEvent,
+  LedgerWithdrawFromFspFailedWithInsufficientFundsEvent,
+  LedgerWithdrawFromFspSucceededEvent,
   LedgerWithdrawFromPeerFailedEvent,
   LedgerWithdrawFromPeerFailedWithInsufficientFundsEvent,
   LedgerWithdrawFromPeerSucceededEvent,
@@ -133,14 +133,14 @@ export class LedgerGrpcHandler {
     >,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     callback: sendUnaryData<any | undefined>
-    //,cmdClass: DepositToAseCmd| DepositToPeerCmd | WithdrawFromAseCmd | WithdrawFromPeerCmd
+    //,cmdClass: DepositToFspCmd| DepositToPeerCmd | WithdrawFromFspCmd | WithdrawFromPeerCmd
   ) {
     const reqType = call.request.getType();
 
     let cmd:
-      | DepositToAseCmd
+      | DepositToFspCmd
       | DepositToPeerCmd
-      | WithdrawFromAseCmd
+      | WithdrawFromFspCmd
       | WithdrawFromPeerCmd;
     const payload: LiquidityManagementCmdPayload = {
       requestId: call.request.getRequestId(),
@@ -154,17 +154,17 @@ export class LedgerGrpcHandler {
     if (reqType == PbLedgerLiquidityManagementRequest.Type.DEPOSIT_TO_PEER) {
       cmd = new DepositToPeerCmd(payload);
     } else if (
-      reqType == PbLedgerLiquidityManagementRequest.Type.DEPOSIT_TO_ASE
+      reqType == PbLedgerLiquidityManagementRequest.Type.DEPOSIT_TO_FSP
     ) {
-      cmd = new DepositToAseCmd(payload);
+      cmd = new DepositToFspCmd(payload);
     } else if (
       reqType == PbLedgerLiquidityManagementRequest.Type.WITHDRAW_FROM_PEER
     ) {
       cmd = new WithdrawFromPeerCmd(payload);
     } else if (
-      reqType == PbLedgerLiquidityManagementRequest.Type.WITHDRAW_FROM_ASE
+      reqType == PbLedgerLiquidityManagementRequest.Type.WITHDRAW_FROM_FSP
     ) {
-      cmd = new WithdrawFromAseCmd(payload);
+      cmd = new WithdrawFromFspCmd(payload);
     } else {
       const msg =
         'Unhandled LiquidityRequest received in ledger handler with callName: ' +
@@ -186,17 +186,17 @@ export class LedgerGrpcHandler {
   /*
    * Liq management success events:
    * - LedgerDepositToPeerSucceededEvent
-   * - LedgerDepositToAseSucceededEvent
+   * - LedgerDepositToFspSucceededEvent
    * - LedgerWithdrawFromPeerSucceededEvent
-   * - LedgerWithdrawFromAseSucceededEvent
+   * - LedgerWithdrawFromFspSucceededEvent
    *
    * Failure:
    * - LedgerDepositToPeerFailedEvent
-   * - LedgerDepositToAseFailedEvent
+   * - LedgerDepositToFspFailedEvent
    * - LedgerWithdrawFromPeerFailedEvent
-   * - LedgerWithdrawFromAseFailedEvent
+   * - LedgerWithdrawFromFspFailedEvent
    * - LedgerWithdrawFromPeerFailedWithInsufficientFundsEvent
-   * - LedgerWithdrawFromAseFailedWithInsufficientFundsEvent
+   * - LedgerWithdrawFromFspFailedWithInsufficientFundsEvent
    *
    * */
 
@@ -204,15 +204,15 @@ export class LedgerGrpcHandler {
     pendingResp: PendingResponse,
     evt:
       | LedgerDepositToPeerSucceededEvent
-      | LedgerDepositToAseSucceededEvent
+      | LedgerDepositToFspSucceededEvent
       | LedgerWithdrawFromPeerSucceededEvent
-      | LedgerWithdrawFromAseSucceededEvent
+      | LedgerWithdrawFromFspSucceededEvent
       | LedgerDepositToPeerFailedEvent
-      | LedgerDepositToAseFailedEvent
+      | LedgerDepositToFspFailedEvent
       | LedgerWithdrawFromPeerFailedEvent
-      | LedgerWithdrawFromAseFailedEvent
+      | LedgerWithdrawFromFspFailedEvent
       | LedgerWithdrawFromPeerFailedWithInsufficientFundsEvent
-      | LedgerWithdrawFromAseFailedWithInsufficientFundsEvent
+      | LedgerWithdrawFromFspFailedWithInsufficientFundsEvent
   ): Promise<void> {
     const pbResp = new PbLedgerLiquidityManagementResponse();
     pbResp.setRequestId(evt.payload.requestId);
@@ -224,9 +224,9 @@ export class LedgerGrpcHandler {
     // respond to the client with success
     if (
       evt.msgName === LedgerDepositToPeerSucceededEvent.name ||
-      evt.msgName === LedgerDepositToAseSucceededEvent.name ||
+      evt.msgName === LedgerDepositToFspSucceededEvent.name ||
       evt.msgName === LedgerWithdrawFromPeerSucceededEvent.name ||
-      evt.msgName === LedgerWithdrawFromAseSucceededEvent.name
+      evt.msgName === LedgerWithdrawFromFspSucceededEvent.name
     ) {
       pbResp.setSuccess(new Empty());
       this._responseRegistry.resolve(pendingResp, null, pbResp);
@@ -241,16 +241,16 @@ export class LedgerGrpcHandler {
 
     if (
       evt.msgName === LedgerDepositToPeerFailedEvent.name ||
-      evt.msgName === LedgerDepositToAseFailedEvent.name ||
+      evt.msgName === LedgerDepositToFspFailedEvent.name ||
       evt.msgName === LedgerWithdrawFromPeerFailedEvent.name ||
-      evt.msgName === LedgerWithdrawFromAseFailedEvent.name
+      evt.msgName === LedgerWithdrawFromFspFailedEvent.name
     ) {
       pbResp.setGenericFailure(pbError);
     } else if (
       LedgerDomainEvent.isLedgerWithdrawFromPeerFailedWithInsufficientFundsEvent(
         evt
       ) ||
-      LedgerDomainEvent.isLedgerWithdrawFromAseFailedWithInsufficientFundsEvent(
+      LedgerDomainEvent.isLedgerWithdrawFromFspFailedWithInsufficientFundsEvent(
         evt
       )
     ) {

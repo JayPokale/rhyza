@@ -113,8 +113,8 @@ export class PeerAggregate {
     peerId: string,
     peerLiquidityAccId: string,
     peerClearingAccId: string,
-    aseLiquidityAccId: string,
-    aseClearingAccId: string,
+    fspLiquidityAccId: string,
+    fspClearingAccId: string,
     suspenseAccId: string
   ): Promise<void> {
     const peer = await this._fetchOrThrow(peerId);
@@ -122,8 +122,8 @@ export class PeerAggregate {
     peer.associateLedgerAccounts(
       peerLiquidityAccId,
       peerClearingAccId,
-      aseLiquidityAccId,
-      aseClearingAccId,
+      fspLiquidityAccId,
+      fspClearingAccId,
       suspenseAccId
     );
     peer.activate();

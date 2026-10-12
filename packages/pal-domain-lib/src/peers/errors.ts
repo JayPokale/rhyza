@@ -5,6 +5,6 @@ export class PeerAlreadyInactiveError extends Error {}
 
 export class InvalidFxRateError extends Error {}
 
-export class AseExchangeServiceUnknownError extends Error {}
-export class AseExchangeServiceTimeoutError extends Error {}
-export class AseExchangeServiceRateNotFoundError extends Error {}
+export class FspExchangeServiceUnknownError extends Error {}
+export class FspExchangeServiceTimeoutError extends Error {}
+export class FspExchangeServiceRateNotFoundError extends Error {}

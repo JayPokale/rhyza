@@ -14,7 +14,7 @@ import { UnaryResponse } from '../types';
 import {
   PbGetFxRateRequest,
   PbGetFxRateResponse,
-  PbGetIntraAseFxRateRequest,
+  PbGetIntraFspFxRateRequest,
   PbGetPeerFxRateToDestinationAssetRequest,
   PbGetPeerFxRateFromSourceAssetRequest,
   PbSetFxRateRequest
@@ -57,14 +57,14 @@ export class FxGrpcHandler {
     let peerDestinationReq:
       | PbGetPeerFxRateToDestinationAssetRequest
       | undefined;
-    let intraReq: PbGetIntraAseFxRateRequest | undefined;
+    let intraReq: PbGetIntraFspFxRateRequest | undefined;
 
     if (call.request.hasFromSourceRequest()) {
       peerSourceReq = call.request.getFromSourceRequest();
     } else if (call.request.hasToDestinationRequest()) {
       peerDestinationReq = call.request.getToDestinationRequest();
-    } else if (call.request.hasIntraAseRequest()) {
-      intraReq = call.request.getIntraAseRequest();
+    } else if (call.request.hasIntraFspRequest()) {
+      intraReq = call.request.getIntraFspRequest();
     }
 
     if (!peerSourceReq && !peerDestinationReq && !intraReq) {
@@ -86,7 +86,7 @@ export class FxGrpcHandler {
         const sourceAssetCode = intraReq.getSourceAssetCode();
         const destinationAssetCode = intraReq.getDestinationAssetCode();
         await checkAssetPair([sourceAssetCode, destinationAssetCode]);
-        rate = await this._fxAggregate.getIntraAseFxRate(
+        rate = await this._fxAggregate.getIntraFspFxRate(
           sourceAssetCode,
           destinationAssetCode
         );
@@ -175,7 +175,7 @@ export class FxGrpcHandler {
           expiresAt
         );
       } else {
-        await this._fxAggregate.setIntraAseFxRate(
+        await this._fxAggregate.setIntraFspFxRate(
           sourceAssetCode,
           destinationAssetCode,
           rate,

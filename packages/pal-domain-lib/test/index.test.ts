@@ -35,7 +35,7 @@ import {
   WalletAddressAliasCreatedEvent,
   WalletAddressCreatedEvent
 } from 'pal-public-types-lib';
-import { MockAseFxService } from './mocks/mock-ase-fx-service';
+import { MockFspFxService } from './mocks/mock-fsp-fx-service';
 
 const logger = new ConsoleLogger();
 
@@ -70,7 +70,7 @@ const FX_DESTINATION_ASSET_CODE = 'XRP';
 const FX_PEER_RATE = 1.2;
 
 let createdWalletAddressInternalId: string;
-const mockAseFxSvc = new MockAseFxService();
+const mockFspFxSvc = new MockFspFxService();
 
 const fxCacheExpiryService = new FxCacheExpiryService(msgPublisher, logger);
 
@@ -88,7 +88,7 @@ before(async () => {
 
   fxAggregate = new FxAggregate(
     fxRepository,
-    mockAseFxSvc,
+    mockFspFxSvc,
     fxCacheExpiryService,
     logger
   );
@@ -191,8 +191,8 @@ test('PAL Peer Domain - associate ledger accounts and activate', async () => {
     PEER_ONE_ID,
     'peerLiqAcc',
     'peerClearAcc',
-    'aseLiqAcc',
-    'aseClearAcc',
+    'fspLiqAcc',
+    'fspClearAcc',
     'suspenseAcc'
   );
 
@@ -279,10 +279,10 @@ test('PAL Peer Domain - update comms method address', async () => {
 
 // get system rate
 
-test('PAL Forex Domain - get peer rate without exising rate should fetch it from ase', async () => {
-  // use mock to ensure that the fx is fetched from ASE
+test('PAL Forex Domain - get peer rate without exising rate should fetch it from FSP', async () => {
+  // use mock to ensure that the fx is fetched from FSP
   mock.reset();
-  mock.method(mockAseFxSvc, 'getPeerFxFromAse');
+  mock.method(mockFspFxSvc, 'getPeerFxFromFsp');
 
   const fx = await fxAggregate.getPeerFxRate(
     PEER_ONE_ID,
@@ -290,14 +290,14 @@ test('PAL Forex Domain - get peer rate without exising rate should fetch it from
     FX_DESTINATION_ASSET_CODE
   );
 
-  assert.equal(fx, mockAseFxSvc.defaultRate);
-  assert.equal(mockAseFxSvc.getPeerFxFromAse.mock.calls.length, 1);
+  assert.equal(fx, mockFspFxSvc.defaultRate);
+  assert.equal(mockFspFxSvc.getPeerFxFromFsp.mock.calls.length, 1);
 });
 
 test('PAL Forex Domain - get peer rate a second time should use locally cached fx', async () => {
-  // use mock to ensure that the fx is NOT fetched from ASE
+  // use mock to ensure that the fx is NOT fetched from FSP
   mock.reset();
-  mock.method(mockAseFxSvc, 'getPeerFxFromAse');
+  mock.method(mockFspFxSvc, 'getPeerFxFromFsp');
 
   const fx = await fxAggregate.getPeerFxRate(
     PEER_ONE_ID,
@@ -305,39 +305,39 @@ test('PAL Forex Domain - get peer rate a second time should use locally cached f
     FX_DESTINATION_ASSET_CODE
   );
 
-  assert.equal(fx, mockAseFxSvc.defaultRate);
-  assert.equal(mockAseFxSvc.getPeerFxFromAse.mock.calls.length, 0);
+  assert.equal(fx, mockFspFxSvc.defaultRate);
+  assert.equal(mockFspFxSvc.getPeerFxFromFsp.mock.calls.length, 0);
 });
 
-test('PAL Forex Domain - get intra ase rate without exising rate should fetch it from ase', async () => {
-  // use mock to ensure that the fx is fetched from ASE
+test('PAL Forex Domain - get intra FSP rate without exising rate should fetch it from FSP', async () => {
+  // use mock to ensure that the fx is fetched from FSP
   mock.reset();
-  mock.method(mockAseFxSvc, 'getIntraAseFxRate');
+  mock.method(mockFspFxSvc, 'getIntraFspFxRate');
 
-  const fx = await fxAggregate.getIntraAseFxRate(
+  const fx = await fxAggregate.getIntraFspFxRate(
     FX_SOURCE_ASSET_CODE,
     FX_DESTINATION_ASSET_CODE
   );
 
-  assert.equal(fx, mockAseFxSvc.defaultRate);
-  assert.equal(mockAseFxSvc.getIntraAseFxRate.mock.calls.length, 1);
+  assert.equal(fx, mockFspFxSvc.defaultRate);
+  assert.equal(mockFspFxSvc.getIntraFspFxRate.mock.calls.length, 1);
 });
 
-test('PAL Forex Domain - get intra ase rate a second time should use locally cached fx', async () => {
-  // use mock to ensure that the fx is NOT fetched from ASE
+test('PAL Forex Domain - get intra FSP rate a second time should use locally cached fx', async () => {
+  // use mock to ensure that the fx is NOT fetched from FSP
   mock.reset();
-  mock.method(mockAseFxSvc, 'getIntraAseFxRate');
+  mock.method(mockFspFxSvc, 'getIntraFspFxRate');
 
-  const fx = await fxAggregate.getIntraAseFxRate(
+  const fx = await fxAggregate.getIntraFspFxRate(
     FX_SOURCE_ASSET_CODE,
     FX_DESTINATION_ASSET_CODE
   );
 
-  assert.equal(fx, mockAseFxSvc.defaultRate);
-  assert.equal(mockAseFxSvc.getIntraAseFxRate.mock.calls.length, 0);
+  assert.equal(fx, mockFspFxSvc.defaultRate);
+  assert.equal(mockFspFxSvc.getIntraFspFxRate.mock.calls.length, 0);
 });
 
-test('PAL Forex Domain - set peer fx rates from ASE', async () => {
+test('PAL Forex Domain - set peer fx rates from FSP', async () => {
   await fxAggregate.setPeerFxRate(
     FX_SOURCE_ASSET_CODE,
     ASSET_CODE,
@@ -347,7 +347,7 @@ test('PAL Forex Domain - set peer fx rates from ASE', async () => {
   );
 });
 
-test('PAL Forex Domain - get peer rate should return rate set by ase', async () => {
+test('PAL Forex Domain - get peer rate should return rate set by FSP', async () => {
   const rate = await fxAggregate.getPeerFxRate(
     PEER_ONE_ID,
     FX_SOURCE_ASSET_CODE,

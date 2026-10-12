@@ -13,7 +13,7 @@ import {
   CreateLedgerAccountForAssetCmd,
   CreateLedgerAccountsForPeerCmd,
   CreateLedgerCmd,
-  DepositToAseCmd,
+  DepositToFspCmd,
   LEDGER_INTERNAL_ASSET_SCALE,
   DepositToPeerCmd,
   IPalPeerAccounts,
@@ -27,7 +27,7 @@ import {
   LedgerTransactionRecordedStatePayload,
   RejectTransferCmd,
   ReserveTransferCmd,
-  WithdrawFromAseCmd,
+  WithdrawFromFspCmd,
   WithdrawFromPeerCmd
 } from '../src';
 import { ConsoleLogger, DomainEvent, IMessage } from 'common-types-lib';
@@ -40,12 +40,12 @@ import {
   LedgerIncomingTransferReservedEvent,
   LedgerIncomingTransferInsufficientFundsErrorEvent,
   LedgerIncomingTransferRejectedEvent,
-  LedgerDepositToAseSucceededEvent,
+  LedgerDepositToFspSucceededEvent,
   LedgerDepositToPeerSucceededEvent,
   LedgerIncomingTransferCommittedEvent,
-  LedgerWithdrawFromAseSucceededEvent,
+  LedgerWithdrawFromFspSucceededEvent,
   LedgerWithdrawFromPeerSucceededEvent,
-  LedgerWithdrawFromAseFailedWithInsufficientFundsEvent,
+  LedgerWithdrawFromFspFailedWithInsufficientFundsEvent,
   LedgerWithdrawFromPeerFailedWithInsufficientFundsEvent,
   LedgerAccountCreatedForAssetEvent,
   LedgerOutgoingTransferCommitFailedEvent,
@@ -77,8 +77,8 @@ const assetSystemAccId = crypto.randomUUID();
 const peerOneAccounts: IPalPeerAccounts = {
   peerLiquidityAccId: 'peerLiquidityAccId',
   peerClearingAccId: 'peerClearingAccId',
-  aseLiquidityAccId: 'aseLiquidityAccId',
-  aseClearingAccId: 'aseClearingAccId',
+  fspLiquidityAccId: 'fspLiquidityAccId',
+  fspClearingAccId: 'fspClearingAccId',
   suspenseAccId: 'suspenseAccId'
 };
 
@@ -322,12 +322,12 @@ test('PAL Ledger Domain HighLevel API - Outgoing - Check Balance And Reserve Tra
   // verify accounts' balances
   assertAccountsBalances([
     {
-      accId: peerOneAccounts.aseLiquidityAccId,
+      accId: peerOneAccounts.fspLiquidityAccId,
       debitedBalance: 0n,
       creditedBalance: 0n
     },
     {
-      accId: peerOneAccounts.aseClearingAccId,
+      accId: peerOneAccounts.fspClearingAccId,
       debitedBalance: 0n,
       creditedBalance: 0n
     },
@@ -351,7 +351,7 @@ test('PAL Ledger Domain HighLevel API - Outgoing - Check Balance And Reserve Tra
   assert.ok(aggregate.verify());
 });
 
-test('PAL Ledger Domain HighLevel API - Outgoing - Deposit ASE liquidity', async () => {
+test('PAL Ledger Domain HighLevel API - Outgoing - Deposit FSP liquidity', async () => {
   // run setup commands
   await aggregate.processCommands([
     new CreateLedgerCmd({ id: EUR_LEDGER_ID }),
@@ -367,7 +367,7 @@ test('PAL Ledger Domain HighLevel API - Outgoing - Deposit ASE liquidity', async
   ]);
 
   // run test
-  const cmd: DepositToAseCmd = new DepositToAseCmd({
+  const cmd: DepositToFspCmd = new DepositToFspCmd({
     requestId: '1',
     peerId: PEER_ONE_ID,
     assetCode: EUR_LEDGER_ID,
@@ -391,7 +391,7 @@ test('PAL Ledger Domain HighLevel API - Outgoing - Deposit ASE liquidity', async
   // check domain/integration events
   const lastDomainEvent = mockProducer.messages.at(-1) as DomainEvent;
   assert.ok(lastDomainEvent);
-  assert.equal(lastDomainEvent.msgName, LedgerDepositToAseSucceededEvent.name);
+  assert.equal(lastDomainEvent.msgName, LedgerDepositToFspSucceededEvent.name);
   assert.equal(lastDomainEvent.aggregateId, EUR_LEDGER_ID);
   assert.equal(lastDomainEvent.payload.peerId, PEER_ONE_ID);
   assert.equal(lastDomainEvent.payload.requestId, '1');
@@ -404,12 +404,12 @@ test('PAL Ledger Domain HighLevel API - Outgoing - Deposit ASE liquidity', async
       creditedBalance: 0n
     },
     {
-      accId: peerOneAccounts.aseLiquidityAccId,
+      accId: peerOneAccounts.fspLiquidityAccId,
       debitedBalance: 0n,
       creditedBalance: DEPOSIT_AMOUNT
     },
     {
-      accId: peerOneAccounts.aseClearingAccId,
+      accId: peerOneAccounts.fspClearingAccId,
       debitedBalance: 0n,
       creditedBalance: 0n
     },
@@ -447,7 +447,7 @@ test('PAL Ledger Domain HighLevel API - Outgoing - Check Balance And Reserve Tra
       assetCode: EUR_LEDGER_ID
     }),
     // deposit
-    new DepositToAseCmd({
+    new DepositToFspCmd({
       requestId: '1',
       peerId: PEER_ONE_ID,
       assetCode: EUR_LEDGER_ID,
@@ -525,12 +525,12 @@ test('PAL Ledger Domain HighLevel API - Outgoing - Check Balance And Reserve Tra
       creditedBalance: 0n
     },
     {
-      accId: peerOneAccounts.aseLiquidityAccId,
+      accId: peerOneAccounts.fspLiquidityAccId,
       debitedBalance: 0n,
       creditedBalance: DEPOSIT_AMOUNT
     },
     {
-      accId: peerOneAccounts.aseClearingAccId,
+      accId: peerOneAccounts.fspClearingAccId,
       debitedBalance: AMOUNT,
       creditedBalance: 0n
     },
@@ -569,7 +569,7 @@ test('PAL Ledger Domain HighLevel API - Outgoing - Commit Transfer', async () =>
       assetCode: EUR_LEDGER_ID
     }),
     // deposit
-    new DepositToAseCmd({
+    new DepositToFspCmd({
       requestId: '1',
       peerId: PEER_ONE_ID,
       assetCode: EUR_LEDGER_ID,
@@ -653,12 +653,12 @@ test('PAL Ledger Domain HighLevel API - Outgoing - Commit Transfer', async () =>
       creditedBalance: 0n
     },
     {
-      accId: peerOneAccounts.aseLiquidityAccId,
+      accId: peerOneAccounts.fspLiquidityAccId,
       debitedBalance: 0n,
       creditedBalance: DEPOSIT_AMOUNT
     },
     {
-      accId: peerOneAccounts.aseClearingAccId,
+      accId: peerOneAccounts.fspClearingAccId,
       debitedBalance: AMOUNT * 2n,
       creditedBalance: AMOUNT
     },
@@ -697,7 +697,7 @@ test('PAL Ledger Domain HighLevel API - Outgoing - Reject Transfer', async () =>
       assetCode: EUR_LEDGER_ID
     }),
     // deposit
-    new DepositToAseCmd({
+    new DepositToFspCmd({
       requestId: '1',
       peerId: PEER_ONE_ID,
       assetCode: EUR_LEDGER_ID,
@@ -782,12 +782,12 @@ test('PAL Ledger Domain HighLevel API - Outgoing - Reject Transfer', async () =>
       creditedBalance: 0n
     },
     {
-      accId: peerOneAccounts.aseLiquidityAccId,
+      accId: peerOneAccounts.fspLiquidityAccId,
       debitedBalance: 0n,
       creditedBalance: DEPOSIT_AMOUNT
     },
     {
-      accId: peerOneAccounts.aseClearingAccId,
+      accId: peerOneAccounts.fspClearingAccId,
       debitedBalance: AMOUNT,
       creditedBalance: AMOUNT
     },
@@ -825,7 +825,7 @@ test('PAL Ledger Domain HighLevel API - Outgoing - Commit Transfer with wrong tr
       assetCode: EUR_LEDGER_ID
     }),
     // deposit
-    new DepositToAseCmd({
+    new DepositToFspCmd({
       requestId: '1',
       peerId: PEER_ONE_ID,
       assetCode: EUR_LEDGER_ID,
@@ -909,12 +909,12 @@ test('PAL Ledger Domain HighLevel API - Outgoing - Commit Transfer with wrong tr
       creditedBalance: 0n
     },
     {
-      accId: peerOneAccounts.aseLiquidityAccId,
+      accId: peerOneAccounts.fspLiquidityAccId,
       debitedBalance: 0n,
       creditedBalance: DEPOSIT_AMOUNT
     },
     {
-      accId: peerOneAccounts.aseClearingAccId,
+      accId: peerOneAccounts.fspClearingAccId,
       debitedBalance: AMOUNT,
       creditedBalance: 0n
     },
@@ -953,7 +953,7 @@ test('PAL Ledger Domain HighLevel API - Outgoing - Reject Transfer with wrong tr
       assetCode: EUR_LEDGER_ID
     }),
     // deposit
-    new DepositToAseCmd({
+    new DepositToFspCmd({
       requestId: '1',
       peerId: PEER_ONE_ID,
       assetCode: EUR_LEDGER_ID,
@@ -1038,12 +1038,12 @@ test('PAL Ledger Domain HighLevel API - Outgoing - Reject Transfer with wrong tr
       creditedBalance: 0n
     },
     {
-      accId: peerOneAccounts.aseLiquidityAccId,
+      accId: peerOneAccounts.fspLiquidityAccId,
       debitedBalance: 0n,
       creditedBalance: DEPOSIT_AMOUNT
     },
     {
-      accId: peerOneAccounts.aseClearingAccId,
+      accId: peerOneAccounts.fspClearingAccId,
       debitedBalance: AMOUNT,
       creditedBalance: 0n
     },
@@ -1080,7 +1080,7 @@ test('PAL Ledger Domain HighLevel API - Outgoing - Reserve Transfer', async () =
       assetCode: EUR_LEDGER_ID
     }),
     // deposit
-    new DepositToAseCmd({
+    new DepositToFspCmd({
       requestId: '1',
       peerId: PEER_ONE_ID,
       assetCode: EUR_LEDGER_ID,
@@ -1160,12 +1160,12 @@ test('PAL Ledger Domain HighLevel API - Outgoing - Reserve Transfer', async () =
       creditedBalance: 0n
     },
     {
-      accId: peerOneAccounts.aseLiquidityAccId,
+      accId: peerOneAccounts.fspLiquidityAccId,
       debitedBalance: 0n,
       creditedBalance: DEPOSIT_AMOUNT
     },
     {
-      accId: peerOneAccounts.aseClearingAccId,
+      accId: peerOneAccounts.fspClearingAccId,
       debitedBalance: AMOUNT,
       creditedBalance: 0n
     },
@@ -1188,7 +1188,7 @@ test('PAL Ledger Domain HighLevel API - Outgoing - Reserve Transfer', async () =
   assert.ok(aggregate.verify());
 });
 
-test('PAL Ledger Domain HighLevel API - Outgoing - Withdraw ASE liquidity', async () => {
+test('PAL Ledger Domain HighLevel API - Outgoing - Withdraw FSP liquidity', async () => {
   // run setup commands
   await aggregate.processCommands([
     new CreateLedgerCmd({ id: EUR_LEDGER_ID }),
@@ -1201,7 +1201,7 @@ test('PAL Ledger Domain HighLevel API - Outgoing - Withdraw ASE liquidity', asyn
       peerId: PEER_ONE_ID,
       assetCode: EUR_LEDGER_ID
     }),
-    new DepositToAseCmd({
+    new DepositToFspCmd({
       requestId: '1',
       peerId: PEER_ONE_ID,
       assetCode: EUR_LEDGER_ID,
@@ -1211,7 +1211,7 @@ test('PAL Ledger Domain HighLevel API - Outgoing - Withdraw ASE liquidity', asyn
   ]);
 
   // run test
-  const cmd = new WithdrawFromAseCmd({
+  const cmd = new WithdrawFromFspCmd({
     requestId: '1',
     peerId: PEER_ONE_ID,
     assetCode: EUR_LEDGER_ID,
@@ -1251,7 +1251,7 @@ test('PAL Ledger Domain HighLevel API - Outgoing - Withdraw ASE liquidity', asyn
   assert.equal(payload.transaction.peerId, PEER_ONE_ID);
   assert.equal(
     payload.transaction.originatingCommandName,
-    WithdrawFromAseCmd.name
+    WithdrawFromFspCmd.name
   );
   assert.equal(payload.transaction.transferId, undefined);
 
@@ -1261,7 +1261,7 @@ test('PAL Ledger Domain HighLevel API - Outgoing - Withdraw ASE liquidity', asyn
   ] as DomainEvent;
   assert.equal(
     lastDomainEvent.msgName,
-    LedgerWithdrawFromAseSucceededEvent.name
+    LedgerWithdrawFromFspSucceededEvent.name
   );
   assert.equal(lastDomainEvent.aggregateId, EUR_LEDGER_ID);
   assert.equal(lastDomainEvent.payload.peerId, PEER_ONE_ID);
@@ -1275,12 +1275,12 @@ test('PAL Ledger Domain HighLevel API - Outgoing - Withdraw ASE liquidity', asyn
       creditedBalance: DEPOSIT_AMOUNT
     },
     {
-      accId: peerOneAccounts.aseLiquidityAccId,
+      accId: peerOneAccounts.fspLiquidityAccId,
       debitedBalance: DEPOSIT_AMOUNT,
       creditedBalance: DEPOSIT_AMOUNT
     },
     {
-      accId: peerOneAccounts.aseClearingAccId,
+      accId: peerOneAccounts.fspClearingAccId,
       debitedBalance: 0n,
       creditedBalance: 0n
     },
@@ -1304,7 +1304,7 @@ test('PAL Ledger Domain HighLevel API - Outgoing - Withdraw ASE liquidity', asyn
   assert.ok(aggregate.verify());
 });
 
-test('PAL Ledger Domain HighLevel API - Outgoing - Withdraw ASE liquidity in excess should fail', async () => {
+test('PAL Ledger Domain HighLevel API - Outgoing - Withdraw FSP liquidity in excess should fail', async () => {
   // run setup commands
   await aggregate.processCommands([
     new CreateLedgerCmd({ id: EUR_LEDGER_ID }),
@@ -1317,7 +1317,7 @@ test('PAL Ledger Domain HighLevel API - Outgoing - Withdraw ASE liquidity in exc
       peerId: PEER_ONE_ID,
       assetCode: EUR_LEDGER_ID
     }),
-    new DepositToAseCmd({
+    new DepositToFspCmd({
       requestId: '1',
       peerId: PEER_ONE_ID,
       assetCode: EUR_LEDGER_ID,
@@ -1327,7 +1327,7 @@ test('PAL Ledger Domain HighLevel API - Outgoing - Withdraw ASE liquidity in exc
   ]);
 
   // run test
-  const cmd = new WithdrawFromAseCmd({
+  const cmd = new WithdrawFromFspCmd({
     requestId: '1',
     peerId: PEER_ONE_ID,
     assetCode: EUR_LEDGER_ID,
@@ -1355,7 +1355,7 @@ test('PAL Ledger Domain HighLevel API - Outgoing - Withdraw ASE liquidity in exc
   assert.ok(payload.transaction);
   assert.equal(
     payload.transaction.originatingCommandName,
-    DepositToAseCmd.name
+    DepositToFspCmd.name
   );
   assert.equal(payload.transaction.transferId, undefined);
 
@@ -1365,7 +1365,7 @@ test('PAL Ledger Domain HighLevel API - Outgoing - Withdraw ASE liquidity in exc
   ] as DomainEvent;
   assert.equal(
     lastDomainEvent.msgName,
-    LedgerWithdrawFromAseFailedWithInsufficientFundsEvent.name
+    LedgerWithdrawFromFspFailedWithInsufficientFundsEvent.name
   );
   assert.equal(lastDomainEvent.aggregateId, EUR_LEDGER_ID);
   assert.equal(lastDomainEvent.payload.peerId, PEER_ONE_ID);
@@ -1379,12 +1379,12 @@ test('PAL Ledger Domain HighLevel API - Outgoing - Withdraw ASE liquidity in exc
       creditedBalance: 0n
     },
     {
-      accId: peerOneAccounts.aseLiquidityAccId,
+      accId: peerOneAccounts.fspLiquidityAccId,
       debitedBalance: 0n,
       creditedBalance: DEPOSIT_AMOUNT
     },
     {
-      accId: peerOneAccounts.aseClearingAccId,
+      accId: peerOneAccounts.fspClearingAccId,
       debitedBalance: 0n,
       creditedBalance: 0n
     },
@@ -1462,12 +1462,12 @@ test('PAL Ledger Domain HighLevel API - Incoming - Check Balance And Reserve Tra
   assertAccountsBalances([
     { accId: assetSystemAccId, debitedBalance: 0n, creditedBalance: 0n },
     {
-      accId: peerOneAccounts.aseLiquidityAccId,
+      accId: peerOneAccounts.fspLiquidityAccId,
       debitedBalance: 0n,
       creditedBalance: 0n
     },
     {
-      accId: peerOneAccounts.aseClearingAccId,
+      accId: peerOneAccounts.fspClearingAccId,
       debitedBalance: 0n,
       creditedBalance: 0n
     },
@@ -1567,12 +1567,12 @@ test('PAL Ledger Domain HighLevel API - Incoming - Deposit Peer liquidity', asyn
       creditedBalance: 0n
     },
     {
-      accId: peerOneAccounts.aseLiquidityAccId,
+      accId: peerOneAccounts.fspLiquidityAccId,
       debitedBalance: 0n,
       creditedBalance: 0n
     },
     {
-      accId: peerOneAccounts.aseClearingAccId,
+      accId: peerOneAccounts.fspClearingAccId,
       debitedBalance: 0n,
       creditedBalance: 0n
     },
@@ -1685,12 +1685,12 @@ test('PAL Ledger Domain HighLevel API - Incoming - Check Balance And Reserve Tra
       creditedBalance: 0n
     },
     {
-      accId: peerOneAccounts.aseLiquidityAccId,
+      accId: peerOneAccounts.fspLiquidityAccId,
       debitedBalance: 0n,
       creditedBalance: 0n
     },
     {
-      accId: peerOneAccounts.aseClearingAccId,
+      accId: peerOneAccounts.fspClearingAccId,
       debitedBalance: 0n,
       creditedBalance: 0n
     },
@@ -1813,12 +1813,12 @@ test('PAL Ledger Domain HighLevel API - Incoming - Commit Transfer', async () =>
       creditedBalance: 0n
     },
     {
-      accId: peerOneAccounts.aseLiquidityAccId,
+      accId: peerOneAccounts.fspLiquidityAccId,
       debitedBalance: 0n,
       creditedBalance: 0n
     },
     {
-      accId: peerOneAccounts.aseClearingAccId,
+      accId: peerOneAccounts.fspClearingAccId,
       debitedBalance: 0n,
       creditedBalance: AMOUNT
     },
@@ -1942,12 +1942,12 @@ test('PAL Ledger Domain HighLevel API - Incoming - Reject Transfer', async () =>
       creditedBalance: 0n
     },
     {
-      accId: peerOneAccounts.aseLiquidityAccId,
+      accId: peerOneAccounts.fspLiquidityAccId,
       debitedBalance: 0n,
       creditedBalance: 0n
     },
     {
-      accId: peerOneAccounts.aseClearingAccId,
+      accId: peerOneAccounts.fspClearingAccId,
       debitedBalance: 0n,
       creditedBalance: 0n
     },
@@ -2068,12 +2068,12 @@ test('PAL Ledger Domain HighLevel API - Incoming - Commit Transfer with wrong tr
       creditedBalance: 0n
     },
     {
-      accId: peerOneAccounts.aseLiquidityAccId,
+      accId: peerOneAccounts.fspLiquidityAccId,
       debitedBalance: 0n,
       creditedBalance: 0n
     },
     {
-      accId: peerOneAccounts.aseClearingAccId,
+      accId: peerOneAccounts.fspClearingAccId,
       debitedBalance: 0n,
       creditedBalance: 0n
     },
@@ -2196,12 +2196,12 @@ test('PAL Ledger Domain HighLevel API - Incoming - Reject Transfer with wrong tr
       creditedBalance: 0n
     },
     {
-      accId: peerOneAccounts.aseLiquidityAccId,
+      accId: peerOneAccounts.fspLiquidityAccId,
       debitedBalance: 0n,
       creditedBalance: 0n
     },
     {
-      accId: peerOneAccounts.aseClearingAccId,
+      accId: peerOneAccounts.fspClearingAccId,
       debitedBalance: 0n,
       creditedBalance: 0n
     },
@@ -2316,12 +2316,12 @@ test('PAL Ledger Domain HighLevel API - Incoming - Reserve Transfer', async () =
       creditedBalance: 0n
     },
     {
-      accId: peerOneAccounts.aseLiquidityAccId,
+      accId: peerOneAccounts.fspLiquidityAccId,
       debitedBalance: 0n,
       creditedBalance: 0n
     },
     {
-      accId: peerOneAccounts.aseClearingAccId,
+      accId: peerOneAccounts.fspClearingAccId,
       debitedBalance: 0n,
       creditedBalance: 0n
     },
@@ -2430,12 +2430,12 @@ test('PAL Ledger Domain HighLevel API - Incoming - Withdraw Peer liquidity', asy
       creditedBalance: DEPOSIT_AMOUNT
     },
     {
-      accId: peerOneAccounts.aseLiquidityAccId,
+      accId: peerOneAccounts.fspLiquidityAccId,
       debitedBalance: 0n,
       creditedBalance: 0n
     },
     {
-      accId: peerOneAccounts.aseClearingAccId,
+      accId: peerOneAccounts.fspClearingAccId,
       debitedBalance: 0n,
       creditedBalance: 0n
     },
@@ -2546,12 +2546,12 @@ test('PAL Ledger Domain HighLevel API - Incoming - Withdraw Peer liquidity in ex
       creditedBalance: 0n
     },
     {
-      accId: peerOneAccounts.aseLiquidityAccId,
+      accId: peerOneAccounts.fspLiquidityAccId,
       debitedBalance: 0n,
       creditedBalance: 0n
     },
     {
-      accId: peerOneAccounts.aseClearingAccId,
+      accId: peerOneAccounts.fspClearingAccId,
       debitedBalance: 0n,
       creditedBalance: 0n
     },

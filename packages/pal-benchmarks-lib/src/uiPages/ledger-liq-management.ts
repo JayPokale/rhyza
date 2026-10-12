@@ -13,13 +13,13 @@ export class LedgerLiquidityManagementPage extends UiPage {
   private _loadTests: LoadTests;
   private _liqManagementInputBox!: Textbox;
   private _textPending!: Text;
-  private _textAseLiquidity!: Text;
-  private _textAseClearing!: Text;
+  private _textFspLiquidity!: Text;
+  private _textFspClearing!: Text;
   private _textPeerLiquidity!: Text;
   private _textPeerClearing!: Text;
-  private _depositAseBtn!: Button;
+  private _depositFspBtn!: Button;
   private _depositPeerBtn!: Button;
-  private _withdrawAseBtn!: Button;
+  private _withdrawFspBtn!: Button;
   private _withdrawPeerBtn!: Button;
 
   private _log!: Box;
@@ -90,17 +90,17 @@ export class LedgerLiquidityManagementPage extends UiPage {
       style: getEditableTextBoxStyle()
     });
 
-    this._depositAseBtn = this._createButton(
-      'Deposit to ASE',
-      'depositAse',
+    this._depositFspBtn = this._createButton(
+      'Deposit to FSP',
+      'depositFsp',
       'gray',
       'green',
       3
     );
 
-    this._withdrawAseBtn = this._createButton(
-      'Withdraw from ASE',
-      'withdrawAse',
+    this._withdrawFspBtn = this._createButton(
+      'Withdraw from FSP',
+      'withdrawFsp',
       'gray',
       'yellow',
       6
@@ -122,33 +122,33 @@ export class LedgerLiquidityManagementPage extends UiPage {
       12
     );
 
-    this._textAseLiquidity = new Box({
+    this._textFspLiquidity = new Box({
       ...commonText,
       left: 26,
-      label: 'ASE Liquidity',
+      label: 'FSP Liquidity',
       style: {
         fg: 'red'
       }
     });
     this._textPeerLiquidity = new Box({
       ...commonText,
-      left: this._textAseLiquidity.left + 20,
+      left: this._textFspLiquidity.left + 20,
       label: 'Peer Liquidity',
       style: {
         fg: 'green'
       }
     });
-    this._textAseClearing = new Box({
+    this._textFspClearing = new Box({
       ...commonText,
       left: this._textPeerLiquidity.left + 20,
-      label: 'ASE Clearing',
+      label: 'FSP Clearing',
       style: {
         fg: 'red'
       }
     });
     this._textPeerClearing = new Box({
       ...commonText,
-      left: this._textAseClearing.left + 20,
+      left: this._textFspClearing.left + 20,
       label: 'Peer Clearing',
       style: {
         fg: 'green'
@@ -205,32 +205,32 @@ export class LedgerLiquidityManagementPage extends UiPage {
     };
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    this._depositAseBtn.on('press', async (data: string) => {
+    this._depositFspBtn.on('press', async (data: string) => {
       const req = createCommonLiqRequest();
-      this._log.pushLine(`Depositing ${getAmount()} To Ase...`);
+      this._log.pushLine(`Depositing ${getAmount()} To FSP...`);
       this._updateUi();
 
-      await this._loadTests.apiClient.ledgerDepositToAse(req);
+      await this._loadTests.apiClient.ledgerDepositToFsp(req);
 
       // wait a second for read side
       setTimeout(async () => {
-        this._log.pushLine(`Deposit To Ase completed successfully.`);
+        this._log.pushLine(`Deposit To FSP completed successfully.`);
         await this._loadTests.updateAccountBalancesNow();
         this._updateUi();
       }, 1000);
     });
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    this._withdrawAseBtn.on('press', async (data: string) => {
+    this._withdrawFspBtn.on('press', async (data: string) => {
       const req = createCommonLiqRequest();
-      this._log.pushLine(`Withdrawing ${getAmount()} From Ase...`);
+      this._log.pushLine(`Withdrawing ${getAmount()} From FSP...`);
       this._updateUi();
 
-      await this._loadTests.apiClient.ledgerWithdrawFromAse(req);
+      await this._loadTests.apiClient.ledgerWithdrawFromFsp(req);
 
       // wait a second for read side
       setTimeout(async () => {
-        this._log.pushLine(`Withdraw from Ase completed successfully.`);
+        this._log.pushLine(`Withdraw from FSP completed successfully.`);
         await this._loadTests.updateAccountBalancesNow();
         this._updateUi();
       }, 1000);
@@ -271,13 +271,13 @@ export class LedgerLiquidityManagementPage extends UiPage {
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private _updateUi(stats?: ILoadTestStats) {
-    this._textAseLiquidity.setContent(this._loadTests.balances.aseLiq ?? 'n/a');
-    this._textAseLiquidity.style.fg =
-      this._loadTests.balances.aseLiq?.startsWith('-') ? 'red' : 'green';
+    this._textFspLiquidity.setContent(this._loadTests.balances.fspLiq ?? 'n/a');
+    this._textFspLiquidity.style.fg =
+      this._loadTests.balances.fspLiq?.startsWith('-') ? 'red' : 'green';
 
-    this._textAseClearing.setContent(this._loadTests.balances.aseCle ?? 'n/a');
-    this._textAseClearing.style.fg =
-      this._loadTests.balances.aseCle?.startsWith('-') ? 'red' : 'green';
+    this._textFspClearing.setContent(this._loadTests.balances.fspCle ?? 'n/a');
+    this._textFspClearing.style.fg =
+      this._loadTests.balances.fspCle?.startsWith('-') ? 'red' : 'green';
 
     this._textPeerLiquidity.setContent(
       this._loadTests.balances.peerLiq ?? 'n/a'

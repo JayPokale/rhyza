@@ -6,7 +6,7 @@ import {
   ILedgerReadSideRepository,
   PeerAggregate,
   IPalPeerRepository,
-  IPalAseFxService,
+  IPalFspFxService,
   FxCacheExpiryService,
   IPalFxRepository,
   FxAggregate
@@ -14,7 +14,7 @@ import {
 import { PalGrpcServer } from './grpc/grpc-service';
 import process from 'process';
 import {
-  AseFxServiceAdapter,
+  FspFxServiceAdapter,
   CreateLedgerAccountsForPeerCmdSerde,
   CreateLedgerAccountForAssetCmdSerde,
   CreateLedgerCmdSerde,
@@ -22,10 +22,10 @@ import {
   CommitTransferCmdSerde,
   RejectTransferCmdSerde,
   ReserveTransferCmdSerde,
-  DepositToAseCmdSerde,
+  DepositToFspCmdSerde,
   DepositToPeerCmdSerde,
   WithdrawFromPeerCmdSerde,
-  WithdrawFromAseCmdSerde,
+  WithdrawFromFspCmdSerde,
   MongoDbAssetRepo,
   MongoDbFxRepo,
   MongoDbLedgerReadSideRepo,
@@ -131,7 +131,7 @@ export class PalApiService {
   private static _walletRepo: IPalWalletAddressRepository;
   private static _peerRepo: IPalPeerRepository;
   private static _fxRepo: IPalFxRepository;
-  private static _aseFxService: IPalAseFxService;
+  private static _fspFxService: IPalFspFxService;
   private static _ledgerReadSideRepo: ILedgerReadSideRepository;
   private static _producer: IMessageProducer;
   private static _consumer: IMessageConsumer;
@@ -147,7 +147,7 @@ export class PalApiService {
     walletRepo?: IPalWalletAddressRepository,
     peerRepo?: IPalPeerRepository,
     fxRepo?: IPalFxRepository,
-    aseFxService?: IPalAseFxService,
+    fspFxService?: IPalFspFxService,
     ledgerReadSideRepo?: ILedgerReadSideRepository,
     telemetryService?: ITelemetryService
   ): Promise<void> {
@@ -185,8 +185,8 @@ export class PalApiService {
         .register(new ReserveTransferCmdSerde())
         .register(new CommitTransferCmdSerde())
         .register(new RejectTransferCmdSerde())
-        .register(new DepositToAseCmdSerde())
-        .register(new WithdrawFromAseCmdSerde())
+        .register(new DepositToFspCmdSerde())
+        .register(new WithdrawFromFspCmdSerde())
         .register(new DepositToPeerCmdSerde())
         .register(new WithdrawFromPeerCmdSerde());
 
@@ -241,15 +241,15 @@ export class PalApiService {
     }
     this._fxRepo = fxRepo;
 
-    if (!aseFxService) {
-      aseFxService = new AseFxServiceAdapter(
+    if (!fspFxService) {
+      fspFxService = new FspFxServiceAdapter(
         EXCHANGE_RATES_URL,
         EXCHANGE_RATES_TIMEOUT_SECS * 1000,
         EXCHANGE_RATES_LIFETIME_SECS * 1000,
         logger
       );
     }
-    this._aseFxService = aseFxService;
+    this._fspFxService = fspFxService;
 
     if (!ledgerReadSideRepo) {
       const repo = new MongoDbLedgerReadSideRepo(MONGO_URL, logger);
@@ -283,7 +283,7 @@ export class PalApiService {
 
     const fxAggregate = new FxAggregate(
       this._fxRepo,
-      this._aseFxService,
+      this._fspFxService,
       this._fxCacheExpiryService,
       this._logger
     );

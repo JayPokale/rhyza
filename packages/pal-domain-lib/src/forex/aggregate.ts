@@ -1,6 +1,6 @@
 import { ILogger } from 'common-types-lib';
 import {
-  IPalAseFxService,
+  IPalFspFxService,
   IPalFxCacheExpiryService,
   IPalFxRepository
 } from './interfaces';
@@ -9,59 +9,59 @@ import { FxRate } from './entity';
 export class FxAggregate {
   private _logger: ILogger;
   private _ratesRepo: IPalFxRepository;
-  private readonly _aseService: IPalAseFxService;
+  private readonly _fspService: IPalFspFxService;
   private readonly _fxCacheExpiryService: IPalFxCacheExpiryService;
 
   constructor(
     ratesRepo: IPalFxRepository,
-    aseService: IPalAseFxService,
+    fspService: IPalFspFxService,
     fxCacheExpiryService: IPalFxCacheExpiryService,
     logger: ILogger
   ) {
     this._ratesRepo = ratesRepo;
-    this._aseService = aseService;
+    this._fspService = fspService;
     this._fxCacheExpiryService = fxCacheExpiryService;
     this._logger = logger.child(this.constructor.name);
   }
 
-  private async _fetchIntraAseRateAndStoreIt(
+  private async _fetchIntraFspRateAndStoreIt(
     sourceAssetCode: string,
     destinationAssetCode: string
   ): Promise<number | null> {
-    let aseRate;
+    let fspRate;
     try {
-      aseRate = await this._aseService.getIntraAseFxRate(
+      fspRate = await this._fspService.getIntraFspFxRate(
         sourceAssetCode,
         destinationAssetCode
       );
     } catch (e) {
       this._logger.error(
         e,
-        `Failed to get Intra ASE FX rate for ${sourceAssetCode}/${destinationAssetCode} asset pair`
+        `Failed to get Intra FSP FX rate for ${sourceAssetCode}/${destinationAssetCode} asset pair`
       );
       return null;
     }
 
-    if (!aseRate) {
+    if (!fspRate) {
       return null;
     }
 
     const newRate = new FxRate(
       sourceAssetCode,
       destinationAssetCode,
-      'IntraAseRate',
-      'PulledFromAse',
+      'IntraFspRate',
+      'PulledFromFsp',
       null,
-      aseRate.rate,
+      fspRate.rate,
       Date.now(),
-      aseRate.expiresAt
+      fspRate.expiresAt
     );
     await this._ratesRepo.store(newRate.toDto());
 
     // set expiration timer
-    await this._fxCacheExpiryService.setExpiry(newRate.id, aseRate.expiresAt);
+    await this._fxCacheExpiryService.setExpiry(newRate.id, fspRate.expiresAt);
 
-    return aseRate.rate;
+    return fspRate.rate;
   }
 
   private async _fetchPeerRateAndStoreIt(
@@ -69,9 +69,9 @@ export class FxAggregate {
     sourceAssetCode: string,
     destinationAssetCode: string
   ): Promise<number | null> {
-    let aseRate;
+    let fspRate;
     try {
-      aseRate = await this._aseService.getPeerFxFromAse(
+      fspRate = await this._fspService.getPeerFxFromFsp(
         sourceAssetCode,
         destinationAssetCode,
         peerId
@@ -79,12 +79,12 @@ export class FxAggregate {
     } catch (e) {
       this._logger.error(
         e,
-        `Failed to get Peer ASE FX rate for peerId: ${peerId} and ${sourceAssetCode}/${destinationAssetCode} asset pair`
+        `Failed to get Peer FSP FX rate for peerId: ${peerId} and ${sourceAssetCode}/${destinationAssetCode} asset pair`
       );
       return null;
     }
 
-    if (!aseRate) {
+    if (!fspRate) {
       return null;
     }
 
@@ -92,28 +92,28 @@ export class FxAggregate {
       sourceAssetCode,
       destinationAssetCode,
       'PeerRate',
-      'PulledFromAse',
+      'PulledFromFsp',
       peerId,
-      aseRate.rate,
+      fspRate.rate,
       Date.now(),
-      aseRate.expiresAt
+      fspRate.expiresAt
     );
     await this._ratesRepo.store(newRate.toDto());
 
     // set expiration timer
-    await this._fxCacheExpiryService.setExpiry(newRate.id, aseRate.expiresAt);
+    await this._fxCacheExpiryService.setExpiry(newRate.id, fspRate.expiresAt);
 
-    return aseRate.rate;
+    return fspRate.rate;
   }
 
-  async getIntraAseFxRate(
+  async getIntraFspFxRate(
     sourceAssetCode: string,
     destinationAsset: string
   ): Promise<number | null> {
     const rateId = FxRate.getRateId(
       sourceAssetCode,
       destinationAsset,
-      'IntraAseRate',
+      'IntraFspRate',
       null
     );
     const existingRateDto = await this._ratesRepo.fetch([rateId]);
@@ -125,13 +125,13 @@ export class FxAggregate {
       return existingRate.rate;
     }
 
-    return await this._fetchIntraAseRateAndStoreIt(
+    return await this._fetchIntraFspRateAndStoreIt(
       sourceAssetCode,
       destinationAsset
     );
   }
 
-  async setIntraAseFxRate(
+  async setIntraFspFxRate(
     sourceAssetCode: string,
     destinationAsset: string,
     rate: number,
@@ -140,8 +140,8 @@ export class FxAggregate {
     const newRate = new FxRate(
       sourceAssetCode,
       destinationAsset,
-      'IntraAseRate',
-      'PushedByAse',
+      'IntraFspRate',
+      'PushedByFsp',
       null,
       rate,
       Date.now(),
@@ -189,7 +189,7 @@ export class FxAggregate {
       sourceAssetCode,
       destinationAsset,
       'PeerRate',
-      'PushedByAse',
+      'PushedByFsp',
       peerId,
       rate,
       Date.now(),
@@ -210,11 +210,11 @@ export class FxAggregate {
 
     if (
       !existingRate ||
-      existingRate.acquisitionMethod === 'PushedByAse' ||
+      existingRate.acquisitionMethod === 'PushedByFsp' ||
       !existingRate.fetchedAt ||
       existingRate.fetchedAt >= notificationTime
     ) {
-      // rate doesn't exist, was set by ASE, or was pre-fetched recently
+      // rate doesn't exist, was set by FSP, or was pre-fetched recently
       return;
     }
 
@@ -226,7 +226,7 @@ export class FxAggregate {
         existingRate.destinationAssetCode
       );
     } else {
-      await this._fetchIntraAseRateAndStoreIt(
+      await this._fetchIntraFspRateAndStoreIt(
         existingRate.sourceAssetCode,
         existingRate.destinationAssetCode
       );

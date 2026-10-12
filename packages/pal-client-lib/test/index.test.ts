@@ -2,7 +2,7 @@ import { after, before, test } from 'node:test';
 import { randomBytes } from 'node:crypto';
 import * as assert from 'node:assert/strict';
 import {
-  IGetIntraAseFxRate,
+  IGetIntraFspFxRate,
   IGetPeerFxRateFromSourceAsset,
   IGetPeerFxRateToDestinationAsset,
   PalClient,
@@ -37,7 +37,7 @@ const PUBLIC_NAME = 'Pedro Barreto';
 const FX_SOURCE_ASSET_CODE = `${testPrefix}_USD`;
 const FX_DESTINATION_ASSET_CODE = `${testPrefix}_XRP`;
 const FX_PEER_RATE = 1.2;
-const FX_INTRAASE_RATE = 0.3;
+const FX_INTRAFSP_RATE = 0.3;
 
 let createdWalletAddressId: string;
 let createdAssetLedgerAccountId: string;
@@ -136,8 +136,8 @@ test('pal client - created peer must exist', async () => {
   assert.ok(peer.ledgerAccounts);
   assert.ok(peer.ledgerAccounts.peerLiquidityAccId);
   assert.ok(peer.ledgerAccounts.peerClearingAccId);
-  assert.ok(peer.ledgerAccounts.aseLiquidityAccId);
-  assert.ok(peer.ledgerAccounts.aseClearingAccId);
+  assert.ok(peer.ledgerAccounts.fspLiquidityAccId);
+  assert.ok(peer.ledgerAccounts.fspClearingAccId);
   assert.ok(peer.ledgerAccounts.suspenseAccId);
 
   assert.ok(peer.communicationMethodDefinition);
@@ -160,8 +160,8 @@ test('pal client - get created peer by ILP Address', async () => {
   assert.ok(peer.ledgerAccounts);
   assert.ok(peer.ledgerAccounts.peerLiquidityAccId);
   assert.ok(peer.ledgerAccounts.peerClearingAccId);
-  assert.ok(peer.ledgerAccounts.aseLiquidityAccId);
-  assert.ok(peer.ledgerAccounts.aseClearingAccId);
+  assert.ok(peer.ledgerAccounts.fspLiquidityAccId);
+  assert.ok(peer.ledgerAccounts.fspClearingAccId);
   assert.ok(peer.ledgerAccounts.suspenseAccId);
 
   assert.ok(peer.communicationMethodDefinition);
@@ -262,25 +262,25 @@ test('pal client - created peer must have an new set of ledger accounts', async 
   assert.equal(peerCleAcc.creditedAmount, '0');
   assert.equal(peerCleAcc.debitedAmount, '0');
 
-  const aseLiqAcc = accounts.find(
-    (a) => a.id === peerOneDto.ledgerAccounts.aseLiquidityAccId
+  const fspLiqAcc = accounts.find(
+    (a) => a.id === peerOneDto.ledgerAccounts.fspLiquidityAccId
   );
-  assert.ok(aseLiqAcc);
-  assert.equal(aseLiqAcc.id, peerOneDto.ledgerAccounts.aseLiquidityAccId);
-  assert.equal(aseLiqAcc.assetCode, ASSET_CODE);
-  assert.equal(aseLiqAcc.peerId, PEER_ONE_ID);
-  assert.equal(aseLiqAcc.creditedAmount, '0');
-  assert.equal(aseLiqAcc.debitedAmount, '0');
+  assert.ok(fspLiqAcc);
+  assert.equal(fspLiqAcc.id, peerOneDto.ledgerAccounts.fspLiquidityAccId);
+  assert.equal(fspLiqAcc.assetCode, ASSET_CODE);
+  assert.equal(fspLiqAcc.peerId, PEER_ONE_ID);
+  assert.equal(fspLiqAcc.creditedAmount, '0');
+  assert.equal(fspLiqAcc.debitedAmount, '0');
 
-  const aseCleAcc = accounts.find(
-    (a) => a.id === peerOneDto.ledgerAccounts.aseClearingAccId
+  const fspCleAcc = accounts.find(
+    (a) => a.id === peerOneDto.ledgerAccounts.fspClearingAccId
   );
-  assert.ok(aseCleAcc);
-  assert.equal(aseCleAcc.id, peerOneDto.ledgerAccounts.aseClearingAccId);
-  assert.equal(aseCleAcc.assetCode, ASSET_CODE);
-  assert.equal(aseCleAcc.peerId, PEER_ONE_ID);
-  assert.equal(aseCleAcc.creditedAmount, '0');
-  assert.equal(aseCleAcc.debitedAmount, '0');
+  assert.ok(fspCleAcc);
+  assert.equal(fspCleAcc.id, peerOneDto.ledgerAccounts.fspClearingAccId);
+  assert.equal(fspCleAcc.assetCode, ASSET_CODE);
+  assert.equal(fspCleAcc.peerId, PEER_ONE_ID);
+  assert.equal(fspCleAcc.creditedAmount, '0');
+  assert.equal(fspCleAcc.debitedAmount, '0');
 
   const suspenseAcc = accounts.find(
     (a) => a.id === peerOneDto.ledgerAccounts.suspenseAccId
@@ -297,9 +297,9 @@ test('pal client - created peer must have an new set of ledger accounts', async 
  * Liquidity Management Tests
  * */
 
-test('pal client - LiquidityManagement - Deposit to ASE', async () => {
+test('pal client - LiquidityManagement - Deposit to FSP', async () => {
   const reqId = 'req1';
-  const resp = await client.ledgerDepositToAse({
+  const resp = await client.ledgerDepositToFsp({
     peerId: PEER_ONE_ID,
     assetCode: ASSET_CODE,
     amount: DEPOSIT_AMOUNT.toString(),
@@ -315,9 +315,9 @@ test('pal client - LiquidityManagement - Deposit to ASE', async () => {
   assert.equal(resp.errorMessage, undefined);
 });
 
-test('pal client - LiquidityManagement - Withdraw from ASE', async () => {
+test('pal client - LiquidityManagement - Withdraw from FSP', async () => {
   const reqId = 'req3';
-  const resp = await client.ledgerWithdrawFromAse({
+  const resp = await client.ledgerWithdrawFromFsp({
     peerId: PEER_ONE_ID,
     assetCode: ASSET_CODE,
     amount: DEPOSIT_AMOUNT.toString(),
@@ -333,10 +333,10 @@ test('pal client - LiquidityManagement - Withdraw from ASE', async () => {
   assert.equal(resp.errorMessage, undefined);
 });
 
-test('pal client - LiquidityManagement - Withdraw excess liquidity from ASE should fail', async () => {
+test('pal client - LiquidityManagement - Withdraw excess liquidity from FSP should fail', async () => {
   try {
     const reqId = 'req4';
-    await client.ledgerWithdrawFromAse({
+    await client.ledgerWithdrawFromFsp({
       peerId: PEER_ONE_ID,
       assetCode: ASSET_CODE,
       amount: MIN_AMOUNT,
@@ -405,9 +405,9 @@ test('pal client - LiquidityManagement - Withdraw excess liquidity from Peer sho
  * Liquidity Management Tests
  * */
 
-test('pal client - LiquidityManagement - Deposit to ASE', async () => {
+test('pal client - LiquidityManagement - Deposit to FSP', async () => {
   const reqId = 'req1';
-  const resp = await client.ledgerDepositToAse({
+  const resp = await client.ledgerDepositToFsp({
     peerId: PEER_ONE_ID,
     assetCode: ASSET_CODE,
     amount: DEPOSIT_AMOUNT.toString(),
@@ -423,9 +423,9 @@ test('pal client - LiquidityManagement - Deposit to ASE', async () => {
   assert.equal(resp.errorMessage, undefined);
 });
 
-test('pal client - LiquidityManagement - Withdraw from ASE', async () => {
+test('pal client - LiquidityManagement - Withdraw from FSP', async () => {
   const reqId = 'req3';
-  const resp = await client.ledgerWithdrawFromAse({
+  const resp = await client.ledgerWithdrawFromFsp({
     peerId: PEER_ONE_ID,
     assetCode: ASSET_CODE,
     amount: DEPOSIT_AMOUNT.toString(),
@@ -441,10 +441,10 @@ test('pal client - LiquidityManagement - Withdraw from ASE', async () => {
   assert.equal(resp.errorMessage, undefined);
 });
 
-test('pal client - LiquidityManagement - Withdraw excess liquidity from ASE should fail', async () => {
+test('pal client - LiquidityManagement - Withdraw excess liquidity from FSP should fail', async () => {
   try {
     const reqId = 'req4';
-    await client.ledgerWithdrawFromAse({
+    await client.ledgerWithdrawFromFsp({
       peerId: PEER_ONE_ID,
       assetCode: ASSET_CODE,
       amount: MIN_AMOUNT,
@@ -512,18 +512,18 @@ test('pal client - LiquidityManagement - Withdraw excess liquidity from Peer sho
 /*
  * FX Tests
  * */
-test('pal client - set fx intra ASE rates from ase', async () => {
+test('pal client - set fx intra FSP rates from FSP', async () => {
   await client.setFxRate(
     FX_SOURCE_ASSET_CODE,
     FX_DESTINATION_ASSET_CODE,
-    FX_INTRAASE_RATE,
+    FX_INTRAFSP_RATE,
     null,
     null
   );
 });
 
-test('pal client - get fx intra ASE rates from ase', async () => {
-  const request: IGetIntraAseFxRate = {
+test('pal client - get fx intra FSP rates from FSP', async () => {
+  const request: IGetIntraFspFxRate = {
     sourceAssetCode: FX_SOURCE_ASSET_CODE,
     destinationAssetCode: FX_DESTINATION_ASSET_CODE
   };
@@ -531,10 +531,10 @@ test('pal client - get fx intra ASE rates from ase', async () => {
   const resp = await client.getFxRate(request);
 
   assert.ok(resp);
-  assert.equal(resp, FX_INTRAASE_RATE);
+  assert.equal(resp, FX_INTRAFSP_RATE);
 });
 
-test('pal client - set fx peer rates from ase', async () => {
+test('pal client - set fx peer rates from FSP', async () => {
   await client.setFxRate(
     ASSET_CODE,
     FX_DESTINATION_ASSET_CODE,
