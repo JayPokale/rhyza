@@ -1,3 +1,14 @@
+# API Changelog 0.0.10 vs. 0.0.11
+
+## API Changes
+
+### POST /wallet-addresses
+- :warning: replaced the required request property `address` with `pathName`
+-  added the error response with the status `400`
+
+## Info
+-  a breaking change was detected but the major version did not increase, from `0.0.10` to `0.0.11`
+
 # API Changelog 0.0.9 vs. 0.0.10
 
 ## API Changes
