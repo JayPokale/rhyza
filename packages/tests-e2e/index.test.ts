@@ -20,10 +20,10 @@ describe('E2E tests', () => {
     const composeDir = path.resolve(__dirname, '../../docker');
     environment = await new DockerComposeEnvironment(composeDir, COMPOSE_FILE)
       .withEnvironment({
-        WEBHOOK_URL: 'http://ase-mock-service:3000/webhooks'
+        WEBHOOK_URL: 'http://fsp-mock-service:3000/webhooks'
       })
       .withWaitStrategy(
-        'ase-mock-service',
+        'fsp-mock-service',
         Wait.forHttp('/healthz', ADMIN_API_PORT)
       )
       .up();
@@ -70,7 +70,7 @@ describe('E2E tests', () => {
     assert.ok(payment.id);
     const paymentId = payment.id;
 
-    // Wait 2 seconds for ase-mock-service to receive the webhook and approve payment
+    // Wait 2 seconds for fsp-mock-service to receive the webhook and approve payment
     await setTimeout(2000);
 
     const paymentFound = await adminClient.payments.getPayment(
