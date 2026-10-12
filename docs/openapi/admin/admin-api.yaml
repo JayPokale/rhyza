@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Rhyza Admin API
-  version: 0.0.9
+  version: 0.0.10
   license:
     name: ISC
     identifier: ISC
@@ -95,6 +95,20 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/AssetCreate'
+    get:
+      summary: Get Assets
+      description: Fetch every asset. When the node has no assets, `assets` is an empty array.
+      tags:
+        - assets
+      operationId: getAssets
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetsResponse'
   /wallet-addresses:
     post:
       summary: Create Wallet Address
@@ -865,6 +879,29 @@ components:
         code:
           type: string
           description: The unique code of the created asset.
+    Asset:
+      type: object
+      description: An asset known to the node.
+      required:
+        - code
+        - scale
+      properties:
+        code:
+          type: string
+          description: The asset code (e.g., "USD", "EUR", "BTC").
+        scale:
+          type: number
+          description: The number of decimal places for the asset.
+    AssetsResponse:
+      type: object
+      description: Response schema for fetching assets.
+      required:
+        - assets
+      properties:
+        assets:
+          type: array
+          items:
+            $ref: '#/components/schemas/Asset'
     PeerHttpOutgoing:
       type: object
       description: Connector settings for sending ILP packets to this peer.
@@ -1039,8 +1076,9 @@ components:
           format: date-time
           description: The date and time when the payment intent expires.
         metadata:
-          type: string
+          type: object
           description: Additional arbitrary data associated with the payment intent.
+          additionalProperties: true
     PaymentIntentCreateResponse:
       type: object
       description: Response schema after creating a payment intent.
@@ -1254,6 +1292,10 @@ components:
         debitAmount:
           type: number
           description: The amount to debit from the sender.
+        metadata:
+          type: object
+          description: Additional arbitrary data associated with the payment intent.
+          additionalProperties: true
     PaymentCreateResponse:
       type: object
       description: Response schema after initiating a payment.
