@@ -144,7 +144,7 @@ export class PaymentsEventHandler {
       }
       case LedgerIncomingTransferReservedEvent.name: {
         // TODO: auto-accepting. Design calls for marking pending-acceptance,
-        // webhooking the ASE via Notifications, and the ASE accepting through
+        // webhooking the FSP via Notifications, and the FSP accepting through
         // the admin API.
         const payload =
           message.payload as LedgerHighLevelSuccessResponseEventPayload;
