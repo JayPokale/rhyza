@@ -161,22 +161,6 @@ importers:
         specifier: ^4.19.3
         version: 4.19.3
 
-  packages/ase-mock-service:
-    dependencies:
-      admin-client-lib:
-        specifier: workspace:*
-        version: link:../admin-client-lib
-      fastify:
-        specifier: ~5.3.3
-        version: 5.3.3
-      notifications-domain-lib:
-        specifier: workspace:*
-        version: link:../notifications-domain-lib
-    devDependencies:
-      tsx:
-        specifier: ^4.19.3
-        version: 4.19.3
-
   packages/auth-api-service:
     dependencies:
       '@grpc/grpc-js':
@@ -325,6 +309,22 @@ importers:
         version: 4.19.3
 
   packages/common-types-lib:
+    devDependencies:
+      tsx:
+        specifier: ^4.19.3
+        version: 4.19.3
+
+  packages/fsp-mock-service:
+    dependencies:
+      admin-client-lib:
+        specifier: workspace:*
+        version: link:../admin-client-lib
+      fastify:
+        specifier: ~5.3.3
+        version: 5.3.3
+      notifications-domain-lib:
+        specifier: workspace:*
+        version: link:../notifications-domain-lib
     devDependencies:
       tsx:
         specifier: ^4.19.3
