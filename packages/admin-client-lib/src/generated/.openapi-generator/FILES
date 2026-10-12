@@ -15,6 +15,7 @@ models/AssetCreate.ts
 models/AssetCreateResponse.ts
 models/AssetsResponse.ts
 models/CancelPayment200Response.ts
+models/CompletedQuote.ts
 models/ErrorResponse.ts
 models/FxRateSet.ts
 models/JsonWebKey.ts
@@ -40,6 +41,7 @@ models/PeerHttpIncoming.ts
 models/PeerHttpOutgoing.ts
 models/Quote.ts
 models/QuoteCreate.ts
+models/QuoteState.ts
 models/WalletAddressCreate.ts
 models/WalletAddressCreateResponse.ts
 models/WalletAddressKeyCreateResponse.ts
