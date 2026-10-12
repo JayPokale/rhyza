@@ -6,7 +6,7 @@ The ILP connector is an integration adapter that lives **inside the ILP BC**. It
 
 The ILP aggregate (the command handler) owns all domain logic: fulfill/reject/forward decisions, persistence of packet correlations, business expiry, domain event emission, and integration with Payments and PAL.
 
-The connector and the ILP aggregate communicate **exclusively via Kafka commands** (symmetric Kafka transport, no gRPC API in the middle). This lets the connector be replaceable per transport (HTTP, etc.) without touching the rest of Rafiki, and lets the connector and aggregate scale and fail independently.
+The connector and the ILP aggregate communicate **exclusively via Kafka commands** (symmetric Kafka transport, no gRPC API in the middle). This lets the connector be replaceable per transport (HTTP, etc.) without touching the rest of Rhyza, and lets the connector and aggregate scale and fail independently.
 
 ## Sequence diagram
 

@@ -1,6 +1,6 @@
-# Kafka in Rafiki
+# Kafka in Rhyza
 
-This document describes the structure and usage of Kafka in Rafiki: how topics are organized, and how partitioning is used to ensure message ordering.
+This document describes the structure and usage of Kafka in Rhyza: how topics are organized, and how partitioning is used to ensure message ordering.
 
 ## Basic Structure
 
@@ -13,7 +13,7 @@ Kafka is used as an event streaming platform and messaging backbone for communic
 
 ## Topic Organization
 
-Topics in Rafiki are organized by their purpose and the bounded context they belong to. We primarily distinguish between **Commands** and **Events**.
+Topics in Rhyza are organized by their purpose and the bounded context they belong to. We primarily distinguish between **Commands** and **Events**.
 
 ### Event Topics
 
