@@ -22,7 +22,7 @@ export async function liquidityRoutes(
 
     const requestId = crypto.randomUUID();
 
-    await palClient.ledgerDepositToAse({
+    await palClient.ledgerDepositToFsp({
       requestId: requestId,
       peerId: peerId,
       amount: amount.toString(),
