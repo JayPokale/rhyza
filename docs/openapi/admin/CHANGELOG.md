@@ -1,3 +1,39 @@
+# API Changelog 0.0.9 vs. 0.0.10
+
+
+## API Changes
+
+### GET /payment-intents/{intentId}/payments/{id}
+- :warning: the response property `receiveAmount` became nullable for the status `200`
+
+
+### GET /payments
+- :warning: the response property `result/items/receiveAmount` became nullable for the status `200`
+
+
+### POST /payments
+- :warning: removed the request property `debitAmount`
+- :warning: removed the request property `id`
+- :warning: removed the request property `metadata`
+- :warning: removed the request property `paymentIntentId`
+- :warning: removed the request property `quoteId`
+- :warning: removed the request property `walletAddress`
+-  added `#/components/schemas/PaymentCreateFromPaymentIntentId, #/components/schemas/PaymentCreateFromPaymentIntentUrl` to the request body `oneOf` list
+
+
+### POST /quotes
+- :warning: the `paymentIntentUrl` request property `format` changed from `none` to `uri`
+
+
+
+
+## Components
+-  removed the schema `PaymentCreate`
+
+
+## Info
+-  a breaking change was detected but the major version did not increase, from `0.0.9` to `0.0.10`
+
 # API Changelog 0.0.8 vs. 0.0.9
 
 

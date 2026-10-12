@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Rhyza Admin API
-  version: 0.0.9
+  version: 0.0.10
   license:
     name: ISC
     identifier: ISC
@@ -555,6 +555,7 @@ paths:
         content:
           application/json:
             schema:
+              type: object
               oneOf:
                 - $ref: '#/components/schemas/PaymentCreateFromPaymentIntentId'
                 - $ref: '#/components/schemas/PaymentCreateFromPaymentIntentUrl'
