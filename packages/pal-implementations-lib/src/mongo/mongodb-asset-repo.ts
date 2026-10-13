@@ -92,7 +92,7 @@ export class MongoDbAssetRepo implements IPalAssetRepository {
 
     const filter =
       codes && codes.length > 0
-        ? { code: { $in: codes.map((code) => code.toUpperCase()) } }
+        ? { code: { $in: codes } }
         : {};
 
     try {
