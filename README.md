@@ -91,14 +91,6 @@ Once the services are running, you can monitor them at:
 - **Grafana**: [http://localhost:4501](http://localhost:4501)
 - **Redpanda (Kafka Console)**: [http://localhost:8080](http://localhost:8080)
 
-### Benchmarking
-
-To run a performance benchmark using [k6](https://k6.io/):
-
-```shell
-k6 run benchmark.js
-```
-
 ### Cleanup
 
 To stop and remove all containers, volumes, and images:
