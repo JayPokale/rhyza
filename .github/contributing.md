@@ -10,9 +10,9 @@ Thank you for contributing to Rhyza! Your contributions are essential to making 
 ## Table of Contents <!-- omit in toc -->
 
 - [Types of contributions](#types-of-contributions)
-  - [Discussions](#mega-discussions)
-  - [Issues](#beetle-issues)
-  - [Pull requests](#hammer_and_wrench-pull-requests)
+  - [Discussions](#discussions)
+  - [Issues](#issues)
+  - [Pull requests](#pull-requests)
 - [Working in the Rhyza repository](#working-in-the-rhyza-repository)
   - [Code quality](#code-quality)
     - [Linting](#linting)
