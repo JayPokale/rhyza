@@ -61,7 +61,7 @@ services:
     ports:
       - '9240:9229'
 
-  ase-mock-service:
+  fsp-mock-service:
     <<: *node-debug
     ports:
       - '9241:9229'

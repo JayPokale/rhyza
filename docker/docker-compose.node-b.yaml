@@ -173,7 +173,7 @@ services:
     environment:
       KAFKA_URL: kafka-b:19092
       MONGODB_URL: mongodb://root:mongoPass@mongodb-b:27017/
-      WEBHOOK_URL: http://ase-mock-service-b:3000/webhooks
+      WEBHOOK_URL: http://fsp-mock-service-b:3000/webhooks
     ports:
       - '5110:5100'
     depends_on:
@@ -225,13 +225,13 @@ services:
         condition: service_healthy
     networks:
       - rhyza
-  ase-mock-service-b:
+  fsp-mock-service-b:
     build:
       context: ../
-      dockerfile: ./packages/ase-mock-service/Dockerfile
+      dockerfile: ./packages/fsp-mock-service/Dockerfile
     restart: always
     environment:
-      HOST: ase-mock-service-b
+      HOST: fsp-mock-service-b
       PORT: 3000
       ADMIN_URL: http://admin-api-service-b:3001
     ports:
