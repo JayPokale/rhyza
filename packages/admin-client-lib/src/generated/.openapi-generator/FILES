@@ -10,8 +10,10 @@ apis/index.ts
 index.ts
 models/Amount.ts
 models/ApprovePayment200Response.ts
+models/Asset.ts
 models/AssetCreate.ts
 models/AssetCreateResponse.ts
+models/AssetsResponse.ts
 models/CancelPayment200Response.ts
 models/CreatePaymentRequest.ts
 models/ErrorResponse.ts
