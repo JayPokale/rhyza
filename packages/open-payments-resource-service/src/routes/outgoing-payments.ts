@@ -8,7 +8,7 @@ import {
   toClientApiErrorResponse,
   IAmount,
   PaymentsClient,
-  GetPaymentResult
+  IPayment
 } from 'payments-client-lib';
 import { OpenPaymentsResourceServerRouteError } from '../errors.js';
 import { components } from '../types/generated/resource-server-types.js';
@@ -36,7 +36,7 @@ function toAmountBody(amount: IAmount): components['schemas']['amount'] {
  * TODO: Change Open Payments spec to make receiveAmount nullable.
  */
 function toOutgoingPaymentBody(
-  payment: GetPaymentResult,
+  payment: IPayment,
   openPaymentsUrl: string
 ): Omit<components['schemas']['outgoing-payment'], 'receiveAmount'> & {
   receiveAmount: components['schemas']['amount'] | null;
@@ -157,17 +157,12 @@ export async function outgoingPaymentRoutes(
                 quoteSource.debitAmountValue
               );
 
-        const { id: paymentId } = await paymentsClient.createPayment(
+        const { payment } = await paymentsClient.createPayment(
           randomUUID(),
           { paymentIntentId: quote.paymentIntentId },
           alias.walletAddressId,
           walletAddressUrl,
           quote.id
-        );
-
-        const payment = await paymentsClient.getPayment(
-          quote.paymentIntentId,
-          paymentId
         );
 
         return reply

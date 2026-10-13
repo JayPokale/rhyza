@@ -179,8 +179,7 @@ message CreatePaymentRequest {
 
 // Response containing the ID of the created payment.
 message CreatePaymentResponse {
-  string id = 1;
-  string payment_intent_id = 2;
+  Payment payment = 1;
 }
 
 // Request to approve a payment.

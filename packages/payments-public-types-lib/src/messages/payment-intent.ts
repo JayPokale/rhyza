@@ -292,6 +292,7 @@ export class QuoteCreateFailedEvent extends PaymentIntentDomainEvent {
 export type PaymentCreatedPayload = {
   id: string;
   paymentIntentId: string;
+  quoteId?: string;
   senderWalletAddress: string;
   senderWalletAddressId: string;
   debitAmount: string | null;

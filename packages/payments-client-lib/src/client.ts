@@ -37,7 +37,7 @@ import {
   CreatePaymentResult,
   CreateQuoteResult,
   GetPaymentIntentResult,
-  GetPaymentResult,
+  IPayment,
   GetQuoteResult,
   IAmount,
   IPage,
@@ -345,9 +345,18 @@ export class PaymentsClient {
             return reject(error);
           }
 
+          const payment = response.getPayment();
+          if (!payment) {
+            return reject(
+              createServiceError(status.INTERNAL, 'Response missing payment')
+            );
+          }
+
+          const result = PaymentsClient._paymentFromPb(payment);
           return resolve({
-            id: response.getId(),
-            paymentIntentId: response.getPaymentIntentId()
+            id: result.id,
+            paymentIntentId: result.paymentIntentId,
+            payment: result
           });
         }
       );
@@ -487,10 +496,7 @@ export class PaymentsClient {
     });
   }
 
-  async getPayment(
-    paymentIntentId: string,
-    id: string
-  ): Promise<GetPaymentResult> {
+  async getPayment(paymentIntentId: string, id: string): Promise<IPayment> {
     const request = new PbGetPaymentRequest();
     request.setId(id);
     request.setPaymentIntentId(paymentIntentId);
@@ -556,7 +562,7 @@ export class PaymentsClient {
 
   async getPaymentsPage(
     query: IPageQuery & { paymentIntentId?: string } = {}
-  ): Promise<IPage<GetPaymentResult>> {
+  ): Promise<IPage<IPayment>> {
     const { cursor, limit, backwards, sortOrder } =
       PaymentsClient._pageArgs(query);
 
@@ -673,7 +679,7 @@ export class PaymentsClient {
     };
   }
 
-  private static _paymentFromPb(response: PbPayment): GetPaymentResult {
+  private static _paymentFromPb(response: PbPayment): IPayment {
     const quoteId = response.getQuoteId();
     const remotePaymentIntentUrl = response.getRemotePaymentIntentUrl();
     const failReason = response.getFailReason();

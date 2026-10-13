@@ -806,9 +806,33 @@ export class PaymentsServiceServer {
         this._toServiceError(evt.payload)
       );
     } else if (PaymentIntentDomainEvent.isPaymentCreatedEvent(evt)) {
-      const response = new CreatePaymentResponse()
-        .setId(evt.payload.id)
-        .setPaymentIntentId(evt.payload.paymentIntentId);
+      const p = evt.payload;
+      const response = new CreatePaymentResponse().setPayment(
+        this._toPbPayment(
+          {
+            id: p.id,
+            state: p.state,
+            senderWalletAddress: p.senderWalletAddress,
+            senderWalletAddressId: p.senderWalletAddressId,
+            paymentIntentId: p.paymentIntentId,
+            quoteId: p.quoteId,
+            assetCode: p.assetCode,
+            assetScale: p.assetScale,
+            createdAt: p.createdAt,
+            debitAmount: BigInt(p.debitAmount ?? 0),
+            receiveAmount:
+              p.receiveAmount === null ? null : BigInt(p.receiveAmount),
+            sentAmount: BigInt(p.sentAmount ?? 0),
+            metadata: p.metadata
+          },
+          {
+            // receiveAmount is denominated in the parent intent's asset
+            assetCode: p.receiveAssetCode,
+            assetScale: p.receiveAssetScale,
+            remoteUrl: p.paymentIntentRemoteUrl
+          }
+        )
+      );
       this._resolvePendingResponse(pending, requestId, null, response);
     } else if (PaymentIntentDomainEvent.isPaymentCreateFailedEvent(evt)) {
       this._resolvePendingResponse(

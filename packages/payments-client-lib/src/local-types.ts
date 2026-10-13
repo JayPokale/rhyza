@@ -97,6 +97,7 @@ export interface CreatePaymentResult {
    * imported, so callers must use this for subsequent calls.
    */
   paymentIntentId: string;
+  payment: IPayment;
 }
 
 export interface ApprovePaymentResult {
@@ -141,7 +142,7 @@ export interface GetQuoteResult {
   message?: string;
 }
 
-export interface GetPaymentResult {
+export interface IPayment {
   id: string;
   state: string;
   senderWalletAddress: string;

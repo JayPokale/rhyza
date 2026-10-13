@@ -860,6 +860,7 @@ export class PaymentIntentAggregate {
         {
           id: payment.id,
           paymentIntentId: payment.paymentIntentId,
+          quoteId: payment.quoteId,
           senderWalletAddressId: payment.senderWalletAddressId,
           senderWalletAddress: payment.senderWalletAddress,
           debitAmount: String(payment.debitAmount),
