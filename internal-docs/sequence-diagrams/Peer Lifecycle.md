@@ -11,17 +11,17 @@
 ```mermaid
 sequenceDiagram
 	autonumber
-    participant ASE
+    participant FSP
     participant AAPI as Admin API
     participant PAL as PAL BC
     participant ILPBC as ILP BC
 
-    ASE ->> AAPI: POST /peers
+    FSP ->> AAPI: POST /peers
     AAPI -->> PAL: createPeer rpc
     PAL ->> PAL: Create peer, create associated ledger accounts, <br> set ILP as communication method & activate
     AAPI -->> ILPBC: createPeer rpc <br>(with connection details)
     ILPBC ->> ILPBC: Create peer with connection details. Peer active by default.
-    AAPI ->> ASE: Peer id
+    AAPI ->> FSP: Peer id
 ```
 
 ## Peer activation/deactivation
@@ -29,18 +29,18 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
 	autonumber
-    participant ASE
+    participant FSP
     participant AAPI as Admin API
     participant PAL as PAL BC
     participant ILPBC as ILP BC
 
-    ASE ->> AAPI: POST /peers/{id}/activate
+    FSP ->> AAPI: POST /peers/{id}/activate
     AAPI -->> PAL: activatePeer rpc
     PAL ->> PAL: Activate peer
     PAL ->> PAL: Publish PeerActivatedEvent
     ILPBC -->> PAL: Read PeerActivatedEvent
     ILPBC ->> ILPBC: Activate peer
-    AAPI ->> ASE: OK
+    AAPI ->> FSP: OK
 ```
 
 ## Update peer name
@@ -48,13 +48,13 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
 	autonumber
-    participant ASE
+    participant FSP
     participant AAPI as Admin API
     participant PAL as PAL BC
 
-    ASE ->> AAPI: PUT /peers/{id}/name
+    FSP ->> AAPI: PUT /peers/{id}/name
     AAPI ->> PAL: updatePeerName rpc
-    AAPI ->> ASE: OK
+    AAPI ->> FSP: OK
 ```
 
 ## Peer connection details update
@@ -62,13 +62,13 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
 	autonumber
-    participant ASE
+    participant FSP
     participant AAPI as Admin API
     participant ILPBC as ILP BC
 
-    ASE ->> AAPI: POST /peers/{id}/ilp-connection
+    FSP ->> AAPI: POST /peers/{id}/ilp-connection
     AAPI ->> ILPBC: updatePeerConnectionDetails rpc
-    AAPI ->> ASE: OK
+    AAPI ->> FSP: OK
 ```
 
 ## Peer healthcheck/ping
@@ -76,14 +76,14 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
 	autonumber
-    participant ASE
+    participant FSP
     participant AAPI as Admin API
     participant ILPBC as ILP BC
 
-    ASE ->> AAPI: POST /peers/{id}/healthcheck
+    FSP ->> AAPI: POST /peers/{id}/healthcheck
     AAPI ->> ILPBC: runPeerHealthcheck rpc
 
     ILPBC ->> AAPI: Healthcheck status
-    AAPI ->> ASE: Healthcheck status
+    AAPI ->> FSP: Healthcheck status
 
 ```

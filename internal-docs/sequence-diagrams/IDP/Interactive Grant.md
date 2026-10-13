@@ -7,7 +7,7 @@ sequenceDiagram
     participant OPC as Open Payments Client/App
     participant OPAS as Open Payments Auth Server
     %% participant OPRS as Open Payments Resource Server
-    participant IDP as ASE's Identity Provider Server
+    participant IDP as FSP's Identity Provider Server
     participant AGW as Admin Gateway
 
     box Auth BC

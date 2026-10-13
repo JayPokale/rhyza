@@ -88,8 +88,8 @@ Per peer, five accounts are created, with the peer id as its external id:
 
 - Peer Liquidity
 - Peer Clearing
-- ASE Liquidity
-- ASE Clearing
+- FSP Liquidity
+- FSP Clearing
 - Suspense
 
 ```mermaid

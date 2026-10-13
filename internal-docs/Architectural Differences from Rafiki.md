@@ -12,7 +12,7 @@ For better decoupling and horizontal scalability, Rhyza is divided into five dis
 - **ILP**: Handles sending and receiving ILP packets between peers.
 - **PAL (Peers, Accounts, Ledger)**: Manages assets, wallet addresses, peers, and all ledger/liquidity functionality.
 - **Auth**: Manages Open Payments Auth grants and access tokens.
-- **Notifications**: Communicates system events to the ASE via webhook events.
+- **Notifications**: Communicates system events to the FSP via webhook events.
 
 ![Simplified architecture](./diagrams/architecture-simplified.png)
 
@@ -20,12 +20,12 @@ In this architecture, the Open Payments & Admin API servers act as stateless lay
 
 ### Simplified Liquidity
 
-One of the most significant shifts for ASEs is how liquidity is managed:
+One of the most significant shifts for FSPs is how liquidity is managed:
 
 - **Rafiki**: Liquidity was tracked for every payment, asset, and wallet address.
 - **Rhyza**: Liquidity is only tracked for **peering relationships**. There are no longer payment-specific or wallet-address-specific liquidity accounts.
 
-If an ASE only uses Open Payments functionality (and not ILP peering), they no longer need to make liquidity via the Admin API requests or handle liquidity-specific webhook events.
+If an FSP only uses Open Payments functionality (and not ILP peering), they no longer need to make liquidity via the Admin API requests or handle liquidity-specific webhook events.
 
 ### Simplified Assets
 
@@ -73,16 +73,16 @@ Used for:
 
 ### Unified Admin API
 
-Instead of two separate GraphQL Admin APIs for `auth` and `backend`, Rhyza has a single REST Admin API server which covers all of the possible functionality for managing it. This simplifies ASE integration (+ documentation tooling) while also providing us the ability to automatically generate client libraries/SDKs.
+Instead of two separate GraphQL Admin APIs for `auth` and `backend`, Rhyza has a single REST Admin API server which covers all of the possible functionality for managing it. This simplifies FSP integration (+ documentation tooling) while also providing us the ability to automatically generate client libraries/SDKs.
 
 **Spec**: [Admin API OpenAPI Specification](../packages/admin-api-service/openapi.yaml)
 
 ### Webhook Events
 
-While Rhyza continues to use webhooks for ASE notifications, the payload structure and event types have been updated to reflect the [new naming](#payment-concept-changes) in the system modules.
+While Rhyza continues to use webhooks for FSP notifications, the payload structure and event types have been updated to reflect the [new naming](#payment-concept-changes) in the system modules.
 
 **Spec**: [Webhook OpenAPI Specification](../external-docs/webhooks.yaml).
 
 ### Multi-tenancy
 
-Rhyza is currently not multi-tenanted. A single Rhyza instance is intended to serve a single ASE, simplifying the security and resource isolation model compared to the multi-tenant approach of Rafiki.
+Rhyza is currently not multi-tenanted. A single Rhyza instance is intended to serve a single FSP, simplifying the security and resource isolation model compared to the multi-tenant approach of Rafiki.

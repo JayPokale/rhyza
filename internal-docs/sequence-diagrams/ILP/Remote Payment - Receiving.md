@@ -11,7 +11,7 @@ sequenceDiagram
     participant PAL as PAL BC
     participant NBC as Notifications BC
     participant AAPI as Admin API
-    participant ASE as ASE
+    participant FSP as FSP
 
     Peer ->> ILPBC: Prepare packet
     ILPBC ->> ILPBC: Decode & determine peer
@@ -31,8 +31,8 @@ sequenceDiagram
     PBC ->> PBC: Publish inbound payment acceptance started event
 
     NBC -->> PBC: Read inbound payment acceptance started event
-    NBC ->> ASE: Notify of inbound payment
-    ASE ->> AAPI: Accept payment
+    NBC ->> FSP: Notify of inbound payment
+    FSP ->> AAPI: Accept payment
     AAPI ->> PBC: Accept payment
     PBC ->> PBC: Mark payment as accepted
     PBC ->> PBC: Publish InboundPaymentAcceptedEvent
@@ -57,8 +57,8 @@ sequenceDiagram
     PBC ->> PBC: Mark payment as finalized
     PBC ->> PBC: Publish InboundPaymentFinalizedEvent
     NBC -->> PBC: Read InboundPaymentFinalizedEvent
-    NBC ->> ASE: Notify of finalized inbound payment
-    ASE ->> ASE: Credit user
+    NBC ->> FSP: Notify of finalized inbound payment
+    FSP ->> FSP: Credit user
 
     else Could not fulfill payment
     ILPBC ->> ILPBC: Publish ILPPaymentFulfillmentFailedEvent
@@ -71,7 +71,7 @@ sequenceDiagram
     PAL ->> PAL: Publish LedgerIncomingTransferRefundedEvent
     and
     NBC -->> PBC: Read InboundPaymentFailedEvent
-    NBC ->> ASE: Notify of failed inbound payment
+    NBC ->> FSP: Notify of failed inbound payment
     end
     end
 ```
