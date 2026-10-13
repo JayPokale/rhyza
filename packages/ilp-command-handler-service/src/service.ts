@@ -26,7 +26,7 @@ const CONSUMER_GROUP_ID = 'ilp-command-handler';
 const STREAM_SERVER_SECRET_RAW =
   process.env['STREAM_SERVER_SECRET'] ||
   Buffer.from('rhyza-dev-stream-secret-0001').toString('base64url');
-const ILP_ADDRESS = process.env['ILP_ADDRESS'] || 'private.rafiki';
+const ILP_ADDRESS = process.env['ILP_ADDRESS'] || 'private.rhyza';
 
 export class IlpCommandHandlerService {
   private static _logger: ILogger;
