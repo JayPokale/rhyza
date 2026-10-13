@@ -413,11 +413,9 @@ export class PaymentsServiceServer {
         if (quote.receiveAmount != null) {
           response.setReceiveAmount(Number(quote.receiveAmount));
         }
-        if (quote.sourceAmount != null) {
-          response.setSourceAmount(Number(quote.sourceAmount));
-        }
-        if (quote.senderAssetCode) {
-          response.setSenderAssetCode(quote.senderAssetCode);
+        if (quote.route) {
+          response.setSourceAmount(Number(quote.route.sourceAmount));
+          response.setSenderAssetCode(quote.route.senderAssetCode);
         }
       } else if (quote.state === 'FAILED') {
         response.setErrorName(quote.errorName);

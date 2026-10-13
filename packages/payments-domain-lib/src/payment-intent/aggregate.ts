@@ -7,7 +7,6 @@ import {
   ISentPayment,
   isRemoteSentPayment,
   IRemoteSentPayment,
-  IPendingQuote,
   IPaymentIntent,
   IPaymentIntentRepository,
   IRemotePaymentIntentService,
@@ -921,26 +920,17 @@ export class PaymentIntentAggregate {
           `Pending quote ${quoteId} not found for payment intent ${paymentIntentId}`
         );
       }
-      const pendingQuote = pendingQuoteObj as IPendingQuote;
+      const { route, debitAmount: requestedDebit } = pendingQuoteObj;
 
-      const {
-        peerId,
-        peerAssetCode,
-        sourceAmount,
-        senderAssetCode,
-        debitAmount: requestedDebit
-      } = pendingQuote;
-
-      if (!peerId || !peerAssetCode || !sourceAmount || !senderAssetCode) {
-        // Should never happen once persistence round-trips faithfully — a hit
-        // here means a pending remote quote was stored/read lossily.
+      if (!route) {
         this._logger.warn(
-          `handleCompleteRemoteQuoteCommand — pending quote ${quoteId} (paymentIntent ${paymentIntentId}) is missing required remote peer fields (peerId, peerAssetCode, sourceAmount, senderAssetCode)`
+          `handleCompleteRemoteQuoteCommand — pending quote ${quoteId} (paymentIntent ${paymentIntentId}) has no route`
         );
         throw new InvalidQuoteStateError(
-          `Pending quote ${quoteId} is missing required remote peer fields (peerId, peerAssetCode, sourceAmount, senderAssetCode)`
+          `Pending quote ${quoteId} has no route; it cannot be completed as remote`
         );
       }
+      const { peerId, peerAssetCode, senderAssetCode } = route;
 
       let fxRate: number | undefined;
       if (senderAssetCode !== peerAssetCode) {
@@ -2174,11 +2164,10 @@ export class PaymentIntentAggregate {
     if (!intent) return;
     const quote = intent.quotes.find((q) => q.id === quoteId);
     if (!quote || quote.state !== 'PENDING') return;
-    const pending = quote as IPendingQuote;
-    const { peerId, peerAssetCode, senderAssetCode, sourceAmount } = pending;
-    if (!peerId || !peerAssetCode || !senderAssetCode || !sourceAmount) return;
+    if (!quote.route) return;
+    const { peerId, peerAssetCode, senderAssetCode } = quote.route;
     if (senderAssetCode === peerAssetCode) return;
-    const direction: 'source' | 'destination' = pending.debitAmount
+    const direction: 'source' | 'destination' = quote.debitAmount
       ? 'source'
       : 'destination';
     const key = fxKey(peerId, direction, senderAssetCode);

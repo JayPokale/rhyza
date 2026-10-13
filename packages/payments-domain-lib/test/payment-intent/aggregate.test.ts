@@ -229,11 +229,13 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           senderWalletAddress: 'domain.com/bob',
           senderWalletAddressId: 'wallet-1',
           createdAt: new Date(),
-          peerId: 'peer-1',
-          peerAssetCode: 'USD',
-          peerAssetScale: 2,
-          sourceAmount: 100n,
-          senderAssetCode: 'USD',
+          route: {
+            peerId: 'peer-1',
+            peerAssetCode: 'USD',
+            peerAssetScale: 2,
+            sourceAmount: 100n,
+            senderAssetCode: 'USD'
+          },
           debitAmount: 500n
         }
       ],
@@ -691,11 +693,13 @@ describe('PaymentIntentAggregate.handleBatch', () => {
                 senderWalletAddress: 'domain.com/bob',
                 senderWalletAddressId: 'wallet-1',
                 createdAt: new Date(),
-                peerId: 'peer-1',
-                peerAssetCode: 'EUR',
-                peerAssetScale: 2,
-                sourceAmount: 100n,
-                senderAssetCode: 'USD',
+                route: {
+                  peerId: 'peer-1',
+                  peerAssetCode: 'EUR',
+                  peerAssetScale: 2,
+                  sourceAmount: 100n,
+                  senderAssetCode: 'USD'
+                },
                 ...amountOverride
               }
             ],
@@ -2132,7 +2136,13 @@ describe('PaymentIntentAggregate.handleBatch', () => {
               debitAmount: 500n,
               receiveAmount: 100n,
               exchangeRate: 0.2,
-              peerId: 'peer-1',
+              route: {
+                peerId: 'peer-1',
+                peerAssetCode: 'USD',
+                peerAssetScale: 2,
+                sourceAmount: 100n,
+                senderAssetCode: 'USD'
+              },
               expiresAt: new Date(Date.now() + 60_000)
             }
           ],
@@ -3422,11 +3432,13 @@ describe('PaymentIntentAggregate.handleBatch', () => {
               senderWalletAddress: 'domain.com/bob',
               senderWalletAddressId: 'wallet-1',
               createdAt: new Date(),
-              peerId: 'peer-1',
-              peerAssetCode: 'EUR',
-              peerAssetScale: 2,
-              sourceAmount: 100n,
-              senderAssetCode: 'USD',
+              route: {
+                peerId: 'peer-1',
+                peerAssetCode: 'EUR',
+                peerAssetScale: 2,
+                sourceAmount: 100n,
+                senderAssetCode: 'USD'
+              },
               ...amountOverride
             }
           ],

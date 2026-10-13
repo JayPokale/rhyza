@@ -22,6 +22,7 @@ import {
   ILocalSentPayment,
   IRemoteSentPayment,
   IQuote,
+  IQuoteRoute,
   IInboundPayment,
   PaymentIntentDestination,
   PaymentIntentState,
@@ -33,16 +34,13 @@ import {
 const MAX_PAYMENT_INTENT_EXPIRY_MS = 1000 * 60 * 60 * 24 * 30; // 30 days
 const QUOTE_EXPIRY_MS = 1000 * 60 * 10;
 
-type QuoteData =
-  | {
-      state: 'PENDING';
-      debitAmount?: bigint;
-      receiveAmount?: bigint;
-      peerAssetCode?: string;
-      peerAssetScale?: number;
-      sourceAmount?: bigint;
-      senderAssetCode?: string;
-    }
+type QuoteRequest = {
+  debitAmount?: bigint;
+  receiveAmount?: bigint;
+};
+
+type QuoteOutcome =
+  | { state: 'PENDING' }
   | {
       state: 'COMPLETED';
       debitAmount: bigint;
@@ -57,102 +55,96 @@ class Quote implements IBaseQuote {
   private _senderWalletAddress: string;
   private _senderWalletAddressId: string;
   private _createdAt: Date;
-  private _peerId?: string;
-  private _data: QuoteData;
+  private _route: IQuoteRoute | undefined;
+  private _request: QuoteRequest;
+  private _outcome: QuoteOutcome;
 
-  private constructor(
-    id: string,
-    senderWalletAddress: string,
-    senderWalletAddressId: string,
-    createdAt: Date,
-    peerId: string | undefined,
-    data: QuoteData
-  ) {
-    this._id = id;
-    this._senderWalletAddress = senderWalletAddress;
-    this._senderWalletAddressId = senderWalletAddressId;
-    this._createdAt = createdAt;
-    this._peerId = peerId;
-    this._data = data;
+  private constructor(args: {
+    id: string;
+    senderWalletAddress: string;
+    senderWalletAddressId: string;
+    createdAt: Date;
+    route: IQuoteRoute | undefined;
+    request: QuoteRequest;
+    outcome: QuoteOutcome;
+  }) {
+    this._id = args.id;
+    this._senderWalletAddress = args.senderWalletAddress;
+    this._senderWalletAddressId = args.senderWalletAddressId;
+    this._createdAt = args.createdAt;
+    this._route = args.route;
+    this._request = args.request;
+    this._outcome = args.outcome;
   }
 
-  static createPending(
-    id: string,
-    senderWalletAddress: string,
-    senderWalletAddressId: string,
-    createdAt: Date,
-    peerId?: string,
-    peerAssetCode?: string,
-    peerAssetScale?: number,
-    sourceAmount?: bigint,
-    senderAssetCode?: string,
-    debitAmount?: bigint,
-    receiveAmount?: bigint
-  ): Quote {
-    return new Quote(
-      id,
-      senderWalletAddress,
-      senderWalletAddressId,
-      createdAt,
-      peerId,
-      {
-        state: 'PENDING',
-        peerAssetCode,
-        peerAssetScale,
-        sourceAmount,
-        senderAssetCode,
-        debitAmount,
-        receiveAmount
-      }
-    );
+  static createPending(args: {
+    id: string;
+    senderWalletAddress: string;
+    senderWalletAddressId: string;
+    createdAt: Date;
+    route?: IQuoteRoute;
+    request?: QuoteRequest;
+  }): Quote {
+    return new Quote({
+      ...args,
+      route: args.route,
+      request: args.request ?? {},
+      outcome: { state: 'PENDING' }
+    });
   }
 
   static fromObject(obj: IQuote): Quote {
-    const createdAt = obj.createdAt ?? new Date();
+    const base = {
+      id: obj.id,
+      senderWalletAddress: obj.senderWalletAddress,
+      senderWalletAddressId: obj.senderWalletAddressId,
+      createdAt: obj.createdAt ?? new Date(),
+      route: obj.route,
+      request:
+        obj.state === 'PENDING'
+          ? { debitAmount: obj.debitAmount, receiveAmount: obj.receiveAmount }
+          : {}
+    };
+
     if (obj.state === 'COMPLETED') {
-      return new Quote(
-        obj.id,
-        obj.senderWalletAddress,
-        obj.senderWalletAddressId,
-        createdAt,
-        obj.peerId,
-        {
+      return new Quote({
+        ...base,
+        outcome: {
           state: 'COMPLETED',
           debitAmount: obj.debitAmount,
           receiveAmount: obj.receiveAmount,
           exchangeRate: obj.exchangeRate,
           expiresAt: obj.expiresAt
         }
-      );
-    } else if (obj.state === 'FAILED') {
-      return new Quote(
-        obj.id,
-        obj.senderWalletAddress,
-        obj.senderWalletAddressId,
-        createdAt,
-        obj.peerId,
-        {
+      });
+    }
+    if (obj.state === 'FAILED') {
+      return new Quote({
+        ...base,
+        outcome: {
           state: 'FAILED',
           errorName: obj.errorName,
           message: obj.message
         }
-      );
-    } else {
-      return new Quote(
-        obj.id,
-        obj.senderWalletAddress,
-        obj.senderWalletAddressId,
-        createdAt,
-        obj.peerId,
-        {
-          state: 'PENDING',
-          peerAssetCode: obj.peerAssetCode,
-          peerAssetScale: obj.peerAssetScale,
-          sourceAmount: obj.sourceAmount,
-          senderAssetCode: obj.senderAssetCode,
-          debitAmount: obj.debitAmount,
-          receiveAmount: obj.receiveAmount
-        }
+      });
+    }
+    return new Quote({ ...base, outcome: { state: 'PENDING' } });
+  }
+
+  private _base() {
+    return {
+      id: this._id,
+      senderWalletAddress: this._senderWalletAddress,
+      senderWalletAddressId: this._senderWalletAddressId,
+      createdAt: this._createdAt,
+      route: this._route
+    };
+  }
+
+  private _assertPending(): void {
+    if (this._outcome.state !== 'PENDING') {
+      throw new InvalidQuoteStateError(
+        `Quote ${this._id} is not in PENDING state, cannot complete`
       );
     }
   }
@@ -162,16 +154,12 @@ class Quote implements IBaseQuote {
     receiveAmount: bigint;
     exchangeRate: number;
     paymentIntentExpiresAt: Date;
-  }): void {
-    if (this._data.state !== 'PENDING') {
-      throw new InvalidQuoteStateError(
-        `Quote ${this._id} is not in PENDING state, cannot complete`
-      );
-    }
+  }): ICompletedQuote {
+    this._assertPending();
     const { debitAmount, receiveAmount, exchangeRate, paymentIntentExpiresAt } =
       args;
-    this._data = {
-      state: 'COMPLETED',
+    const outcome = {
+      state: 'COMPLETED' as const,
       debitAmount,
       receiveAmount,
       exchangeRate,
@@ -179,32 +167,25 @@ class Quote implements IBaseQuote {
         Math.min(paymentIntentExpiresAt.getTime(), Date.now() + QUOTE_EXPIRY_MS)
       )
     };
+    this._outcome = outcome;
+    return { ...this._base(), ...outcome };
   }
 
   completeRemote(args: {
     receiveAmountValue: bigint;
     fxRate?: number;
     paymentIntentExpiresAt: Date;
-  }): void {
-    if (this._data.state !== 'PENDING') {
+  }): ICompletedQuote {
+    this._assertPending();
+
+    if (!this._route) {
       throw new InvalidQuoteStateError(
-        `Quote ${this._id} is not in PENDING state, cannot complete`
+        `Quote ${this._id} has no route; cannot complete as remote`
       );
     }
-
-    const {
-      peerAssetCode,
-      sourceAmount,
-      senderAssetCode,
-      debitAmount: requestedDebit,
-      receiveAmount: requestedReceive
-    } = this._data;
-
-    if (!peerAssetCode || !sourceAmount || !senderAssetCode) {
-      throw new InvalidQuoteStateError(
-        `Pending quote ${this._id} is missing required remote peer fields (peerAssetCode, sourceAmount, senderAssetCode)`
-      );
-    }
+    const { peerAssetCode, sourceAmount, senderAssetCode } = this._route;
+    const { debitAmount: requestedDebit, receiveAmount: requestedReceive } =
+      this._request;
 
     const { receiveAmountValue, fxRate, paymentIntentExpiresAt } = args;
     const peerToReceiverRate =
@@ -257,8 +238,8 @@ class Quote implements IBaseQuote {
 
     const exchangeRate = Number(computedReceive) / Number(computedDebit);
 
-    this._data = {
-      state: 'COMPLETED',
+    const outcome = {
+      state: 'COMPLETED' as const,
       debitAmount: computedDebit,
       receiveAmount: computedReceive,
       exchangeRate,
@@ -266,15 +247,17 @@ class Quote implements IBaseQuote {
         Math.min(paymentIntentExpiresAt.getTime(), Date.now() + QUOTE_EXPIRY_MS)
       )
     };
+    this._outcome = outcome;
+    return { ...this._base(), ...outcome };
   }
 
   fail(args: { errorName: string; message: string }): void {
-    if (this._data.state !== 'PENDING') {
+    if (this._outcome.state !== 'PENDING') {
       throw new InvalidQuoteStateError(
         `Quote ${this._id} is not in PENDING state, cannot fail`
       );
     }
-    this._data = {
+    this._outcome = {
       state: 'FAILED',
       errorName: args.errorName,
       message: args.message
@@ -282,16 +265,11 @@ class Quote implements IBaseQuote {
   }
 
   toObject(): IQuote {
-    const base = {
-      id: this._id,
-      senderWalletAddress: this._senderWalletAddress,
-      senderWalletAddressId: this._senderWalletAddressId,
-      createdAt: this._createdAt,
-      peerId: this._peerId
-    };
-    if (this._data.state === 'COMPLETED') {
+    const base = this._base();
+
+    if (this._outcome.state === 'COMPLETED') {
       const { debitAmount, receiveAmount, exchangeRate, expiresAt } =
-        this._data;
+        this._outcome;
       return {
         ...base,
         state: 'COMPLETED',
@@ -301,19 +279,15 @@ class Quote implements IBaseQuote {
         expiresAt
       };
     }
-    if (this._data.state === 'FAILED') {
-      const { errorName, message } = this._data;
+    if (this._outcome.state === 'FAILED') {
+      const { errorName, message } = this._outcome;
       return { ...base, state: 'FAILED', errorName, message };
     }
     return {
       ...base,
       state: 'PENDING',
-      peerAssetCode: this._data.peerAssetCode,
-      peerAssetScale: this._data.peerAssetScale,
-      sourceAmount: this._data.sourceAmount,
-      senderAssetCode: this._data.senderAssetCode,
-      debitAmount: this._data.debitAmount,
-      receiveAmount: this._data.receiveAmount
+      debitAmount: this._request.debitAmount,
+      receiveAmount: this._request.receiveAmount
     };
   }
 
@@ -322,7 +296,7 @@ class Quote implements IBaseQuote {
   }
 
   get state(): QuoteState {
-    return this._data.state;
+    return this._outcome.state;
   }
 
   get senderWalletAddress(): string {
@@ -338,7 +312,7 @@ class Quote implements IBaseQuote {
   }
 
   get peerId(): string | undefined {
-    return this._peerId;
+    return this._route?.peerId;
   }
 }
 
@@ -1073,20 +1047,20 @@ export class PaymentIntent implements IPaymentIntent {
       );
     }
 
-    const quote = Quote.createPending(
+    const quote = Quote.createPending({
       id,
-      senderWalletAddress.address,
-      senderWalletAddress.id,
-      createdAt ?? new Date()
-    );
-    quote.complete({
+      senderWalletAddress: senderWalletAddress.address,
+      senderWalletAddressId: senderWalletAddress.id,
+      createdAt: createdAt ?? new Date()
+    });
+    const completed = quote.complete({
       debitAmount: quoteDebitAmount,
       receiveAmount: quoteReceiveAmount,
       exchangeRate,
       paymentIntentExpiresAt: this.expiresAt
     });
     this._quotes.push(quote);
-    return quote.toObject() as ICompletedQuote;
+    return completed;
   }
 
   addPendingRemoteQuote(args: {
@@ -1143,19 +1117,20 @@ export class PaymentIntent implements IPaymentIntent {
       );
     }
 
-    const quote = Quote.createPending(
+    const quote = Quote.createPending({
       id,
-      senderWalletAddress.address,
-      senderWalletAddress.id,
-      createdAt ?? new Date(),
-      peerId,
-      peerAssetCode,
-      peerAssetScale,
-      sourceAmount,
-      senderAssetCode,
-      debitAmount,
-      receiveAmount
-    );
+      senderWalletAddress: senderWalletAddress.address,
+      senderWalletAddressId: senderWalletAddress.id,
+      createdAt: createdAt ?? new Date(),
+      route: {
+        peerId,
+        peerAssetCode,
+        peerAssetScale,
+        sourceAmount,
+        senderAssetCode
+      },
+      request: { debitAmount, receiveAmount }
+    });
     this._quotes.push(quote);
     return quote.toObject() as IPendingQuote;
   }
@@ -1180,12 +1155,11 @@ export class PaymentIntent implements IPaymentIntent {
       );
     }
 
-    quote.completeRemote({
+    return quote.completeRemote({
       receiveAmountValue,
       fxRate,
       paymentIntentExpiresAt: this.expiresAt
     });
-    return quote.toObject() as ICompletedQuote;
   }
 
   failRemoteQuote(args: {
@@ -1392,18 +1366,13 @@ export class PaymentIntent implements IPaymentIntent {
     }
   }
 
-  /**
-   * A completed remote quote always routed through a peer, so a payment made
-   * from one can name it. Guards the hole left by `peerId` being optional on
-   * quotes generally, which is only true because local quotes have no peer.
-   */
-  private _assertQuotePeerId(quote: IQuote): string {
-    if (!quote.peerId) {
+  private _assertQuoteRoute(quote: IQuote): IQuoteRoute {
+    if (!quote.route) {
       throw new InvalidQuoteStateError(
-        `Quote ${quote.id} has no peerId; cannot create a remote payment from it`
+        `Quote ${quote.id} has no route; cannot create a remote payment from it`
       );
     }
-    return quote.peerId;
+    return quote.route;
   }
 
   private _findPayment(id: string): SentPayment {
@@ -1558,8 +1527,8 @@ export class PaymentIntent implements IPaymentIntent {
       createdAt,
       grantId,
       metadata,
-      // the quote established the route, so it names the peer
-      peerId: this._assertQuotePeerId(quote)
+      // remote quote should always have peerId
+      peerId: this._assertQuoteRoute(quote).peerId
     });
 
     this._sentPayments.push(payment);

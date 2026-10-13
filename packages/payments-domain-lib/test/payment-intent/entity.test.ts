@@ -1428,7 +1428,13 @@ describe('PaymentIntent Entity', () => {
               debitAmount,
               receiveAmount,
               exchangeRate: Number(receiveAmount) / Number(debitAmount),
-              peerId: 'peer-1',
+              route: {
+                peerId: 'peer-1',
+                peerAssetCode: 'USD',
+                peerAssetScale: 2,
+                sourceAmount: 100n,
+                senderAssetCode: 'USD'
+              },
               expiresAt:
                 overrides?.quoteExpiresAt ?? new Date(Date.now() + 60_000)
             }
@@ -1533,14 +1539,14 @@ describe('PaymentIntent Entity', () => {
         assert.equal(payment.peerId, 'peer-1');
       });
 
-      it('throws if the completed quote carries no peerId', () => {
+      it('throws if the completed quote has no route', () => {
         // a completed remote quote always routed through a peer, so this only
         // happens when the quote was stored or read lossily
         const { paymentIntent, quoteId, senderWalletAddressId } =
           makeRemoteIntentWithCompletedQuote();
         const stripped = PaymentIntent.fromObject({
           ...paymentIntent.toObject(),
-          quotes: paymentIntent.quotes.map((q) => ({ ...q, peerId: undefined }))
+          quotes: paymentIntent.quotes.map((q) => ({ ...q, route: undefined }))
         });
 
         assert.throws(
@@ -3221,9 +3227,16 @@ describe('PaymentIntent Entity', () => {
       );
     });
 
-    it('preserves peerId through completion', () => {
+    it('preserves the whole route through completion', () => {
       const { paymentIntent, quoteId } = makePaymentIntentWithPendingQuote();
-      assert.equal(paymentIntent.quotes[0]?.peerId, 'peer-1');
+      const routeBefore = paymentIntent.quotes[0]?.route;
+      assert.deepEqual(routeBefore, {
+        peerId: 'peer-1',
+        peerAssetCode: 'USD',
+        peerAssetScale: 2,
+        sourceAmount: 100n,
+        senderAssetCode: 'USD'
+      });
 
       paymentIntent.completeRemoteQuote({
         id: quoteId,
@@ -3232,7 +3245,7 @@ describe('PaymentIntent Entity', () => {
 
       const quote = paymentIntent.quotes[0];
       assert.equal(quote.state, 'COMPLETED');
-      assert.equal(quote.peerId, 'peer-1');
+      assert.deepEqual(quote.route, routeBefore);
     });
 
     it('caps quote expiry at payment intent expiry if intent expires sooner', () => {

@@ -19,23 +19,32 @@ export const QuoteState = {
 } as const;
 export type QuoteState = keyof typeof QuoteState;
 
+export interface IQuoteRoute {
+  peerId: string;
+  peerAssetCode: string;
+  peerAssetScale: number;
+  sourceAmount: bigint;
+  senderAssetCode: string;
+}
+
 export interface IBaseQuote {
   id: string;
   state: QuoteState;
   senderWalletAddress: string;
   senderWalletAddressId: string;
   createdAt: Date;
-  peerId?: string;
+
+  /**
+   * Remote quote route. Fixed when the quote is created, absent for a local
+   * quote.
+   */
+  route?: IQuoteRoute;
 }
 
 export interface IPendingQuote extends IBaseQuote {
   state: 'PENDING';
   debitAmount?: bigint;
   receiveAmount?: bigint;
-  peerAssetCode?: string;
-  peerAssetScale?: number;
-  sourceAmount?: bigint;
-  senderAssetCode?: string;
 }
 
 export interface ICompletedQuote extends IBaseQuote {
