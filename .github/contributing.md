@@ -136,7 +136,7 @@ each package to suit the package's requirements.
 
 We use GitHub Actions to manage our CI pipeline.
 
-The workflows can be found in `.github/workflows`. On every PR to `main`, the `build-lint` workflow installs dependencies, runs `pnpm checks` (lint + format), and runs `pnpm build`.
+The workflows can be found in `.github/workflows`.
 
 ## Reporting Issues
 
