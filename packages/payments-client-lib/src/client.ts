@@ -52,7 +52,7 @@ export class PaymentsClient {
   private readonly _openPaymentsUrl: string | undefined;
 
   /**
-   * @param openPaymentsUrl - Base URL of this node's Open Payments server (e.g. https://payments.example.com).
+   * @param openPaymentsUrl - Base URL of this instance's Open Payments server (e.g. https://payments.example.com).
    *   Required for remote quoting and payments; may omit for local-only use.
    */
   constructor(

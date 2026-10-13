@@ -44,8 +44,8 @@ export interface IPage<T> {
 
 /**
  * Names the payment intent being paid: by its local id, or by its URL. The
- * URL may address an intent on this node — in which case the id is read out
- * of it — or on another, which is imported on first use.
+ * URL may address an intent on this instance — in which case the id is read
+ * out of it — or on another, which is imported on first use.
  */
 export type PaymentIntentInput =
   | { paymentIntentId: string }

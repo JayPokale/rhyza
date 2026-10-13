@@ -463,8 +463,8 @@ abstract class BaseSentPayment {
 }
 
 /**
- * A payment to an intent this node also holds. It settles in one step, so it
- * has no peer and its receiveAmount is known from the outset.
+ * A payment to an intent this instance also holds. It settles in one step, so
+ * it has no peer and its receiveAmount is known from the outset.
  */
 class LocalSentPayment extends BaseSentPayment {
   private _receiveAmount: bigint;
@@ -535,9 +535,10 @@ class LocalSentPayment extends BaseSentPayment {
 }
 
 /**
- * A payment to an intent held by another node. It routes through a peer and
- * settles over several steps, so it carries the peer, the ledger transfer and
- * a failure reason, and its receiveAmount is unknown until the peer reports it.
+ * A payment to an intent held by another instance. It routes through a peer
+ * and settles over several steps, so it carries the peer, the ledger transfer
+ * and a failure reason, and its receiveAmount is unknown until the peer
+ * reports it.
  */
 class RemoteSentPayment extends BaseSentPayment {
   private _peerId: string;

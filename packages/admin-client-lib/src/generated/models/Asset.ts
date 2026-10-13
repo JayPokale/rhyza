@@ -14,7 +14,7 @@
 
 import { mapValues } from '../runtime';
 /**
- * An asset known to the node.
+ * An asset known to the instance.
  * @export
  * @interface Asset
  */

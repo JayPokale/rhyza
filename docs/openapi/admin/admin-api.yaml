@@ -97,7 +97,7 @@ paths:
               $ref: '#/components/schemas/AssetCreate'
     get:
       summary: Get Assets
-      description: Fetch every asset. When the node has no assets, `assets` is an empty array.
+      description: Fetch every asset. When the instance has no assets, `assets` is an empty array.
       tags:
         - assets
       operationId: getAssets
@@ -689,7 +689,7 @@ paths:
     post:
       summary: Deposit Liquidity
       description: >-
-        Deposit liquidity so the node can send payments. Debits the asset system
+        Deposit liquidity so the instance can send payments. Debits the asset system
         account and credits the peer's ASE liquidity account by producing a
         ledger DepositToAse command. This is request-response style, returns 200 when complete.
       tags:
@@ -850,7 +850,7 @@ components:
           description: The unique code of the created asset.
     Asset:
       type: object
-      description: An asset known to the node.
+      description: An asset known to the instance.
       required:
         - code
         - scale
@@ -1153,7 +1153,7 @@ components:
           description: The amount to be received by the recipient.
     QuoteCreateFromPaymentIntentId:
       description: >-
-        Quotes a payment intent this node already holds, named by its local
+        Quotes a payment intent this instance already holds, named by its local
         id.
       allOf:
         - $ref: '#/components/schemas/QuoteCreateBase'
@@ -1167,7 +1167,7 @@ components:
     QuoteCreateFromPaymentIntentUrl:
       description: >-
         Quotes a payment intent named by its URL. The intent may be held by
-        another node, in which case it is imported on first use; the canonical
+        another instance, in which case it is imported on first use; the canonical
         local id is returned as paymentIntentId.
       allOf:
         - $ref: '#/components/schemas/QuoteCreateBase'
@@ -1245,7 +1245,7 @@ components:
           additionalProperties: true
     PaymentCreateFromPaymentIntentId:
       description: >-
-        Creates a payment against a payment intent this node already holds,
+        Creates a payment against a payment intent this instance already holds,
         named by its local id.
       allOf:
         - $ref: '#/components/schemas/PaymentCreateBase'
@@ -1259,7 +1259,7 @@ components:
     PaymentCreateFromPaymentIntentUrl:
       description: >-
         Creates a payment against a payment intent named by its URL. The
-        intent may be held by another node, in which case it is imported on
+        intent may be held by another instance, in which case it is imported on
         first use; the canonical local id is returned as paymentIntentId.
       allOf:
         - $ref: '#/components/schemas/PaymentCreateBase'

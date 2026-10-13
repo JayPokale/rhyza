@@ -112,7 +112,7 @@ export class AssetsApi extends runtime.BaseAPI {
     }
 
     /**
-     * Fetch every asset. When the node has no assets, `assets` is an empty array.
+     * Fetch every asset. When the instance has no assets, `assets` is an empty array.
      * Get Assets
      */
     async getAssetsRaw(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<AssetsResponse>> {
@@ -123,7 +123,7 @@ export class AssetsApi extends runtime.BaseAPI {
     }
 
     /**
-     * Fetch every asset. When the node has no assets, `assets` is an empty array.
+     * Fetch every asset. When the instance has no assets, `assets` is an empty array.
      * Get Assets
      */
     async getAssets(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<AssetsResponse> {

@@ -14,7 +14,7 @@
 
 import { mapValues } from '../runtime';
 /**
- * Creates a payment against a payment intent this node already holds, named by its local id.
+ * Creates a payment against a payment intent this instance already holds, named by its local id.
  * @export
  * @interface PaymentCreateFromPaymentIntentId
  */

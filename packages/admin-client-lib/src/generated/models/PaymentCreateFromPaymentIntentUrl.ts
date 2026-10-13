@@ -14,7 +14,7 @@
 
 import { mapValues } from '../runtime';
 /**
- * Creates a payment against a payment intent named by its URL. The intent may be held by another node, in which case it is imported on first use; the canonical local id is returned as paymentIntentId.
+ * Creates a payment against a payment intent named by its URL. The intent may be held by another instance, in which case it is imported on first use; the canonical local id is returned as paymentIntentId.
  * @export
  * @interface PaymentCreateFromPaymentIntentUrl
  */

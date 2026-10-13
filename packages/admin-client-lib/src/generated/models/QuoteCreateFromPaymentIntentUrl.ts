@@ -14,7 +14,7 @@
 
 import { mapValues } from '../runtime';
 /**
- * Quotes a payment intent named by its URL. The intent may be held by another node, in which case it is imported on first use; the canonical local id is returned as paymentIntentId.
+ * Quotes a payment intent named by its URL. The intent may be held by another instance, in which case it is imported on first use; the canonical local id is returned as paymentIntentId.
  * @export
  * @interface QuoteCreateFromPaymentIntentUrl
  */

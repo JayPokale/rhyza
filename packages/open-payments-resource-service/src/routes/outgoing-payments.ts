@@ -17,7 +17,7 @@ import { decodeCompoundId, encodeCompoundId } from '../utils.js';
 interface OutgoingPaymentRouteOptions extends FastifyPluginOptions {
   palClient: PalClient;
   paymentsClient: PaymentsClient;
-  /** Base URL of this node's Open Payments resource server, used to construct receiver URLs for LOCAL parents. */
+  /** Base URL of this instance's Open Payments resource server, used to construct receiver URLs for LOCAL parents. */
   openPaymentsUrl: string;
 }
 
@@ -42,7 +42,7 @@ function toOutgoingPaymentBody(
   receiveAmount: components['schemas']['amount'] | null;
 } {
   // REMOTE parents carry the peer's incoming payment URL; for LOCAL
-  // parents the receiver is this node's own incoming payment resource.
+  // parents the receiver is this instance's own incoming payment resource.
   const receiver =
     payment.remotePaymentIntentUrl ??
     `${openPaymentsUrl}/incoming-payments/${payment.paymentIntentId}`;
