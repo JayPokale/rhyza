@@ -22,13 +22,20 @@
 
 
 ### POST /quotes
-- :warning: the `paymentIntentUrl` request property `format` changed from `none` to `uri`
+- :warning: removed the request property `debitAmount`
+- :warning: removed the request property `id`
+- :warning: removed the request property `paymentIntentId`
+- :warning: removed the request property `paymentIntentUrl`
+- :warning: removed the request property `receiveAmount`
+- :warning: removed the request property `walletAddress`
+-  added `#/components/schemas/QuoteCreateFromPaymentIntentId, #/components/schemas/QuoteCreateFromPaymentIntentUrl` to the request body `oneOf` list
 
 
 
 
 ## Components
 -  removed the schema `PaymentCreate`
+-  removed the schema `QuoteCreate`
 
 
 ## Info

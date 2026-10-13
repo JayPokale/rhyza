@@ -471,7 +471,10 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/QuoteCreate'
+              type: object
+              oneOf:
+                - $ref: '#/components/schemas/QuoteCreateFromPaymentIntentId'
+                - $ref: '#/components/schemas/QuoteCreateFromPaymentIntentUrl'
   /payments:
     get:
       summary: List Payments
@@ -1127,9 +1130,12 @@ components:
         destinationIlpAddress:
           type: string
           description: The ILP address of the payment intent.
-    QuoteCreate:
+    QuoteCreateBase:
       type: object
-      description: Schema for creating a payment quote.
+      description: >-
+        Fields common to both ways of creating a quote. Not used directly as a
+        request body — see QuoteCreateFromPaymentIntentId and
+        QuoteCreateFromPaymentIntentUrl.
       required:
         - walletAddress
       properties:
@@ -1139,21 +1145,41 @@ components:
         walletAddress:
           type: string
           description: The sender's wallet address.
-        paymentIntentId:
-          type: string
-          description: The ID of the payment intent this quote is for.
-        paymentIntentUrl:
-          type: string
-          format: uri
-          description: >-
-            The URL of the payment intent this quote is for. May address an
-            intent on this node or on another, which is imported on first use.
         debitAmount:
           type: string
           description: The amount to be debited from the sender's account.
         receiveAmount:
           type: string
           description: The amount to be received by the recipient.
+    QuoteCreateFromPaymentIntentId:
+      description: >-
+        Quotes a payment intent this node already holds, named by its local
+        id.
+      allOf:
+        - $ref: '#/components/schemas/QuoteCreateBase'
+        - type: object
+          required:
+            - paymentIntentId
+          properties:
+            paymentIntentId:
+              type: string
+              description: The ID of the payment intent this quote is for.
+    QuoteCreateFromPaymentIntentUrl:
+      description: >-
+        Quotes a payment intent named by its URL. The intent may be held by
+        another node, in which case it is imported on first use; the canonical
+        local id is returned as paymentIntentId.
+      allOf:
+        - $ref: '#/components/schemas/QuoteCreateBase'
+        - type: object
+          required:
+            - paymentIntentUrl
+          properties:
+            paymentIntentUrl:
+              type: string
+              format: uri
+              description: >-
+                The URL of the payment intent this quote is for.
     Quote:
       type: object
       description: Represents a payment quote with estimated amounts and exchange rates.

@@ -1,6 +1,6 @@
 'use strict';
 
-import { QuoteCreate } from 'admin-client-lib';
+import { CreateQuoteRequest } from 'admin-client-lib';
 import { randomUUID } from 'crypto';
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { PalClient, parseAddressToDomainAndPathName } from 'pal-client-lib';
@@ -18,28 +18,13 @@ export async function quoteRoutes(
   const { palClient, paymentsClient } = opts;
 
   server.post<{
-    Body: QuoteCreate;
+    Body: CreateQuoteRequest;
   }>('/quotes', async (request, reply) => {
-    const {
-      walletAddress,
-      debitAmount,
-      receiveAmount,
-      paymentIntentId,
-      paymentIntentUrl
-    } = request.body;
-
-    let paymentIntent:
-      | { paymentIntentUrl: string }
-      | { paymentIntentId: string };
-    if (paymentIntentUrl) {
-      paymentIntent = { paymentIntentUrl };
-    } else if (paymentIntentId) {
-      paymentIntent = { paymentIntentId };
-    } else {
-      return reply.status(400).send({
-        error: 'Either paymentIntentId or paymentIntentUrl is required'
-      });
-    }
+    const { walletAddress, debitAmount, receiveAmount } = request.body;
+    const paymentIntent =
+      'paymentIntentUrl' in request.body
+        ? { paymentIntentUrl: request.body.paymentIntentUrl }
+        : { paymentIntentId: request.body.paymentIntentId };
 
     const id = request.body.id ?? randomUUID();
 
