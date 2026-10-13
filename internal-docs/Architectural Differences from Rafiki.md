@@ -22,14 +22,14 @@ In this architecture, the Open Payments & Admin API servers act as stateless lay
 
 One of the most significant shifts for ASEs is how liquidity is managed:
 
-- **Rafiki**: Liquidity was tracked for every payment, asset, and wallet address.
+- **Rafiki**: Liquidity was tracked for every payment, asset, peer, and wallet address.
 - **Rhyza**: Liquidity is only tracked for **peering relationships**. There are no longer payment-specific or wallet-address-specific liquidity accounts.
 
-If an ASE only uses Open Payments functionality (and not ILP peering), they no longer need to make liquidity via the Admin API requests or handle liquidity-specific webhook events.
+If an ASE only uses Open Payments functionality (and not ILP peering), they no longer need to manage liquidity via the Admin API requests or handle liquidity-specific webhook events.
 
 ### Simplified Assets
 
-In Rhyza, asset have been simplified: instead of assets being unique by both `code` and `scale`, they are now unique by their `code` only (e.g. USD). The `scale` is now a display property. This is enabled by the fact that the ledger operates at a fixed high precision (scale 20). All accounting entries are stored at this scale, regardless of the display scale of the asset, payment, or peer.
+In Rhyza, assets have been simplified: instead of assets being unique by both `code` and `scale`, they are now unique by their `code` only (e.g. USD). The `scale` is now a display property. This is enabled by the fact that the ledger operates at a fixed high precision (scale 20). All accounting entries are stored at this scale, regardless of the display scale of the asset, payment, or peer.
 
 ## Infrastructure & Implementation
 
@@ -55,7 +55,7 @@ The Rafiki payment entities has been renamed & restructured for better performan
 - **Outgoing Payments** have been renamed simply to **Payments**. Given that Incoming Payments are renamed to Payment Intents, the "Outgoing" prefix is no longer necessary.
 - In Rhyza, both **Quotes** and **Payments** are now child resources of a **Payment Intent**. This architectural shift was made primarily for internal performance reasons, allowing for more efficient data handling and state management within the system.
 
-This naming change impacts the the language used in the Admin API and webhook events.
+This naming change impacts the language used in the Admin API and webhook events.
 
 ### Opaque Identifiers
 
@@ -75,13 +75,13 @@ Used for:
 
 Instead of two separate GraphQL Admin APIs for `auth` and `backend`, Rhyza has a single REST Admin API server which covers all of the possible functionality for managing it. This simplifies ASE integration (+ documentation tooling) while also providing us the ability to automatically generate client libraries/SDKs.
 
-**Spec**: [Admin API OpenAPI Specification](../packages/admin-api-service/openapi.yaml)
+**Spec**: [Admin API OpenAPI Specification](../docs/openapi/admin/admin-api.yaml)
 
 ### Webhook Events
 
 While Rhyza continues to use webhooks for ASE notifications, the payload structure and event types have been updated to reflect the [new naming](#payment-concept-changes) in the system modules.
 
-**Spec**: [Webhook OpenAPI Specification](../external-docs/webhooks.yaml).
+**Spec**: [Webhook OpenAPI Specification](../docs/openapi/webhooks.yaml).
 
 ### Multi-tenancy
 
