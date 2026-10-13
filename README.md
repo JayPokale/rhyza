@@ -105,8 +105,8 @@ pnpm docker down --volumes --rmi all
 
 The project follows a modular architecture based on **Domain-Driven Design (DDD)**, where each **Bounded Context (BC)** is split into several packages to ensure a separation of concerns.
 
-- [Project Structure & Guidelines](./internal-docs/Structure%20&%20Guidelines.md)
-- [Project Structure Diagram](./internal-docs/diagrams/structure.png)
-- [Architecture Diagram](./internal-docs/diagrams/architecture.png)
-- [Sequence Diagrams](./internal-docs/sequence-diagrams/)
+- [Project Structure & Guidelines](./dev-docs/Structure%20&%20Guidelines.md)
+- [Project Structure Diagram](./dev-docs/diagrams/structure.png)
+- [Architecture Diagram](./dev-docs/diagrams/architecture.png)
+- [Sequence Diagrams](./dev-docs/sequence-diagrams/)
 
