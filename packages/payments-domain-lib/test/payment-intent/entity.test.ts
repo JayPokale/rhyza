@@ -1,5 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { isRemoteSentPayment } from '../../src/payment-intent/interfaces';
 
 import { PaymentIntent } from '../../src/payment-intent/entity';
 import {
@@ -694,6 +695,120 @@ describe('PaymentIntent Entity', () => {
   });
 
   describe('addLocalPayment', () => {
+    it('throws PaymentIntentInvalidState if destination is REMOTE', () => {
+      const paymentIntent = PaymentIntent.create(
+        crypto.randomUUID(),
+        crypto.randomUUID(),
+        'receiver',
+        PaymentIntentDestination.REMOTE,
+        'USD',
+        2,
+        null,
+        100n
+      );
+
+      assert.throws(
+        () =>
+          paymentIntent.addLocalPayment({
+            id: crypto.randomUUID(),
+            senderWalletAddress: {
+              id: crypto.randomUUID(),
+              address: 'sender',
+              assetCode: 'USD',
+              assetScale: 2
+            },
+            exchangeRate: 1
+          }),
+        PaymentIntentInvalidState
+      );
+    });
+
+    it('rejects a remote transition on a local payment', () => {
+      // only reachable from inconsistent stored data: a LOCAL payment hydrated
+      // onto a REMOTE intent
+      const paymentIntentId = crypto.randomUUID();
+      const paymentId = crypto.randomUUID();
+      const paymentIntent = PaymentIntent.fromObject({
+        id: paymentIntentId,
+        receiverWalletAddress: 'remote.domain.com/alice',
+        destination: PaymentIntentDestination.REMOTE,
+        assetCode: 'USD',
+        assetScale: 2,
+        incomingAmount: null,
+        receivedAmount: 0n,
+        state: 'CREATED',
+        createdAt: new Date(),
+        expiresAt: new Date(Date.now() + 60_000),
+        destinationIlpAddress: 'g.peer.123',
+        quotes: [],
+        inboundPayments: [],
+        sentPayments: [
+          {
+            id: paymentId,
+            destination: 'LOCAL',
+            state: 'CREATED',
+            paymentIntentId,
+            senderWalletAddress: 'sender',
+            senderWalletAddressId: crypto.randomUUID(),
+            assetCode: 'USD',
+            assetScale: 2,
+            createdAt: new Date(),
+            debitAmount: 500n,
+            receiveAmount: 100n,
+            sentAmount: 0n
+          }
+        ]
+      });
+
+      assert.throws(
+        () => paymentIntent.approveRemotePaymentSend({ id: paymentId }),
+        PaymentInvalidStateError
+      );
+    });
+
+    it('rejects local settlement of a remote payment', () => {
+      // the mirror case: a REMOTE payment hydrated onto a LOCAL intent
+      const paymentIntentId = crypto.randomUUID();
+      const paymentId = crypto.randomUUID();
+      const paymentIntent = PaymentIntent.fromObject({
+        id: paymentIntentId,
+        receiverWalletAddressId: crypto.randomUUID(),
+        receiverWalletAddress: 'domain.com/alice',
+        destination: PaymentIntentDestination.LOCAL,
+        assetCode: 'USD',
+        assetScale: 2,
+        incomingAmount: null,
+        receivedAmount: 0n,
+        state: 'CREATED',
+        createdAt: new Date(),
+        expiresAt: new Date(Date.now() + 60_000),
+        quotes: [],
+        inboundPayments: [],
+        sentPayments: [
+          {
+            id: paymentId,
+            destination: 'REMOTE',
+            peerId: 'peer-1',
+            state: 'CREATED',
+            paymentIntentId,
+            senderWalletAddress: 'sender',
+            senderWalletAddressId: crypto.randomUUID(),
+            assetCode: 'USD',
+            assetScale: 2,
+            createdAt: new Date(),
+            debitAmount: 500n,
+            receiveAmount: 100n,
+            sentAmount: 0n
+          }
+        ]
+      });
+
+      assert.throws(
+        () => paymentIntent.completeLocalPayment({ id: paymentId }),
+        PaymentInvalidStateError
+      );
+    });
+
     it('adds a payment using quoteId', () => {
       const paymentIntent = PaymentIntent.create(
         crypto.randomUUID(),
@@ -906,6 +1021,7 @@ describe('PaymentIntent Entity', () => {
         inboundPayments: [],
         sentPayments: [
           {
+            destination: 'LOCAL',
             id: crypto.randomUUID(),
             state: 'COMPLETED',
             quoteId,
@@ -1312,6 +1428,7 @@ describe('PaymentIntent Entity', () => {
               debitAmount,
               receiveAmount,
               exchangeRate: Number(receiveAmount) / Number(debitAmount),
+              peerId: 'peer-1',
               expiresAt:
                 overrides?.quoteExpiresAt ?? new Date(Date.now() + 60_000)
             }
@@ -1346,7 +1463,7 @@ describe('PaymentIntent Entity', () => {
       assert.equal(payment.debitAmount, 500n);
       assert.equal(payment.receiveAmount, null);
       assert.equal(payment.sentAmount, 0n);
-      assert.equal(paymentIntent.peerId, 'peer-1');
+      assert.equal(payment.peerId, 'peer-1');
     });
 
     it('applies the shared intent guards on the quoteless path', () => {
@@ -1413,6 +1530,33 @@ describe('PaymentIntent Entity', () => {
         assert.equal(payment.sentAmount, 0n);
         assert.equal(payment.senderWalletAddressId, senderWalletAddressId);
         assert.equal(payment.paymentIntentId, paymentIntent.id);
+        assert.equal(payment.peerId, 'peer-1');
+      });
+
+      it('throws if the completed quote carries no peerId', () => {
+        // a completed remote quote always routed through a peer, so this only
+        // happens when the quote was stored or read lossily
+        const { paymentIntent, quoteId, senderWalletAddressId } =
+          makeRemoteIntentWithCompletedQuote();
+        const stripped = PaymentIntent.fromObject({
+          ...paymentIntent.toObject(),
+          quotes: paymentIntent.quotes.map((q) => ({ ...q, peerId: undefined }))
+        });
+
+        assert.throws(
+          () =>
+            stripped.addRemotePaymentFromQuote({
+              id: crypto.randomUUID(),
+              quoteId,
+              senderWalletAddress: {
+                id: senderWalletAddressId,
+                address: 'sender',
+                assetCode: 'USD',
+                assetScale: 2
+              }
+            }),
+          InvalidQuoteStateError
+        );
       });
 
       it('throws PaymentIntentInvalidState if destination is LOCAL', () => {
@@ -1659,6 +1803,8 @@ describe('PaymentIntent Entity', () => {
           senderWalletAddressId,
           extraPayments: [
             {
+              destination: 'REMOTE',
+              peerId: 'peer-1',
               id: crypto.randomUUID(),
               state: 'CREATED',
               quoteId,
@@ -1740,6 +1886,8 @@ describe('PaymentIntent Entity', () => {
           inboundPayments: [],
           sentPayments: [
             {
+              destination: 'REMOTE',
+              peerId: 'peer-1',
               id: paymentId,
               state: overrides?.paymentState ?? 'CREATED',
               quoteId,
@@ -1768,6 +1916,7 @@ describe('PaymentIntent Entity', () => {
       assert.equal(payment.state, 'PROCESSING');
       assert.equal(payment.ledgerTransferId, undefined);
       const [reloaded] = paymentIntent.sentPayments;
+      assert.ok(isRemoteSentPayment(reloaded));
       assert.equal(reloaded.state, 'PROCESSING');
       assert.equal(reloaded.ledgerTransferId, undefined);
     });
@@ -1894,6 +2043,8 @@ describe('PaymentIntent Entity', () => {
           inboundPayments: [],
           sentPayments: [
             {
+              destination: 'REMOTE',
+              peerId: 'peer-1',
               id: paymentId,
               state: paymentState,
               senderWalletAddress: 'sender',
@@ -2005,6 +2156,8 @@ describe('PaymentIntent Entity', () => {
           inboundPayments: [],
           sentPayments: [
             {
+              destination: 'REMOTE',
+              peerId: 'peer-1',
               id: paymentId,
               state: paymentState,
               senderWalletAddress: 'sender',
@@ -2120,6 +2273,8 @@ describe('PaymentIntent Entity', () => {
           inboundPayments: [],
           sentPayments: [
             {
+              destination: 'REMOTE',
+              peerId: 'peer-1',
               id: paymentId,
               state: paymentState,
               senderWalletAddress: 'sender',
@@ -2209,6 +2364,8 @@ describe('PaymentIntent Entity', () => {
           inboundPayments: [],
           sentPayments: [
             {
+              destination: 'REMOTE',
+              peerId: 'peer-1',
               id: paymentId,
               state: paymentState,
               senderWalletAddress: 'sender',
@@ -2305,6 +2462,8 @@ describe('PaymentIntent Entity', () => {
           inboundPayments: [],
           sentPayments: [
             {
+              destination: 'REMOTE',
+              peerId: 'peer-1',
               id: paymentId,
               state: paymentState,
               senderWalletAddress: 'sender',
@@ -2609,6 +2768,7 @@ describe('PaymentIntent Entity', () => {
         inboundPayments: [],
         sentPayments: [
           {
+            destination: 'LOCAL',
             id: 'payment-1',
             state: 'COMPLETED',
             paymentIntentId: paymentIntentId,
@@ -2721,6 +2881,7 @@ describe('PaymentIntent Entity', () => {
         inboundPayments: [],
         sentPayments: [
           {
+            destination: 'LOCAL',
             id: 'payment-1',
             state: 'CANCELLED',
             paymentIntentId: paymentIntentId,
@@ -2769,6 +2930,7 @@ describe('PaymentIntent Entity', () => {
         inboundPayments: [],
         sentPayments: [
           {
+            destination: 'LOCAL',
             id: 'payment-1',
             state: 'COMPLETED',
             paymentIntentId: paymentIntentId,
@@ -3057,6 +3219,20 @@ describe('PaymentIntent Entity', () => {
         quote.expiresAt.getTime(),
         new Date(now + 1000 * 60 * 10).getTime()
       );
+    });
+
+    it('preserves peerId through completion', () => {
+      const { paymentIntent, quoteId } = makePaymentIntentWithPendingQuote();
+      assert.equal(paymentIntent.quotes[0]?.peerId, 'peer-1');
+
+      paymentIntent.completeRemoteQuote({
+        id: quoteId,
+        receiveAmountValue: 50n
+      });
+
+      const quote = paymentIntent.quotes[0];
+      assert.equal(quote.state, 'COMPLETED');
+      assert.equal(quote.peerId, 'peer-1');
     });
 
     it('caps quote expiry at payment intent expiry if intent expires sooner', () => {

@@ -5,6 +5,8 @@ import {
   IPalService,
   IPeer,
   ISentPayment,
+  isRemoteSentPayment,
+  IRemoteSentPayment,
   IPendingQuote,
   IPaymentIntent,
   IPaymentIntentRepository,
@@ -1203,7 +1205,7 @@ export class PaymentIntentAggregate {
           senderWalletAddress: payment.senderWalletAddress,
           senderWalletAddressId: payment.senderWalletAddressId,
           destinationIlpAddress: paymentIntent.destinationIlpAddress,
-          peerId: paymentIntent.peerId!,
+          peerId: payment.peerId,
           requestId: cmd.requestId,
           debitAmount: String(payment.debitAmount),
           assetCode: payment.assetCode,
@@ -1290,7 +1292,7 @@ export class PaymentIntentAggregate {
           paymentId: payment.id,
           ledgerTransferId,
           destinationIlpAddress: remoteDetails.destinationIlpAddress,
-          peerId: paymentIntent.peerId!,
+          peerId: payment.peerId,
           requestId: cmd.requestId,
           debitAmount: String(payment.debitAmount),
           receiveAmount:
@@ -1406,7 +1408,7 @@ export class PaymentIntentAggregate {
       }
 
       const paymentIntent = PaymentIntent.fromObject(paymentIntentObj);
-      const existingPayment = paymentIntent.sentPayments.find(
+      const existingPayment = paymentIntent.remoteSentPayments.find(
         (p) => p.id === paymentId
       );
       if (!existingPayment) {
@@ -1445,7 +1447,7 @@ export class PaymentIntentAggregate {
           paymentId: payment.id,
           ledgerTransferId: existingPayment.ledgerTransferId,
           destinationIlpAddress: paymentIntent.destinationIlpAddress,
-          peerId: paymentIntent.peerId!,
+          peerId: payment.peerId,
           requestId: cmd.requestId,
           debitAmount: String(payment.debitAmount),
           assetCode: payment.assetCode,
@@ -1487,7 +1489,7 @@ export class PaymentIntentAggregate {
       }
 
       const paymentIntent = PaymentIntent.fromObject(paymentIntentObj);
-      const existingPayment = paymentIntent.sentPayments.find(
+      const existingPayment = paymentIntent.remoteSentPayments.find(
         (p) => p.id === paymentId
       );
       if (!existingPayment) {
@@ -1532,7 +1534,7 @@ export class PaymentIntentAggregate {
           rejectCode,
           rejectMessage,
           destinationIlpAddress: paymentIntent.destinationIlpAddress,
-          peerId: paymentIntent.peerId!,
+          peerId: payment.peerId,
           requestId: cmd.requestId,
           debitAmount: String(payment.debitAmount),
           assetCode: payment.assetCode,
@@ -2254,6 +2256,41 @@ export class PaymentIntentAggregate {
     map.get(paymentIntentId)?.push(idToAppend);
   }
 
+  /**
+   * The payments named by `ids`, projected for storage. One pass, with a set
+   * for the id lookup — flush does this for every update group.
+   */
+  private _collectPayments<T>(
+    payments: ISentPayment[],
+    ids: string[],
+    project: (payment: ISentPayment) => T
+  ): T[] {
+    const wanted = new Set(ids);
+    const collected: T[] = [];
+    for (const payment of payments) {
+      if (wanted.has(payment.id)) {
+        collected.push(project(payment));
+      }
+    }
+    return collected;
+  }
+
+  /** As `_collectPayments`, for groups whose columns only remote payments have. */
+  private _collectRemotePayments<T>(
+    payments: ISentPayment[],
+    ids: string[],
+    project: (payment: IRemoteSentPayment) => T
+  ): T[] {
+    const wanted = new Set(ids);
+    const collected: T[] = [];
+    for (const payment of payments) {
+      if (wanted.has(payment.id) && isRemoteSentPayment(payment)) {
+        collected.push(project(payment));
+      }
+    }
+    return collected;
+  }
+
   public async flush() {
     const promises = [];
 
@@ -2529,13 +2566,11 @@ export class PaymentIntentAggregate {
             state: paymentIntent.state,
             receivedAmount: paymentIntent.receivedAmount
           },
-          sentPayments: paymentIntent.sentPayments
-            .filter((p) => paymentIds.includes(p.id))
-            .map((p) => ({
-              id: p.id,
-              state: p.state,
-              sentAmount: p.sentAmount
-            }))
+          sentPayments: this._collectPayments(
+            paymentIntent.sentPayments,
+            paymentIds,
+            (p) => ({ id: p.id, state: p.state, sentAmount: p.sentAmount })
+          )
         });
       }
 
@@ -2574,13 +2609,11 @@ export class PaymentIntentAggregate {
             state: paymentIntent.state,
             receivedAmount: paymentIntent.receivedAmount
           },
-          sentPayments: paymentIntent.sentPayments
-            .filter((p) => paymentIds.includes(p.id))
-            .map((p) => ({
-              id: p.id,
-              state: p.state,
-              sentAmount: p.sentAmount
-            }))
+          sentPayments: this._collectPayments(
+            paymentIntent.sentPayments,
+            paymentIds,
+            (p) => ({ id: p.id, state: p.state, sentAmount: p.sentAmount })
+          )
         });
       }
 
@@ -2605,9 +2638,11 @@ export class PaymentIntentAggregate {
         }
 
         updates.push({
-          sentPayments: paymentIntent.sentPayments
-            .filter((p) => paymentIds.includes(p.id))
-            .map((p) => ({ id: p.id, state: p.state }))
+          sentPayments: this._collectPayments(
+            paymentIntent.sentPayments,
+            paymentIds,
+            (p) => ({ id: p.id, state: p.state })
+          )
         });
       }
 
@@ -2636,13 +2671,15 @@ export class PaymentIntentAggregate {
         }
 
         updates.push({
-          sentPayments: paymentIntent.sentPayments
-            .filter((p) => paymentIds.includes(p.id))
-            .map((p) => ({
+          sentPayments: this._collectRemotePayments(
+            paymentIntent.sentPayments,
+            paymentIds,
+            (p) => ({
               id: p.id,
               state: p.state,
               ledgerTransferId: p.ledgerTransferId ?? ''
-            }))
+            })
+          )
         });
       }
 
@@ -2667,9 +2704,11 @@ export class PaymentIntentAggregate {
         }
 
         updates.push({
-          sentPayments: paymentIntent.sentPayments
-            .filter((p) => paymentIds.includes(p.id))
-            .map((p) => ({ id: p.id, state: p.state }))
+          sentPayments: this._collectPayments(
+            paymentIntent.sentPayments,
+            paymentIds,
+            (p) => ({ id: p.id, state: p.state })
+          )
         });
       }
 
@@ -2698,13 +2737,11 @@ export class PaymentIntentAggregate {
         }
 
         updates.push({
-          sentPayments: paymentIntent.sentPayments
-            .filter((p) => paymentIds.includes(p.id))
-            .map((p) => ({
-              id: p.id,
-              state: p.state,
-              failReason: p.failReason
-            }))
+          sentPayments: this._collectRemotePayments(
+            paymentIntent.sentPayments,
+            paymentIds,
+            (p) => ({ id: p.id, state: p.state, failReason: p.failReason })
+          )
         });
       }
 
@@ -2733,13 +2770,11 @@ export class PaymentIntentAggregate {
         }
 
         updates.push({
-          sentPayments: paymentIntent.sentPayments
-            .filter((p) => paymentIds.includes(p.id))
-            .map((p) => ({
-              id: p.id,
-              state: p.state,
-              failReason: p.failReason
-            }))
+          sentPayments: this._collectRemotePayments(
+            paymentIntent.sentPayments,
+            paymentIds,
+            (p) => ({ id: p.id, state: p.state, failReason: p.failReason })
+          )
         });
       }
 
@@ -2769,14 +2804,16 @@ export class PaymentIntentAggregate {
         }
 
         updates.push({
-          sentPayments: paymentIntent.sentPayments
-            .filter((p) => paymentIds.includes(p.id))
-            .map((p) => ({
+          sentPayments: this._collectPayments(
+            paymentIntent.sentPayments,
+            paymentIds,
+            (p) => ({
               id: p.id,
               state: p.state,
               cancelledAt: p.cancelledAt ?? new Date(),
               cancelReason: p.cancelReason
-            }))
+            })
+          )
         });
       }
 

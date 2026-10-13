@@ -1,5 +1,6 @@
 import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
+import { isRemoteSentPayment } from '../../src/payment-intent/interfaces';
 import { ConsoleLogger } from 'common-types-lib';
 
 import { PaymentIntentAggregate } from '../../src/payment-intent/aggregate';
@@ -2131,6 +2132,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
               debitAmount: 500n,
               receiveAmount: 100n,
               exchangeRate: 0.2,
+              peerId: 'peer-1',
               expiresAt: new Date(Date.now() + 60_000)
             }
           ],
@@ -2237,10 +2239,12 @@ describe('PaymentIntentAggregate.handleBatch', () => {
 
           const stored = repo.getAll().find((p) => p.id === paymentIntent.id);
           assert(stored);
-          assert.equal(stored.peerId, 'peer-1');
           assert.equal(stored.sentPayments.length, 1);
-          assert.equal(stored.sentPayments[0].receiveAmount, null);
-          assert.equal(stored.sentPayments[0].debitAmount, 500n);
+          const storedPayment = stored.sentPayments[0];
+          assert.ok(isRemoteSentPayment(storedPayment));
+          assert.equal(storedPayment.peerId, 'peer-1');
+          assert.equal(storedPayment.receiveAmount, null);
+          assert.equal(storedPayment.debitAmount, 500n);
         });
 
         it('imports the remote intent when remoteUrl is provided', async () => {
@@ -2367,6 +2371,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           inboundPayments: [],
           sentPayments: [
             {
+              destination: 'LOCAL',
               id: paymentId,
               state: 'CREATED',
               senderWalletAddress: 'sender',
@@ -2435,6 +2440,8 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           inboundPayments: [],
           sentPayments: [
             {
+              destination: 'REMOTE',
+              peerId: 'peer-1',
               id: paymentId,
               state: 'CREATED',
               quoteId,
@@ -2477,7 +2484,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
         const storedPayment = stored.sentPayments.find(
           (p) => p.id === paymentId
         );
-        assert.ok(storedPayment);
+        assert.ok(storedPayment && isRemoteSentPayment(storedPayment));
         assert.equal(storedPayment.state, 'PROCESSING');
         assert.equal(storedPayment.ledgerTransferId, undefined);
       });
@@ -2500,6 +2507,8 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           inboundPayments: [],
           sentPayments: [
             {
+              destination: 'REMOTE',
+              peerId: 'peer-1',
               id: paymentId,
               state: 'CREATED',
               senderWalletAddress: 'domain.com/bob',
@@ -2547,6 +2556,8 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           inboundPayments: [],
           sentPayments: [
             {
+              destination: 'REMOTE',
+              peerId: 'peer-1',
               id: paymentId,
               state: 'PROCESSING',
               senderWalletAddress: 'domain.com/bob',
@@ -2599,6 +2610,8 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           inboundPayments: [],
           sentPayments: [
             {
+              destination: 'REMOTE',
+              peerId: 'peer-1',
               id: paymentId,
               state: paymentState,
               senderWalletAddress: 'domain.com/bob',
@@ -2667,8 +2680,9 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           .getAll()
           .find((i) => i.id === paymentIntentId)
           ?.sentPayments.find((p) => p.id === paymentId);
-        assert.equal(storedPayment?.state, 'SENDING');
-        assert.equal(storedPayment?.ledgerTransferId, palTransferId);
+        assert.ok(storedPayment && isRemoteSentPayment(storedPayment));
+        assert.equal(storedPayment.state, 'SENDING');
+        assert.equal(storedPayment.ledgerTransferId, palTransferId);
       });
 
       it('fails to prepare if payment intent not found', async () => {
@@ -2737,6 +2751,8 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           inboundPayments: [],
           sentPayments: [
             {
+              destination: 'REMOTE',
+              peerId: 'peer-1',
               id: paymentId,
               state: paymentState,
               senderWalletAddress: 'domain.com/bob',
@@ -2788,8 +2804,9 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           .getAll()
           .find((i) => i.id === paymentIntentId)
           ?.sentPayments.find((p) => p.id === paymentId);
-        assert.equal(storedPayment?.state, 'FAILED');
-        assert.equal(storedPayment?.failReason, 'Insufficient funds');
+        assert.ok(storedPayment && isRemoteSentPayment(storedPayment));
+        assert.equal(storedPayment.state, 'FAILED');
+        assert.equal(storedPayment.failReason, 'Insufficient funds');
       });
 
       it('fails when payment state is not PROCESSING', async () => {
@@ -2841,6 +2858,8 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           inboundPayments: [],
           sentPayments: [
             {
+              destination: 'REMOTE',
+              peerId: 'peer-1',
               id: paymentId,
               state: paymentState,
               senderWalletAddress: 'domain.com/bob',
@@ -2913,7 +2932,9 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           paymentId,
           'SENDING'
         );
-        delete intent.sentPayments[0].ledgerTransferId;
+        const unprepared = intent.sentPayments[0];
+        assert.ok(isRemoteSentPayment(unprepared));
+        delete unprepared.ledgerTransferId;
         await repo.storeMany([intent]);
 
         const cmd = new ConfirmRemotePaymentCmd(
@@ -2976,6 +2997,8 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           inboundPayments: [],
           sentPayments: [
             {
+              destination: 'REMOTE',
+              peerId: 'peer-1',
               id: paymentId,
               state: paymentState,
               senderWalletAddress: 'domain.com/bob',
@@ -3019,8 +3042,9 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           .getAll()
           .find((i) => i.id === paymentIntentId)
           ?.sentPayments.find((p) => p.id === paymentId);
-        assert.equal(stored?.state, 'REJECTED');
-        assert.equal(stored?.failReason, 'REJECTED');
+        assert.ok(stored && isRemoteSentPayment(stored));
+        assert.equal(stored.state, 'REJECTED');
+        assert.equal(stored.failReason, 'REJECTED');
       });
 
       it('fails when payment state is not SENDING', async () => {
@@ -3066,6 +3090,8 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           inboundPayments: [],
           sentPayments: [
             {
+              destination: 'REMOTE',
+              peerId: 'peer-1',
               id: paymentId,
               state: paymentState,
               senderWalletAddress: 'domain.com/bob',
@@ -3186,6 +3212,8 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           inboundPayments: [],
           sentPayments: [
             {
+              destination: 'REMOTE',
+              peerId: 'peer-1',
               id: paymentId,
               state: 'REJECTED',
               senderWalletAddress: 'domain.com/bob',
@@ -3226,8 +3254,9 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           .getAll()
           .find((i) => i.id === paymentIntentId)
           ?.sentPayments.find((p) => p.id === paymentId);
-        assert.equal(storedPayment?.state, 'FAILED');
-        assert.equal(storedPayment?.failReason, 'PAL voided reserved transfer');
+        assert.ok(storedPayment && isRemoteSentPayment(storedPayment));
+        assert.equal(storedPayment.state, 'FAILED');
+        assert.equal(storedPayment.failReason, 'PAL voided reserved transfer');
       });
     });
 
@@ -3253,6 +3282,7 @@ describe('PaymentIntentAggregate.handleBatch', () => {
           inboundPayments: [],
           sentPayments: [
             {
+              destination: 'LOCAL',
               id: paymentId,
               state: paymentState,
               senderWalletAddress: 'sender',

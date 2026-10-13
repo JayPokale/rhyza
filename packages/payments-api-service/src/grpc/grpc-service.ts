@@ -48,7 +48,7 @@ import {
   DEFAULT_SORT_ORDER,
   IPaymentIntent,
   IPaymentIntentRepository,
-  ISentPayment,
+  IStoredSentPayment,
   SortOrder
 } from 'payments-domain-lib';
 import {
@@ -634,8 +634,13 @@ export class PaymentsServiceServer {
     return pbPaymentIntent;
   }
 
+  /**
+   * Projects a payment onto the wire. Takes the stored shape, which both
+   * domain variants satisfy, because this mapping needs fields rather than
+   * the local/remote distinction.
+   */
   private _toPbPayment(
-    payment: ISentPayment,
+    payment: IStoredSentPayment,
     parentIntent: { assetCode: string; assetScale: number; remoteUrl?: string }
   ): Payment {
     const pbPayment = new Payment();
