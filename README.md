@@ -1,4 +1,4 @@
-<img width="1807" height="769" alt="rhyza copy" src="./docs/src/assets/light-logo.svg" />
+![Rhyza logo](https://github.com/user-attachments/assets/716d3d7e-5c07-4836-b175-53af9e347ec5)
 
 # Rhyza
 
