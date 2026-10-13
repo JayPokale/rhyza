@@ -1,5 +1,11 @@
-# API Changelog 0.0.8 vs. 0.0.9
+# API Changelog 0.0.9 vs. 0.0.10
 
+## API Changes
+
+### GET /assets
+-  endpoint added
+
+# API Changelog 0.0.8 vs. 0.0.9
 
 ## API Changes
 
@@ -14,7 +20,6 @@
 -  a breaking change was detected but the major version did not increase, from `0.0.8` to `0.0.9`
 
 # API Changelog 0.0.7 vs. 0.0.8
-
 
 ## API Changes
 
