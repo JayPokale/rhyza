@@ -7,20 +7,13 @@ RUN corepack prepare pnpm@10.28.2 --activate
 
 WORKDIR /workspace
 
-RUN apk update && apk add --no-cache \
-    libc6-compat \
-    librdkafka-dev \
-    cyrus-sasl-dev \
-    openssl-dev \
-    gcc \
-    g++ \
-    python3 \
-    make \
-    musl-dev
+FROM base AS build
+RUN apk add --no-cache libc6-compat
 
 COPY pnpm-lock.yaml ./
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm fetch
 
+<<<<<<< HEAD
 FROM base AS prod-deps
 COPY package.json pnpm-workspace.yaml ./
 COPY packages/admin-client-lib/package.json ./packages/admin-client-lib/package.json
@@ -111,5 +104,16 @@ COPY --from=build /workspace/packages/payments-implementations-lib/dist ./packag
 COPY --from=build /workspace/packages/ilp-public-types-lib/dist ./packages/ilp-public-types-lib/dist
 COPY --from=build /workspace/packages/ilp-client-lib/dist ./packages/ilp-client-lib/dist
 COPY --from=build /workspace/packages/admin-api-service/dist ./packages/admin-api-service/dist
+=======
+COPY . .
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --prefer-offline --frozen-lockfile
+RUN pnpm --filter admin-api-service... build
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm deploy --legacy --prod --filter admin-api-service /out
+
+FROM node:24-alpine AS runner
+WORKDIR /workspace
+COPY --from=build /out ./packages/admin-api-service
+USER node
+>>>>>>> main
 
 CMD ["node", "packages/admin-api-service/dist/index.js"]

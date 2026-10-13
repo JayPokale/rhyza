@@ -13,8 +13,10 @@ models/AccessItem.ts
 models/AccessLimits.ts
 models/Amount.ts
 models/ApprovePayment200Response.ts
+models/Asset.ts
 models/AssetCreate.ts
 models/AssetCreateResponse.ts
+models/AssetsResponse.ts
 models/CancelPayment200Response.ts
 models/Client.ts
 models/DirectedIdentityJWK.ts
