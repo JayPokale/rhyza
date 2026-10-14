@@ -11,6 +11,5 @@ get {
 }
 
 docs {
-  Check `receivedAmount` vs `incomingAmount` and `completed` to verify the
-  payment landed on Node B.
+  Reads the payment. The state should be COMPLETED, and the receivedAmount should be equal to the incomingAmount.
 }

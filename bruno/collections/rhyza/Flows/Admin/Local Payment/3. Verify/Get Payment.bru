@@ -11,8 +11,5 @@ get {
 }
 
 docs {
-  Reads the outgoing payment on Node A. Check `state` — FAILED (e.g. before
-  funding liquidity) vs COMPLETED once settlement works. Uses the ids saved by
-  Flow: quotePaymentIntentId (from Create Quote) and paymentId (from Create
-  Payment).
+  Reads the payment. The state should be COMPLETED, and the debitAmount should equal the sentAmount.
 }
