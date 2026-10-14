@@ -1,0 +1,35 @@
+meta {
+  name: Node B - Create Receiver Wallet Address
+  type: http
+  seq: 6
+}
+
+post {
+  url: http://{{adminB}}/wallet-addresses
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "assetCode": "USD",
+    "address": "test.com/receiver",
+    "publicName": "Receiver (Node B)"
+  }
+}
+
+script:post-response {
+  const body = res.getBody();
+  if (body?.address) {
+    bru.setVar("receiverWalletAddress", body.address);
+  }
+  if (body?.id) {
+    bru.setVar("receiverWalletAddressId", body.id);
+  }
+}
+
+tests {
+  test("created or already exists", function () {
+    expect([201, 409]).to.include(res.getStatus());
+  });
+}

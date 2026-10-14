@@ -63,8 +63,11 @@ jobs:
           API_VERSION=$(yq '.info.version' $OPENAPI_SPEC_PATH)
           API_VERSION_MAIN=$(git show origin/${{ github.base_ref }}:$OPENAPI_SPEC_PATH | yq '.info.version')
 
-          if [ "$(printf '%s\n%s\n' "$API_VERSION" "$API_VERSION_MAIN" | sort -V | head -n1)" = "$API_VERSION" ]; then
+          # Check if API_VERSION is less than or equal to API_VERSION_MAIN
+          if [ "$(printf '%s\n' "$API_VERSION" "$API_VERSION_MAIN" | sort -V | head -n1)" = "$API_VERSION" ]; then
             echo "ERROR: The API version in the admin spec has not changed. Please update it to reflect the changes."
+            echo "  ${{ github.base_ref }}: $API_VERSION_MAIN"
+            echo "  this branch: $API_VERSION"
             exit 1
           fi
       - name: Generate OpenAPI Changelog Text

@@ -11,9 +11,7 @@ import {
 // incoming payment endpoint (e.g., excluding only receiver wallet address).
 // Ideally we shouldn't need to make an authenticated request for this.
 export class RemotePaymentIntentAdapter implements IRemotePaymentIntentService {
-  async fetchIncomingPayment(
-    url: string
-  ): Promise<IRemotePaymentIntentDetails> {
+  async fetchPaymentIntent(url: string): Promise<IRemotePaymentIntentDetails> {
     const response = await fetch(url, {
       headers: { Accept: 'application/json' }
     });
@@ -29,19 +27,23 @@ export class RemotePaymentIntentAdapter implements IRemotePaymentIntentService {
       incomingAmount?: { value: string; assetCode: string; assetScale: number };
       receivedAmount: { value: string; assetCode: string; assetScale: number };
       expiresAt?: string;
-      destinationIlpAddress?: string;
-      sharedSecret?: string;
+      methods?: {
+        type: string;
+        ilpAddress?: string;
+        sharedSecret?: string;
+      }[];
     };
 
-    if (!data.sharedSecret) {
+    const ilpMethod = data.methods?.find((method) => method.type === 'ilp');
+    if (!ilpMethod?.sharedSecret) {
       throw new Error(
-        `Remote incoming payment ${url} response missing sharedSecret`
+        `Remote incoming payment ${url} response missing ILP sharedSecret`
       );
     }
 
-    if (!data.destinationIlpAddress) {
+    if (!ilpMethod.ilpAddress) {
       throw new Error(
-        `Remote incoming payment ${url} response missing destinationIlpAddress`
+        `Remote incoming payment ${url} response missing ILP ilpAddress`
       );
     }
 
@@ -54,8 +56,8 @@ export class RemotePaymentIntentAdapter implements IRemotePaymentIntentService {
         : undefined,
       receivedAmount: BigInt(data.receivedAmount.value),
       expiresAt: data.expiresAt,
-      destinationIlpAddress: data.destinationIlpAddress,
-      sharedSecret: data.sharedSecret
+      destinationIlpAddress: ilpMethod.ilpAddress,
+      sharedSecret: ilpMethod.sharedSecret
     };
   }
 }

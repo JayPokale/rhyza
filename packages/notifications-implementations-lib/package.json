@@ -8,10 +8,11 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "Apache-2.0",
   "dependencies": {
     "mongodb": "~7.1.0",
-    "notifications-domain-lib": "workspace: *"
+    "notifications-domain-lib": "workspace: *",
+    "payments-public-types-lib": "workspace:*"
   },
   "devDependencies": {
     "tsx": "^4.19.3"

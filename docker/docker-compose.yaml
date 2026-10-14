@@ -1,4 +1,4 @@
-name: rafiki-v2
+name: rhyza
 services:
   admin-api-service:
     build:
@@ -24,7 +24,7 @@ services:
       ilp-api-service:
         condition: service_started
     networks:
-      rafiki-v2:
+      rhyza:
 
   open-payments-resource-service:
     build:
@@ -34,9 +34,10 @@ services:
     environment:
       PAL_GRPC_URL: pal-api-service:50051
       PAYMENTS_GRPC_URL: payments-api-service:50052
-      OPEN_PAYMENTS_RESOURCE_SERVER_URL: http://open-payments-resource-service:3002
+      OPEN_PAYMENTS_RESOURCE_SERVICE_URL: http://open-payments-resource-service:3002
+      OPEN_PAYMENTS_AUTH_SERVICE_URL: http://localhost:3003
       STREAM_SERVER_SECRET: cmFmaWtpLXYyLWRldi1zdHJlYW0tc2VjcmV0LTAwMDE
-      ILP_ADDRESS: private.rafiki.a
+      ILP_ADDRESS: private.rhyza.a
     ports:
       - '3002:3002'
     depends_on:
@@ -45,7 +46,7 @@ services:
       payments-api-service:
         condition: service_started
     networks:
-      rafiki-v2:
+      rhyza:
         # TODO: temporary. peer-open-payments-svc is a single-node loopback alias used by
         # benchmark-remote.js against `docker:up` to simulate a remote peer (the OP server is
         # otherwise reached by its real service name, open-payments-resource-service). Remove
@@ -60,14 +61,27 @@ services:
     restart: always
     environment:
       AUTH_GRPC_URL: auth-api-service:50054
-      OPEN_PAYMENTS_AUTH_SERVER_URL: http://localhost:3003
+      OPEN_PAYMENTS_AUTH_SERVICE_URL: http://localhost:3003
     ports:
       - '3003:3003'
     depends_on:
       auth-api-service:
         condition: service_started
     networks:
-      - rafiki-v2
+      - rhyza
+
+  http-signature-service:
+    build:
+      context: ../
+      dockerfile: ./packages/http-signature-service/Dockerfile
+    restart: always
+    environment:
+      HOST: http-signature-service
+      PORT: 3010
+    ports:
+      - '3010:3010'
+    networks:
+      - rhyza
 
   pal-api-service:
     build:
@@ -87,7 +101,7 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - rafiki-v2
+      - rhyza
   pal-ledger-command-handler-service:
     build:
       context: ../
@@ -104,7 +118,7 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - rafiki-v2
+      - rhyza
   pal-event-handler-service:
     build:
       context: ../
@@ -122,7 +136,7 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - rafiki-v2
+      - rhyza
 
   payments-api-service:
     build:
@@ -140,7 +154,7 @@ services:
       init-kafka:
         condition: service_completed_successfully
     networks:
-      - rafiki-v2
+      - rhyza
 
   payments-command-handler-service:
     build:
@@ -161,7 +175,7 @@ services:
       pal-api-service:
         condition: service_started
     networks:
-      - rafiki-v2
+      - rhyza
 
   payments-event-handler-service:
     build:
@@ -174,7 +188,7 @@ services:
       init-kafka:
         condition: service_completed_successfully
     networks:
-      - rafiki-v2
+      - rhyza
   notifications-command-handler-service:
     build:
       context: ../
@@ -190,7 +204,7 @@ services:
       mongodb:
         condition: service_healthy
     networks:
-      - rafiki-v2
+      - rhyza
 
   notifications-event-handler-service:
     build:
@@ -200,13 +214,16 @@ services:
     environment:
       KAFKA_URL: kafka:19092
       UV_THREADPOOL_SIZE: 128
+      MONGODB_URL: mongodb://root:mongoPass@mongodb:27017/
+      NOTIFICATION_BATCH_SIZE: 10
+      RETRY_INTERVAL_MS: 20000
     depends_on:
       mongodb:
         condition: service_healthy
       init-kafka:
         condition: service_completed_successfully
     networks:
-      - rafiki-v2
+      - rhyza
 
   ilp-connector-service:
     build:
@@ -227,7 +244,7 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - rafiki-v2
+      - rhyza
   ase-mock-service:
     build:
       context: ../
@@ -242,7 +259,7 @@ services:
     depends_on:
       - admin-api-service
     networks:
-      - rafiki-v2
+      - rhyza
 
   ilp-command-handler-service:
     build:
@@ -255,7 +272,7 @@ services:
       MONGODB_URL: mongodb://root:mongoPass@mongodb:27017
       REDIS_URL: redis:6379
       STREAM_SERVER_SECRET: cmFmaWtpLXYyLWRldi1zdHJlYW0tc2VjcmV0LTAwMDE
-      ILP_ADDRESS: private.rafiki.a
+      ILP_ADDRESS: private.rhyza.a
     depends_on:
       init-kafka:
         condition: service_completed_successfully
@@ -264,7 +281,7 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - rafiki-v2
+      - rhyza
 
   ilp-api-service:
     build:
@@ -282,7 +299,7 @@ services:
       mongodb:
         condition: service_healthy
     networks:
-      - rafiki-v2
+      - rhyza
 
   ilp-event-handler-service:
     build:
@@ -296,7 +313,7 @@ services:
       init-kafka:
         condition: service_completed_successfully
     networks:
-      - rafiki-v2
+      - rhyza
 
   auth-api-service:
     build:
@@ -312,7 +329,23 @@ services:
       init-kafka:
         condition: service_completed_successfully
     networks:
-      - rafiki-v2
+      - rhyza
+
+  idp-interaction-service:
+    build:
+      context: ../
+      dockerfile: ./packages/idp-interaction-service/Dockerfile
+    restart: always
+    environment:
+      AUTH_GRPC_URL: auth-api-service:50054
+      IDP_SECRET: idp-secret
+    ports:
+      - '3004:3004'
+    depends_on:
+      auth-api-service:
+        condition: service_started
+    networks:
+      - rhyza
 
   auth-command-handler-service:
     build:
@@ -328,10 +361,10 @@ services:
       init-kafka:
         condition: service_completed_successfully
     networks:
-      - rafiki-v2
+      - rhyza
 
   mongodb:
-    image: mongo
+    image: mongo:7
     restart: unless-stopped
     volumes:
       - mongodb-data:/data/db
@@ -346,7 +379,7 @@ services:
       timeout: 10s
       retries: 5
     networks:
-      - rafiki-v2
+      - rhyza
 
   kafka:
     image: apache/kafka:4.0.0
@@ -365,6 +398,12 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_MESSAGE_MAX_BYTES: 41943040
+      KAFKA_REPLICA_FETCH_MAX_BYTES: 41943040
+      KAFKA_GROUP_CONSUMER_MAX_SESSION_TIMEOUT_MS: 15000
+      KAFKA_GROUP_CONSUMER_SESSION_TIMEOUT_MS: 10000
+      KAFKA_GROUP_CONSUMER_MIN_SESSION_TIMEOUT_MS: 10000
+      KAFKA_GROUP_CONSUMER_MAX_HEARTBEAT_INTERVAL_MS: 5000
     healthcheck:
       test: nc -z localhost 19092 || exit -1
       start_period: 30s
@@ -374,7 +413,7 @@ services:
     ports:
       - '9092:9092'
     networks:
-      - rafiki-v2
+      - rhyza
 
   redpanda-console:
     depends_on:
@@ -386,7 +425,7 @@ services:
     ports:
       - 8080:8080
     networks:
-      - rafiki-v2
+      - rhyza
     profiles: [with-observability]
 
   init-kafka:
@@ -404,27 +443,28 @@ services:
       echo -e '\nCreating kafka topics:'
       ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --topic audits
       ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --topic logs
-      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 24 --topic payment-commands
-      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 24 --topic payment-domain-events
-      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 24 --topic asset-domain-events
-      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 24 --topic peer-domain-events
-      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 24 --topic ledger-commands
-      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 24 --topic ledger-domain-events
-      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 24 --topic ledger-snapshot-events
-      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 24 --topic ledger-state-events
-      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 24 --topic wallet-address-domain-events
-      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 24 --topic fxrate-domain-events
-      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 24 --topic ilp-domain-events
-      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 24 --topic ilp-commands
-      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 24 --topic ilp-connector-commands
-      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 24 --topic notification-commands
-      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 24 --topic auth-commands
-      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 24 --topic auth-domain-events
+      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 3 --topic payment-commands
+      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 3 --topic payment-domain-events
+      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 3 --topic asset-domain-events
+      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 3 --topic peer-domain-events
+      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 3 --topic ledger-commands
+      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 3 --topic ledger-domain-events
+      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 3 --topic ledger-snapshot-events
+      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 3 --topic ledger-state-events
+      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 3 --topic ledger-timer-events
+      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 3 --topic wallet-address-domain-events
+      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 3 --topic fxrate-domain-events
+      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 3 --topic ilp-domain-events
+      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 3 --topic ilp-commands
+      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 3 --topic ilp-connector-commands
+      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 3 --topic notification-commands
+      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 3 --topic auth-commands
+      ./kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --partitions 3 --topic auth-domain-events
       echo -e '\nSuccessfully created the following topics:'
       ./kafka-topics.sh --bootstrap-server kafka:19092 --list
       "
     networks:
-      - rafiki-v2
+      - rhyza
 
   redis:
     image: redis:latest
@@ -437,7 +477,7 @@ services:
       timeout: 10s
       retries: 10
     networks:
-      - rafiki-v2
+      - rhyza
 
   otel-collector:
     image: otel/opentelemetry-collector:latest
@@ -448,7 +488,7 @@ services:
       - '4317:4317'
       - '4318:4318'
     networks:
-      - rafiki-v2
+      - rhyza
     profiles: [with-observability]
 
   prometheus:
@@ -461,14 +501,14 @@ services:
     ports:
       - '9090:9090'
     networks:
-      - rafiki-v2
+      - rhyza
     profiles: [with-observability]
 
   tempo:
     image: grafana/tempo:latest
     command: '-config.file=/etc/tempo.yaml'
     networks:
-      - rafiki-v2
+      - rhyza
     ports:
       - '3200:3200'
     volumes:
@@ -490,7 +530,7 @@ services:
     depends_on:
       - prometheus
     networks:
-      - rafiki-v2
+      - rhyza
     profiles: [with-observability]
 
   nginx:
@@ -500,13 +540,13 @@ services:
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf
     networks:
-      - rafiki-v2
+      - rhyza
     sysctls:
       net.ipv4.ip_local_port_range: '10240 65535'
     profiles: [with-observability]
 
 networks:
-  rafiki-v2:
+  rhyza:
     driver: bridge
     ipam:
       config:

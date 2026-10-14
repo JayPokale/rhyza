@@ -14,7 +14,10 @@ import {
   PeerAlreadyActiveError,
   PeerAlreadyInactiveError,
   FxCacheExpiryService,
-  WalletAddressAggregate
+  WalletAddressAggregate,
+  WalletAddressAlreadyActiveError,
+  WalletAddressAlreadyInactiveError,
+  WalletAddressNotFoundError
 } from '../src';
 import {
   MockAssetRepo,
@@ -23,7 +26,7 @@ import {
   MockPeerRepo,
   MockWalletRepo
 } from './mocks';
-import { ConsoleLogger, DomainEvent } from 'common-types-lib';
+import { ConsoleLogger, DomainEvent, IMessage } from 'common-types-lib';
 import {
   PeerActivatedEvent,
   PeerCreatedEvent,
@@ -36,7 +39,8 @@ import { MockAseFxService } from './mocks/mock-ase-fx-service';
 
 const logger = new ConsoleLogger();
 
-const msgPublisher = new MockMessageProducer();
+const mockMessageStore: IMessage[] = [];
+const msgPublisher = new MockMessageProducer(mockMessageStore);
 
 let assetAggregate: AssetAggregate;
 let assetRepository: IPalAssetRepository;
@@ -100,9 +104,10 @@ test('PAL Asset Domain - create asset', async () => {
 });
 
 test('PAL Asset Domain - get asset', async () => {
-  const asset = await assetAggregate.getAsset(ASSET_CODE);
+  const assets = await assetAggregate.getAssets([ASSET_CODE]);
 
-  assert.ok(asset);
+  assert.ok(assets.length);
+  const asset = assets[0];
   assert.equal(asset.code, ASSET_CODE);
   assert.equal(asset.scale, ASSET_SCALE);
 });
@@ -118,10 +123,16 @@ test('PAL Asset Domain - created duplicate asset should fail', async () => {
   }
 });
 
-test('PAL Asset Domain - get non existing asset should fail', async () => {
-  const asset = await assetAggregate.getAsset('NON EXISTING');
+test('PAL Asset Domain - get assets without codes returns all assets', async () => {
+  const assets = await assetAggregate.getAssets();
 
-  assert.ok(asset === null);
+  assert.ok(assets.some((asset) => asset.code === ASSET_CODE));
+});
+
+test('PAL Asset Domain - get non existing asset should fail', async () => {
+  const assets = await assetAggregate.getAssets(['NON EXISTING']);
+
+  assert.ok(assets.length === 0);
 });
 //endregion assets
 
@@ -187,7 +198,7 @@ test('PAL Peer Domain - associate ledger accounts and activate', async () => {
     PEER_ONE_ID,
     'peerLiqAcc',
     'peerClearAcc',
-    'aseLiqacc',
+    'aseLiqAcc',
     'aseClearAcc',
     'suspenseAcc'
   );
@@ -552,6 +563,70 @@ test('PAL WalletAddress Domain - resolve non existing wallet address alias witho
   );
 
   assert.equal(walletId === null, true);
+});
+
+test('PAL WalletAddress Domain - deactivate wallet address', async () => {
+  walletAggregate.clearUncommittedDomainEvents();
+
+  await walletAggregate.deactivate(createdWalletAddressInternalId);
+
+  const wallets = await walletAggregate.getWalletAddresses([
+    createdWalletAddressInternalId
+  ]);
+
+  assert.equal(wallets.length, 1);
+  assert.equal(wallets[0].isActive, false);
+  assert.equal(walletAggregate.uncommittedDomainEvents.length, 0);
+});
+
+test('PAL WalletAddress Domain - deactivate already inactive wallet address should fail', async () => {
+  try {
+    await walletAggregate.deactivate(createdWalletAddressInternalId);
+    assert.fail();
+  } catch (e) {
+    assert.ok(e instanceof WalletAddressAlreadyInactiveError);
+  }
+});
+
+test('PAL WalletAddress Domain - deactivate non existing wallet address should fail', async () => {
+  try {
+    await walletAggregate.deactivate('NON EXISTING');
+    assert.fail();
+  } catch (e) {
+    assert.ok(e instanceof WalletAddressNotFoundError);
+  }
+});
+
+test('PAL WalletAddress Domain - activate wallet address', async () => {
+  walletAggregate.clearUncommittedDomainEvents();
+
+  await walletAggregate.activate(createdWalletAddressInternalId);
+
+  const wallets = await walletAggregate.getWalletAddresses([
+    createdWalletAddressInternalId
+  ]);
+
+  assert.equal(wallets.length, 1);
+  assert.equal(wallets[0].isActive, true);
+  assert.equal(walletAggregate.uncommittedDomainEvents.length, 0);
+});
+
+test('PAL WalletAddress Domain - activate already active wallet address should fail', async () => {
+  try {
+    await walletAggregate.activate(createdWalletAddressInternalId);
+    assert.fail();
+  } catch (e) {
+    assert.ok(e instanceof WalletAddressAlreadyActiveError);
+  }
+});
+
+test('PAL WalletAddress Domain - activate non existing wallet address should fail', async () => {
+  try {
+    await walletAggregate.activate('NON EXISTING');
+    assert.fail();
+  } catch (e) {
+    assert.ok(e instanceof WalletAddressNotFoundError);
+  }
 });
 
 //endregion wallet address alias

@@ -7,11 +7,7 @@ import { ILPPeerCreatedEvent, ILPPeerUpdatedEvent } from 'ilp-domain-lib';
 import { PeerDirectory } from '../src/peer-directory';
 
 const HTTP = {
-  outgoing: {
-    endpoint: 'http://peer.example/ilp',
-    callbackEndpoint: 'http://peer.example/ilp/callback',
-    authToken: 'out-token'
-  },
+  outgoing: { endpoint: 'http://peer.example/ilp', authToken: 'out-token' },
   incoming: { authToken: 'in-token' }
 };
 
@@ -41,8 +37,7 @@ describe('PeerDirectory', () => {
         peerId: 'peer-1',
         http: {
           outgoing: {
-            endpoint: 'http://peer.example/ilp-v2',
-            callbackEndpoint: 'http://peer.example/ilp/callback',
+            endpoint: 'http://peer.example/ilp',
             authToken: 'out-token-2'
           }
         },
@@ -52,7 +47,7 @@ describe('PeerDirectory', () => {
 
     assert.equal(
       directory.getOutgoing('peer-1')?.endpoint,
-      'http://peer.example/ilp-v2'
+      'http://peer.example/ilp'
     );
     assert.equal(directory.isActive('peer-1'), false);
     // the old incoming token from the create event is gone - update replaced

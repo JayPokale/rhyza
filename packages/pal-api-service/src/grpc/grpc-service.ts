@@ -12,18 +12,35 @@ import { ReflectionService } from '@grpc/reflection';
 import {
   AssetAggregate,
   AssetNotFoundError,
+  DuplicateWalletAddressKeyError,
+  WalletAddressKeyAlreadyRevokedError,
   FxAggregate,
   ILedgerReadSideRepository,
+  InvalidWalletAddressJwkError,
   PeerAggregate,
   PeerNotFoundError,
   WalletAddressAggregate,
-  WalletAddressAliasNotFoundError
+  WalletAddressAliasNotFoundError,
+  WalletAddressAlreadyActiveError,
+  WalletAddressAlreadyInactiveError,
+  WalletAddressKeyNotFoundError,
+  WalletAddressNotFoundError
 } from 'pal-domain-lib';
 import {
   AssetActivatedEvent,
   HealthCheckRequest,
   HealthCheckResponse,
   HealthService,
+  LedgerDepositToAseFailedEvent,
+  LedgerDepositToAseSucceededEvent,
+  LedgerDepositToPeerFailedEvent,
+  LedgerDepositToPeerSucceededEvent,
+  LedgerWithdrawFromAseFailedEvent,
+  LedgerWithdrawFromAseFailedWithInsufficientFundsEvent,
+  LedgerWithdrawFromAseSucceededEvent,
+  LedgerWithdrawFromPeerFailedEvent,
+  LedgerWithdrawFromPeerFailedWithInsufficientFundsEvent,
+  LedgerWithdrawFromPeerSucceededEvent,
   PalGrpcService,
   PeerCreationCompletedEvent
 } from 'pal-public-types-lib';
@@ -123,7 +140,7 @@ export class PalGrpcServer {
     this._msgProducer = producer;
     this._msgConsumer = consumer;
     this._ledgerReadSideRepo = ledgerReadSideRepo;
-    this._logger = logger;
+    this._logger = logger.child(this.constructor.name);
     this._telemetryService = telemetryService;
     this._responseTimeoutMs = DEFAULT_RESPONSE_TIMEOUT_MS;
 
@@ -171,6 +188,8 @@ export class PalGrpcServer {
 
     this._ledgerGrpcHandler = new LedgerGrpcHandler(
       this._ledgerReadSideRepo,
+      this._responseRegistry,
+      this._msgProducer,
       this._logger,
       this._telemetryService
     );
@@ -217,26 +236,33 @@ export class PalGrpcServer {
       watch: this._handleHealthWatchStream.bind(this)
     });
 
-    // all unary calls are handled by the same handler, which distributes requests
-    this._server.addService(PalGrpcService, {
-      createAsset: this._handleUnary.bind(this),
-      getAsset: this._handleUnary.bind(this),
-      createWalletAddress: this._handleUnary.bind(this),
-      getWalletAddresses: this._handleUnary.bind(this),
-      resolveWalletAddressAlias: this._handleUnary.bind(this),
-      createWalletAddressAlias: this._handleUnary.bind(this),
-      createLedger: this._handleUnary.bind(this),
-      createLedgerAccount: this._handleUnary.bind(this),
-      getLedgerAccounts: this._handleUnary.bind(this),
-      createPeer: this._handleUnary.bind(this),
-      getPeer: this._handleUnary.bind(this),
-      getPeerByIlpAddress: this._handleUnary.bind(this),
-      setPeerCommunicationMethod: this._handleUnary.bind(this),
-      activatePeer: this._handleUnary.bind(this),
-      deactivatePeer: this._handleUnary.bind(this),
-      getFxRate: this._handleUnary.bind(this),
-      setFxRate: this._handleUnary.bind(this)
+    /*
+    NOTE: All unary calls are handled by the same
+    handler, which distributes requests
+    */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const serviceObject: any = {};
+    Object.keys(PalGrpcService).forEach((methodName) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const request: grpc.MethodDefinition<any, any> =
+        PalGrpcService[methodName];
+      if (!request.requestStream && !request.responseStream) {
+        // this is unary call
+        serviceObject[methodName] = this._handleUnary.bind(this);
+        this._logger.info(`Added unary call: ${methodName}`);
+      } else {
+        this._logger.warn(
+          `Skipped non-unary call: ${methodName}, must be registered manually.`
+        );
+      }
     });
+
+    /*
+    NOTE: ensure non-unary calls are registered manually to
+    serviceObject before adding the service.
+     */
+    this._server.addService(PalGrpcService, serviceObject);
+    this._logger.info(`PalGrpcService registered.`);
 
     this._requestsHistogram = this._telemetryService.getHistogram(
       REQUESTS_HISTOGRAM_NAME
@@ -301,8 +327,8 @@ export class PalGrpcServer {
       true
     );
     this._requestHandlerRegistry.register(
-      PalGrpcService.getAsset,
-      this._assetGrpcHandler.handleGetAssetRequest.bind(this._assetGrpcHandler)
+      PalGrpcService.getAssets,
+      this._assetGrpcHandler.handleGetAssetsRequest.bind(this._assetGrpcHandler)
     );
 
     // wallet address requests
@@ -319,6 +345,18 @@ export class PalGrpcServer {
       )
     );
     this._requestHandlerRegistry.register(
+      PalGrpcService.activateWalletAddress,
+      this._walletAddressGrpcHandler.handleActivateWalletAddressRequest.bind(
+        this._walletAddressGrpcHandler
+      )
+    );
+    this._requestHandlerRegistry.register(
+      PalGrpcService.deactivateWalletAddress,
+      this._walletAddressGrpcHandler.handleDeactivateWalletAddressRequest.bind(
+        this._walletAddressGrpcHandler
+      )
+    );
+    this._requestHandlerRegistry.register(
       PalGrpcService.resolveWalletAddressAlias,
       this._walletAddressGrpcHandler.handleResolveWalletAddressAliasRequest.bind(
         this._walletAddressGrpcHandler
@@ -327,6 +365,24 @@ export class PalGrpcServer {
     this._requestHandlerRegistry.register(
       PalGrpcService.createWalletAddressAlias,
       this._walletAddressGrpcHandler.handleCreateWalletAddressAliasRequest.bind(
+        this._walletAddressGrpcHandler
+      )
+    );
+    this._requestHandlerRegistry.register(
+      PalGrpcService.addWalletAddressKey,
+      this._walletAddressGrpcHandler.handleAddWalletAddressKeyRequest.bind(
+        this._walletAddressGrpcHandler
+      )
+    );
+    this._requestHandlerRegistry.register(
+      PalGrpcService.getWalletAddressKeys,
+      this._walletAddressGrpcHandler.handleGetWalletAddressKeysRequest.bind(
+        this._walletAddressGrpcHandler
+      )
+    );
+    this._requestHandlerRegistry.register(
+      PalGrpcService.revokeWalletAddressKey,
+      this._walletAddressGrpcHandler.handleRevokeWalletAddressKeyRequest.bind(
         this._walletAddressGrpcHandler
       )
     );
@@ -384,6 +440,14 @@ export class PalGrpcServer {
         this._ledgerGrpcHandler
       )
     );
+    // liquidity management requests
+    this._requestHandlerRegistry.register(
+      PalGrpcService.executeLedgerLiquidityManagementRequest,
+      this._ledgerGrpcHandler.handleLiquidityRequest.bind(
+        this._ledgerGrpcHandler
+      ),
+      true
+    );
   }
 
   private _registerEventHandlers() {
@@ -398,6 +462,24 @@ export class PalGrpcServer {
       [PeerCreationCompletedEvent.name],
       this._peerGrpcHandler.handlePeerCreationCompletedEvent.bind(
         this._peerGrpcHandler
+      )
+    );
+
+    this._eventHandlerRegistry.register(
+      [
+        LedgerDepositToPeerSucceededEvent.name,
+        LedgerDepositToAseSucceededEvent.name,
+        LedgerWithdrawFromPeerSucceededEvent.name,
+        LedgerWithdrawFromAseSucceededEvent.name,
+        LedgerDepositToPeerFailedEvent.name,
+        LedgerDepositToAseFailedEvent.name,
+        LedgerWithdrawFromPeerFailedEvent.name,
+        LedgerWithdrawFromAseFailedEvent.name,
+        LedgerWithdrawFromPeerFailedWithInsufficientFundsEvent.name,
+        LedgerWithdrawFromAseFailedWithInsufficientFundsEvent.name
+      ],
+      this._ledgerGrpcHandler.handleLiquidityRequestEvents.bind(
+        this._ledgerGrpcHandler
       )
     );
 
@@ -517,11 +599,32 @@ export class PalGrpcServer {
       if (
         err instanceof PeerNotFoundError ||
         err instanceof AssetNotFoundError ||
-        err instanceof WalletAddressAliasNotFoundError
+        err instanceof WalletAddressAliasNotFoundError ||
+        err instanceof WalletAddressNotFoundError ||
+        err instanceof WalletAddressKeyNotFoundError
       ) {
         callback({
           code: grpc.status.NOT_FOUND,
           message: (err as Error).message
+        });
+      } else if (err instanceof DuplicateWalletAddressKeyError) {
+        callback({
+          code: grpc.status.ALREADY_EXISTS,
+          message: err.message
+        });
+      } else if (
+        err instanceof WalletAddressKeyAlreadyRevokedError ||
+        err instanceof WalletAddressAlreadyActiveError ||
+        err instanceof WalletAddressAlreadyInactiveError
+      ) {
+        callback({
+          code: grpc.status.FAILED_PRECONDITION,
+          message: err.message
+        });
+      } else if (err instanceof InvalidWalletAddressJwkError) {
+        callback({
+          code: grpc.status.INVALID_ARGUMENT,
+          message: err.message
         });
       } else if (err instanceof Error) {
         callback({

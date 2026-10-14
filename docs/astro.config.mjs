@@ -5,36 +5,41 @@ import remarkMath from 'remark-math'
 import rehypeMathjax from 'rehype-mathjax'
 import starlightLinksValidator from 'starlight-links-validator'
 import starlightFullViewMode from 'starlight-fullview-mode'
-import { rehypeHeadingIds } from '@astrojs/markdown-remark'
+import { unified, rehypeHeadingIds } from '@astrojs/markdown-remark'
 import rehypeAutolinkHeadings from 'rehype-autolink-headings'
 
 // https://astro.build/config
 export default defineConfig({
   site: 'https://rhyza.dev',
   outDir: './build',
+  // The three specs had a page each before they merged onto /apis/.
+  redirects: {
+    '/apis/scalar/admin-api': '/apis/#tag/admin-api-overview',
+    '/apis/scalar/webhooks': '/apis/#tag/webhooks-api-overview',
+    '/apis/scalar/idp-service-api':
+      '/apis/#tag/identity-provider-service-api-overview'
+  },
   markdown: {
-    remarkPlugins: [remarkMath],
-    rehypePlugins: [
-      rehypeMathjax,
-      rehypeHeadingIds,
-      [
-        rehypeAutolinkHeadings,
-        {
-          behavior: 'wrap'
-        }
+    processor: unified({
+      remarkPlugins: [remarkMath],
+      rehypePlugins: [
+        rehypeMathjax,
+        rehypeHeadingIds,
+        [
+          rehypeAutolinkHeadings,
+          {
+            behavior: 'wrap'
+          }
+        ]
       ]
-    ]
+    })
   },
   integrations: [
     starlight({
       title: 'Rhyza',
       description:
         "Rhyza is open source software that allows a financial service provider to enable Interledger functionality on its users' accounts.",
-      customCss: [
-        './node_modules/@interledger/docs-design-system/src/styles/teal-theme.css',
-        './node_modules/@interledger/docs-design-system/src/styles/ilf-docs.css',
-        './src/styles/rhyza.css'
-      ],
+      customCss: ['./src/styles/rhyza.css'],
       expressiveCode: {
         styleOverrides: {
           borderColor: 'transparent',
@@ -42,15 +47,20 @@ export default defineConfig({
         }
       },
       components: {
-        Header: './src/components/Header.astro',
         PageSidebar: './src/components/PageSidebar.astro',
-        Footer: './src/components/Footer.astro'
+        Footer: './src/components/Footer.astro',
+        PageTitle: './src/components/PageTitle.astro',
+        LastUpdated: './src/components/LastUpdated.astro'
       },
+      lastUpdated: true,
       defaultLocale: 'root',
       locales: {
         root: {
           label: 'English',
           lang: 'en'
+        },
+        es: {
+          label: 'Español'
         }
       },
       head: [
@@ -72,110 +82,79 @@ export default defineConfig({
         }
       ],
       logo: {
-        src: './public/img/icon.svg'
+        light: './src/assets/light-logo.svg',
+        dark: './src/assets/dark-logo.svg',
+        replacesTitle: true
       },
       social: [
         {
           icon: 'github',
           label: 'GitHub',
-          href: 'https://github.com/interledger/rafiki-v2'
+          href: 'https://github.com/interledger/rhyza'
         }
       ],
       sidebar: [
         {
           label: 'Overview',
+          translations: { es: 'Introducción' },
+          link: 'overview'
+        },
+        {
+          label: 'Architecture',
+          link: '/architecture'
+        },
+        {
+          label: 'Concepts',
           translations: {
-            es: 'Introducción'
+            es: 'Conceptos'
           },
+          collapsed: true,
           items: [
             {
-              label: 'Introducing Rhyza',
-              link: '/overview/overview'
+              label: 'Accounts and liquidity',
+              link: '/concepts/accounting'
             },
             {
-              label: 'Concepts',
-              collapsed: true,
-              items: [
-                {
-                  label: 'Financial service provider',
-                  link: '/overview/concepts/financial-service-provider'
-                },
-                {
-                  label: 'Accounting',
-                  link: '/overview/concepts/accounting'
-                },
-                {
-                  label: 'Clearing and settlement',
-                  link: '/overview/concepts/clearing-settlement'
-                },
-                {
-                  label: 'Interledger',
-                  link: '/overview/concepts/interledger'
-                },
-                {
-                  label: 'Open Payments',
-                  link: '/overview/concepts/open-payments'
-                },
-                {
-                  label: 'Wallet addresses',
-                  link: '/overview/concepts/wallet-addresses'
-                }
-              ]
+              label: 'Clearing and settlement',
+              translations: { es: 'Compensación y liquidación' },
+              link: '/concepts/clearing-settlement'
+            },
+            {
+              label: 'Financial service provider',
+              link: '/concepts/financial-service-provider'
+            },
+            {
+              label: 'Interledger',
+              translations: { es: 'Interledger' },
+              link: '/concepts/interledger'
+            },
+            {
+              label: 'Open Payments',
+              translations: { es: 'Open Payments' },
+              link: '/concepts/open-payments'
+            },
+            {
+              label: 'Payment intents and payments',
+              translations: { es: 'Payment intents and payments' },
+              link: '/concepts/payment-intents-and-payments'
+            },
+            {
+              label: 'Wallet addresses',
+              translations: { es: 'Wallet addresses' },
+              link: '/concepts/wallet-addresses'
             }
           ]
         },
         {
           label: 'Integration',
-          collapsed: true,
-          items: [
-            {
-              label: 'Overview',
-              link: '/integration/overview'
-            },
-            {
-              label: 'Requirements',
-              collapsed: true,
-              items: [
-                {
-                  label: 'Integration checklist',
-                  link: '/integration/requirements/overview'
-                },
-                {
-                  label: 'Assets',
-                  link: '/integration/requirements/assets'
-                },
-                {
-                  label: 'Peers',
-                  link: '/integration/requirements/peers'
-                },
-                {
-                  label: 'Wallet addresses',
-                  link: '/integration/requirements/wallet-addresses'
-                },
-                {
-                  label: 'Webhook events',
-                  link: '/integration/requirements/webhook-events'
-                },
-                {
-                  label: 'Exchange rates',
-                  link: '/integration/requirements/exchange-rates'
-                }
-              ]
-            },
-            {
-              label: 'Test locally',
-              collapsed: true,
-              items: [
-                {
-                  label: 'Local playground',
-                  link: '/integration/playground/overview'
-                }
-              ]
-            }
-          ]
+          link: '/integration'
         },
         {
-          label: 'Admin API',
+          label: 'Test locally',
+          link: '/testlocal'
+        },
+        {
+          label: 'API Specifications',
           collapsed: true,
           items: [
             {
@@ -183,12 +162,16 @@ export default defineConfig({
               link: '/apis/api-overview'
             },
             {
-              label: 'Admin API specification',
-              link: '/apis/scalar/admin-api'
+              label: 'Admin API',
+              link: '/apis/#tag/admin-api-overview'
             },
             {
-              label: 'Webhooks API specification',
-              link: '/apis/scalar/webhooks'
+              label: 'Identity Provider Service API',
+              link: '/apis/#tag/identity-provider-service-api-overview'
+            },
+            {
+              label: 'Webhooks API',
+              link: '/apis/#tag/webhooks-api-overview'
             }
           ]
         },
@@ -201,14 +184,6 @@ export default defineConfig({
               link: '/resources/glossary'
             },
             {
-              label: 'Architecture',
-              link: '/resources/architecture'
-            },
-            {
-              label: 'Webhook event types',
-              link: '/resources/webhook-event-types'
-            },
-            {
               label: 'Get involved',
               link: '/resources/get-involved'
             }
@@ -217,7 +192,9 @@ export default defineConfig({
       ],
       plugins: [
         starlightLinksValidator({
-          exclude: ['/apis/scalar/**'],
+          // The API reference is a custom page, which the validator cannot see
+          // into. /apis/api-overview/ is a docs page and stays validated.
+          exclude: ['/apis/', '/apis/#*/**'],
           errorOnLocalLinks: false,
           errorOnFallbackPages: false,
           errorOnInvalidHashes: false

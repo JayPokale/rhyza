@@ -8,12 +8,13 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "Apache-2.0",
   "dependencies": {
     "common-types-lib": "workspace:*",
     "payments-public-types-lib": "workspace:*"
   },
   "devDependencies": {
+    "open-payments-resource-service": "workspace:*",
     "tsx": "^4.19.3"
   }
 }

@@ -43,7 +43,7 @@ export class FxGrpcHandler {
     this._responseRegistry = responseRegistry;
     this._peerAggregate = peerAggregate;
     this._assetAggregate = assetAggregate;
-    this._logger = logger;
+    this._logger = logger.child(this.constructor.name);
     this._telemetryService = telemetryService;
 
     this._logger.info(`${FxGrpcHandler.constructor.name} created`);
@@ -73,8 +73,8 @@ export class FxGrpcHandler {
 
     const checkAssetPair = async (assetCodes: string[]) => {
       for (const assetCode of assetCodes) {
-        const asset = await this._assetAggregate.getAsset(assetCode);
-        if (!asset) {
+        const assets = await this._assetAggregate.getAssets([assetCode]);
+        if (!assets.length) {
           throw new Error('Invalid Asset with code: ' + assetCode);
         }
       }

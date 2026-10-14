@@ -26,8 +26,8 @@ const REDIS_URL = process.env['REDIS_URL'];
 const CONSUMER_GROUP_ID = 'ilp-command-handler';
 const STREAM_SERVER_SECRET_RAW =
   process.env['STREAM_SERVER_SECRET'] ||
-  Buffer.from('rafiki-v2-dev-stream-secret-0001').toString('base64url');
-const ILP_ADDRESS = process.env['ILP_ADDRESS'] || 'private.rafiki';
+  Buffer.from('rhyza-dev-stream-secret-0001').toString('base64url');
+const ILP_ADDRESS = process.env['ILP_ADDRESS'] || 'private.rhyza';
 
 export class IlpCommandHandlerService {
   private static _logger: ILogger;

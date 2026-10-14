@@ -1,21 +1,60 @@
-import { Collection, CollectionInfo, Db, MongoClient } from 'mongodb';
+import { Collection, CollectionInfo, Db, Filter, MongoClient } from 'mongodb';
 import {
+  DEFAULT_SORT_ORDER,
   FinalizedRemoteQuoteUpdate,
+  InvalidCursorError,
+  IPage,
+  IPageOpts,
+  IStoredSentPayment,
   ISentPayment,
+  isRemoteSentPayment,
+  PaymentIntentDestination,
   IPaymentIntent,
   IPaymentIntentRepository,
   IInboundPayment,
   PaymentIntentState,
   SentPaymentState,
+  SortOrder,
   InboundPaymentState
 } from 'payments-domain-lib';
-import { ILogger } from 'common-types-lib';
+import { ILogger, InvalidArgument } from 'common-types-lib';
 
 const DB_NAME = 'payments';
 const PAYMENT_INTENTS_COLLECTION_NAME = 'paymentIntents';
 const SENT_PAYMENTS_COLLECTION_NAME = 'sentPayments';
 const INBOUND_PAYMENTS_COLLECTION_NAME = 'inboundPayments';
 const TIMEOUT_MS = 5_000;
+
+/**
+ * Turns a stored row into the domain object by supplying the parent intent's
+ * destination, which rows do not carry, and asserting what each arm needs.
+ * Spreading the rest means a newly stored field cannot be forgotten here.
+ */
+function toSentPayment(
+  row: IStoredSentPayment,
+  destination: PaymentIntentDestination
+): ISentPayment {
+  const { peerId, ledgerTransferId, failReason, receiveAmount, ...base } = row;
+
+  if (destination === 'REMOTE') {
+    if (!peerId) {
+      throw new Error(`Stored remote payment ${row.id} has no peerId`);
+    }
+    return {
+      ...base,
+      destination: 'REMOTE',
+      peerId,
+      receiveAmount,
+      ledgerTransferId,
+      failReason
+    };
+  }
+
+  if (receiveAmount === null) {
+    throw new Error(`Stored local payment ${row.id} has no receiveAmount`);
+  }
+  return { ...base, destination: 'LOCAL', receiveAmount };
+}
 
 export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
   private readonly _connectionString: string;
@@ -24,7 +63,7 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
   private _paymentIntentCollection!: Collection<
     Omit<IPaymentIntent, 'sentPayments' | 'inboundPayments'>
   >;
-  private _sentPaymentCollection!: Collection<ISentPayment>;
+  private _sentPaymentCollection!: Collection<IStoredSentPayment>;
   private _inboundPaymentCollection!: Collection<IInboundPayment>;
 
   constructor(connectionString: string, logger: ILogger) {
@@ -75,6 +114,12 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
           { remoteUrl: 1 },
           { unique: true, sparse: true }
         );
+        // supports keyset pagination filtered by receiver wallet address
+        await this._paymentIntentCollection.createIndex({
+          receiverWalletAddressId: 1,
+          createdAt: 1,
+          id: 1
+        });
       }
 
       const paymentsCollectionExists = collections.some(
@@ -82,19 +127,26 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
       );
       // load or create the collection (and add its indexes) - should check version and perform migrations
       if (paymentsCollectionExists) {
-        this._sentPaymentCollection = db.collection<ISentPayment>(
+        this._sentPaymentCollection = db.collection<IStoredSentPayment>(
           SENT_PAYMENTS_COLLECTION_NAME
         );
       } else {
-        this._sentPaymentCollection = await db.createCollection<ISentPayment>(
-          SENT_PAYMENTS_COLLECTION_NAME
-        );
+        this._sentPaymentCollection =
+          await db.createCollection<IStoredSentPayment>(
+            SENT_PAYMENTS_COLLECTION_NAME
+          );
         await this._sentPaymentCollection.createIndex(
           { id: 1 },
           { unique: true }
         );
         await this._sentPaymentCollection.createIndex({
           paymentIntentId: 1
+        });
+        // supports keyset pagination filtered by sender wallet address
+        await this._sentPaymentCollection.createIndex({
+          senderWalletAddressId: 1,
+          createdAt: 1,
+          id: 1
         });
       }
 
@@ -161,9 +213,9 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
               incomingAmount: p.incomingAmount,
               receivedAmount: p.receivedAmount,
               destinationIlpAddress: p.destinationIlpAddress,
-              peerId: p.peerId,
               quotes: p.quotes
             };
+          if (p.metadata != null) doc.metadata = p.metadata;
           if (p.remoteUrl != null) doc.remoteUrl = p.remoteUrl;
           return doc;
         })
@@ -230,8 +282,8 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
         receivedAmount: doc.receivedAmount,
         destinationIlpAddress: doc.destinationIlpAddress,
         remoteUrl: doc.remoteUrl,
-        peerId: doc.peerId,
-        quotes: doc.quotes.map((quote) => ({ ...quote }))
+        quotes: doc.quotes.map((quote) => ({ ...quote })),
+        metadata: doc.metadata
       }));
     } catch (err) {
       this._logger.error(err);
@@ -251,7 +303,7 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
         await Promise.all([
           this._paymentIntentCollection.find({ id: { $in: ids } }).toArray(),
           this._sentPaymentCollection
-            .find({ paymentIntentId: { $in: ids } })
+            .find({ paymentIntentId: { $in: ids } }, { projection: { _id: 0 } })
             .toArray(),
           this._inboundPaymentCollection
             .find({ paymentIntentId: { $in: ids } })
@@ -272,31 +324,14 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
         receivedAmount: doc.receivedAmount,
         destinationIlpAddress: doc.destinationIlpAddress,
         remoteUrl: doc.remoteUrl,
-        peerId: doc.peerId,
         // Faithfully round-trip whatever the entity persisted for each quote.
         // Do NOT re-project by state — that silently drops fields (e.g. a
         // pending remote quote's peer/source/sender fields).
         quotes: doc.quotes.map((quote) => ({ ...quote })),
+        metadata: doc.metadata,
         sentPayments: paymentDocs
           .filter((p) => p.paymentIntentId === doc.id)
-          .map((payment) => ({
-            id: payment.id,
-            state: payment.state,
-            createdAt: payment.createdAt,
-            paymentIntentId: payment.paymentIntentId,
-            senderWalletAddress: payment.senderWalletAddress,
-            senderWalletAddressId: payment.senderWalletAddressId,
-            quoteId: payment.quoteId,
-            assetCode: payment.assetCode,
-            assetScale: payment.assetScale,
-            debitAmount: payment.debitAmount,
-            receiveAmount: payment.receiveAmount,
-            sentAmount: payment.sentAmount,
-            ledgerTransferId: payment.ledgerTransferId,
-            failReason: payment.failReason,
-            cancelledAt: payment.cancelledAt,
-            cancelReason: payment.cancelReason
-          })),
+          .map((payment) => toSentPayment(payment, doc.destination)),
         inboundPayments: inboundPaymentDocs
           .filter((rp) => rp.paymentIntentId === doc.id)
           .map((inboundPayment) => ({
@@ -347,6 +382,167 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
     }
   }
 
+  async fetchPaymentIntentsPage(
+    opts: IPageOpts
+  ): Promise<IPage<Omit<IPaymentIntent, 'sentPayments' | 'inboundPayments'>>> {
+    this._checkInitialisedOrThrow();
+
+    try {
+      const filter: Record<string, unknown> = {};
+      if (opts.walletAddressId != null) {
+        filter['receiverWalletAddressId'] = opts.walletAddressId;
+      }
+
+      const page = await this._fetchPageDocs(
+        this._paymentIntentCollection,
+        filter,
+        opts
+      );
+
+      return {
+        ...page,
+        items: page.items.map((doc) => ({
+          id: doc.id,
+          receiverWalletAddressId: doc.receiverWalletAddressId,
+          receiverWalletAddress: doc.receiverWalletAddress,
+          state: doc.state,
+          destination: doc.destination,
+          assetCode: doc.assetCode,
+          assetScale: doc.assetScale,
+          createdAt: doc.createdAt,
+          expiresAt: doc.expiresAt,
+          incomingAmount: doc.incomingAmount,
+          receivedAmount: doc.receivedAmount,
+          destinationIlpAddress: doc.destinationIlpAddress,
+          remoteUrl: doc.remoteUrl,
+          quotes: doc.quotes.map((quote) => ({ ...quote })),
+          metadata: doc.metadata
+        }))
+      };
+    } catch (err) {
+      if (err instanceof InvalidArgument) throw err;
+      this._logger.error(err);
+      throw new Error(
+        `Unable to fetch payment intents page - error: ${(err as Error).message}`
+      );
+    }
+  }
+
+  async fetchSentPaymentsPage(
+    opts: IPageOpts & { paymentIntentId?: string }
+  ): Promise<IPage<IStoredSentPayment>> {
+    this._checkInitialisedOrThrow();
+
+    try {
+      const filter: Record<string, unknown> = {};
+      if (opts.walletAddressId != null) {
+        filter['senderWalletAddressId'] = opts.walletAddressId;
+      }
+      if (opts.paymentIntentId != null) {
+        filter['paymentIntentId'] = opts.paymentIntentId;
+      }
+
+      const page = await this._fetchPageDocs(
+        this._sentPaymentCollection,
+        filter,
+        opts
+      );
+
+      return {
+        ...page,
+        items: page.items.map((payment) => ({
+          id: payment.id,
+          state: payment.state,
+          createdAt: payment.createdAt,
+          paymentIntentId: payment.paymentIntentId,
+          senderWalletAddress: payment.senderWalletAddress,
+          senderWalletAddressId: payment.senderWalletAddressId,
+          quoteId: payment.quoteId,
+          grantId: payment.grantId,
+          assetCode: payment.assetCode,
+          assetScale: payment.assetScale,
+          debitAmount: payment.debitAmount,
+          receiveAmount: payment.receiveAmount,
+          sentAmount: payment.sentAmount,
+          ledgerTransferId: payment.ledgerTransferId,
+          failReason: payment.failReason,
+          cancelledAt: payment.cancelledAt,
+          cancelReason: payment.cancelReason,
+          metadata: payment.metadata,
+          peerId: payment.peerId
+        }))
+      };
+    } catch (err) {
+      if (err instanceof InvalidArgument) throw err;
+      this._logger.error(err);
+      throw new Error(
+        `Unable to fetch sent payments page - error: ${(err as Error).message}`
+      );
+    }
+  }
+
+  // Keyset pagination over (createdAt, id). The cursor is the last document's id.
+  // Given the cursor, figure out where that document sits in the (createdAt, id)
+  // ordering, then use that position as the starting point for the next page.
+  private async _fetchPageDocs<T extends { id: string; createdAt: Date }>(
+    collection: Collection<T>,
+    filter: Record<string, unknown>,
+    opts: {
+      cursor?: string;
+      limit: number;
+      backwards: boolean;
+      sortOrder?: SortOrder;
+    }
+  ): Promise<IPage<T>> {
+    const { cursor, limit, backwards } = opts;
+    if (!Number.isInteger(limit) || limit < 1) {
+      throw new InvalidArgument(
+        `limit must be a positive integer, got ${limit}`
+      );
+    }
+    const descending = (opts.sortOrder ?? DEFAULT_SORT_ORDER) === 'desc';
+
+    let boundary: { id: string; createdAt: Date } | null = null;
+    if (cursor != null) {
+      boundary = (await collection.findOne({ id: cursor } as Filter<T>, {
+        projection: { _id: 0, id: 1, createdAt: 1 }
+      })) as { id: string; createdAt: Date } | null;
+      if (!boundary) {
+        throw new InvalidCursorError(`Unknown cursor: ${cursor}`);
+      }
+    }
+
+    // Which way we walk the (createdAt, id) index from the cursor. Paging
+    // forward through a descending list moves towards *older*
+    const scanAscending = backwards === descending;
+
+    const cmp = scanAscending ? '$gt' : '$lt';
+    const range = boundary
+      ? {
+          $or: [
+            { createdAt: { [cmp]: boundary.createdAt } },
+            { createdAt: boundary.createdAt, id: { [cmp]: boundary.id } }
+          ]
+        }
+      : {};
+
+    const docs = (await collection
+      .find({ ...filter, ...range } as Filter<T>)
+      .sort(scanAscending ? { createdAt: 1, id: 1 } : { createdAt: -1, id: -1 })
+      .limit(limit + 1)
+      .toArray()) as unknown as T[];
+
+    const hasMore = docs.length > limit;
+    const items = docs.slice(0, limit);
+    if (backwards) items.reverse();
+
+    return {
+      items,
+      hasNextPage: backwards ? cursor != null : hasMore,
+      hasPreviousPage: backwards ? hasMore : cursor != null
+    };
+  }
+
   async storeQuotes(
     quoteUpdates: { quoteIds: string[]; paymentIntent: IPaymentIntent }[]
   ): Promise<void> {
@@ -386,7 +582,7 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
 
     if (paymentUpdates.length === 0) return;
 
-    const newPaymentEntities: ISentPayment[] = [];
+    const newPaymentEntities: IStoredSentPayment[] = [];
 
     for (const update of paymentUpdates) {
       const payments = update.paymentIntent.sentPayments.filter((p) =>
@@ -405,12 +601,14 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
           assetScale: payment.assetScale,
           debitAmount: payment.debitAmount,
           quoteId: payment.quoteId ? payment.quoteId : undefined,
+          grantId: payment.grantId,
           receiveAmount: payment.receiveAmount,
-          sentAmount: payment.sentAmount
+          sentAmount: payment.sentAmount,
+          metadata: payment.metadata,
+          peerId: isRemoteSentPayment(payment) ? payment.peerId : undefined
         });
       }
     }
-
     try {
       await this._sentPaymentCollection.insertMany(newPaymentEntities);
     } catch (e) {

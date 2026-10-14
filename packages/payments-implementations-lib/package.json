@@ -3,12 +3,13 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "test": "node --import tsx --test test/*.test.ts",
+    "test": "pnpm test:integration",
+    "test:integration": "tsc -p tsconfig.test.json && node --import tsx --test test/*.integration.test.ts",
     "build": "tsc --build"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "Apache-2.0",
   "dependencies": {
     "common-types-lib": "workspace:*",
     "mongodb": "~7.1.0",
@@ -16,6 +17,7 @@
     "payments-domain-lib": "workspace:*"
   },
   "devDependencies": {
+    "testcontainers": "^12.0.4",
     "tsx": "^4.19.3"
   }
 }

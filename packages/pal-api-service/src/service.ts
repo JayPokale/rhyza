@@ -15,9 +15,17 @@ import { PalGrpcServer } from './grpc/grpc-service';
 import process from 'process';
 import {
   AseFxServiceAdapter,
-  CreateLedgerAccountForAssetCmdSerde,
   CreateLedgerAccountsForPeerCmdSerde,
+  CreateLedgerAccountForAssetCmdSerde,
   CreateLedgerCmdSerde,
+  CheckBalanceAndReserveCmdSerde,
+  CommitTransferCmdSerde,
+  RejectTransferCmdSerde,
+  ReserveTransferCmdSerde,
+  DepositToAseCmdSerde,
+  DepositToPeerCmdSerde,
+  WithdrawFromPeerCmdSerde,
+  WithdrawFromAseCmdSerde,
   MongoDbAssetRepo,
   MongoDbFxRepo,
   MongoDbLedgerReadSideRepo,
@@ -49,7 +57,7 @@ import crypto from 'crypto';
 import { join } from 'path';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const packageJson = require(join(process.cwd(), 'package.json'));
+const packageJson = require(join(__dirname, '..', 'package.json'));
 
 const SVC_PORT = process.env['SVC_PORT']
   ? parseInt(process.env['SVC_PORT'])
@@ -75,7 +83,8 @@ const KAFKA_URL =
 // kafka common options
 const kafkaProducerCommonOptions: KafkaProducerOptions = {
   queueBufferingMaxMessages: 100_000,
-  compressionCodec: KafkaProducerCompressionCodecs.GZIP,
+  compressionCodec: KafkaProducerCompressionCodecs.ZSTD,
+  compressionLevel: 3,
   messageMaxBytes: 20971520
 };
 const kafkaConsumerCommonOptions: KafkaConsumerOptions = {
@@ -171,7 +180,15 @@ export class PalApiService {
         // we only need the commands
         .register(new CreateLedgerCmdSerde())
         .register(new CreateLedgerAccountForAssetCmdSerde())
-        .register(new CreateLedgerAccountsForPeerCmdSerde());
+        .register(new CreateLedgerAccountsForPeerCmdSerde())
+        .register(new CheckBalanceAndReserveCmdSerde())
+        .register(new ReserveTransferCmdSerde())
+        .register(new CommitTransferCmdSerde())
+        .register(new RejectTransferCmdSerde())
+        .register(new DepositToAseCmdSerde())
+        .register(new WithdrawFromAseCmdSerde())
+        .register(new DepositToPeerCmdSerde())
+        .register(new WithdrawFromPeerCmdSerde());
 
       msgSerializationFactory = MessageSerializationFactory.instance();
     }

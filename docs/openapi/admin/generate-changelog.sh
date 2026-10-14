@@ -4,8 +4,19 @@ FILE_PATH="docs/openapi/admin/admin-api.yaml"
 BASE_BRANCH="main"
 MODE="changelog"
 
-if ! command -v oasdiff &> /dev/null; then
-    echo "Error: 'oasdiff' is not installed or not in your PATH."
+if command -v oasdiff &> /dev/null; then
+    echo "Using local oasdiff: $(command -v oasdiff)"
+    OASDIFF_CMD=(oasdiff)
+elif command -v docker &> /dev/null; then
+    echo "Local oasdiff not found. Using Docker: tufin/oasdiff"
+    OASDIFF_CMD=(
+        docker run --rm
+        -v "$(pwd):/work"
+        -w /work
+        tufin/oasdiff
+    )
+else
+    echo "Error: 'oasdiff' is not installed and Docker is not available."
     exit 1
 fi
 
@@ -15,15 +26,14 @@ if [ ! -f "$FILE_PATH" ]; then
 fi
 
 BASE_REF="origin/${BASE_BRANCH}"
-if ! git rev-parse --verify "$BASE_REF" >/dev/null 2>&1; then
-    BASE_REF="$BASE_BRANCH"
-fi
 
-TEMP_BASE=$(mktemp)
+# Created inside the repo so it is visible to the Docker fallback's bind mount.
+TEMP_BASE="$(mktemp "./.oasdiff-base.XXXXXX")"
 trap 'rm -f "$TEMP_BASE"' EXIT
 
 if ! git show "${BASE_REF}:${FILE_PATH}" > "$TEMP_BASE" 2>/dev/null; then
     echo "Error: Could not find '$FILE_PATH' at $BASE_REF."
+    echo "Try: git fetch origin $BASE_BRANCH"
     exit 1
 fi
 
@@ -32,4 +42,4 @@ echo "Against:   $BASE_REF"
 echo "Mode:      $MODE"
 echo "--------------------------------------------------------"
 
-oasdiff "$MODE" "$TEMP_BASE" "$FILE_PATH" --format markdown
+"${OASDIFF_CMD[@]}" "$MODE" "$TEMP_BASE" "$FILE_PATH" --format markdown
