@@ -19,6 +19,12 @@
 -  added the required property `createdAt` to the response with the `201` status
 -  added the required property `state` to the response with the `201` status
 
+
+
+
+## Info
+-  a breaking change was detected but the major version did not increase, from `0.0.12` to `0.0.13`
+
 # API Changelog 0.0.11 vs. 0.0.12
 
 No changes to report, but the specs are different
