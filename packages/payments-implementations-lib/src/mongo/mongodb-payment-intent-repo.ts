@@ -86,6 +86,9 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
           createdAt: 1,
           id: 1
         });
+        await this._paymentIntentCollection.createIndex({
+          expiresAt: 1
+        });
       }
 
       const paymentsCollectionExists = collections.some(
@@ -112,6 +115,9 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
           senderWalletAddressId: 1,
           createdAt: 1,
           id: 1
+        });
+        await this._sentPaymentCollection.createIndex({
+          expiresAt: 1
         });
       }
 
@@ -303,6 +309,7 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
             id: payment.id,
             state: payment.state,
             createdAt: payment.createdAt,
+            expiresAt: payment.expiresAt,
             paymentIntentId: payment.paymentIntentId,
             senderWalletAddress: payment.senderWalletAddress,
             senderWalletAddressId: payment.senderWalletAddressId,
@@ -442,6 +449,7 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
           id: payment.id,
           state: payment.state,
           createdAt: payment.createdAt,
+          expiresAt: payment.expiresAt,
           paymentIntentId: payment.paymentIntentId,
           senderWalletAddress: payment.senderWalletAddress,
           senderWalletAddressId: payment.senderWalletAddressId,
@@ -581,6 +589,7 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
           id: payment.id,
           state: payment.state,
           createdAt: payment.createdAt,
+          expiresAt: payment.expiresAt,
           senderWalletAddress: payment.senderWalletAddress,
           senderWalletAddressId: payment.senderWalletAddressId,
           paymentIntentId: payment.paymentIntentId,
@@ -1174,6 +1183,55 @@ export class MongoDbPaymentIntentRepo implements IPaymentIntentRepository {
       this._logger.error(e);
       throw new Error(
         `Unable to store payments - error: ${(e as Error).message}`
+      );
+    }
+  }
+
+  async getExpiredPaymentIntentIds(limit: number): Promise<string[]> {
+    this._checkInitialisedOrThrow();
+
+    try {
+      const expiresAt = new Date(Date.now() + 30000);
+      const paymentIntents = await this._paymentIntentCollection
+        .find({
+          // TODO: add states that can expire
+          expiresAt: { $lt: expiresAt }
+        })
+        .limit(limit)
+        .toArray();
+
+      return paymentIntents.map((paymentIntent) => paymentIntent.id);
+    } catch (e) {
+      this._logger.error(e);
+      throw new Error(
+        `Unable to get expired payment intents - error: ${(e as Error).message}`
+      );
+    }
+  }
+
+  async getExpiredPayments(
+    limit: number
+  ): Promise<{ paymentId: string; paymentIntentId: string }[]> {
+    this._checkInitialisedOrThrow();
+
+    try {
+      const expiresAt = new Date(Date.now() + 30000);
+      const payments = await this._sentPaymentCollection
+        .find({
+          // TODO: add states that can expire
+          expiresAt: { $lt: expiresAt }
+        })
+        .limit(limit)
+        .toArray();
+
+      return payments.map((payment) => ({
+        paymentId: payment.id,
+        paymentIntentId: payment.paymentIntentId
+      }));
+    } catch (e) {
+      this._logger.error(e);
+      throw new Error(
+        `Unable to get expired payments - error: ${(e as Error).message}`
       );
     }
   }

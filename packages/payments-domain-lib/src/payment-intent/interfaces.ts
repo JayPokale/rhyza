@@ -64,6 +64,7 @@ export interface ISentPayment {
   assetCode: string;
   assetScale: number;
   createdAt: Date;
+  expiresAt: Date;
   cancelledAt?: Date;
   cancelReason?: string;
   quoteId?: string;
@@ -331,4 +332,8 @@ export interface IPaymentIntentRepository {
   storeFinalizedRemoteQuotes(
     updates: FinalizedRemoteQuoteUpdate[]
   ): Promise<void>;
+  getExpiredPaymentIntentIds(limit: number): Promise<string[]>;
+  getExpiredPayments(
+    limit: number
+  ): Promise<{ paymentIntentId: string; paymentId: string }[]>;
 }

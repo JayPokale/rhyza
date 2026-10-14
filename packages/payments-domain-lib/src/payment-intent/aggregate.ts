@@ -35,7 +35,9 @@ import {
   AcceptInboundPaymentCmd,
   FailInboundPaymentCmd,
   MarkInboundPaymentFulfillableCmd,
-  FinalizeInboundPaymentCmd
+  FinalizeInboundPaymentCmd,
+  ExpirePaymentIntentCmd,
+  ExpirePaymentCmd
 } from '../commands';
 import {
   CannotCreateDuplicatePaymentIntentError,
@@ -77,7 +79,11 @@ import {
   InboundPaymentFailedEvent,
   InboundPaymentFinalizedEvent,
   PaymentIntentCompletedPayload,
-  PaymentCompleteFailedAdditionalData
+  PaymentCompleteFailedAdditionalData,
+  PaymentIntentExpiredEvent,
+  PaymentIntentExpireFailedEvent,
+  PaymentExpiredEvent,
+  PaymentExpireFailedEvent
 } from 'payments-public-types-lib';
 
 const fxKey = (
@@ -197,6 +203,12 @@ export class PaymentIntentAggregate {
         paymentIntentIdsSet.add(payload.paymentIntentId);
       } else if (cmd.msgName === FinalizeInboundPaymentCmd.name) {
         const payload = (cmd as FinalizeInboundPaymentCmd).payload;
+        paymentIntentIdsSet.add(payload.paymentIntentId);
+      } else if (cmd.msgName === ExpirePaymentIntentCmd.name) {
+        const payload = (cmd as ExpirePaymentIntentCmd).payload;
+        paymentIntentIdsSet.add(payload.paymentIntentId);
+      } else if (cmd.msgName === ExpirePaymentCmd.name) {
+        const payload = (cmd as ExpirePaymentCmd).payload;
         paymentIntentIdsSet.add(payload.paymentIntentId);
       }
     }
@@ -381,6 +393,12 @@ export class PaymentIntentAggregate {
         event = this.handleFinalizeInboundPaymentCommand(
           cmd as FinalizeInboundPaymentCmd
         );
+      } else if (cmd.msgName === ExpirePaymentIntentCmd.name) {
+        event = this.handleExpirePaymentIntentCommand(
+          cmd as ExpirePaymentIntentCmd
+        );
+      } else if (cmd.msgName === ExpirePaymentCmd.name) {
+        event = this.handleExpirePaymentCommand(cmd as ExpirePaymentCmd);
       } else {
         throw new Error('Unexpected command');
       }
@@ -1927,6 +1945,67 @@ export class PaymentIntentAggregate {
         },
         cmd.requestId
       );
+    }
+  }
+
+  private handleExpirePaymentIntentCommand(cmd: ExpirePaymentIntentCmd) {
+    this._logger.debug(
+      `handleExpirePaymentIntentCommand — paymentIntentId: ${cmd.payload.paymentIntentId}`
+    );
+    const { paymentIntentId } = cmd.payload;
+    try {
+      const paymentIntentObj = this.paymentIntentMap.get(paymentIntentId);
+      if (!paymentIntentObj) {
+        throw new PaymentIntentNotFoundError(
+          `Payment intent ${paymentIntentId} not found`
+        );
+      }
+
+      const paymentIntent = PaymentIntent.fromObject(paymentIntentObj);
+      paymentIntent.expire();
+      this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
+      return new PaymentIntentExpiredEvent(
+        {
+          paymentIntentId: paymentIntent.id,
+          state: paymentIntent.state
+        },
+        cmd.requestId
+      );
+    } catch (err) {
+      return new PaymentIntentExpireFailedEvent({
+        paymentIntentId: cmd.payload.paymentIntentId,
+        ...getErrorDetails(err)
+      });
+    }
+  }
+
+  private handleExpirePaymentCommand(cmd: ExpirePaymentCmd) {
+    this._logger.debug(
+      `handleExpirePaymentCommand — paymentId: ${cmd.payload.paymentId} paymentIntentId: ${cmd.payload.paymentIntentId}`
+    );
+    const { paymentId, paymentIntentId } = cmd.payload;
+    try {
+      const paymentIntentObj = this.paymentIntentMap.get(paymentIntentId);
+      if (!paymentIntentObj) {
+        throw new PaymentIntentNotFoundError(
+          `Payment intent ${paymentIntentId} not found`
+        );
+      }
+      const paymentIntent = PaymentIntent.fromObject(paymentIntentObj);
+      const payment = paymentIntent.expirePayment(paymentId);
+      this.paymentIntentMap.set(paymentIntent.id, paymentIntent.toObject());
+      return new PaymentExpiredEvent(
+        {
+          paymentId: payment.id,
+          paymentIntentId: paymentIntentId
+        },
+        cmd.requestId
+      );
+    } catch (err) {
+      return new PaymentExpireFailedEvent({
+        paymentId: cmd.payload.paymentId,
+        ...getErrorDetails(err)
+      });
     }
   }
 

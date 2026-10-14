@@ -339,6 +339,7 @@ class SentPayment {
   private _assetCode: string;
   private _assetScale: number;
   private _createdAt: Date;
+  private _expiresAt: Date;
   private _debitAmount: bigint;
   private _receiveAmount: bigint;
   private _quoteId?: string;
@@ -360,6 +361,7 @@ class SentPayment {
     assetCode: string;
     assetScale: number;
     createdAt: Date;
+    expiresAt: Date;
     debitAmount: bigint;
     receiveAmount: bigint;
     sentAmount: bigint;
@@ -379,6 +381,7 @@ class SentPayment {
     this._assetCode = args.assetCode;
     this._assetScale = args.assetScale;
     this._createdAt = args.createdAt;
+    this._expiresAt = args.expiresAt;
     this._debitAmount = args.debitAmount;
     this._receiveAmount = args.receiveAmount;
     this._sentAmount = args.sentAmount;
@@ -400,14 +403,19 @@ class SentPayment {
     assetScale: number;
     debitAmount: bigint;
     receiveAmount: bigint;
+    expiresAt?: string;
     quoteId?: string;
     grantId?: string;
     metadata?: Record<string, unknown>;
   }): SentPayment {
+    const resolvedExpiresAt = args.expiresAt
+      ? new Date(args.expiresAt)
+      : new Date(Date.now() + MAX_PAYMENT_INTENT_EXPIRY_MS);
     return new SentPayment({
       ...args,
       state: 'CREATED',
       createdAt: new Date(),
+      expiresAt: resolvedExpiresAt,
       sentAmount: 0n
     });
   }
@@ -422,6 +430,7 @@ class SentPayment {
       assetCode: obj.assetCode,
       assetScale: obj.assetScale,
       createdAt: obj.createdAt,
+      expiresAt: obj.expiresAt,
       debitAmount: obj.debitAmount,
       receiveAmount: obj.receiveAmount,
       sentAmount: obj.sentAmount,
@@ -445,6 +454,7 @@ class SentPayment {
       assetCode: this._assetCode,
       assetScale: this._assetScale,
       createdAt: this._createdAt,
+      expiresAt: this._expiresAt,
       debitAmount: this._debitAmount,
       receiveAmount: this._receiveAmount,
       sentAmount: this._sentAmount,
@@ -557,6 +567,19 @@ class SentPayment {
     if (reason) {
       this._cancelReason = reason;
     }
+  }
+
+  expire(): void {
+    if (
+      this._state !== 'CREATED' &&
+      this._state !== 'PROCESSING' &&
+      this._state !== 'SENDING'
+    ) {
+      throw new PaymentInvalidStateError(
+        `Payment ${this._id} cannot expire from state ${this._state}`
+      );
+    }
+    this._state = 'EXPIRED';
   }
 
   get id(): string {
@@ -1651,6 +1674,28 @@ export class PaymentIntent implements IPaymentIntent {
     }
 
     payment.cancel(reason);
+  }
+
+  expire() {
+    if (this.expiresAt.getTime() < Date.now()) {
+      throw new PaymentIntentInvalidState(
+        `Payment intent ${this.id} is not expired yet: ${this.expiresAt.toISOString()}`
+      );
+    }
+    this._state = 'EXPIRED';
+  }
+
+  expirePayment(paymentId: string) {
+    const payment = this._sentPayments.find(
+      (payment) => payment.id === paymentId
+    );
+    if (!payment) {
+      throw new PaymentNotFoundError(
+        `Payment ${paymentId} not found for ${this.id} payment intent`
+      );
+    }
+    payment.expire();
+    return payment;
   }
 
   get id(): string {
