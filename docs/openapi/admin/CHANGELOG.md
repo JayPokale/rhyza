@@ -1,10 +1,74 @@
-# API Changelog 0.0.10 vs. 0.0.11
+# API Changelog 0.0.12 vs. 0.0.13
 
 
 ## API Changes
 
 ### GET /payment-intents/{intentId}/quotes/{id}
 -  endpoint added
+
+
+### POST /quotes
+- :warning: the response property `debitAmount` became optional for the status `201`
+- :warning: the response property `exchangeRate` became optional for the status `201`
+- :warning: the response property `expiresAt` became optional for the status `201`
+- :warning: the response property `receiveAmount` became optional for the status `201`
+-  added the optional property `errorName` to the response with the `201` status
+-  added the optional property `message` to the response with the `201` status
+-  added the optional property `senderAssetCode` to the response with the `201` status
+-  added the optional property `sourceAmount` to the response with the `201` status
+-  added the required property `createdAt` to the response with the `201` status
+-  added the required property `state` to the response with the `201` status
+
+# API Changelog 0.0.11 vs. 0.0.12
+
+No changes to report, but the specs are different
+
+# API Changelog 0.0.10 vs. 0.0.11
+
+
+## API Changes
+
+### GET /payment-intents/{intentId}/payments/{id}
+- :warning: the response property `receiveAmount` became nullable for the status `200`
+
+
+### GET /payments
+- :warning: the response property `result/items/receiveAmount` became nullable for the status `200`
+
+
+### POST /payments
+- :warning: removed the request property `debitAmount`
+- :warning: removed the request property `id`
+- :warning: removed the request property `metadata`
+- :warning: removed the request property `paymentIntentId`
+- :warning: removed the request property `quoteId`
+- :warning: removed the request property `walletAddress`
+-  added `#/components/schemas/PaymentCreateFromPaymentIntentId, #/components/schemas/PaymentCreateFromPaymentIntentUrl` to the request body `oneOf` list
+
+
+### POST /quotes
+- :warning: removed the request property `debitAmount`
+- :warning: removed the request property `id`
+- :warning: removed the request property `paymentIntentId`
+- :warning: removed the request property `paymentIntentUrl`
+- :warning: removed the request property `receiveAmount`
+- :warning: removed the request property `walletAddress`
+-  added `#/components/schemas/QuoteCreateFromPaymentIntentId, #/components/schemas/QuoteCreateFromPaymentIntentUrl` to the request body `oneOf` list
+
+
+
+
+## Components
+-  removed the schema `PaymentCreate`
+-  removed the schema `QuoteCreate`
+
+
+## Info
+-  a breaking change was detected but the major version did not increase, from `0.0.10` to `0.0.11`
+
+
+
+
 
 # API Changelog 0.0.9 vs. 0.0.10
 

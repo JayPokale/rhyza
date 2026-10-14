@@ -4,8 +4,8 @@ import {
   ErrorResponse,
   GetQuoteRequest,
   Quote,
-  QuoteCreate,
-  QuoteState
+  QuoteState,
+  CreateQuoteRequest
 } from 'admin-client-lib';
 import { randomUUID } from 'crypto';
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
@@ -88,29 +88,14 @@ export async function quoteRoutes(
   const { palClient, paymentsClient } = opts;
 
   server.post<{
-    Body: QuoteCreate;
+    Body: CreateQuoteRequest;
     Reply: Quote | ErrorResponse;
   }>('/quotes', async (request, reply) => {
-    const {
-      walletAddress,
-      debitAmount,
-      receiveAmount,
-      paymentIntentId,
-      paymentIntentUrl
-    } = request.body;
-
-    let incomingPayment:
-      | { incomingPaymentUrl: string }
-      | { incomingPaymentId: string };
-    if (paymentIntentUrl) {
-      incomingPayment = { incomingPaymentUrl: paymentIntentUrl };
-    } else if (paymentIntentId) {
-      incomingPayment = { incomingPaymentId: paymentIntentId };
-    } else {
-      return reply.status(400).send({
-        error: 'Either paymentIntentId or paymentIntentUrl is required'
-      });
-    }
+    const { walletAddress, debitAmount, receiveAmount } = request.body;
+    const paymentIntent =
+      'paymentIntentUrl' in request.body
+        ? { paymentIntentUrl: request.body.paymentIntentUrl }
+        : { paymentIntentId: request.body.paymentIntentId };
 
     const id = request.body.id ?? randomUUID();
 
@@ -125,7 +110,7 @@ export async function quoteRoutes(
     try {
       const result = await paymentsClient.createQuote(
         id,
-        incomingPayment,
+        paymentIntent,
         alias.walletAddressId,
         walletAddress,
         debitAmount ? Number(debitAmount) : undefined,
