@@ -298,6 +298,7 @@ export class QuoteCreateFailedEvent extends PaymentIntentDomainEvent {
 export type PaymentCreatedPayload = {
   id: string;
   paymentIntentId: string;
+  quoteId?: string;
   senderWalletAddress: string;
   senderWalletAddressId: string;
   debitAmount: string | null;
@@ -305,6 +306,7 @@ export type PaymentCreatedPayload = {
   sentAmount: string | null;
   state: SentPaymentState;
   createdAt: Date;
+  expiresAt: Date;
   assetCode: string;
   assetScale: number;
   receiveAssetScale: number;
@@ -524,7 +526,7 @@ export type RemotePaymentPreparedPayload = {
   peerId: string;
   requestId: string;
   debitAmount: string;
-  receiveAmount: string;
+  receiveAmount: string | null;
   assetCode: string;
   assetScale: number;
   sharedSecret: string;
