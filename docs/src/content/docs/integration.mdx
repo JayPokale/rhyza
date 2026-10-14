@@ -69,7 +69,7 @@ The FSP's endpoint must accept `GET` requests. Rhyza always includes the `base` 
 The endpoint must return a JSON response containing the `base` asset and a mapping of exchange rates for other supported assets.
 
 ```bash title="Intra-FSP rate request example"
-GT https://cloud-nine-wallet/rates?base=USD
+GET https://cloud-nine-wallet/rates?base=USD
 ```
 
 ```bash title="Peer rate request example" wrap

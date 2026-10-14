@@ -12,7 +12,7 @@ En el núcleo de Interledger se encuentra el Interledger Protocol (ILP). Es un p
 
 Estos paquetes de datos contienen información sobre un pago. Por lo general, la información sobre un único pago agregado del remitente al destinatario se divide en varios paquetes ILP.
 
-Cada paquete representa un pagaré condicional que afecta los saldos contables financieros entre pares. Los importes se ajustan en función del activo del remitente, el activo del destinatario y el servicio de tipos de cambio configurado de Rafiki. Luego, los montos se utilizan para actualizar la [liquidez entre pares](/es/concepts/accounting) en el libro contable de Rhyza.
+Cada paquete representa un pagaré condicional que afecta los saldos contables financieros entre pares. Los importes se ajustan en función del activo del remitente, el activo del destinatario y el servicio de tipos de cambio configurado de Rhyza. Luego, los montos se utilizan para actualizar la [liquidez entre pares](/es/concepts/accounting) en el libro contable de Rhyza.
 
 ## Pares
 
@@ -48,4 +48,4 @@ El protocolo STREAM es el protocolo de la capa de transporte en la pila del Inte
 
 El conector Interledger de Rhyza admite el envío y la recepción de paquetes STREAM. Los paquetes STREAM se codifican, cifran y envían como el campo de datos en los paquetes ILP. El protocolo utiliza el secreto compartido para autenticar y cifrar los paquetes, y para generar las condiciones y los cumplimientos.
 
-Una función fundamental de STREAM es determinar el tipo de cambio de la ruta y gestionar cualquier cambio en el tipo de cambio. El servicio de tipos de cambio de Rafiki le permite proporcionar información sobre los tipos de cambio.
+Una función fundamental de STREAM es determinar el tipo de cambio de la ruta y gestionar cualquier cambio en el tipo de cambio. El servicio de tipos de cambio de Rhyza le permite proporcionar información sobre los tipos de cambio.
