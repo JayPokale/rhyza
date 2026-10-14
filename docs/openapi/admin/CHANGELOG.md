@@ -6,9 +6,6 @@
 ### GET /payment-intents/{intentId}/quotes/{id}
 -  endpoint added
 
-### POST /quotes
--  updated the response type to be `#/components/schemas/CompletedQuote` for the response status `201`
-
 # API Changelog 0.0.9 vs. 0.0.10
 
 ## API Changes

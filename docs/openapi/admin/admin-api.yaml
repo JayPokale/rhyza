@@ -452,7 +452,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CompletedQuote'
+                $ref: '#/components/schemas/Quote'
         '400':
           description: Either paymentIntentId or paymentIntentUrl is required.
           content:
@@ -1201,10 +1201,10 @@ components:
       required:
         - id
         - paymentIntentId
-        - state
         - senderWalletAddress
         - senderWalletAddressId
         - createdAt
+        - state
       properties:
         id:
           type: string
@@ -1254,22 +1254,6 @@ components:
         message:
           type: string
           description: Human-readable failure message. Set for FAILED quotes.
-    CompletedQuote:
-      description: >-
-        A completed quote. Includes every Quote field, and requires expiresAt,
-        debitAmount, receiveAmount, and exchangeRate.
-      allOf:
-        - $ref: '#/components/schemas/Quote'
-        - type: object
-          required:
-            - id
-            - paymentIntentId
-            - senderWalletAddress
-            - senderWalletAddressId
-            - expiresAt
-            - debitAmount
-            - receiveAmount
-            - exchangeRate
     PaymentCreate:
       type: object
       description: Schema for creating a new payment.

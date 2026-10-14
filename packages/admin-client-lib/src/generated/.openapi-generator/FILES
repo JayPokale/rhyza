@@ -15,7 +15,6 @@ models/AssetCreate.ts
 models/AssetCreateResponse.ts
 models/AssetsResponse.ts
 models/CancelPayment200Response.ts
-models/CompletedQuote.ts
 models/ErrorResponse.ts
 models/FxRateSet.ts
 models/JsonWebKey.ts

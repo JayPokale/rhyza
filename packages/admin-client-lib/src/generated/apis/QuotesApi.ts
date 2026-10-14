@@ -14,11 +14,6 @@
 
 import * as runtime from '../runtime';
 import {
-    type CompletedQuote,
-    CompletedQuoteFromJSON,
-    CompletedQuoteToJSON,
-} from '../models/CompletedQuote';
-import {
     type ErrorResponse,
     ErrorResponseFromJSON,
     ErrorResponseToJSON,
@@ -81,18 +76,18 @@ export class QuotesApi extends runtime.BaseAPI {
      * Create a quote for a payment intent.
      * Create Quote
      */
-    async createQuoteRaw(requestParameters: CreateQuoteRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<CompletedQuote>> {
+    async createQuoteRaw(requestParameters: CreateQuoteRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<Quote>> {
         const requestOptions = await this.createQuoteRequestOpts(requestParameters);
         const response = await this.request(requestOptions, initOverrides);
 
-        return new runtime.JSONApiResponse(response, (jsonValue) => CompletedQuoteFromJSON(jsonValue));
+        return new runtime.JSONApiResponse(response, (jsonValue) => QuoteFromJSON(jsonValue));
     }
 
     /**
      * Create a quote for a payment intent.
      * Create Quote
      */
-    async createQuote(quoteCreate: QuoteCreate, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<CompletedQuote> {
+    async createQuote(quoteCreate: QuoteCreate, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Quote> {
         const response = await this.createQuoteRaw({ quoteCreate: quoteCreate }, initOverrides);
         return await response.value();
     }

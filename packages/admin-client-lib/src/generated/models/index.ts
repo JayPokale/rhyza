@@ -7,7 +7,6 @@ export * from './AssetCreate';
 export * from './AssetCreateResponse';
 export * from './AssetsResponse';
 export * from './CancelPayment200Response';
-export * from './CompletedQuote';
 export * from './ErrorResponse';
 export * from './FxRateSet';
 export * from './JsonWebKey';
