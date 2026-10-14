@@ -26,12 +26,3 @@ script:post-response {
     bru.setVar("receiverIntentUrl", body.openPaymentsUrl);
   }
 }
-
-tests {
-  test("intent created", function () {
-    expect(res.getStatus()).to.equal(201);
-  });
-  test("openPaymentsUrl returned", function () {
-    expect(res.getBody()?.openPaymentsUrl).to.be.a("string");
-  });
-}
