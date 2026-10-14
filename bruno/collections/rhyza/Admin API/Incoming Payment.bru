@@ -1,7 +1,7 @@
 meta {
   name: Create Payment Intent
   type: http
-  seq: 4
+  seq: 5
 }
 
 post {
@@ -19,7 +19,7 @@ body:json {
 
 script:post-response {
   const body = res.getBody();
-
+  
   if (body?.id) {
     bru.setVar("paymentIntentId", body.id);
   }
