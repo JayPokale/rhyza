@@ -1,3 +1,11 @@
+# API Changelog 0.0.13 vs. 0.0.14
+
+## API Changes
+
+### POST /peers/{id}/activate
+
+- endpoint added
+
 # API Changelog 0.0.12 vs. 0.0.13
 
 ## API Changes
