@@ -74,7 +74,7 @@ export class PeersApi extends runtime.BaseAPI {
     }
 
     /**
-     * Activate a peer that was deactivated, for example by the rollback of a failed peer creation. The peer is activated in PAL, and the ILP connector uses it again once the activation reaches the ILP service. Activating a peer that is already active returns 409.
+     * Activate a peer that was deactivated, for example by the rollback of a failed peer creation. The ILP connector uses it again once the activation takes effect. Activating a peer that is already active returns 409.
      * Activate Peer
      */
     async activatePeerRaw(requestParameters: ActivatePeerRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<void>> {
@@ -85,7 +85,7 @@ export class PeersApi extends runtime.BaseAPI {
     }
 
     /**
-     * Activate a peer that was deactivated, for example by the rollback of a failed peer creation. The peer is activated in PAL, and the ILP connector uses it again once the activation reaches the ILP service. Activating a peer that is already active returns 409.
+     * Activate a peer that was deactivated, for example by the rollback of a failed peer creation. The ILP connector uses it again once the activation takes effect. Activating a peer that is already active returns 409.
      * Activate Peer
      */
     async activatePeer(id: string, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<void> {

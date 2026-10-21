@@ -72,8 +72,8 @@ paths:
       summary: Activate Peer
       description: >-
         Activate a peer that was deactivated, for example by the rollback of a
-        failed peer creation. The peer is activated in PAL, and the ILP
-        connector uses it again once the activation reaches the ILP service.
+        failed peer creation. The ILP connector uses it again once the
+        activation takes effect.
         Activating a peer that is already active returns 409.
       tags:
         - peers
