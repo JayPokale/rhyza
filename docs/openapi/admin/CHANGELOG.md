@@ -1,8 +1,16 @@
-# API Changelog 0.0.12 vs. 0.0.13
+# API Changelog 0.0.13 vs. 0.0.14
 
 ## API Changes
 
 ### POST /peers/{id}/deactivate
+
+- endpoint added
+
+# API Changelog 0.0.12 vs. 0.0.13
+
+## API Changes
+
+### GET /grant/{id}
 
 - endpoint added
 
@@ -96,6 +104,14 @@ No changes to report, but the specs are different
 ## API Changes
 
 ### POST /wallet-addresses/{id}/deactivate
+
+- endpoint added
+
+# API Changelog 0.0.4 vs. 0.0.5
+
+## API Changes
+
+### GET /grant/{id}
 
 - endpoint added
 
