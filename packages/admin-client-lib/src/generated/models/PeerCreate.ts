@@ -28,7 +28,7 @@ import {
  */
 export interface PeerCreate {
     /**
-     * The unique identifier for the peer, shared by PAL and ILP.
+     * The unique identifier for the peer.
      * @type {string}
      * @memberof PeerCreate
      */

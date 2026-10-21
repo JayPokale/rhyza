@@ -72,7 +72,7 @@ export class PeersApi extends runtime.BaseAPI {
     }
 
     /**
-     * Create a new ILP peer. Creates the peer in both PAL (asset, settlement, static ILP address) and ILP (connector transport config) with the same peer id.
+     * Create a new ILP peer with its asset, settlement and static ILP address, and its ILP connector transport configuration.
      * Create Peer
      */
     async createPeerRaw(requestParameters: CreatePeerRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<PeerCreateResponse>> {
@@ -83,7 +83,7 @@ export class PeersApi extends runtime.BaseAPI {
     }
 
     /**
-     * Create a new ILP peer. Creates the peer in both PAL (asset, settlement, static ILP address) and ILP (connector transport config) with the same peer id.
+     * Create a new ILP peer with its asset, settlement and static ILP address, and its ILP connector transport configuration.
      * Create Peer
      */
     async createPeer(peerCreate: PeerCreate, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<PeerCreateResponse> {
@@ -119,7 +119,7 @@ export class PeersApi extends runtime.BaseAPI {
     }
 
     /**
-     * Deactivate a peer. The peer is deactivated in PAL, and the ILP connector stops using it once the deactivation reaches the ILP service. Deactivating a peer that is already inactive returns 409.
+     * Deactivate a peer. The ILP connector stops using it once the deactivation takes effect. Deactivating a peer that is already inactive returns 409.
      * Deactivate Peer
      */
     async deactivatePeerRaw(requestParameters: DeactivatePeerRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<void>> {
@@ -130,7 +130,7 @@ export class PeersApi extends runtime.BaseAPI {
     }
 
     /**
-     * Deactivate a peer. The peer is deactivated in PAL, and the ILP connector stops using it once the deactivation reaches the ILP service. Deactivating a peer that is already inactive returns 409.
+     * Deactivate a peer. The ILP connector stops using it once the deactivation takes effect. Deactivating a peer that is already inactive returns 409.
      * Deactivate Peer
      */
     async deactivatePeer(id: string, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<void> {

@@ -33,9 +33,8 @@ paths:
     post:
       summary: Create Peer
       description: >-
-        Create a new ILP peer. Creates the peer in both PAL (asset,
-        settlement, static ILP address) and ILP (connector transport config)
-        with the same peer id.
+        Create a new ILP peer with its asset, settlement and static ILP address,
+        and its ILP connector transport configuration.
       tags:
         - peers
       operationId: createPeer
@@ -55,8 +54,8 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '502':
           description: >-
-            Peer was created in PAL but ILP connector configuration failed;
-            the PAL peer has been deactivated. Retry the request.
+            The peer was created but its ILP connector configuration failed,
+            so the peer has been deactivated. Retry the request.
           content:
             application/json:
               schema:
@@ -72,9 +71,9 @@ paths:
     post:
       summary: Deactivate Peer
       description: >-
-        Deactivate a peer. The peer is deactivated in PAL, and the ILP
-        connector stops using it once the deactivation reaches the ILP
-        service. Deactivating a peer that is already inactive returns 409.
+        Deactivate a peer. The ILP connector stops using it once the
+        deactivation takes effect. Deactivating a peer that is already
+        inactive returns 409.
       tags:
         - peers
       operationId: deactivatePeer
@@ -297,7 +296,7 @@ paths:
         - name: id
           in: path
           required: true
-          description: The PAL identifier of the wallet address.
+          description: The identifier of the wallet address.
           schema:
             type: string
         - name: keyId
@@ -974,7 +973,7 @@ components:
       properties:
         id:
           type: string
-          description: The unique identifier for the peer, shared by PAL and ILP.
+          description: The unique identifier for the peer.
         name:
           type: string
           description: A human-readable name for the peer.
